@@ -20,6 +20,15 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 100 nhân vật 3D dựng sẵn (bản 1.7)
+
+Bản phát hành có sẵn `public/models/char01.glb` … `char100.glb`: 100 người 3D (MakeHuman, giấy phép CC0) dựng theo `roster.csv` — giới tính, tuổi, dáng người, kiểu tóc/màu tóc, quần áo, giày theo mô tả. Mỗi file ~3 MB, **chỉ tải khi có người xem nhận vai đó** nên game vẫn mở nhanh.
+
+- Tự dựng lại / dựng thêm (cần Blender 4.2+ có add-on MPFB 2 và bộ asset MakeHuman):
+  1. `python3 tools/makehuman/roster_to_specs.py roster.csv specs.json`
+  2. Với từng dòng trong `specs.json`: `S=<thư mục asset> OUT=public/models/charXX.glb SPEC='<json dòng đó>' blender -b -P tools/makehuman/gen_character.py`
+- Còn gần đúng: áo dài được thay bằng áo + đầm suông (nữ) / áo dài tay (nam), chưa có khăn đóng; đầm hoa hiện màu trơn. Muốn đẹp hơn cho vai nào, thay file `charXX.glb` bằng mô hình riêng (VRoid, Ready Player Me…).
+
 ## Danh sách nhân vật của bạn (bản 1.6)
 
 File `roster.csv` (cột `ID, Name, Gender, Age, Outfit, Dance Style, Personality`) — 100 nhân vật có sẵn. Mỗi người xem lên sàn **nhập vai** một nhân vật chưa có ai nhận:
