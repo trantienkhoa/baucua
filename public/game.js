@@ -6,6 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, avatarTemplates } from './avatars.js';
 
 const W = 1080, H = 1920;
 const PI = Math.PI, TAU = PI * 2;
@@ -583,7 +584,7 @@ function handleCommand(d, text) {
   if (num) { const n = +num[1]; if (n >= 1 && n <= DANCES.length) { d.dance = n - 1; sparkle(d, 6); } return; }
   if (/\bdi vong\b|\bdi dao\b/.test(t)) { d.mode = 'circle'; d.modeStart = now(); d.modeUntil = now() + 10; d.circleA = Math.random() * TAU; return; }
   if (/\bghep doi\b/.test(t)) { makePair(d); return; }
-  if (/\bdoi do\b|\bthay do\b/.test(t)) { d.look = randomLook(d.body.female, d.look); sparkle(d, 14); return; }
+  if (/\bdoi do\b|\bthay do\b/.test(t)) { d.look = randomLook(d.body.female, d.look); if (d.av) restyle(d.av); sparkle(d, 14); return; }
   for (const [k, i] of DANCE_KEYS) {
     if (k.length < 2) continue;
     if (t === k || t.startsWith(k + ' ') || t.endsWith(' ' + k) || t.includes(' ' + k + ' ')) { d.dance = i; sparkle(d, 6); return; }
@@ -630,7 +631,7 @@ function startAction(z) {
   const d = z.d, t = now();
   d.lastActive = t;
   switch (z.id) {
-    case 'outfit': d.look = randomLook(d.body.female, d.look); sparkle(d, 30); break;
+    case 'outfit': d.look = randomLook(d.body.female, d.look); if (d.av) restyle(d.av); sparkle(d, 30); break;
     case 'catwalk': d.mode = 'catwalk'; d.modeStart = t; d.modeUntil = t + Math.max(z.dur, 7); d.tx = 0; d.tz = 1; break;
     case 'jump': d.jumpStart = t; break;
     case 'fireworks': for (let i = 0; i < 6; i++) setTimeout(launchRocket, i * 300); break;
@@ -640,7 +641,7 @@ function startAction(z) {
     case 'clone':
       for (let i = 0; i < 3; i++) {
         const c = new Dancer({ id: d.id + '#c' + Math.random(), name: d.name, avatar: d.avatar }, { clone: true, cloneUntil: t + 25 });
-        c.body = d.body; c.look = d.look; c.dance = d.dance;
+        c.body = d.body; c.look = d.look; c.dance = d.dance; c.avT = d.av && d.av.t;
         c.x = clamp(d.x + (i - 1) * 0.3, -0.9, 0.9); c.tx = c.x; c.z = clamp(d.z + rand(-0.12, 0.12), 0, 1); c.tz = c.z;
         clones.push(c);
       }
@@ -775,6 +776,7 @@ const _m = new THREE.Matrix4(), _m2 = new THREE.Matrix4(), _sv = new THREE.Vecto
 const WHITE = new THREE.Color(1, 1, 1);
 function writeInstances(d, t, alpha) {
   for (const p of PARTS) {
+    if (d.av && p.name !== 'crown') continue;
     if (p.when && !p.when(d)) continue;
     const nodes = Array.isArray(p.node) ? p.node : [p.node];
     for (const nn of nodes) {
@@ -927,8 +929,8 @@ function update(t, dt) {
     const tier = tierOf(d.coins);
     d._crown = t < d.crownUntil || (tier && tier.name !== 'Quý Tộc');
   }
-  for (const [id, d] of dancers) if (d.leaving && t - d.leaving > 1.2) dancers.delete(id);
-  for (let i = clones.length - 1; i >= 0; i--) if (clones[i].leaving && t - clones[i].leaving > 1.2) clones.splice(i, 1);
+  for (const [id, d] of dancers) if (d.leaving && t - d.leaving > 1.2) { disposeAvatar(d.av); d.av = null; dancers.delete(id); }
+  for (let i = clones.length - 1; i >= 0; i--) if (clones[i].leaving && t - clones[i].leaving > 1.2) { disposeAvatar(clones[i].av); clones.splice(i, 1); }
 
   for (let i = rockets.length - 1; i >= 0; i--) {
     const r = rockets[i]; r.y += r.vy * dt; r.vy += 600 * dt;
@@ -1221,6 +1223,7 @@ function resize() {
 }
 
 const visible = [];
+const _hp = new THREE.Vector3(), _ht = new THREE.Vector3();
 function frame() {
   const t = now(); const dt = Math.min(0.1, t - lastT); lastT = t;
   update(t, dt);
@@ -1245,6 +1248,14 @@ function frame() {
     poseRig(d, pose, b, t, !airborne || d.mode === 'cloud');
     if (d.mode === 'rocket' || (d.dropH > 0)) { rig.root.position.y = b.y; rig.root.updateMatrixWorld(true); d._head.set(0, HEAD_Y + HEAD_R + 0.06, 0).applyMatrix4(rig.head.matrixWorld); }
     const alpha = d.leaving ? clamp(1 - (t - d.leaving) / 1.2, 0.001, 1) : 1;
+    const real = avatarTemplates.length > 0 && S.charStyle !== 'toon' && S.quality !== 'low';
+    if (real && !d.av) d.av = createAvatar(scene, d.body.female, d.avT);
+    else if (!real && d.av) { disposeAvatar(d.av); d.av = null; }
+    if (d.av) {
+      _hp.set(0, HEAD_Y, 0).applyMatrix4(rig.head.matrixWorld);
+      _ht.set(0, HEAD_Y + 0.3, 0).applyMatrix4(rig.head.matrixWorld);
+      driveAvatar(d.av, rig, { yaw: rig.root.rotation.y, scale: d.body.h * d.sc, hipH0: 0.88, flat: !pose.rot && !pose.sit, alpha, floorY: b.y, headPt: _hp, headTop: _ht });
+    }
     writeInstances(d, t, alpha);
     d._sp = screenOf(d);
     const rx = rig.root.position.x, ry = rig.root.position.y, rz = rig.root.position.z;
@@ -1303,7 +1314,7 @@ socket.on('ev', ev => {
   } catch (e) { console.error(e); }
 });
 socket.on('cmd', c => {
-  if (c.type === 'clear') { dancers.clear(); clones.length = 0; zoomQueue.length = 0; zoom = null; heat = 0; fireUntil = 0; djOverride = null; }
+  if (c.type === 'clear') { for (const d of [...dancers.values(), ...clones]) disposeAvatar(d.av); dancers.clear(); clones.length = 0; zoomQueue.length = 0; zoom = null; heat = 0; fireUntil = 0; djOverride = null; }
   if (c.type === 'endZoom') zoom = null;
   if (c.type === 'fire') heat = curHeatTarget + 1;
   if (c.type === 'reload') location.reload();
@@ -1320,6 +1331,7 @@ resident.look = randomLook(false); resident.look.top = 'bomber'; resident.look.h
 resident.look.c.jacket = resident.look.c.uarm = resident.look.c.farm = col('#1b1b1f'); resident.look.c.shirt = resident.look.c.torso = col('#ff3d8b');
 window.addEventListener('resize', resize);
 resize();
+fetch('/api/models').then(r => r.json()).then(list => loadAvatars(list.map(f => '/models/' + encodeURIComponent(f)))).then(t => console.log('Đã nạp', t.length, 'mô hình người')).catch(e => console.warn(e));
 Music.init();
 const tap = document.getElementById('tap');
 function checkAudio() { tap.style.display = Music.suspended() && !OBS && (Music.settings.musicEnabled || Music.settings.synthMusic) ? 'flex' : 'none'; }

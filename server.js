@@ -44,6 +44,7 @@ const DEFAULT_SETTINGS = {
   apiKey: '',
   autoReconnect: true,
   quality: 'high',          // high | medium | low
+  charStyle: 'real',        // real = người thật (mô hình .glb) | toon = hoạt hình nhẹ
   musicEnabled: true,       // phát bài đã tải lên
   synthMusic: true,         // chưa có bài → máy tự đánh nhạc
   volume: 0.35,
@@ -152,6 +153,10 @@ function musicList() {
 }
 app.get('/api/info', (req, res) => res.json({ port: PORT, ips: lanIPs(), actions: ACTIONS, version: require('./package.json').version }));
 app.get('/api/music', (req, res) => res.json(musicList()));
+app.get('/api/models', (req, res) => {
+  const dir = path.join(__dirname, 'public', 'models');
+  try { res.json(fs.readdirSync(dir).filter(f => /\.glb$/i.test(f)).sort()); } catch { res.json([]); }
+});
 const upload = multer({
   storage: multer.diskStorage({
     destination: MUSIC,

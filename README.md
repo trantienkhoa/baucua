@@ -33,6 +33,18 @@ Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dù
 - **Trang phục hiện đại** theo phong cách streetwear: hoodie có dây rút + mũ trùm, áo khoác jean, áo bomber, áo thun in hình, áo ba lỗ, áo crop; quần jean, jogger bo gấu, quần túi hộp, quần ống rộng, quần short, váy xếp ly, đầm dạ tiệc; sneaker đế trắng; mũ lưỡi trai (xuôi/ngược), mũ len, mũ bucket; tai nghe đeo cổ, dây chuyền vàng, kính râm.
 - Cần máy có card đồ hoạ / WebGL. Trong OBS nhớ bật tăng tốc phần cứng cho Browser Source.
 
+## Nhân vật người thật
+
+Mặc định nhân vật là **người thật 3D** nạp từ các file `.glb` trong `public/models/`. 14 điệu nhảy điều khiển trực tiếp khung xương của mô hình, nên **thêm mô hình mới là tự nhảy được**:
+
+- Chép file `.glb` có khung xương người chuẩn Mixamo hoặc Ready Player Me (tên xương `Hips, Spine, LeftArm…`, có hoặc không có tiền tố `mixamorig:`) vào `public/models/`.
+- Tên file có `nu`/`female` → dùng cho người xem nữ, còn lại cho nam. Mỗi người lên sàn được chọn ngẫu nhiên một mô hình.
+- Mixamo (miễn phí, cần tài khoản Adobe) chỉ xuất `.fbx`: dùng Blender (File → Import FBX → Export glTF .glb) để đổi sang `.glb`.
+
+Hai mô hình có sẵn lấy từ bộ ví dụ của three.js (nhân vật Mixamo “Michelle” và một avatar Ready Player Me). Tài sản này thuộc giấy phép của Adobe Mixamo / Ready Player Me, dùng phát LIVE cá nhân được; nếu bán game cho người khác, hãy thay bằng mô hình bạn có quyền dùng.
+
+Máy yếu: ở trang điều khiển chọn **Kiểu nhân vật → Hoạt hình (nhẹ máy)** hoặc giảm **Số chỗ trên sàn** (khuyên dùng 60–100 người với nhân vật thật).
+
 Dữ liệu (cài đặt, nhạc, hình quà) lưu trong thư mục `data/`.
 
 > Game không kèm nhạc. Nên dùng nhạc miễn phí bản quyền (NCS, StreamBeats, Pixabay…). Chủ kênh tự chịu trách nhiệm về nội dung phát sóng và tuân thủ Tiêu chuẩn cộng đồng của TikTok.
