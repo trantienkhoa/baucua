@@ -4,8 +4,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
-import { applyCostume, randomCostumeId, animateCostume, costumeTime, COSTUMES } from './costumes.js';
-export { COSTUMES, costumeTime };
+import { applyCostume, randomCostumeId, animateCostume, costumeTime, COSTUMES, setExtra } from './costumes.js';
+export { COSTUMES, costumeTime, setExtra };
 
 // chuẩn hoá tên xương từ nhiều phần mềm về tên kiểu Mixamo
 // (Mixamo, Ready Player Me, VRoid/VRM, Unreal, Blender/Rigify, Character Creator, Meshy/Tripo/Accurig…)
@@ -368,6 +368,7 @@ export function restyle(av) {
 export function disposeAvatar(av) {
   if (!av) return;
   applyCostume(av, null);
+  setExtra(av, 'crown', false); setExtra(av, 'wings', false);
   av.holder.parent && av.holder.parent.remove(av.holder);
   for (const m of av.mats) m.dispose();
   av.root.traverse(o => { if (o.isSkinnedMesh && o.skeleton) o.skeleton.dispose(); });

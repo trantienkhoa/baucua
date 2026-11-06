@@ -217,10 +217,29 @@ export function applyCostume(av, id) {
 }
 export function randomCostumeId() { return pick(COSTUMES).id; }
 
+// đạo cụ phụ từ quà (vương miện, đôi cánh) — gắn/bỏ độc lập với hoá trang
+export function setExtra(av, key, on) {
+  av.extras = av.extras || {};
+  const cur = av.extras[key];
+  if (!!cur === !!on) return;
+  if (cur) { cur.parent && cur.parent.remove(cur); cur.traverse(x => { if (x.geometry) x.geometry.dispose(); }); delete av.extras[key]; return; }
+  const t = av.t;
+  const bone = key === 'crown' ? 'Head' : 'Spine2';
+  const b = av.bones[bone]; if (!b || !t.restWorld[bone]) return;
+  const holder = new THREE.Object3D();
+  _q.copy(t.restWorld[bone]).invert();
+  if (t.flip) _q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), PI));
+  holder.quaternion.copy(_q);
+  holder.scale.setScalar(1 / (t.norm * (t.boneScale[bone] || 1)));
+  holder.add(key === 'crown' ? P.crown(t.headLen) : P.wingsPair(0xffffff));
+  b.add(holder);
+  av.extras[key] = holder;
+}
+
 // chuyển động nhỏ: đuôi vẫy, cánh vỗ
 export function animateCostume(av, t) {
-  if (!av.costumeObjs) return;
-  for (const h of av.costumeObjs) {
+  const list = [...(av.costumeObjs || []), ...Object.values(av.extras || {})];
+  for (const h of list) {
     const o = h.children[0];
     if (!o) continue;
     if (o.userData.wag) o.rotation.y = Math.sin(t * 4 + (av.seed || 0)) * 0.4;

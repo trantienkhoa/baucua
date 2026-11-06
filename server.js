@@ -46,6 +46,9 @@ const DEFAULT_SETTINGS = {
   quality: 'high',          // high | medium | low
   charStyle: 'real',
   costumeRate: 50,          // % người lên sàn được hoá trang sẵn
+  ledShow: true,            // người tặng quà lớn được chiếu lên màn LED
+  ledCoins: 99,             // từ bao nhiêu xu thì lên màn LED
+  ledSeconds: 12,           // thời gian chiếu mỗi người
   musicEnabled: true,       // phát bài đã tải lên
   synthMusic: true,         // chưa có bài → máy tự đánh nhạc
   volume: 0.35,
@@ -393,6 +396,12 @@ io.on('connection', socket => {
       broadcast({ type: 'chat', user: testUser(Math.max(1, Math.floor(Math.random() * Math.max(1, testN)))), text: String(t.text || '').slice(0, 80) });
     } else if (t.kind === 'like') {
       broadcast({ type: 'like', user: testUser(1), count: Number(t.n) || 30 });
+    } else if (t.kind === 'biggift') {
+      const user = testUser(Math.max(1, Math.floor(Math.random() * Math.max(1, testN))) || 1);
+      const g = { name: 'Quà lớn thử', diamonds: Number(t.value) || 500, img: '' };
+      const total = addCoins(user, g.diamonds);
+      broadcast({ type: 'gift', user, gift: g, count: 1, value: g.diamonds, total, forceAction: 'camera' });
+      io.emit('top', topList());
     } else if (t.kind === 'gift') {
       const a = settings.actions.find(x => x.id === t.action);
       const giftName = (a && a.gift) || 'Quà thử';

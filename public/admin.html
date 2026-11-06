@@ -160,6 +160,7 @@
       <button id="tJoin">+10 khách thử</button>
       <button id="tJoin50">+50 khách thử</button>
       <button id="tLike">❤️ Thả 50 tim</button>
+      <button id="tBig">📺 Quà lớn (500 xu)</button>
       <input id="tText" type="text" placeholder="bình luận thử, vd: disco" style="width:220px">
       <button id="tChat">Gửi bình luận</button>
     </div>
@@ -177,6 +178,9 @@ const FIELDS = [
   ['quality', '✨ Mức hiệu ứng', 'select', [['high', 'Mạnh (máy mạnh)'], ['medium', 'Vừa'], ['low', 'Nhẹ (máy yếu)']]],
   ['charStyle', '🧍 Kiểu nhân vật', 'select', [['real', 'Người thật 3D'], ['toon', 'Hoạt hình (nhẹ máy)']]],
   ['costumeRate', '🦸 % người hoá trang sẵn (0–100)', 'num', 5],
+  ['ledShow', '📺 Người tặng quà lớn lên màn LED', 'check'],
+  ['ledCoins', '📺 Lên màn LED từ (xu)', 'num', 1],
+  ['ledSeconds', '📺 Thời gian trên màn LED (giây)', 'num', 1],
   ['musicEnabled', 'Phát nhạc đã tải lên', 'check'],
   ['synthMusic', 'Chưa có bài → máy tự đánh nhạc', 'check'],
   ['volume', 'Âm lượng nhạc (0–1)', 'num', 0.05],
@@ -311,6 +315,7 @@ $('btnResetTop').onclick = () => { if (confirm('Xoá bảng top tặng quà?')) 
 $('tJoin').onclick = () => socket.emit('test', { kind: 'join', n: 10 });
 $('tJoin50').onclick = () => socket.emit('test', { kind: 'join', n: 50 });
 $('tLike').onclick = () => socket.emit('test', { kind: 'like', n: 50 });
+$('tBig').onclick = () => socket.emit('test', { kind: 'biggift', value: 500 });
 $('tChat').onclick = () => socket.emit('test', { kind: 'chat', text: $('tText').value });
 $('tText').onkeydown = e => { if (e.key === 'Enter') $('tChat').click(); };
 $('musicFile').onchange = async e => {

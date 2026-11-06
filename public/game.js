@@ -6,7 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates, setCostume, randomCostumeId, COSTUMES, costumeTime } from './avatars.js';
+import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates, setCostume, randomCostumeId, COSTUMES, costumeTime, setExtra } from './avatars.js';
 
 const W = 1080, H = 1920;
 const PI = Math.PI, TAU = PI * 2;
@@ -159,6 +159,85 @@ scene.add(bulbs);
 const ledTex = canvasTex(512, 224, () => {});
 const led = new THREE.Mesh(new THREE.PlaneGeometry(13, 5.7), new THREE.MeshBasicMaterial({ map: ledTex, toneMapped: false }));
 led.position.set(0, STAGE_Y + 3.3, -10.3); scene.add(led);
+// ---- "lên màn LED": quay trực tiếp người tặng quà lớn ----
+const ledRT = new THREE.WebGLRenderTarget(768, 336, { samples: 2 });
+ledRT.texture.colorSpace = THREE.LinearSRGBColorSpace;
+const ledCam = new THREE.PerspectiveCamera(30, 13 / 5.7, 0.1, 60);
+const ledLiveMat = new THREE.MeshBasicMaterial({ map: ledRT.texture, toneMapped: true });
+const ledIdleMat = led.material;
+const ledOverTex = canvasTex(1024, 448, () => {});
+const ledOver = new THREE.Mesh(new THREE.PlaneGeometry(13, 5.7), new THREE.MeshBasicMaterial({ map: ledOverTex, transparent: true, toneMapped: false, depthWrite: false }));
+ledOver.position.set(0, STAGE_Y + 3.3, -10.27); ledOver.visible = false; scene.add(ledOver);
+const ledQueue = [];
+let ledShow = null;   // { d, gift, count, value, until, start, drawn }
+function drawLedOverlay(sh, t) {
+  const { g, canvas: c } = ledOverTex.userData;
+  g.clearRect(0, 0, c.width, c.height);
+  const W2 = c.width, H2 = c.height;
+  // khung vàng nhấp nháy
+  const gr = g.createLinearGradient(0, 0, W2, 0); gr.addColorStop(0, '#ffcf33'); gr.addColorStop(0.5, '#ff3d9a'); gr.addColorStop(1, '#ffcf33');
+  g.lineWidth = 16; g.strokeStyle = gr; g.strokeRect(8, 8, W2 - 16, H2 - 16);
+  // dải tên phía dưới
+  const bh = 104;
+  const bg = g.createLinearGradient(0, H2 - bh, 0, H2); bg.addColorStop(0, 'rgba(40,6,70,0.88)'); bg.addColorStop(1, 'rgba(15,2,30,0.95)');
+  g.fillStyle = bg; g.fillRect(16, H2 - bh - 16, W2 - 32, bh);
+  // ảnh đại diện
+  const r = 70, ax = 30 + r, ay = H2 - 16 - bh / 2 - 18;
+  g.fillStyle = '#ffcf33'; g.beginPath(); g.arc(ax, ay, r + 7, 0, TAU); g.fill();
+  g.save(); g.beginPath(); g.arc(ax, ay, r, 0, TAU); g.clip();
+  const im = img(sh.d.avatar);
+  if (im) g.drawImage(im, ax - r, ay - r, r * 2, r * 2);
+  else { g.fillStyle = '#5b3bb0'; g.fillRect(ax - r, ay - r, r * 2, r * 2); g.fillStyle = '#fff'; g.font = `900 70px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(((sh.d.name || '?').trim()[0] || '?').toUpperCase(), ax, ay + 4); }
+  g.restore();
+  const tier = tierOf(sh.d.coins);
+  g.textAlign = 'left'; g.textBaseline = 'middle';
+  g.font = `900 46px ${FONT}`; g.fillStyle = '#ffffff';
+  let name = sh.d.name; while (g.measureText(name).width > 560 && name.length > 2) name = name.slice(0, -2) + '…';
+  g.fillText((tier ? '👑 ' : '') + name, ax + r + 26, H2 - 16 - bh / 2 - 14);
+  g.font = `700 28px ${FONT}`; g.fillStyle = '#ffe9a8';
+  g.fillText(`tặng ${sh.count > 1 ? sh.count + '× ' : ''}${sh.gift.name} · ${sh.value}💎${tier ? ' · ' + tier.name : ''}`, ax + r + 26, H2 - 16 - bh / 2 + 28);
+  // chữ cảm ơn
+  g.textAlign = 'right'; g.font = `900 40px ${FONT}`;
+  g.fillStyle = `hsl(${(t * 120) % 360},100%,70%)`;
+  g.fillText('CẢM ƠN! 💖', W2 - 40, H2 - 16 - bh / 2);
+  // nhãn LIVE
+  g.fillStyle = '#ff2d55'; g.fillRect(36, 34, 120, 46); g.fillStyle = '#fff'; g.font = `900 30px ${FONT}`; g.textAlign = 'center'; g.fillText('● LIVE', 96, 58);
+  ledOverTex.needsUpdate = true;
+}
+function updateLedShow(t, dt) {
+  if (ledShow && (t > ledShow.until || !dancers.has(ledShow.d.id))) ledShow = null;
+  if (!ledShow && ledQueue.length) { ledShow = ledQueue.shift(); ledShow.start = t; ledShow.until = t + Math.max(4, Number(S.ledSeconds) || 12); ledCam.position.set(0, 3, 8); }
+  led.material = ledShow ? ledLiveMat : ledIdleMat;
+  ledOver.visible = !!ledShow;
+  sign.visible = !ledShow;
+  if (!ledShow) return;
+  const d = ledShow.d;
+  // máy quay riêng: chính diện, nửa người trên
+  const h = d._head, sc = d.body.h * d.sc;
+  const yaw = d.av ? d.av.holder.rotation.y : 0;
+  const tx = h.x, ty = h.y - 0.45 * sc, tz = h.z;
+  const dist = 2.3 * sc;
+  const k = 1 - Math.pow(0.05, dt);
+  _v1.set(tx + Math.sin(yaw) * dist + Math.sin(t * 0.5) * 0.4, ty + 0.15 * sc, tz + Math.cos(yaw) * dist);
+  if (!ledShow.snapped) { ledCam.position.copy(_v1); ledShow.snapped = true; } else ledCam.position.lerp(_v1, Math.max(k, 0.25));
+  ledCam.lookAt(tx, ty, tz);
+  if (!ledShow.lastDraw || t - ledShow.lastDraw > 0.1) { drawLedOverlay(ledShow, t); ledShow.lastDraw = t; }
+}
+function renderLed() {
+  if (!ledShow) return;
+  const prevMat = led.material; led.material = ledIdleMat;   // tránh hình lồng hình
+  ledOver.visible = false;
+  // chỉ chiếu riêng người tặng: ẩn tạm người khác
+  const hidden = [];
+  for (const d of visible) if (d.av && d !== ledShow.d && d.av.holder.visible) { d.av.holder.visible = false; hidden.push(d.av.holder); }
+  const crowdOn = shadowMesh.visible; shadowMesh.visible = false;
+  renderer.setRenderTarget(ledRT);
+  renderer.render(scene, ledCam);
+  renderer.setRenderTarget(null);
+  for (const h of hidden) h.visible = true;
+  shadowMesh.visible = crowdOn;
+  led.material = prevMat; ledOver.visible = true;
+}
 {
   const frame = new THREE.Mesh(new THREE.BoxGeometry(13.6, 6.3, 0.2), darkMat); frame.position.set(0, STAGE_Y + 3.3, -10.45); scene.add(frame);
 }
@@ -632,6 +711,12 @@ function handleGift(ev) {
   if (zoomQueue.length > 60) zoomQueue.splice(0, zoomQueue.length - 60);
   pushTicker(`${d.name} tặng ${ev.count > 1 ? ev.count + '× ' : ''}${ev.gift.name} → ${m.label}`, '#ffd84d');
   heat += v;
+  if (S.ledShow !== false && v >= (Number(S.ledCoins) || 99)) {
+    const same = ledQueue.find(x => x.d === d);
+    if (same) { same.count += ev.count; same.value += v; }
+    else if (ledShow && ledShow.d === d) { ledShow.count += ev.count; ledShow.value += v; ledShow.until += 4; }
+    else { ledQueue.push({ d, gift: ev.gift, count: ev.count, value: v }); if (ledQueue.length > 20) ledQueue.shift(); }
+  }
 }
 function startAction(z) {
   const d = z.d, t = now();
@@ -782,7 +867,7 @@ const _m = new THREE.Matrix4(), _m2 = new THREE.Matrix4(), _sv = new THREE.Vecto
 const WHITE = new THREE.Color(1, 1, 1);
 function writeInstances(d, t, alpha) {
   for (const p of PARTS) {
-    if (d.av && p.name !== 'crown') continue;
+    if (d.av) continue;
     if (p.when && !p.when(d)) continue;
     const nodes = Array.isArray(p.node) ? p.node : [p.node];
     for (const nn of nodes) {
@@ -795,7 +880,8 @@ function writeInstances(d, t, alpha) {
       if (p.color) p.mesh.setColorAt(idx, d.look.c[p.color]);
     }
   }
-  if (d._wings) {
+  if (d.av) { setExtra(d.av, 'crown', d._crown); setExtra(d.av, 'wings', d._wings && !(d.av.costume && d.av.costume.id === 'angel')); }
+  if (d._wings && !d.av) {
     for (const sd of [-1, 1]) {
       const f = Math.sin(t * 7 + d.zi) * 0.35;
       _e.set(0, sd * (0.55 + f), 0);
@@ -1277,8 +1363,10 @@ function frame() {
   updateBooth(dj && dj !== resident ? '👑 ' + dj.name : '🎧 DJ NEON', S.showTop && TOP.length > 1 ? TOP.slice(1, 3).map(u => u.name).join(' · ') : '');
 
   costumeTime.value = t;
+  updateLedShow(t, dt);
   updateCam(dt, t);
   if (bloom) bloom.strength = bi.fire ? 0.65 : 0.55;
+  renderLed();
   if (S.quality === 'high' && composer) composer.render(); else renderer.render(scene, camera);
 
   // HUD
@@ -1321,7 +1409,7 @@ socket.on('ev', ev => {
   } catch (e) { console.error(e); }
 });
 socket.on('cmd', c => {
-  if (c.type === 'clear') { for (const d of [...dancers.values(), ...clones]) disposeAvatar(d.av); dancers.clear(); clones.length = 0; zoomQueue.length = 0; zoom = null; heat = 0; fireUntil = 0; djOverride = null; }
+  if (c.type === 'clear') { ledQueue.length = 0; ledShow = null; for (const d of [...dancers.values(), ...clones]) disposeAvatar(d.av); dancers.clear(); clones.length = 0; zoomQueue.length = 0; zoom = null; heat = 0; fireUntil = 0; djOverride = null; }
   if (c.type === 'endZoom') zoom = null;
   if (c.type === 'fire') heat = curHeatTarget + 1;
   if (c.type === 'reload') location.reload();
@@ -1353,5 +1441,5 @@ window.addEventListener('pointerdown', unlock);
 window.addEventListener('keydown', unlock);
 setInterval(checkAudio, 1500);
 Music.resume();
-window._dbg = { dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
+window._dbg = { ledCam, ledRT, renderer, get ledShow() { return ledShow; }, dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
 requestAnimationFrame(frame);
