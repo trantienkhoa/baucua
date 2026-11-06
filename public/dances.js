@@ -103,6 +103,27 @@
       o.lu = -0.25 + 0.25 * S(ph + PI); o.ru = 0.25 + 0.25 * S(ph); o.lf = -0.4; o.rf = 0.4;
       o.lean = -0.06 * o.spin; o.head = 0.1 * S(ph * 2);
       return o; } },
+    { name: 'waltz', keys: ['waltz', 'van xo', 'van-xo', 'khieu vu', 'khiêu vũ', 'ballroom'], f(p, b) {
+      const o = N(), q = ((b % 3) + p) / 3, ph = q * TAU;
+      o.yaw = Math.sin(ph) * 0.9; o.dx = 0.12 * Math.sin(ph); o.bob = 0.035 * Math.abs(Math.sin(ph * 1.5));
+      o.lu = -1.4; o.lf = -0.6; o.ru = 1.0; o.rf = 1.3; o.lean = -0.06 + 0.05 * Math.sin(ph);
+      o.walk = (q * 1.5) % 1; o.head = -0.15;
+      return o; } },
+    { name: 'tango', keys: ['tango'], f(p, b) {
+      const o = N(), st = b % 4, k = ease(Math.min(1, p * 2));
+      o.lu = -1.55; o.lf = -0.4; o.ru = 1.2; o.rf = 1.5; o.head = st % 2 ? 0.35 : -0.35;
+      if (st === 0) { o.lt = -0.6 * k; o.ls = 0.1; o.rt = 0.15; o.lean = 0.1 * k; o.bob = 0.06 * k; }
+      else if (st === 1) { o.lt = -0.6; o.rt = 0.15 + 0.5 * k; o.rs = -0.8 * k; o.lean = 0.1; o.bob = 0.06; }
+      else if (st === 2) { o.yaw = PI * 0.5 * k; o.lt = -0.15; o.rt = 0.15; o.bob = 0.02; }
+      else { o.yaw = PI * 0.5 * (1 - k); o.lean = -0.18 * Math.sin(k * PI); o.rt = 0.5 * Math.sin(k * PI); o.rs = -0.4 * Math.sin(k * PI); }
+      return o; } },
+    { name: 'salsa', keys: ['salsa', 'cha cha', 'cha-cha', 'latin', 'rumba'], f(p, b) {
+      const o = N(), sd = b % 2 ? 1 : -1, k = bounce(p);
+      o.dx = 0.06 * sd * k; o.lean = -0.1 * sd * k; o.bob = 0.02 * (1 - k);
+      o.lt = sd < 0 ? -0.35 * k : -0.07; o.ls = sd < 0 ? 0.4 * k : 0; o.rt = sd > 0 ? 0.35 * k : 0.07; o.rs = sd > 0 ? -0.4 * k : 0;
+      o.lu = -0.9 - 0.4 * k * (sd < 0 ? 1 : 0); o.lf = -1.3; o.ru = 0.9 + 0.4 * k * (sd > 0 ? 1 : 0); o.rf = 1.3;
+      o.yaw = 0.25 * sd * k; o.head = 0.15 * sd;
+      return o; } },
   ];
 
   // tư thế đặc biệt

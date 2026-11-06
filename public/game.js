@@ -7,7 +7,8 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createThemes, THEME_NAMES } from './themes.js';
-import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates, setCostume, randomCostumeId, COSTUMES, costumeTime, setExtra, outfitTime, setOutfitMix } from './avatars.js';
+import { rosterOutfit, danceFor, tempoFor, hyperFor, shapeFor } from './roster.js';
+import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates, setCostume, randomCostumeId, COSTUMES, costumeTime, setExtra, outfitTime, setOutfitMix, templateForChar } from './avatars.js';
 
 const W = 1080, H = 1920;
 const PI = Math.PI, TAU = PI * 2;
@@ -29,7 +30,7 @@ let S = {
   showComments: true, autoCam: true, showTop: true, topDJ: true, showCoins: false, showGiftMenu: true, showJoinTicker: true,
   tierNoble: 99, tierKing: 299, tierEmperor: 999, actions: [], musicEnabled: true, synthMusic: true, volume: 0.35,
 };
-let ACTIONS = [], GIFTS = {}, TOP = [], viewers = 0;
+let ACTIONS = [], GIFTS = {}, TOP = [], viewers = 0, ROSTER = [];
 const dancers = new Map();
 const clones = [];
 let heat = 0, fireUntil = 0, fireStart = 0, curHeatTarget = 200;
@@ -630,6 +631,25 @@ function tierOf(c) {
 function onFloorCount() { let n = 0; for (const d of dancers.values()) if (!d.leaving) n++; return n; }
 function pushTicker(text, color) { ticker.push({ text, color }); if (ticker.length > 30) ticker.splice(0, ticker.length - 30); }
 
+// ---------- nhập vai nhân vật trong danh sách ----------
+function pickChar(female) {
+  if (!S.rosterEnabled || !ROSTER.length) return null;
+  const used = new Set(); for (const d of dancers.values()) if (d.char) used.add(d.char.id);
+  let pool = ROSTER.filter(c => !used.has(c.id) && (female === undefined || c.female === female));
+  if (!pool.length) pool = ROSTER.filter(c => female === undefined || c.female === female);
+  if (!pool.length) pool = ROSTER;
+  return pick(pool);
+}
+function assignChar(d, ch) {
+  if (!ch) return;
+  d.char = ch;
+  if (d.body.female !== ch.female) { d.body = randomBody(ch.female); d.look = randomLook(ch.female); }
+  const dn = danceFor(ch.style); if (dn !== null && dn < DANCES.length) d.dance = dn;
+  d.tempo = tempoFor(ch.personality); d.hyper = hyperFor(ch.personality);
+  d.avOutfit = rosterOutfit(ch); d.avShape = shapeFor(ch.age, ch.female);
+  d.avT = templateForChar(ch.id) || null; d.avCostume = null;
+  if (d.av) { disposeAvatar(d.av); d.av = null; }
+}
 function ensureDancer(user, silent) {
   let d = dancers.get(user.id);
   if (d) {
@@ -650,8 +670,9 @@ function ensureDancer(user, silent) {
   }
   d = new Dancer(user);
   d.lv = user.lv || 1;
+  assignChar(d, pickChar());
   dancers.set(user.id, d);
-  if (!silent && S.showJoinTicker) pushTicker(`${d.name} lên sàn 🕺`, '#7cf7ff');
+  if (!silent && S.showJoinTicker) pushTicker(d.char ? `${d.name} lên sàn vai ${d.char.name} · ${d.char.style} 🕺` : `${d.name} lên sàn 🕺`, '#7cf7ff');
   return d;
 }
 
@@ -668,6 +689,7 @@ function handleCommand(d, text) {
   if (num) { const n = +num[1]; if (n >= 1 && n <= DANCES.length) { d.dance = n - 1; sparkle(d, 6); } return; }
   if (/\bdi vong\b|\bdi dao\b/.test(t)) { d.mode = 'circle'; d.modeStart = now(); d.modeUntil = now() + 10; d.circleA = Math.random() * TAU; return; }
   if (/\bghep doi\b/.test(t)) { makePair(d); return; }
+  if (/\bdoi vai\b/.test(t) || (d.char && /\bdoi do\b|\bthay do\b/.test(t))) { const ch = pickChar(d.body.female); if (ch) { assignChar(d, ch); sparkle(d, 20); pushTicker(`🎭 ${d.name} đổi vai ${ch.name}`, '#7cf7ff'); return; } }
   if (/\bdoi do\b|\bthay do\b/.test(t)) { d.look = randomLook(d.body.female, d.look); wear(d, Math.random() < 0.5 ? null : randomAllowedCostume(d)); sparkle(d, 14); return; }
   if (/\bhoa trang\b|\bbien hinh\b/.test(t)) { wear(d, randomAllowedCostume(d)); sparkle(d, 20); return; }
   if (/\bbo hoa trang\b|\bdo thuong\b/.test(t)) { wear(d, null); return; }
@@ -726,7 +748,7 @@ function startAction(z) {
   const d = z.d, t = now();
   d.lastActive = t;
   switch (z.id) {
-    case 'outfit': d.look = randomLook(d.body.female, d.look); wear(d, randomAllowedCostume(d)); sparkle(d, 30); break;
+    case 'outfit': if (d.char && Math.random() < 0.6) { assignChar(d, pickChar(d.body.female)); } else { d.look = randomLook(d.body.female, d.look); wear(d, randomAllowedCostume(d)); } sparkle(d, 30); break;
     case 'solo': requestSolo(d); break;
     case 'flashmob': startFlashmob(); break;
     case 'catwalk': d.mode = 'catwalk'; d.modeStart = t; d.modeUntil = t + Math.max(z.dur, 7); d.tx = 0; d.tz = 1; break;
@@ -814,6 +836,7 @@ function poseFor(d, bi, t, dj) {
   if (d.moving || d.mode === 'circle') return P.walk((t * 1.7 + d.zi * 0.37) % 1);
   const forced = d.forceUntil > t;
   let p = bi.p + (forced ? 0 : d.offset), b = bi.b; if (p >= 1) { p -= 1; b += 1; }
+  if (d.tempo === 0.5 && !forced && !bi.fire) { p = ((b & 1) + p) / 2; b = b >> 1; }
   return DANCES[forced ? d.forceDance : d.dance].f(p, b, t);
 }
 
@@ -1031,6 +1054,7 @@ function update(t, dt) {
     }
     if (d.mode === 'rocket' && d._sp && Math.random() < 0.8) particles.push({ x: d._sp.x + rand(-10, 10), y: d._sp.y + 20, vx: rand(-40, 40), vy: rand(150, 300), g: 0, life: 0.5, max: 0.5, color: pick(['#ffd84d', '#ff8a3d', '#ff3d3d', '#fff']), size: rand(6, 14), type: 'spark' });
     if (d.pairWith && d._sp && Math.random() < dt * 2.5) hearts(d._sp.hx, d._sp.hy - 30, 1);
+    if (d.hyper && d.mode === 'dance' && Math.random() < dt * 0.08) d.jumpStart = t;
     const tsc = t < d.giantUntil ? 2.1 : 1;
     d.sc += (tsc - d.sc) * Math.min(1, dt * 4);
     d._wings = t < d.wingsUntil;
@@ -1230,6 +1254,7 @@ function drawZoomBanner(t) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.font = `800 40px ${FONT}`; ctx.fillText(nm, W / 2 + 25, 373);
   if (tier) { ctx.font = `800 24px ${FONT}`; ctx.fillStyle = tier.color; ctx.fillText('👑 ' + tier.name, W / 2, 326); }
   if (zoom.gift) { ctx.font = `700 26px ${FONT}`; ctx.fillStyle = '#ffe9a8'; ctx.fillText(`tặng ${zoom.count > 1 ? zoom.count + '× ' : ''}${zoom.gift.name}`, W / 2, 438); }
+  if (d.char) { ctx.font = `600 22px ${FONT}`; ctx.fillStyle = '#c8f7ff'; ctx.fillText(fit(`🎭 vai ${d.char.name} · ${d.char.age}t · ${d.char.style}`, 900), W / 2, zoom.gift ? 474 : 440); }
   ctx.restore();
 }
 function drawHUD(t, bi) {
@@ -1306,7 +1331,7 @@ function drawHUD(t, bi) {
   if (frac > 0.01) { const fg = ctx.createLinearGradient(bx, 0, bx + bw, 0); fg.addColorStop(0, '#ffb300'); fg.addColorStop(1, '#ff3d3d'); ctx.fillStyle = fg; roundRect(bx, by, Math.max(bh, bw * clamp(frac, 0, 1)), bh, 17); ctx.fill(); }
   ctx.font = `700 25px ${FONT}`;
   rich(['💬 Bình luận để ', ['lên sàn', '#7cf7ff'], ' · gõ ', ['nhảy', '#7cf7ff'], ', ', ['đi vòng', '#7cf7ff'], ', ', ['ghép đôi', '#7cf7ff'], ', ', ['hoá trang', '#7cf7ff']], W / 2, py + 135);
-  rich(['điệu: ', ['disco', '#ffd84d'], ', ', ['robot', '#ffd84d'], ', ', ['xoay đầu', '#ffd84d'], ', ', ['moonwalk', '#ffd84d'], '… (số 1–14) · ❤️ thả tim tăng nhiệt'], W / 2, py + 172);
+  rich(['điệu: ', ['disco', '#ffd84d'], ', ', ['robot', '#ffd84d'], ', ', ['xoay đầu', '#ffd84d'], ', ', ['moonwalk', '#ffd84d'], `… (số 1–${DANCES.length}) · ❤️ thả tim tăng nhiệt`], W / 2, py + 172);
   ctx.font = `500 18px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.textAlign = 'center';
   ctx.fillText('Sàn nhảy giải trí · không có giải thưởng', W / 2, py + 210);
 }
@@ -1356,7 +1381,7 @@ function frame() {
     if (d.mode === 'rocket' || (d.dropH > 0)) { rig.root.position.y = b.y; rig.root.updateMatrixWorld(true); d._head.set(0, HEAD_Y + HEAD_R + 0.06, 0).applyMatrix4(rig.head.matrixWorld); }
     const alpha = d.leaving ? clamp(1 - (t - d.leaving) / 1.2, 0.001, 1) : 1;
     const real = avatarTemplates.length > 0 && S.charStyle !== 'toon' && S.quality !== 'low';
-    if (real && !d.av) d.av = createAvatar(scene, d.body.female, d.avT, d.avCostume !== undefined ? d.avCostume : (Math.random() * 100 < (Number(S.costumeRate) || 0) ? randomAllowedCostume(d) : null));
+    if (real && !d.av) d.av = createAvatar(scene, d.body.female, d.avT, d.avCostume !== undefined && d.avCostume !== null ? d.avCostume : d.char ? null : (Math.random() * 100 < (Number(S.costumeRate) || 0) ? randomAllowedCostume(d) : null), { outfit: d.avOutfit, shape: d.avShape });
     else if (!real && d.av) { disposeAvatar(d.av); d.av = null; }
     if (d.av) {
       _hp.set(0, HEAD_Y, 0).applyMatrix4(rig.head.matrixWorld);
@@ -1828,6 +1853,7 @@ socket.on('settings', s => {
   if (oldQ !== S.quality) resize();
 });
 socket.on('gifts', g => { GIFTS = g || {}; });
+socket.on('roster', list => { ROSTER = Array.isArray(list) ? list : []; });
 socket.on('music', list => Music.setPlaylist(list));
 socket.on('top', list => { TOP = list || []; for (const u of TOP) { const d = dancers.get(u.id); if (d) d.coins = u.coins; } });
 socket.on('ev', ev => {
@@ -1879,5 +1905,5 @@ window.addEventListener('pointerdown', unlock);
 window.addEventListener('keydown', unlock);
 setInterval(checkAudio, 1500);
 Music.resume();
-window._dbg = { setOutfitT: (d, o) => { if (d.av) { setCostume(d.av, null); window._applyOutfit(d.av, o); window._restyle(d.av); } }, get flashInfo() { return [...dancers.values()].slice(0, 8).map(d => [d.mode, d.x.toFixed(2), d.z.toFixed(2), d.tx.toFixed(2), d.tz.toFixed(2)].join(' ')); }, ledCam, ledRT, renderer, get ledShow() { return ledShow; }, dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
+window._dbg = { setChar: (d, id) => assignChar(d, ROSTER.find(c => c.id === id)), setOutfitT: (d, o) => { if (d.av) { setCostume(d.av, null); window._applyOutfit(d.av, o); window._restyle(d.av); } }, get flashInfo() { return [...dancers.values()].slice(0, 8).map(d => [d.mode, d.x.toFixed(2), d.z.toFixed(2), d.tx.toFixed(2), d.tz.toFixed(2)].join(' ')); }, ledCam, ledRT, renderer, get ledShow() { return ledShow; }, dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
 requestAnimationFrame(frame);

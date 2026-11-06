@@ -287,10 +287,10 @@ function prepare(scene, url) {
   });
   const mats = new Set();
   scene.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => mats.add(m.name)); } });
-  const name = url.split('/').pop();
+  const name = decodeURIComponent(url.split('/').pop());
   const female = false;
   return {
-    url, name, scene, female, norm, footY, flip,
+    url, name, charId: (name.match(/^(char\d+)/i) || [])[1] ? name.match(/^(char\d+)/i)[1].toLowerCase() : null, scene, female, norm, footY, flip,
     hipH: (hips.y - footY) * norm,
     restLocal, dirLocal, restWorld,
     hipsParentInv: hipsParentWorld.clone().invert(), hipsParentQInv: hipsParentQ.clone().invert(),
@@ -301,7 +301,7 @@ function prepare(scene, url) {
 }
 
 // ---------- một nhân vật ----------
-export function createAvatar(parent, female, tpl, costume) {
+export function createAvatar(parent, female, tpl, costume, opts = {}) {
   if (!templates.length) return null;
   let pool = templates.filter(t => t.female === female);
   if (!pool.length) pool = templates;
@@ -318,6 +318,8 @@ export function createAvatar(parent, female, tpl, costume) {
   parent.add(holder);
   const av = { t, holder, inner, root, bones, mats: [], legK: 1 };
   av.shape = randomShape(t.female);
+  if (opts.shape) av.shape.type = opts.shape;
+  av.baseOutfit = t.charId ? null : (opts.outfit || null);
   av.face = randomFace();
   av.skinTone = pick(SKIN_TONE);
   av.smile = Math.random() * 0.7;
@@ -326,7 +328,7 @@ export function createAvatar(parent, female, tpl, costume) {
   av.seed = Math.random() * 10;
   if (t.rpm) av.skin = pick(SKIN_TINT);
   applyCostume(av, costume === undefined ? null : costume);
-  if (!av.costume) applyOutfit(av, pickOutfit(t.female), (b, o) => attachProp(av, b, o));
+  if (!av.costume && !t.charId) applyOutfit(av, av.baseOutfit || pickOutfit(t.female), (b, o) => attachProp(av, b, o));
   costumeShape(av);
   restyle(av);
   return av;
@@ -477,7 +479,7 @@ export function driveAvatar(av, rig, opts) {
 // đổi hoá trang (id = null: bỏ hoá trang)
 export function setCostume(av, id) {
   applyCostume(av, id);
-  if (av.costume) removeOutfit(av); else applyOutfit(av, pickOutfit(av.t.female), (b, o) => attachProp(av, b, o));
+  if (av.costume || av.t.charId) removeOutfit(av); else applyOutfit(av, av.baseOutfit || pickOutfit(av.t.female), (b, o) => attachProp(av, b, o));
   costumeShape(av); restyle(av);
 }
 if (typeof window !== 'undefined') { window._applyOutfit = (av, o) => applyOutfit(av, o, (b, x) => attachProp(av, b, x)); window._restyle = av => restyle(av); }
@@ -489,3 +491,5 @@ function costumeShape(av) {
   if (want !== av.shape.type) { av.shape.type = want; applyShape(av); }
 }
 export { randomCostumeId };
+
+export function templateForChar(id) { id = String(id || '').toLowerCase(); return templates.find(t => t.charId === id) || null; }

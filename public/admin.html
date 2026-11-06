@@ -161,6 +161,14 @@
   </div>
 
   <div class="card">
+    <h2>🎭 Danh sách nhân vật của bạn</h2>
+    <div class="muted">Mỗi người xem lên sàn sẽ nhập vai một nhân vật trong danh sách: trang phục dựng theo mô tả, điệu nhảy theo thể loại, dáng người theo tuổi, nhịp nhảy theo tính cách (điềm tĩnh → nhảy chậm, năng động → hay bật nhảy). Gõ <code>đổi vai</code> để đổi sang nhân vật khác.<br>
+    File CSV cột: <code>ID, Name, Gender, Age, Outfit, Dance Style, Personality</code>. Có mô hình 3D riêng cho nhân vật nào thì đặt tên file trùng ID (vd <code>char01.glb</code>) rồi tải lên mục 🧍 Nhân vật — game tự dùng đúng mô hình đó.</div>
+    <div class="row"><input type="file" id="rosterFile" accept=".csv,text/csv"><button id="rosterReset">Về danh sách gốc</button><span id="rosterMsg" class="muted"></span></div>
+    <div style="max-height:320px;overflow:auto"><table><thead><tr><th>ID</th><th>Tên</th><th>Giới</th><th>Tuổi</th><th>Trang phục</th><th>Điệu</th><th>Tính cách</th></tr></thead><tbody id="rosterBody"></tbody></table></div>
+  </div>
+
+  <div class="card">
     <h2>🧍 Nhân vật (trang phục)</h2>
     <div class="muted">Mỗi file là một nhân vật với bộ đồ riêng. Người xem lên sàn được chọn ngẫu nhiên trong các nhân vật đang bật (theo nam / nữ). Càng nhiều file → sàn càng đa dạng trang phục. Mọi nhân vật đều tự nhảy đủ 14 điệu.</div>
     <details style="margin:10px 0">
@@ -220,6 +228,7 @@ const FIELDS = [
   ['quality', '✨ Mức hiệu ứng', 'select', [['high', 'Mạnh (máy mạnh)'], ['medium', 'Vừa'], ['low', 'Nhẹ (máy yếu)']]],
   ['charStyle', '🧍 Kiểu nhân vật', 'select', [['real', 'Người thật 3D'], ['toon', 'Hoạt hình (nhẹ máy)']]],
   ['costumeRate', '🦸 % người hoá trang sẵn (0–100)', 'num', 5],
+  ['rosterEnabled', '🎭 Nhập vai nhân vật trong danh sách', 'check'],
   ['partyMix', '👗 % mặc đồ dạ hội (còn lại đồ đi bar)', 'num', 5],
   ['ledShow', '📺 Người tặng quà lớn lên màn LED', 'check'],
   ['ledCoins', '📺 Lên màn LED từ (xu)', 'num', 1],
@@ -415,6 +424,13 @@ function renderModels(list) {
     const del = tr.querySelector('[data-del]'); if (del) del.onclick = () => { if (confirm('Xoá nhân vật này?')) fetch('/api/models/' + encodeURIComponent(del.dataset.del), { method: 'DELETE' }); };
   }
 }
+function renderRoster(list) {
+  $('rosterBody').innerHTML = list.map(c => `<tr><td>${esc(c.id)}</td><td>${esc(c.name)}</td><td>${c.female ? 'Nữ' : 'Nam'}</td><td>${c.age}</td><td>${esc(c.outfit)}</td><td>${esc(c.style)}</td><td>${esc(c.personality)}</td></tr>`).join('') || '<tr><td colspan="7" class="muted">Chưa có danh sách.</td></tr>';
+  $('rosterMsg').textContent = list.length ? `${list.length} nhân vật` : '';
+}
+socket.on('roster', renderRoster);
+$('rosterFile').onchange = async e => { const f = e.target.files[0]; if (!f) return; const text = await f.text(); const r = await fetch('/api/roster', { method: 'POST', headers: { 'Content-Type': 'text/csv' }, body: text }); $('rosterMsg').textContent = r.ok ? '✓ Đã nạp' : 'Lỗi'; e.target.value = ''; };
+$('rosterReset').onclick = () => fetch('/api/roster', { method: 'DELETE' });
 const patchModel = body => fetch('/api/models', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 socket.on('models', renderModels);
 fetch('/api/models').then(r => r.json()).then(renderModels);

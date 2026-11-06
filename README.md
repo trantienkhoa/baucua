@@ -20,6 +20,17 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## Danh sách nhân vật của bạn (bản 1.6)
+
+File `roster.csv` (cột `ID, Name, Gender, Age, Outfit, Dance Style, Personality`) — 100 nhân vật có sẵn. Mỗi người xem lên sàn **nhập vai** một nhân vật chưa có ai nhận:
+
+- **Trang phục dựng theo mô tả tiếng Việt**: crop top, áo thun (in hình), tank top, áo hai dây, hoodie (có mũ trùm, dây rút), sơ mi (trơn / kẻ caro / kẻ sọc / hoạ tiết, có cổ áo), polo, áo len, áo len cổ lọ, blouse (lụa / ren), áo vest nữ, blazer, suit / comple / vest ba mảnh, áo khoác dạ / bomber / denim / thể thao, cà vạt; quần jeans / jogger / cargo / kaki / chinos / tây / âu / short / legging / lụa; váy ngắn, váy xếp ly, váy tennis, váy yếm, chân váy bút chì / dài; đầm ngắn, midi, dài, dạ hội, satin, nhung, ren, hoa; **áo dài** (lụa, nhung, gấm, cách tân — tà xẻ, cổ đứng), **áo bà ba**, **khăn đóng**. Màu đọc theo mô tả (đỏ, xanh navy, hồng pastel, xanh rêu…).
+- **Điệu nhảy theo thể loại**: K-pop, Hip-hop, Breaking, Street dance, Popping/Locking, House, Freestyle, Jazz, Modern/Contemporary, Ballroom/Waltz, Tango, Salsa/Cha-cha/Latin, Folk. Thêm 3 điệu mới: Waltz, Tango, Salsa (gõ `waltz`, `tango`, `salsa` hoặc số 15–17).
+- **Dáng người theo tuổi**, **nhịp nhảy theo tính cách** (lịch lãm, điềm tĩnh → nhảy nửa nhịp; năng động, tinh nghịch → hay bật nhảy).
+- Tên vai hiện khi lên sàn và khi được zoom. Gõ `đổi vai` để đổi nhân vật.
+- **Mô hình riêng cho từng nhân vật**: đặt tên file trùng ID (`char01.glb`, `char47.vrm`…) rồi tải lên mục 🧍 Nhân vật — game dùng đúng mô hình đó cho vai đó.
+- Thay danh sách: trang điều khiển → 🎭 Danh sách nhân vật → chọn file CSV mới. Tắt nhập vai: bỏ chọn “Nhập vai nhân vật trong danh sách”.
+
 ## Trang phục đi bar / hot trend (bản 1.5)
 
 Mặc định 75% người lên sàn mặc đồ đi bar, 25% đồ dạ hội (chỉnh “% mặc đồ dạ hội” trong cài đặt):

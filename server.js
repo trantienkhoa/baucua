@@ -47,6 +47,7 @@ const DEFAULT_SETTINGS = {
   autoReconnect: true,
   quality: 'high',          // high | medium | low
   charStyle: 'real',
+  rosterEnabled: true,      // người xem nhập vai nhân vật trong roster.csv
   partyMix: 25,             // % người mặc đồ dạ hội (còn lại đồ đi bar hot trend)
   costumeRate: 15,          // % người lên sàn được hoá trang sẵn (còn lại mặc đồ dạ hội)
   ledShow: true,            // người tặng quà lớn được chiếu lên màn LED
@@ -192,6 +193,38 @@ function topFans(n = 50) {
   return Object.entries(fans).map(([id, f]) => ({ id, ...f, lv: levelOf(f.xp) })).sort((a, b) => b.xp - a.xp).slice(0, n);
 }
 
+// ---------- danh sách nhân vật tự tạo (roster.csv) ----------
+function parseCSV(text) {
+  const rows = []; let row = [], f = '', q = false;
+  text = String(text || '').replace(/^\uFEFF/, '');
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true;
+    else if (c === ',') { row.push(f); f = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(f); f = ''; if (row.some(x => x.trim())) rows.push(row); row = []; }
+    else f += c;
+  }
+  row.push(f); if (row.some(x => x.trim())) rows.push(row);
+  return rows;
+}
+function loadRoster() {
+  let text = null;
+  for (const f of [path.join(DATA, 'roster.csv'), path.join(__dirname, 'roster.csv')]) { try { text = fs.readFileSync(f, 'utf8'); break; } catch {} }
+  if (!text) return [];
+  const rows = parseCSV(text); if (rows.length < 2) return [];
+  const head = rows[0].map(h => h.trim().toLowerCase());
+  const col = (...names) => head.findIndex(h => names.some(n => h.includes(n)));
+  const ci = { id: col('id', 'mã'), name: col('name', 'tên'), gender: col('gender', 'giới'), age: col('age', 'tuổi'), outfit: col('outfit', 'trang phục'), style: col('dance', 'điệu'), pers: col('personality', 'tính cách') };
+  return rows.slice(1).map((r, i) => ({
+    id: (r[ci.id] || 'char' + (i + 1)).trim(), name: (r[ci.name] || '').trim(),
+    female: /n[ữu]|female|f\b|girl|woman/i.test(r[ci.gender] || ''), age: Number(r[ci.age]) || 25,
+    outfit: (r[ci.outfit] || '').trim(), style: (r[ci.style] || '').trim(), personality: (r[ci.pers] || '').trim(),
+  })).filter(x => x.outfit || x.name);
+}
+let roster = loadRoster();
+console.log('  Danh sách nhân vật:', roster.length);
+
 // ---------- web ----------
 const app = express();
 const server = http.createServer(app);
@@ -214,6 +247,14 @@ function musicList() {
 }
 app.get('/api/info', (req, res) => res.json({ port: PORT, ips: lanIPs(), actions: ACTIONS, version: require('./package.json').version }));
 app.get('/api/music', (req, res) => res.json(musicList()));
+app.get('/api/roster', (req, res) => res.json(roster));
+app.post('/api/roster', express.text({ type: () => true, limit: '2mb' }), (req, res) => {
+  const text = String(req.body || '');
+  if (!text.trim()) return res.status(400).end();
+  fs.writeFileSync(path.join(DATA, 'roster.csv'), text);
+  roster = loadRoster(); io.emit('roster', roster); res.json(roster);
+});
+app.delete('/api/roster', (req, res) => { try { fs.unlinkSync(path.join(DATA, 'roster.csv')); } catch {} roster = loadRoster(); io.emit('roster', roster); res.json(roster); });
 // ---------- fan ----------
 app.get('/api/fans', (req, res) => res.json(topFans(100)));
 app.delete('/api/fans', (req, res) => { fans = {}; seenThisSession.clear(); writeJSON('fans.json', fans); res.json([]); });
@@ -457,6 +498,7 @@ io.on('connection', socket => {
     if (role === 'game') { socket.join('game'); screens.set(socket.id, { obs: !!(info && info.obs) }); pickPrimary(); socket.emit('goalState', goalState); }
     else { socket.join('admin'); socket.emit('clips', clipList()); }
     socket.emit('settings', settings);
+    socket.emit('roster', roster);
     socket.emit('gifts', gifts);
     socket.emit('music', musicList());
     socket.emit('top', topList());

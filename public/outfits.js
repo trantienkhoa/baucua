@@ -186,12 +186,16 @@ const SKIRTS = {
   mini: { hem: 'thigh', flare: t => 0.025 + 0.06 * t, leg: 0.55, tight: true },
   skater: { hem: 'thigh', flare: t => 0.03 + 0.16 * t, leg: 0.45 },
   slip: { hem: 'knee', flare: t => 0.02 + 0.08 * t, leg: 0.6, tight: true },
+  pleated: { hem: 'thigh', flare: t => 0.04 + 0.15 * t, leg: 0.45, pleats: 0.14 },
+  pleatedMidi: { hem: 'tea', flare: t => 0.04 + 0.2 * t, leg: 0.42, pleats: 0.12 },
+  aodai: { hem: 'calf', flare: t => 0.0 + 0.02 * t, leg: 0.62, slit: true, tight: true, smooth: true },
+  baba: { hem: 'hip', flare: t => 0.03 + 0.03 * t, leg: 0.35, slit: true },
 };
 function buildSkirt(F, kind) {
   const S = SKIRTS[kind]; if (!S) return null;
   const { H, up, lat, fwd, L, footH, kneeH } = F;
   const top = 0.07 * L;
-  const hem = S.hem === 'floor' ? footH - 0.07 * L : S.hem === 'thigh' ? kneeH * 0.45 : S.hem === 'knee' ? kneeH * 1.02 : kneeH + (footH - kneeH) * 0.85;
+  const hem = S.hem === 'floor' ? footH - 0.07 * L : S.hem === 'thigh' ? kneeH * 0.45 : S.hem === 'hip' ? kneeH * 0.15 : S.hem === 'knee' ? kneeH * 1.02 : S.hem === 'calf' ? kneeH + (footH - kneeH) * 0.5 : kneeH + (footH - kneeH) * 0.85;
   const RINGS = 30, SEG = 48;
   const iH = F.idx('Hips'), iLU = F.idx('LeftUpLeg'), iRU = F.idx('RightUpLeg'), iLL = F.idx('LeftLeg'), iRL = F.idx('RightLeg');
   const pos = [], uv = [], ind = [], sIdx = [], sW = [];
@@ -203,7 +207,7 @@ function buildSkirt(F, kind) {
     const minHip = (F.hipHalf * 1.9 + 0.02 * L) * (0.85 + 0.15 * Math.abs(Math.sin(a)));
     let rad = Math.max(fit, h < 0 ? minHip * (S.tight ? 0.92 : 1) : fit) + S.flare(tt) * L * 1.15;
     if (!S.tight && tt > 0.15) rad = Math.max(rad, minHip + S.flare(tt) * L * 1.15);
-    const wav = 1 + (S.tight ? 0.02 : 0.05) * Math.sin(a * 9) * tt;     // nếp vải
+    const wav = S.smooth ? 1 : S.pleats ? 1 + S.pleats * Math.abs(Math.sin(a * 14)) * (0.3 + tt) : 1 + (S.tight ? 0.02 : 0.05) * Math.sin(a * 9) * tt;     // nếp vải / xếp ly
     const x = Math.sin(a) * rad * wav, z = Math.cos(a) * rad * wav * 0.92;
     _v.copy(H).addScaledVector(up, h).addScaledVector(lat, x).addScaledVector(fwd, z);
     pos.push(_v.x, _v.y, _v.z); uv.push(s / SEG, tt);
@@ -215,7 +219,10 @@ function buildSkirt(F, kind) {
     ws.sort((p, q) => q[1] - p[1]); const w4 = ws.slice(0, 4), sum = w4.reduce((x, y) => x + y[1], 0) || 1;
     for (const [i, w] of w4) { sIdx.push(i); sW.push(w / sum); }
   }
-  for (let r = 0; r < RINGS; r++) for (let s = 0; s < SEG; s++) { const a = r * (SEG + 1) + s, b = a + SEG + 1; ind.push(a, b, a + 1, b, b + 1, a + 1); }
+  for (let r = 0; r < RINGS; r++) for (let s = 0; s < SEG; s++) {
+    if (S.slit && r > RINGS * 0.06) { const am = ((s + 0.5) / SEG) * TAU; if (Math.abs(Math.sin(am)) > (S.smooth ? 0.82 : 0.94)) continue; }
+    const a = r * (SEG + 1) + s, b = a + SEG + 1; ind.push(a, b, a + 1, b, b + 1, a + 1);
+  }
   return makeGeo(pos, uv, ind, sIdx, sW);
 }
 function makeGeo(pos, uv, ind, sIdx, sW) {
@@ -404,8 +411,12 @@ const TOPS = {
   tank: (b, h) => (TORSO.has(b) || (b === 'Hips' && h > -0.02)) && h > -0.05,
   cami: (b, h, x, z) => (TORSO.has(b) || b === 'Hips') && h > 0.02 && h < (z > 0 ? 0.64 : 0.6),
   tube: (b, h) => TORSO.has(b) && h > 0.28 && h < 0.62,
+  long: (b, h) => (TORSO.has(b) || SHOULD.has(b) || UPARM.has(b) || LOWARM.has(b) || (b === 'Hips' && h > -0.02)) && h > -0.05,
+  turtle: (b, h) => (TORSO.has(b) || SHOULD.has(b) || UPARM.has(b) || LOWARM.has(b) || b === 'Neck' || (b === 'Hips' && h > -0.02)) && h > -0.05,
 };
-const SKINPART = { tee: (b, h) => b === 'Neck' || LOWARM.has(b), tank: (b, h) => b === 'Neck' || SHOULD.has(b) || UPARM.has(b) || LOWARM.has(b) };
+TOPS.hoodie = TOPS.long; TOPS.blouse = TOPS.long; TOPS.aodai = TOPS.turtle; TOPS.baba = TOPS.long; TOPS.polo = TOPS.tee; TOPS.shirt = TOPS.long; TOPS.shirtShort = TOPS.tee;
+const SKINPART = { tee: (b, h) => b === 'Neck' || LOWARM.has(b), tank: (b, h) => b === 'Neck' || SHOULD.has(b) || UPARM.has(b) || LOWARM.has(b), long: (b) => b === 'Neck' };
+SKINPART.polo = SKINPART.tee; SKINPART.shirtShort = SKINPART.tee; SKINPART.hoodie = SKINPART.long; SKINPART.shirt = SKINPART.long; SKINPART.blouse = SKINPART.long; SKINPART.baba = SKINPART.long;
 function meshByName(root, name) { let m = null; root.traverse(o => { if (!m && o.isSkinnedMesh && o.name === name) m = o; }); return m; }
 function addRegion(av, srcName, kind, regionFn, mat, offM) {
   const t = av.t;
@@ -424,7 +435,35 @@ function addRegion(av, srcName, kind, regionFn, mat, offM) {
   return sm;
 }
 const plainMats = new Map();
-function plainMat(color, fabric) { const k = color + fabric; if (!plainMats.has(k)) plainMats.set(k, fabricize(new THREE.MeshStandardMaterial({ color, side: THREE.DoubleSide }), fabric)); return plainMats.get(k); }
+function plainMat(color, fabric, pattern) {
+  const k = color + fabric + (pattern || '');
+  if (!plainMats.has(k)) {
+    const m = new THREE.MeshStandardMaterial({ color: pattern ? 0xffffff : color, side: THREE.DoubleSide });
+    if (pattern) { m.map = patternTex(pattern, color); }
+    plainMats.set(k, fabricize(m, fabric));
+  }
+  return plainMats.get(k);
+}
+// hoạ tiết vải: caro, sọc, hoa, ren, gấm, chấm, len
+const patCache = new Map();
+function patternTex(kind, color) {
+  const k = kind + color; if (patCache.has(k)) return patCache.get(k);
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+  const base = new THREE.Color(color), hsl = {}; base.getHSL(hsl);
+  const dark = '#' + base.clone().offsetHSL(0, 0, -0.25).getHexString(), light = '#' + base.clone().offsetHSL(0, -0.1, 0.3).getHexString();
+  const contrast = hsl.l > 0.6 ? '#1b1b22' : '#f5f5f2';
+  g.fillStyle = color; g.fillRect(0, 0, 128, 128);
+  if (kind === 'plaid') { g.globalAlpha = 0.55; g.fillStyle = dark; for (let i = 0; i < 128; i += 32) { g.fillRect(i, 0, 14, 128); g.fillRect(0, i, 128, 14); } g.globalAlpha = 0.8; g.fillStyle = contrast; for (let i = 7; i < 128; i += 32) { g.fillRect(i, 0, 2, 128); g.fillRect(0, i, 128, 2); } }
+  if (kind === 'stripe') { g.fillStyle = contrast; g.globalAlpha = 0.85; for (let i = 0; i < 128; i += 16) g.fillRect(0, i, 128, 5); }
+  if (kind === 'floral') { for (let n = 0; n < 9; n++) { const x = (n * 47) % 128, y = (n * 71) % 128, col = ['#ff6fa3', '#ffd84d', '#ffffff', '#ff3d4f', '#b9a3e8'][n % 5]; g.fillStyle = col; for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; g.beginPath(); g.arc(x + Math.cos(a) * 6, y + Math.sin(a) * 6, 5, 0, Math.PI * 2); g.fill(); } g.fillStyle = '#ffd84d'; g.beginPath(); g.arc(x, y, 3, 0, Math.PI * 2); g.fill(); g.fillStyle = '#3f8f4a'; g.beginPath(); g.ellipse(x + 11, y + 9, 6, 3, 0.6, 0, Math.PI * 2); g.fill(); } }
+  if (kind === 'lace') { g.strokeStyle = light; g.lineWidth = 2; g.globalAlpha = 0.9; for (let x = 0; x < 128; x += 16) for (let y = 0; y < 128; y += 16) { g.beginPath(); g.arc(x + 8, y + 8, 6, 0, Math.PI * 2); g.stroke(); g.beginPath(); g.arc(x + 8, y + 8, 2, 0, Math.PI * 2); g.stroke(); } }
+  if (kind === 'brocade') { g.strokeStyle = '#e8c35a'; g.fillStyle = '#e8c35a'; g.lineWidth = 2; g.globalAlpha = 0.85; for (let x = 0; x < 128; x += 32) for (let y = 0; y < 128; y += 32) { const cx = x + 16 + ((y / 32) % 2) * 16, cy = y + 16; g.beginPath(); g.arc(cx % 128, cy, 9, 0, Math.PI * 2); g.stroke(); g.beginPath(); g.arc(cx % 128, cy, 4, 0, Math.PI * 2); g.fill(); for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; g.beginPath(); g.moveTo(cx % 128 + Math.cos(a) * 9, cy + Math.sin(a) * 9); g.lineTo(cx % 128 + Math.cos(a) * 14, cy + Math.sin(a) * 14); g.stroke(); } } }
+  if (kind === 'dots') { g.fillStyle = contrast; g.globalAlpha = 0.85; for (let x = 0; x < 128; x += 16) for (let y = 0; y < 128; y += 16) { g.beginPath(); g.arc(x + 8 + ((y / 16) % 2) * 8, y + 8, 3, 0, Math.PI * 2); g.fill(); } }
+  if (kind === 'knit') { g.strokeStyle = dark; g.globalAlpha = 0.5; g.lineWidth = 2; for (let x = 0; x < 128; x += 8) for (let y = 0; y < 128; y += 8) { g.beginPath(); g.moveTo(x, y); g.lineTo(x + 4, y + 8); g.lineTo(x + 8, y); g.stroke(); } }
+  if (kind === 'graphic') { g.fillStyle = contrast; g.globalAlpha = 0.7; g.font = '900 40px Arial'; g.textAlign = 'center'; g.fillText('★', 32, 50); g.fillText('✦', 96, 110); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(kind === 'floral' || kind === 'brocade' ? 4 : 6, kind === 'floral' || kind === 'brocade' ? 4 : 6); t.anisotropy = 4;
+  patCache.set(k, t); return t;
+}
 // chữ in trên áo
 const printTexCache = new Map();
 function printTex(text, dark) {
@@ -463,42 +502,67 @@ function capHat(L, c, back) { const g = new THREE.Group(), R = L * 0.6, m = std(
 function beanie(L, c) { const g = new THREE.Group(), R = L * 0.62, m = std(c, { roughness: 1 }); g.add(new THREE.Mesh(new THREE.SphereGeometry(R, 20, 12, 0, TAU, 0, PI * 0.52).scale(1, 1.15, 1), m)); g.add(new THREE.Mesh(new THREE.TorusGeometry(R * 0.98, 0.022, 8, 24).rotateX(PI / 2), m)); g.position.y = L * 0.4; return g; }
 function bucketHat(L, c) { const g = new THREE.Group(), R = L * 0.6, m = std(c, { roughness: 0.9, side: THREE.DoubleSide }); g.add(new THREE.Mesh(new THREE.CylinderGeometry(R * 0.85, R, L * 0.32, 20), m).translateY(L * 0.15)); g.add(new THREE.Mesh(new THREE.CylinderGeometry(R * 1.02, R * 1.5, 0.05, 24, 1, true), m)); g.position.y = L * 0.5; return g; }
 
+function neckProp(av, kind, color, add) {
+  const F = measure(av.t); if (!F || !F.P.Neck) return;
+  const n = av.t.norm, m = std(color, { roughness: 0.6, side: THREE.DoubleSide });
+  const r = 0.068;
+  if (kind === 'collar') { const g = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.05, r * 1.15, 0.035, 20, 1, true, PI * 0.12, PI * 1.76), m); g.rotation.y = PI; g.position.set(0, 0.01, 0.0); add('Neck', g); }
+  if (kind === 'mandarin') { const g = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.98, r * 1.02, 0.05, 20, 1, true), m); g.position.set(0, 0.035, 0); add('Neck', g); }
+  if (kind === 'hood') { const g = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 10, PI / 2 + 0.9, TAU - 1.8, 0, PI * 0.6).scale(1.05, 0.7, 0.85), m); g.position.set(0, 0.0, -0.06); add('Neck', g);
+    const st = std(0xf2f2ee); for (const sd of [-1, 1]) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.11), st); c.position.set(sd * 0.03, -0.07, r + 0.035); add('Neck', c); } }
+}
+function tie(color, add, bow) {
+  if (bow) { const b = bowtie(color); b.position.set(0, 0.035, 0.07); add('Neck', b); return; }
+  const g = new THREE.Group(), m = std(color, { roughness: 0.35 });
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.02, 0.012), m));
+  const blade = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.032, 0.36, 4, 1).rotateY(PI / 4).scale(1, 1, 0.25), m); blade.position.y = -0.19; g.add(blade);
+  g.position.set(0, 0.02, 0.075); g.rotation.x = -0.12; add('Neck', g);
+}
+function khanDong(L, c) { const g = new THREE.Group(), R = L * 0.58, m = std(c, { roughness: 0.6 }); for (let i = 0; i < 4; i++) { const tr = new THREE.Mesh(new THREE.TorusGeometry(R * (1 - i * 0.04), L * 0.09, 8, 24).rotateX(PI / 2), m); tr.position.y = i * L * 0.11; tr.rotation.z = (i % 2 ? 0.12 : -0.12); g.add(tr); } const top = new THREE.Mesh(new THREE.CylinderGeometry(R * 0.85, R * 0.85, 0.02, 20), m); top.position.y = L * 0.4; g.add(top); g.position.y = L * 0.5; return g; }
+function addSkirt(av, F, kind, mat, skelName) {
+  let skel = meshByName(av.root, skelName); skel = skel && skel.skeleton;
+  F.cache[kind] = F.cache[kind] || buildSkirt(F, kind);
+  if (!skel || !F.cache[kind]) return;
+  const sm = new THREE.SkinnedMesh(F.cache[kind], mat); sm.frustumCulled = false; sm.bind(skel, new THREE.Matrix4()); sm.userData.outfit = true; av.root.add(sm); av.outfitObjs.push(sm);
+}
 function applyBar(av, o, add) {
   const t = av.t, F = measure(t);
   if (!F) return;
-  if (o.female) {
-    const main = F.main.name;
-    const topMat = plainMat(o.topColor, o.topFabric);
-    addRegion(av, main, o.top, TOPS[o.top], topMat, 0.006);
-    if (o.top === 'cami' || o.top === 'tube') { if (o.top === 'cami') straps(av, o.topColor, add); }
-    if (o.print) chestPrint(av, o.print, o.topColor, add);
-    if (o.skirt) {
-      let skel = meshByName(av.root, main); skel = skel && skel.skeleton;
-      const key = o.skirt; F.cache[key] = F.cache[key] || buildSkirt(F, o.skirt);
-      if (skel && F.cache[key]) { const sm = new THREE.SkinnedMesh(F.cache[key], plainMat(o.skirtColor, o.skirtFabric)); sm.frustumCulled = false; sm.bind(skel, new THREE.Matrix4()); sm.userData.outfit = true; av.root.add(sm); av.outfitObjs.push(sm); }
-    }
-  } else if (t.rpm) {
-    if (o.top === 'tee' || o.top === 'tank') {
-      addRegion(av, 'Wolf3D_Outfit_Top', o.top, TOPS[o.top], plainMat(o.topColor, 'matte'), 0.0);
+  const L = t.headLen;
+  const topMat = plainMat(o.topColor, o.topFabric || 'matte', o.topPattern);
+  const rpmMale = !o.female && t.rpm;
+  const src = rpmMale ? 'Wolf3D_Outfit_Top' : F.main.name;
+  const off = rpmMale ? 0.0 : 0.006;
+  if (o.top && o.top !== 'jacket' && TOPS[o.top]) {
+    addRegion(av, src, o.top, TOPS[o.top], topMat, off);
+    if (rpmMale && SKINPART[o.top]) {
       const skinC = new THREE.Color('#c98f6c').multiply(new THREE.Color(av.skin || '#ffffff'));
-      addRegion(av, 'Wolf3D_Outfit_Top', o.top + '-skin', SKINPART[o.top], plainMat('#' + skinC.getHexString(), 'matte'), -0.004);
-      if (o.print) chestPrint(av, o.print, o.topColor, add);
+      addRegion(av, src, o.top + '-skin', SKINPART[o.top], plainMat('#' + skinC.getHexString(), 'matte'), -0.004);
     }
-    const L = t.headLen, hc = pick(['#111114', '#f5f5f2', '#ff3d8b', '#1e3a8a', '#cdb58f', '#c8ff3d']);
+  }
+  if (o.top === 'cami') straps(av, o.topColor, add);
+  if (o.top === 'polo' || o.top === 'shirt' || o.top === 'shirtShort') neckProp(av, 'collar', o.collar || o.topColor, add);
+  if (o.top === 'hoodie') neckProp(av, 'hood', o.topColor, add);
+  if (o.top === 'aodai') neckProp(av, 'mandarin', o.topColor, add);
+  if (o.print) chestPrint(av, o.print, o.topColor, add);
+  if (o.tie) tie(o.tie, add, o.bowtie);
+  // váy / vạt áo
+  const skirtMat = o.skirt ? plainMat(o.skirtColor || o.topColor, o.skirtFabric || o.topFabric || 'matte', o.skirtPattern || (o.skirt === 'aodai' || o.skirt === 'baba' ? o.topPattern : null)) : null;
+  if (o.skirt) addSkirt(av, F, o.skirt, skirtMat, F.main.name);
+  // mũ
+  if (rpmMale || o.hat === 'khandong') {
+    const hc = o.hatColor || pick(['#111114', '#f5f5f2', '#ff3d8b', '#1e3a8a', '#cdb58f', '#c8ff3d']);
     if (o.hat === 'cap' || o.hat === 'capBack') add('Head', capHat(L, hc, o.hat === 'capBack'));
     if (o.hat === 'beanie') add('Head', beanie(L, hc));
     if (o.hat === 'bucket') add('Head', bucketHat(L, hc));
-  } else {
-    // mô hình nam khác: áo thun / ba lỗ từ chính lưới thân
-    const main = F.main.name;
-    if (o.top !== 'jacket') addRegion(av, main, o.top, TOPS[o.top], plainMat(o.topColor, 'matte'), 0.006);
-    if (o.print) chestPrint(av, o.print, o.topColor, add);
+    if (o.hat === 'khandong') add('Head', khanDong(L, o.hatColor || o.topColor));
   }
 }
 // lớp đồ có sẵn bị ẩn / đổi chất liệu khi mặc đồ đi bar
-export function barHidden(o) { return o && o.bar && !o.female && (o.top === 'tee' || o.top === 'tank') ? ['Wolf3D_Outfit_Top'] : []; }
+export function barHidden(o) { return o && o.bar && !o.female && o.top && o.top !== 'jacket' ? ['Wolf3D_Outfit_Top'] : []; }
 export function barLayers(o) {
   if (!o || !o.bar) return null;
   if (o.female) return { Wolf3D_Outfit_Top: [o.topColor, o.topFabric], Wolf3D_Outfit_Bottom: [o.legs, 'denim'], Wolf3D_Outfit_Footwear: ['#f5f5f2', 'matte'] };
   return { Wolf3D_Outfit_Top: o.jacket || [o.topColor, 'matte'], Wolf3D_Outfit_Bottom: o.bottom, Wolf3D_Outfit_Footwear: o.shoes };
 }
+export { plainMat };
