@@ -125,16 +125,24 @@
     <h2>🧍 Nhân vật (trang phục)</h2>
     <div class="muted">Mỗi file là một nhân vật với bộ đồ riêng. Người xem lên sàn được chọn ngẫu nhiên trong các nhân vật đang bật (theo nam / nữ). Càng nhiều file → sàn càng đa dạng trang phục. Mọi nhân vật đều tự nhảy đủ 14 điệu.</div>
     <details style="margin:10px 0">
-      <summary>Cách lấy thêm nhân vật miễn phí từ Mixamo (khoảng 100 nhân vật, đồ hiện đại)</summary>
+      <summary>Cách làm nhân vật riêng (3 cách, không cần biết dựng 3D)</summary>
+      <p><b>Cách 1 — VRoid Studio (miễn phí, nhân vật kiểu anime):</b></p>
       <ol>
-        <li>Mở <b>mixamo.com</b> → đăng nhập bằng tài khoản Adobe (miễn phí).</li>
-        <li>Chọn tab <b>Characters</b> → bấm vào nhân vật muốn dùng (đồ thường ngày, áo khoác, hoodie, váy…).</li>
-        <li>Bấm <b>Download</b> → Format: <b>FBX Binary (.fbx)</b>, Pose: <b>T-pose</b> → Download.</li>
-        <li>Tải file .fbx đó lên ở ô bên dưới, chọn Nam / Nữ. Xong — không cần Blender.</li>
+        <li>Tải <b>VRoid Studio</b> (vroid.com) cho Windows / Mac.</li>
+        <li>Tạo nhân vật mới: chỉnh khuôn mặt, tóc, cơ thể, quần áo bằng thanh trượt và cọ vẽ.</li>
+        <li>Bấm <b>Export → Export as VRM</b> (VRM 0.0 hoặc 1.0 đều được) → tải file <b>.vrm</b> lên đây.</li>
       </ol>
-      <div class="muted">Cũng nhận file .glb có khung xương người chuẩn Mixamo / Ready Player Me. Nhân vật Mixamo được dùng miễn phí cả cho mục đích thương mại (không được bán lại file gốc).</div>
+      <p><b>Cách 2 — AI tạo mô hình 3D (Meshy, Tripo, Hyper3D…):</b></p>
+      <ol>
+        <li>Gõ mô tả nhân vật hoặc đưa ảnh nhân vật đứng thẳng, dang tay chữ T (vẽ tay hoặc tạo bằng ChatGPT).</li>
+        <li>Sau khi AI dựng xong, dùng chức năng <b>Rig / Auto-rig</b> chọn khung <b>người (humanoid)</b>.</li>
+        <li>Xuất <b>.glb</b> hoặc <b>.fbx</b> → tải lên đây.</li>
+      </ol>
+      <p><b>Cách 3 — Có sẵn mô hình người chưa có xương (tự làm / thuê làm):</b> tải lên <b>mixamo.com</b> → Upload Character → đặt các điểm cằm, cổ tay, khuỷu, gối, háng → Mixamo tự gắn xương → Download <b>FBX Binary, T-pose</b> → tải lên đây.</p>
+      <p><b>Nhân vật Mixamo có sẵn:</b> mixamo.com → Characters → chọn → Download FBX Binary, T-pose.</p>
+      <div class="muted">Game tự nhận khung xương của Mixamo, VRoid/VRM, Ready Player Me, Unreal, Blender (Rigify), Character Creator / AccuRig và các công cụ AI phổ biến. Nhân vật thêm vào tự nhảy đủ 14 điệu, có thể hoá trang và được biến đổi dáng người / khuôn mặt. Nên giữ mỗi file dưới 20 MB để máy chạy mượt.</div>
     </details>
-    <div class="row"><input type="file" id="modelFile" multiple accept=".fbx,.glb"><span id="modelMsg" class="muted"></span></div>
+    <div class="row"><input type="file" id="modelFile" multiple accept=".fbx,.glb,.vrm"><span id="modelMsg" class="muted"></span></div>
     <table><thead><tr><th>Nhân vật</th><th>Giới tính</th><th>Dùng</th><th></th></tr></thead><tbody id="modelsBody"></tbody></table>
   </div>
 

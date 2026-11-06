@@ -7,7 +7,38 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { applyCostume, randomCostumeId, animateCostume, costumeTime, COSTUMES } from './costumes.js';
 export { COSTUMES, costumeTime };
 
-const canon = n => String(n || '').replace(/^mixamorig\d*[:_]?/i, '');
+// chuẩn hoá tên xương từ nhiều phần mềm về tên kiểu Mixamo
+// (Mixamo, Ready Player Me, VRoid/VRM, Unreal, Blender/Rigify, Character Creator, Meshy/Tripo/Accurig…)
+const ALIASES = {
+  Hips: ['hips', 'pelvis', 'hip', 'root_hips', 'bip_c_hips', 'cc_base_hip', 'def_hips', 'def_spine'],
+  Spine: ['spine', 'spine_01', 'spine1_', 'bip_c_spine', 'cc_base_waist', 'def_spine_001', 'spine01', 'abdomen', 'waist'],
+  Spine1: ['spine1', 'spine_02', 'chest', 'bip_c_chest', 'cc_base_spine01', 'def_spine_002', 'spine02'],
+  Spine2: ['spine2', 'spine_03', 'upperchest', 'upper_chest', 'bip_c_upperchest', 'cc_base_spine02', 'def_spine_003', 'spine03'],
+  Neck: ['neck', 'neck_01', 'bip_c_neck', 'cc_base_necktwist01', 'def_spine_004', 'neck01'],
+  Head: ['head', 'bip_c_head', 'cc_base_head', 'def_spine_006', 'head01'],
+  HeadTop_End: ['headtop_end', 'head_end', 'headtop', 'head_top', 'bip_c_head_end'],
+  LeftShoulder: ['leftshoulder', 'clavicle_l', 'shoulder_l', 'l_shoulder', 'bip_l_shoulder', 'cc_base_l_clavicle', 'def_shoulder_l', 'lshoulder', 'l_clavicle'],
+  LeftArm: ['leftarm', 'upperarm_l', 'leftupperarm', 'l_upperarm', 'upper_arm_l', 'bip_l_upperarm', 'cc_base_l_upperarm', 'def_upper_arm_l', 'larm', 'l_arm'],
+  LeftForeArm: ['leftforearm', 'lowerarm_l', 'leftlowerarm', 'l_lowerarm', 'forearm_l', 'bip_l_lowerarm', 'cc_base_l_forearm', 'def_forearm_l', 'lforearm', 'l_forearm', 'l_elbow'],
+  LeftHand: ['lefthand', 'hand_l', 'l_hand', 'bip_l_hand', 'cc_base_l_hand', 'def_hand_l', 'lhand', 'l_wrist'],
+  LeftUpLeg: ['leftupleg', 'thigh_l', 'leftupperleg', 'l_upperleg', 'upperleg_l', 'bip_l_upperleg', 'cc_base_l_thigh', 'def_thigh_l', 'lthigh', 'l_thigh', 'l_hip'],
+  LeftLeg: ['leftleg', 'calf_l', 'leftlowerleg', 'l_lowerleg', 'lowerleg_l', 'shin_l', 'bip_l_lowerleg', 'cc_base_l_calf', 'def_shin_l', 'lcalf', 'l_calf', 'l_knee'],
+  LeftFoot: ['leftfoot', 'foot_l', 'l_foot', 'bip_l_foot', 'cc_base_l_foot', 'def_foot_l', 'lfoot', 'l_ankle'],
+};
+for (const k of Object.keys(ALIASES)) if (k.startsWith('Left')) {
+  const r = k.replace('Left', 'Right');
+  ALIASES[r] = ALIASES[k].map(n => n.replace(/left/g, 'right').replace(/(^|_)l(_|$)/g, '$1r$2').replace(/_l$/, '_r').replace(/^l(?=[a-z])/, 'r').replace(/bip_l_/, 'bip_r_').replace(/cc_base_l_/, 'cc_base_r_'));
+}
+const ALIAS_MAP = new Map();
+for (const [k, list] of Object.entries(ALIASES)) for (const n of list) if (!ALIAS_MAP.has(n)) ALIAS_MAP.set(n, k);
+const canon = n => {
+  let s = String(n || '').replace(/^mixamorig\d*[:_]?/i, '');
+  if (ALIASES[s]) return s;
+  let k = s.toLowerCase().replace(/^(j_|def[-_]|org[-_]|bone[-_]?|armature[|_:])/, m => m.startsWith('def') ? 'def_' : '').replace(/[.\-\s:|]/g, '_').replace(/__+/g, '_');
+  if (ALIAS_MAP.has(k)) return ALIAS_MAP.get(k);
+  k = k.replace(/^.*?:/, '');
+  return ALIAS_MAP.get(k) || ALIAS_MAP.get(k.replace(/_/g, '')) || s;
+};
 const BONES = ['Hips', 'Spine', 'Spine1', 'Spine2', 'Neck', 'Head', 'HeadTop_End',
   'LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand', 'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand',
   'LeftUpLeg', 'LeftLeg', 'LeftFoot', 'RightUpLeg', 'RightLeg', 'RightFoot'];
@@ -155,7 +186,7 @@ export async function loadAvatars(list) {
     try {
       let t = cache.get(it.url);
       if (!t) {
-        const scene = /\.fbx(\?|$)/i.test(it.url) ? fixFbx(await fbx.loadAsync(it.url)) : (await gl.loadAsync(it.url)).scene;
+        const scene = /\.fbx(\?|$)/i.test(it.url) ? fixFbx(await fbx.loadAsync(it.url)) : loadGltfScene(await gl.loadAsync(it.url), it.url);
         t = prepare(scene, it.url);
         if (t) cache.set(it.url, t);
       }
@@ -164,6 +195,27 @@ export async function loadAvatars(list) {
   }
   templates.length = 0; templates.push(...next);
   return templates;
+}
+function loadGltfScene(gltf, url) {
+  const ext = (gltf.parser && gltf.parser.json && gltf.parser.json.extensionsUsed) || [];
+  const isVrm = /\.vrm(\?|$)/i.test(url) || ext.some(e => /VRM/i.test(e));
+  return isVrm ? fixVrm(gltf.scene) : gltf.scene;
+}
+// VRM / glTF: bỏ lưới đổ bóng phụ, giữ chất liệu cắt alpha cho tóc
+function fixVrm(root) {
+  root.traverse(o => {
+    if (!o.isMesh) return;
+    const conv = m => {
+      if (!m) return m;
+      // VRoid/VRM (MToon) khi không có plugin hay mang ánh sáng tự phát → đổi sang chất liệu thường
+      const n = new THREE.MeshStandardMaterial({ name: m.name, map: m.map || null, color: m.color ? m.color.clone() : 0xffffff, roughness: 0.75, metalness: 0, side: m.side, normalMap: m.normalMap || null });
+      if (m.alphaTest || m.transparent || /hair|eye|face|lash|brow/i.test(m.name)) { n.alphaTest = Math.max(0.4, m.alphaTest || 0); n.transparent = false; }
+      if (n.map) n.map.colorSpace = THREE.SRGBColorSpace;
+      return n;
+    };
+    o.material = Array.isArray(o.material) ? o.material.map(conv) : conv(o.material);
+  });
+  return root;
 }
 // FBX từ Mixamo: chất liệu Phong → Standard, bỏ trong suốt giả
 function fixFbx(root) {
@@ -308,7 +360,7 @@ export function restyle(av) {
     av.mats.push(m); o.material = m;
     if (/Teeth/i.test(o.name)) o.visible = false;
     if (/Beard/i.test(o.name)) o.visible = av.beard && !(av.costume && av.costume.hideHat && !['wukong', 'satang'].includes(av.costume.id));
-    if (/Headwear|Hair/i.test(base.name)) o.visible = !(av.costume && av.costume.hideHat);
+    if (av.t.rpm && /Headwear|Hair/i.test(base.name)) o.visible = !(av.costume && av.costume.hideHat);
     if (o.morphTargetDictionary && o.morphTargetDictionary.mouthSmile !== undefined) (av.morphs || (av.morphs = [])).push(o);
   });
 }
@@ -384,7 +436,7 @@ export function driveAvatar(av, rig, opts) {
   const spine = aim(av, 'Spine', W.Hips, w('spine'), w('chest'));
   let up = pass(av, 'Spine1', spine); up = pass(av, 'Spine2', up);
   const neck = aim(av, 'Neck', up, w('neck'), headPt);
-  aim(av, 'Head', neck, headPt, headTop);
+  if (av.bones.HeadTop_End) aim(av, 'Head', neck, headPt, headTop); else pass(av, 'Head', neck);
   // tay: rig shL nằm bên trái màn hình = tay phải nhân vật
   const rs = pass(av, 'RightShoulder', up);
   const ra = aim(av, 'RightArm', rs, w('shL'), w('elL'));

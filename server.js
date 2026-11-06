@@ -159,7 +159,7 @@ const BUILTIN_MODELS = path.join(__dirname, 'public', 'models');
 const USER_MODELS = path.join(DATA, 'models');
 fs.mkdirSync(USER_MODELS, { recursive: true });
 app.use('/usermodels', express.static(USER_MODELS));
-const MODEL_RE = /\.(glb|fbx)$/i;
+const MODEL_RE = /\.(glb|fbx|vrm)$/i;
 function modelList() {
   const meta = readJSON('models.json', {});
   const out = [];
