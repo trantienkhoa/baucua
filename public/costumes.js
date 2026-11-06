@@ -81,9 +81,35 @@ const P = {
   spikyHair: (L, c) => { const geos = []; for (let i = 0; i < 14; i++) { const a = (i / 14) * PI * 1.6 - PI * 0.8, up = 0.4 + (i % 3) * 0.2; const gg = new THREE.ConeGeometry(0.06, 0.24 + (i % 3) * 0.06, 8).translate(0, 0.12, 0).rotateX(-0.3 - up * 0.4).rotateY(a); geos.push(gg.translate(Math.sin(a) * L * 0.25, L * 0.8, -Math.cos(a) * L * 0.1 - 0.03)); } geos.push(new THREE.SphereGeometry(L * 0.58, 20, 12, 0, TAU, 0, PI * 0.5).translate(0, L * 0.48, -0.01)); return mesh(mergeGeometries(geos), col(c)); },
   antenna: L => { const g = new THREE.Group(); for (const sd of [-1, 1]) { g.add(mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.18), silver(), sd * 0.07, L * 1.05, 0)); g.add(mesh(new THREE.SphereGeometry(0.022, 10, 8), glow(0xff3d3d), sd * 0.07, L * 1.15, 0)); } return g; },
   visor: (L, c = 0x3dd9ff) => mesh(new THREE.CylinderGeometry(L * 0.52, L * 0.52, 0.06, 28, 1, true, -1.3, 2.6), glow(c), 0, L * 0.4, 0.014),
+  // Tây Du Ký
+  monkHat: L => { const g = new THREE.Group(), R = L * 0.5; g.add(mesh(new THREE.CylinderGeometry(R * 1.02, R * 1.04, 0.035, 24, 1, true), gold(), 0, L * 0.5, 0));
+    const petal = new THREE.Shape(); petal.moveTo(-0.03, 0); petal.quadraticCurveTo(-0.035, 0.05, 0, 0.075); petal.quadraticCurveTo(0.035, 0.05, 0.03, 0); petal.closePath();
+    const pg = new THREE.ShapeGeometry(petal);
+    for (let i = -2; i <= 2; i++) { const a = i * 0.38; const p = mesh(pg, mat('petal' + (i % 2), () => std(i % 2 ? 0xb3122d : 0xffc928, { side: THREE.DoubleSide, metalness: i % 2 ? 0.1 : 0.9, roughness: 0.3 })), Math.sin(a) * R * 1.04, L * 0.52, Math.cos(a) * R * 1.04); p.rotation.y = a; p.rotation.x = -0.25; g.add(p); }
+    return g; },
+  pigFace: L => { const g = new THREE.Group(), R = L * 0.5;
+    g.add(mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.05, 20).rotateX(PI / 2), col(0xf2a1b0), 0, L * 0.3, R * 1.0));
+    for (const sd of [-1, 1]) g.add(mesh(new THREE.CircleGeometry(0.01, 10), black(), sd * 0.017, L * 0.3, R * 1.0 + 0.026));
+    for (const sd of [-1, 1]) { const e = mesh(new THREE.ConeGeometry(0.07, 0.12, 4).scale(1, 1, 0.25).rotateX(0.9).rotateZ(-sd * 0.7), col(0xf2a1b0), sd * R * 0.92, L * 0.72, 0.02); g.add(e); }
+    return g; },
+  beard: L => { const g = new THREE.Group(); g.add(mesh(new THREE.ConeGeometry(L * 0.3, L * 0.55, 16, 1, false, -1.3, 2.6).rotateX(PI).scale(1, 1, 0.6), col(0x2a1a10), 0, L * 0.02, L * 0.3)); g.add(mesh(new THREE.TorusGeometry(L * 0.42, 0.02, 6, 20, PI).rotateZ(PI), col(0x2a1a10), 0, L * 0.28, L * 0.2)); return g; },
+  beads: (big, c = 0x5a3820) => { const g = new THREE.Group(), n = big ? 9 : 16, r = big ? 0.045 : 0.02; for (let i = 0; i < n; i++) { const a = i / n * TAU; g.add(mesh(new THREE.SphereGeometry(r, 10, 8), big ? col(0xeee6cf) : col(c), Math.sin(a) * 0.15, 0.2 - Math.cos(a) * 0.04 + (Math.cos(a) > 0 ? -0.07 * Math.cos(a) : 0), Math.cos(a) * 0.13)); } return g; },
+  ringStaff: () => { const g = P.staff(gold(), null, 1.8); for (let i = 0; i < 3; i++) g.add(mesh(new THREE.TorusGeometry(0.06, 0.008, 6, 16), gold(), -0.08 + (i - 1) * 0.03, -0.01, 0.82)); g.add(mesh(new THREE.TorusGeometry(0.09, 0.012, 6, 18), gold(), -0.08, -0.01, 0.86)); return g; },
+  rake: () => { const g = P.staff(col(0x5a3820), null, 1.7); g.add(mesh(new THREE.BoxGeometry(0.32, 0.04, 0.05), iron(), -0.08, -0.01, 0.85)); for (let i = 0; i < 9; i++) g.add(mesh(new THREE.ConeGeometry(0.012, 0.12, 6).rotateX(-PI / 2), iron(), -0.08 + (i - 4) * 0.036, -0.01, 0.94)); return g; },
+  spade: () => { const g = P.staff(col(0x5a3820), null, 1.7); g.add(mesh(new THREE.TorusGeometry(0.11, 0.02, 6, 16, PI).rotateX(PI / 2).rotateY(PI / 2), silver(), -0.08, -0.01, 0.95)); g.add(mesh(new THREE.BoxGeometry(0.16, 0.012, 0.12), silver(), -0.08, -0.01, -0.9)); return g; },
+  // năng lực trong tay trái (gốc ở cổ tay trái, tay duỗi về +X)
+  power: kind => { const g = new THREE.Group(); const x = 0.09;
+    if (kind === 'fire') { g.add(mesh(new THREE.ConeGeometry(0.06, 0.18, 12).translate(0, 0.09, 0), glow(0xff5a1f), x, 0.06, 0)); g.add(mesh(new THREE.SphereGeometry(0.05, 12, 10), glow(0xffd23d), x, 0.05, 0)); }
+    if (kind === 'ice') for (let i = 0; i < 4; i++) g.add(mesh(new THREE.OctahedronGeometry(0.04 + i * 0.008).scale(0.6, 1.6, 0.6).rotateZ(i - 1.5), glow(0x7cf7ff), x + (i - 1.5) * 0.02, 0.08, (i % 2) * 0.02));
+    if (kind === 'bolt') { const s = new THREE.Shape(); s.moveTo(0, 0.14); s.lineTo(0.05, 0.14); s.lineTo(0.02, 0.06); s.lineTo(0.06, 0.06); s.lineTo(-0.03, -0.08); s.lineTo(0.0, 0.02); s.lineTo(-0.03, 0.02); s.closePath(); g.add(mesh(new THREE.ShapeGeometry(s), glow(0xfff13d), x, 0.04, 0)); g.children[0].material = mat('boltside', () => new THREE.MeshStandardMaterial({ color: 0xfff13d, emissive: 0xfff13d, emissiveIntensity: 1.8, side: THREE.DoubleSide, toneMapped: false })); }
+    if (kind === 'wind') for (let i = 0; i < 3; i++) g.add(mesh(new THREE.TorusGeometry(0.05 + i * 0.025, 0.008, 6, 24, PI * 1.5).rotateX(PI / 2), glow(0x5dff9a), x, 0.05 + i * 0.05, 0));
+    if (kind === 'shadow') { g.add(mesh(new THREE.SphereGeometry(0.07, 16, 12), glow(0x9b5cff), x, 0.07, 0)); g.add(mesh(new THREE.TorusGeometry(0.1, 0.01, 6, 24).rotateX(1.2), glow(0xd8b4ff), x, 0.07, 0)); }
+    g.userData.spin = true; return g; },
+  heroMask: (L, c) => { const g = new THREE.Group(), R = L * 0.5; g.add(mesh(new THREE.CylinderGeometry(R, R, 0.06, 28, 1, true, -1.6, 3.2), col(c), 0, L * 0.4, 0.014)); g.add(mesh(new THREE.CylinderGeometry(R * 1.02, R * 1.02, 0.02, 28, 1, true, -1.6, 3.2), gold(), 0, L * 0.6, 0.012)); return g; },
   // thân (gốc ở xương ngực Spine2)
   cape: c => mesh(new THREE.PlaneGeometry(0.4, 1.15, 10, 16).translate(0, -0.575, 0), capeMat(c), 0, 0.14, -0.17),
   shortCape: c => mesh(new THREE.PlaneGeometry(0.4, 0.75, 10, 12).translate(0, -0.375, 0), capeMat(c), 0, 0.14, -0.17),
+  emblemShape: (shapeFn, c, c2) => { const g = new THREE.Group(); g.add(mesh(new THREE.CircleGeometry(0.085, 6), col(c2), 0, 0.03, 0.155)); g.add(mesh(new THREE.ShapeGeometry(shapeFn()), glow(c), 0, 0.03, 0.157)); return g; },
   emblem: (c, c2) => { const s = new THREE.Shape(); s.moveTo(-0.02, 0.07); s.lineTo(0.05, 0.07); s.lineTo(0.01, 0.01); s.lineTo(0.05, 0.01); s.lineTo(-0.04, -0.08); s.lineTo(-0.005, -0.015); s.lineTo(-0.045, -0.015); s.closePath(); const g = new THREE.Group(); g.add(mesh(new THREE.CircleGeometry(0.085, 6), col(c2), 0, 0.03, 0.155)); g.add(mesh(new THREE.ShapeGeometry(s), glow(c), 0, 0.03, 0.157)); return g; },
   armor: m => { const g = new THREE.Group(); g.add(mesh(new THREE.CylinderGeometry(0.175, 0.16, 0.32, 20, 1, true, -1.3, 2.6).scale(1, 1, 0.8), m, 0, 0.0, 0.0)); for (const sd of [-1, 1]) g.add(mesh(new THREE.SphereGeometry(0.1, 14, 10, 0, TAU, 0, PI * 0.5).scale(1.1, 0.7, 1), m, sd * 0.2, 0.15, 0)); return g; },
   backSword: () => { const g = new THREE.Group(); g.add(mesh(new THREE.BoxGeometry(0.035, 0.85, 0.008), silver(), 0, 0, 0)); g.add(mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.2), black(), 0, 0.52, 0)); g.add(mesh(new THREE.BoxGeometry(0.14, 0.02, 0.03), gold(), 0, 0.42, 0)); g.position.set(0, 0.05, -0.17); g.rotation.z = 0.6; return g; },
@@ -101,10 +127,33 @@ const P = {
   shield: (c, c2) => { const g = new THREE.Group(); g.add(mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.03, 24), col(c), 0.12, 0.07, 0)); g.add(mesh(new THREE.TorusGeometry(0.26, 0.02, 8, 24).rotateX(PI / 2), gold(), 0.12, 0.085, 0)); g.add(mesh(new THREE.ConeGeometry(0.06, 0.06, 16), col(c2), 0.12, 0.11, 0)); return g; },
 };
 
+const SH = {
+  flame: () => { const s = new THREE.Shape(); s.moveTo(0, -0.07); s.quadraticCurveTo(0.06, -0.04, 0.04, 0.02); s.quadraticCurveTo(0.03, 0.05, 0.0, 0.08); s.quadraticCurveTo(0.01, 0.03, -0.02, 0.01); s.quadraticCurveTo(-0.06, -0.03, 0, -0.07); return s; },
+  flake: () => { const s = new THREE.Shape(); for (let i = 0; i < 12; i++) { const a = i / 12 * TAU, r = i % 2 ? 0.025 : 0.07; i ? s.lineTo(Math.sin(a) * r, Math.cos(a) * r) : s.moveTo(Math.sin(a) * r, Math.cos(a) * r); } s.closePath(); return s; },
+  bolt: () => { const s = new THREE.Shape(); s.moveTo(-0.02, 0.07); s.lineTo(0.05, 0.07); s.lineTo(0.01, 0.01); s.lineTo(0.05, 0.01); s.lineTo(-0.04, -0.08); s.lineTo(-0.005, -0.015); s.lineTo(-0.045, -0.015); s.closePath(); return s; },
+  leaf: () => { const s = new THREE.Shape(); s.moveTo(0, -0.07); s.quadraticCurveTo(0.07, 0, 0, 0.07); s.quadraticCurveTo(-0.07, 0, 0, -0.07); return s; },
+  moon: () => { const s = new THREE.Shape(); s.absarc(0, 0, 0.065, 0, TAU, false); const h = new THREE.Path(); h.absarc(0.025, 0.015, 0.055, 0, TAU, true); s.holes.push(h); return s; },
+};
+const SQUAD = [
+  ['hero_red', 'Neon Hoả', '#c8102e', '#1b1b1f', 0xff3d1f, 'fire', 'flame'],
+  ['hero_blue', 'Neon Băng', '#1e40af', '#e6f0ff', 0x7cf7ff, 'ice', 'flake'],
+  ['hero_yellow', 'Neon Sét', '#e0a800', '#1b1b1f', 0xfff13d, 'bolt', 'bolt'],
+  ['hero_green', 'Neon Phong', '#15803d', '#e6ffe6', 0x5dff9a, 'wind', 'leaf'],
+  ['hero_purple', 'Neon Ảnh', '#5b21b6', '#111111', 0xb98cff, 'shadow', 'moon'],
+];
+
 // ---------- danh sách hoá trang ----------
 // tint: màu áo/quần/giày cho mô hình có lớp đồ tách rời
 export const COSTUMES = [
-  { id: 'wukong', name: 'Tề Thiên Đại Thánh', tint: ['#c8102e', '#ffb300', '#3b2416'], hideHat: true,
+  { id: 'tang', name: 'Đường Tăng', tint: ['#e0a800', '#b3122d', '#5a3820'], hideHat: true, group: 'tdk',
+    build: (a, L) => { a('Head', P.monkHat(L)); a('Spine2', P.shortCape(0xb3122d)); a('Spine2', P.beads(false, 0x5a3820)); a('RightHand', P.ringStaff()); } },
+  { id: 'batgioi', name: 'Trư Bát Giới', tint: ['#1f2a4a', '#3a3d44', '#1b1b1f'], hideHat: true, group: 'tdk', shape: 'chubby',
+    build: (a, L) => { a('Head', P.pigFace(L)); a('Head', P.headband(L, 0x1f2a4a)); a('RightHand', P.rake()); } },
+  { id: 'satang', name: 'Sa Tăng', tint: ['#3b2416', '#1e3a8a', '#1b1b1f'], hideHat: true, group: 'tdk',
+    build: (a, L) => { a('Head', P.beard(L)); a('Spine2', P.beads(true)); a('RightHand', P.spade()); } },
+  ...SQUAD.map(([id, name, c1, c2, glowC, power, emb]) => ({ id, name, tint: [c1, c1, c2], hideHat: true, group: 'squad',
+    build: (a, L) => { a('Head', P.heroMask(L, 0x111111)); a('Spine2', P.cape(new THREE.Color(c1).getHex())); a('Spine2', P.emblemShape(SH[emb], glowC, 0x111111)); a('LeftHand', P.power(power)); } })),
+  { id: 'wukong', name: 'Tề Thiên Đại Thánh', tint: ['#c8102e', '#ffb300', '#3b2416'], hideHat: true, group: 'tdk',
     build: (a, L) => { a('Head', P.headband(L)); a('Spine2', P.shortCape(0xc8102e)); a('Hips', P.tail(0x7a4b2a)); a('RightHand', P.staff(col(0xc8102e), gold())); } },
   { id: 'hero', name: 'Siêu anh hùng', hideHat: true, tints: [['#5b2a86', '#ffc928', '#ffc928', 0xffc928], ['#0f5132', '#111111', '#111111', 0x111111], ['#0e7490', '#ff8a3d', '#ff8a3d', 0xff8a3d], ['#111111', '#c8ff3d', '#c8ff3d', 0xc8ff3d], ['#ffffff', '#ff3d8b', '#ff3d8b', 0xff3d8b]],
     build: (a, L, tt) => { a('Head', P.eyemask(L, 0x111111)); a('Spine2', P.cape(tt[3])); a('Spine2', P.emblem(0xffe14d, 0x111111)); } },
@@ -164,6 +213,7 @@ export function applyCostume(av, id) {
     av.costumeObjs.push(holder);
   };
   c.build(attach, t.headLen, tt);
+  return c;
 }
 export function randomCostumeId() { return pick(COSTUMES).id; }
 
@@ -174,6 +224,7 @@ export function animateCostume(av, t) {
     const o = h.children[0];
     if (!o) continue;
     if (o.userData.wag) o.rotation.y = Math.sin(t * 4 + (av.seed || 0)) * 0.4;
+    if (o.userData.spin) o.rotation.y = t * 3;
     if (o.userData.flap) o.children.forEach((w, i) => { w.rotation.y = (i ? 1 : -1) * (0.5 + Math.sin(t * 6) * 0.3); });
   }
 }

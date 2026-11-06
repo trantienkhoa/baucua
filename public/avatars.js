@@ -271,6 +271,7 @@ export function createAvatar(parent, female, tpl, costume) {
   applyShape(av);
   av.seed = Math.random() * 10;
   applyCostume(av, costume === undefined ? null : costume);
+  costumeShape(av);
   restyle(av);
   return av;
 }
@@ -289,7 +290,13 @@ export function restyle(av) {
     const sk = av.skin || (av.skin = pick(SKIN_TINT));
     tint.Wolf3D_Skin = tint.Wolf3D_Body = sk;
   }
-  const recolor = !av.t.rpm ? pick(RECOLOR) : null;
+  let recolor = !av.t.rpm ? pick(RECOLOR) : null;
+  if (recolor && av.costumeTint) {
+    // đưa vùng vải vàng gốc (hue ~0.14) về màu quần của bộ hoá trang
+    const hsl = {}; new THREE.Color(av.costumeTint[1]).getHSL(hsl, THREE.SRGBColorSpace);
+    const dark = hsl.l < 0.15, light = hsl.l > 0.88;
+    recolor = [(hsl.h - 0.14) * Math.PI * 2, dark || light ? 0 : Math.min(1.2, hsl.s * 1.1), dark ? 0.22 : light ? 1.25 : Math.min(1.3, 0.35 + hsl.l)];
+  }
   av.root.traverse(o => {
     if (!o.isMesh) return;
     if (!o.userData.baseMat) o.userData.baseMat = o.material;
@@ -300,7 +307,7 @@ export function restyle(av) {
     if (c) m.color = new THREE.Color(c);
     av.mats.push(m); o.material = m;
     if (/Teeth/i.test(o.name)) o.visible = false;
-    if (/Beard/i.test(o.name)) o.visible = av.beard && !(av.costume && av.costume.hideHat && av.costume.id !== 'wukong');
+    if (/Beard/i.test(o.name)) o.visible = av.beard && !(av.costume && av.costume.hideHat && !['wukong', 'satang'].includes(av.costume.id));
     if (/Headwear|Hair/i.test(base.name)) o.visible = !(av.costume && av.costume.hideHat);
     if (o.morphTargetDictionary && o.morphTargetDictionary.mouthSmile !== undefined) (av.morphs || (av.morphs = [])).push(o);
   });
@@ -403,5 +410,11 @@ export function driveAvatar(av, rig, opts) {
 }
 
 // đổi hoá trang (id = null: bỏ hoá trang)
-export function setCostume(av, id) { applyCostume(av, id); restyle(av); }
+export function setCostume(av, id) { applyCostume(av, id); costumeShape(av); restyle(av); }
+function costumeShape(av) {
+  if (!av.shape) return;
+  if (!av.shape.baseType) av.shape.baseType = av.shape.type;
+  const want = (av.costume && av.costume.shape) || av.shape.baseType;
+  if (want !== av.shape.type) { av.shape.type = want; applyShape(av); }
+}
 export { randomCostumeId };

@@ -574,7 +574,7 @@ function ensureDancer(user, silent) {
 }
 
 // ---------- lệnh từ bình luận ----------
-const COSTUME_KEYS = [['ngo khong', 'wukong'], ['ton ngo khong', 'wukong'], ['te thien', 'wukong'], ['thanh giong', 'giong'], ['son tinh', 'sontinh'], ['thuy tinh', 'thuytinh'], ['ninja', 'ninja'], ['samurai', 'samurai'], ['phi hanh gia', 'astro'], ['hiep si', 'knight'], ['phu thuy', 'wizard'], ['cuop bien', 'pirate'], ['nguoi may', 'robot'], ['ac quy', 'devil'], ['thien than', 'angel'], ['anime', 'anime'], ['sieu anh hung', 'hero'], ['hoang de', 'king']];
+const COSTUME_KEYS = [['duong tang', 'tang'], ['tam tang', 'tang'], ['su phu', 'tang'], ['bat gioi', 'batgioi'], ['tru bat gioi', 'batgioi'], ['sa tang', 'satang'], ['sa ngo tinh', 'satang'], ['neon hoa', 'hero_red'], ['anh hung do', 'hero_red'], ['neon bang', 'hero_blue'], ['anh hung xanh duong', 'hero_blue'], ['anh hung xanh', 'hero_blue'], ['neon set', 'hero_yellow'], ['anh hung vang', 'hero_yellow'], ['neon phong', 'hero_green'], ['anh hung la', 'hero_green'], ['neon anh', 'hero_purple'], ['anh hung tim', 'hero_purple'], ['ngo khong', 'wukong'], ['ton ngo khong', 'wukong'], ['te thien', 'wukong'], ['thanh giong', 'giong'], ['son tinh', 'sontinh'], ['thuy tinh', 'thuytinh'], ['ninja', 'ninja'], ['samurai', 'samurai'], ['phi hanh gia', 'astro'], ['hiep si', 'knight'], ['phu thuy', 'wizard'], ['cuop bien', 'pirate'], ['nguoi may', 'robot'], ['ac quy', 'devil'], ['thien than', 'angel'], ['anime', 'anime'], ['sieu anh hung', 'hero'], ['hoang de', 'king']];
 const DANCE_KEYS = [];
 DANCES.forEach((d, i) => d.keys.forEach(k => DANCE_KEYS.push([normText(k), i])));
 DANCE_KEYS.sort((a, b) => b[0].length - a[0].length);
@@ -588,6 +588,8 @@ function handleCommand(d, text) {
   if (/\bdoi do\b|\bthay do\b/.test(t)) { d.look = randomLook(d.body.female, d.look); if (d.av) setCostume(d.av, Math.random() < 0.5 ? null : randomCostumeId()); sparkle(d, 14); return; }
   if (/\bhoa trang\b|\bbien hinh\b/.test(t)) { if (d.av) setCostume(d.av, randomCostumeId()); sparkle(d, 20); return; }
   if (/\bbo hoa trang\b|\bdo thuong\b/.test(t)) { if (d.av) setCostume(d.av, null); return; }
+  if (/\bbiet doi\b|\bsieu nhan\b/.test(t)) { if (d.av) setCostume(d.av, pick(['hero_red', 'hero_blue', 'hero_yellow', 'hero_green', 'hero_purple'])); sparkle(d, 20); return; }
+  if (/\btay du\b/.test(t)) { if (d.av) setCostume(d.av, pick(['wukong', 'tang', 'batgioi', 'satang'])); sparkle(d, 20); return; }
   for (const [k, id] of COSTUME_KEYS) if (t.includes(k)) { if (d.av) setCostume(d.av, id); sparkle(d, 20); return; }
   for (const [k, i] of DANCE_KEYS) {
     if (k.length < 2) continue;
