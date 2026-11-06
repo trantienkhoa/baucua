@@ -2,6 +2,7 @@
 // và điều khiển xương theo khung xương điệu nhảy (rig) của game.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 const canon = n => String(n || '').replace(/^mixamorig\d*[:_]?/i, '');
@@ -34,16 +35,41 @@ function recolorMat(base, [hue, sat, val]) {
 const templates = [];
 export const avatarTemplates = templates;
 
-export async function loadAvatars(urls) {
-  const loader = new GLTFLoader();
-  for (const url of urls) {
+const cache = new Map();
+// list: [{ url, female }]
+export async function loadAvatars(list) {
+  const gl = new GLTFLoader(), fbx = new FBXLoader();
+  const next = [];
+  for (const it of list) {
     try {
-      const gltf = await loader.loadAsync(url);
-      const t = prepare(gltf.scene, url);
-      if (t) templates.push(t);
-    } catch (e) { console.warn('Không nạp được mô hình', url, e); }
+      let t = cache.get(it.url);
+      if (!t) {
+        const scene = /\.fbx(\?|$)/i.test(it.url) ? fixFbx(await fbx.loadAsync(it.url)) : (await gl.loadAsync(it.url)).scene;
+        t = prepare(scene, it.url);
+        if (t) cache.set(it.url, t);
+      }
+      if (t) { t.female = !!it.female; next.push(t); }
+    } catch (e) { console.warn('Không nạp được mô hình', it.url, e); }
   }
+  templates.length = 0; templates.push(...next);
   return templates;
+}
+// FBX từ Mixamo: chất liệu Phong → Standard, bỏ trong suốt giả
+function fixFbx(root) {
+  root.animations = [];
+  root.traverse(o => {
+    if (!o.isMesh) return;
+    const conv = m => {
+      const n = new THREE.MeshStandardMaterial({ name: m.name, map: m.map || null, normalMap: m.normalMap || null, color: m.map ? 0xffffff : (m.color || new THREE.Color(0xcccccc)), roughness: 0.7, metalness: 0.05 });
+      if (n.map) n.map.colorSpace = THREE.SRGBColorSpace;
+      const cut = m.alphaMap || (m.map && /hair|lash|brow/i.test(m.name + o.name));
+      if (cut) { n.alphaMap = m.alphaMap || null; n.alphaTest = 0.4; n.transparent = false; }
+      n.side = THREE.DoubleSide;
+      return n;
+    };
+    o.material = Array.isArray(o.material) ? o.material.map(conv) : conv(o.material);
+  });
+  return root;
 }
 
 function prepare(scene, url) {
@@ -77,7 +103,7 @@ function prepare(scene, url) {
   const mats = new Set();
   scene.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => mats.add(m.name)); } });
   const name = url.split('/').pop();
-  const female = /(^|[^a-z])(nu|female|girl|woman|f)[^a-z]/i.test('-' + name.replace(/\.glb$/i, '') + '-');
+  const female = false;
   return {
     url, name, scene, female, norm, footY, flip,
     hipH: (hips.y - footY) * norm,

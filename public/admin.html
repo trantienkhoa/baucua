@@ -122,6 +122,23 @@
   </div>
 
   <div class="card">
+    <h2>🧍 Nhân vật (trang phục)</h2>
+    <div class="muted">Mỗi file là một nhân vật với bộ đồ riêng. Người xem lên sàn được chọn ngẫu nhiên trong các nhân vật đang bật (theo nam / nữ). Càng nhiều file → sàn càng đa dạng trang phục. Mọi nhân vật đều tự nhảy đủ 14 điệu.</div>
+    <details style="margin:10px 0">
+      <summary>Cách lấy thêm nhân vật miễn phí từ Mixamo (khoảng 100 nhân vật, đồ hiện đại)</summary>
+      <ol>
+        <li>Mở <b>mixamo.com</b> → đăng nhập bằng tài khoản Adobe (miễn phí).</li>
+        <li>Chọn tab <b>Characters</b> → bấm vào nhân vật muốn dùng (đồ thường ngày, áo khoác, hoodie, váy…).</li>
+        <li>Bấm <b>Download</b> → Format: <b>FBX Binary (.fbx)</b>, Pose: <b>T-pose</b> → Download.</li>
+        <li>Tải file .fbx đó lên ở ô bên dưới, chọn Nam / Nữ. Xong — không cần Blender.</li>
+      </ol>
+      <div class="muted">Cũng nhận file .glb có khung xương người chuẩn Mixamo / Ready Player Me. Nhân vật Mixamo được dùng miễn phí cả cho mục đích thương mại (không được bán lại file gốc).</div>
+    </details>
+    <div class="row"><input type="file" id="modelFile" multiple accept=".fbx,.glb"><span id="modelMsg" class="muted"></span></div>
+    <table><thead><tr><th>Nhân vật</th><th>Giới tính</th><th>Dùng</th><th></th></tr></thead><tbody id="modelsBody"></tbody></table>
+  </div>
+
+  <div class="card">
     <h2>🎵 Nhạc nền của bạn</h2>
     <div class="muted">Tải lên MP3 / M4A / OGG / WAV (tối đa 40 MB mỗi bài). Có bài thì game phát lần lượt (xáo trộn) và nhân vật nhảy theo nhịp tự dò của từng bài; chưa có bài thì máy tự đánh nhạc.<br>
       Nên dùng nhạc miễn phí bản quyền: NCS, StreamBeats, Pixabay Music. Nhạc có bản quyền có thể bị TikTok tắt tiếng.</div>
@@ -249,6 +266,29 @@ socket.on('music', list => {
   for (const b of $('tracks').querySelectorAll('[data-del]')) b.onclick = () => fetch('/api/music/' + encodeURIComponent(b.dataset.del), { method: 'DELETE' });
 });
 
+function renderModels(list) {
+  $('modelsBody').innerHTML = list.map(m => `<tr data-key="${esc(m.key)}"><td>${m.builtin ? '⭐ ' : ''}${esc(m.file)} <span class="muted">${(m.size / 1048576).toFixed(1)} MB</span></td>
+    <td><select data-f="female"><option value="0" ${m.female ? '' : 'selected'}>Nam</option><option value="1" ${m.female ? 'selected' : ''}>Nữ</option></select></td>
+    <td><input type="checkbox" data-f="enabled" ${m.enabled ? 'checked' : ''}></td>
+    <td>${m.builtin ? '<span class="muted">có sẵn</span>' : `<button data-del="${esc(m.file)}">Xoá</button>`}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">Chưa có nhân vật.</td></tr>';
+  for (const tr of $('modelsBody').querySelectorAll('tr[data-key]')) {
+    const key = tr.dataset.key;
+    tr.querySelector('[data-f=female]').onchange = e => patchModel({ key, female: e.target.value === '1' });
+    tr.querySelector('[data-f=enabled]').onchange = e => patchModel({ key, enabled: e.target.checked });
+    const del = tr.querySelector('[data-del]'); if (del) del.onclick = () => { if (confirm('Xoá nhân vật này?')) fetch('/api/models/' + encodeURIComponent(del.dataset.del), { method: 'DELETE' }); };
+  }
+}
+const patchModel = body => fetch('/api/models', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+socket.on('models', renderModels);
+fetch('/api/models').then(r => r.json()).then(renderModels);
+$('modelFile').onchange = async e => {
+  const files = [...e.target.files]; if (!files.length) return;
+  const fd = new FormData(); files.forEach(f => fd.append('files', f));
+  $('modelMsg').textContent = 'Đang tải lên…';
+  try { const r = await fetch('/api/models', { method: 'POST', body: fd }); $('modelMsg').textContent = r.ok ? '✓ Đã thêm — màn hình game tự nạp' : 'Lỗi tải lên'; }
+  catch { $('modelMsg').textContent = 'Lỗi tải lên'; }
+  e.target.value = '';
+};
 fetch('/api/info').then(r => r.json()).then(i => { INFO = i; ACTIONS = i.actions; $('ver').textContent = i.version; renderUrls(); if (S.actions) renderActions(); });
 
 $('btnConnect').onclick = () => socket.emit('connect-tiktok', { username: $('username').value, apiKey: $('apiKey').value });

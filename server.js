@@ -153,9 +153,51 @@ function musicList() {
 }
 app.get('/api/info', (req, res) => res.json({ port: PORT, ips: lanIPs(), actions: ACTIONS, version: require('./package.json').version }));
 app.get('/api/music', (req, res) => res.json(musicList()));
-app.get('/api/models', (req, res) => {
-  const dir = path.join(__dirname, 'public', 'models');
-  try { res.json(fs.readdirSync(dir).filter(f => /\.glb$/i.test(f)).sort()); } catch { res.json([]); }
+// ---------- nhân vật (mô hình 3D) ----------
+const BUILTIN_MODELS = path.join(__dirname, 'public', 'models');
+const USER_MODELS = path.join(DATA, 'models');
+fs.mkdirSync(USER_MODELS, { recursive: true });
+app.use('/usermodels', express.static(USER_MODELS));
+const MODEL_RE = /\.(glb|fbx)$/i;
+function modelList() {
+  const meta = readJSON('models.json', {});
+  const out = [];
+  const add = (dir, prefix, builtin) => {
+    let files = []; try { files = fs.readdirSync(dir).filter(f => MODEL_RE.test(f)).sort(); } catch {}
+    for (const f of files) {
+      const key = (builtin ? 'b:' : 'u:') + f;
+      const m = meta[key] || {};
+      out.push({ key, file: f, url: prefix + encodeURIComponent(f), builtin,
+        female: m.female ?? /(^|[^a-z])(nu|female|girl|woman)([^a-z]|$)/i.test(f.replace(MODEL_RE, '')),
+        enabled: m.enabled ?? true, size: (() => { try { return fs.statSync(path.join(dir, f)).size; } catch { return 0; } })() });
+    }
+  };
+  add(BUILTIN_MODELS, '/models/', true);
+  add(USER_MODELS, '/usermodels/', false);
+  return out;
+}
+app.get('/api/models', (req, res) => res.json(modelList()));
+const modelUpload = multer({
+  storage: multer.diskStorage({
+    destination: USER_MODELS,
+    filename: (req, file, cb) => cb(null, Buffer.from(file.originalname, 'latin1').toString('utf8').replace(/[\\/:*?"<>|]/g, '_')),
+  }),
+  limits: { fileSize: 80 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => cb(null, MODEL_RE.test(file.originalname)),
+});
+app.post('/api/models', modelUpload.array('files', 30), (req, res) => { io.emit('models', modelList()); res.json(modelList()); });
+app.patch('/api/models', (req, res) => {
+  const { key, female, enabled } = req.body || {};
+  if (typeof key !== 'string') return res.status(400).end();
+  const meta = readJSON('models.json', {});
+  meta[key] = Object.assign(meta[key] || {}, female !== undefined ? { female: !!female } : {}, enabled !== undefined ? { enabled: !!enabled } : {});
+  writeJSON('models.json', meta);
+  io.emit('models', modelList()); res.json(modelList());
+});
+app.delete('/api/models/:file', (req, res) => {
+  const f = path.join(USER_MODELS, path.basename(req.params.file));
+  if (fs.existsSync(f)) fs.unlinkSync(f);
+  io.emit('models', modelList()); res.json(modelList());
 });
 const upload = multer({
   storage: multer.diskStorage({

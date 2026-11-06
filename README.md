@@ -35,11 +35,15 @@ Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dù
 
 ## Nhân vật người thật
 
-Mặc định nhân vật là **người thật 3D** nạp từ các file `.glb` trong `public/models/`. 14 điệu nhảy điều khiển trực tiếp khung xương của mô hình, nên **thêm mô hình mới là tự nhảy được**:
+Mặc định nhân vật là **người thật 3D**. Mỗi file mô hình là một nhân vật với bộ đồ riêng; người xem lên sàn được chọn ngẫu nhiên trong các nhân vật đang bật (theo nam / nữ). 14 điệu nhảy điều khiển trực tiếp khung xương nên **mọi nhân vật thêm vào đều tự nhảy được**.
 
-- Chép file `.glb` có khung xương người chuẩn Mixamo hoặc Ready Player Me (tên xương `Hips, Spine, LeftArm…`, có hoặc không có tiền tố `mixamorig:`) vào `public/models/`.
-- Tên file có `nu`/`female` → dùng cho người xem nữ, còn lại cho nam. Mỗi người lên sàn được chọn ngẫu nhiên một mô hình.
-- Mixamo (miễn phí, cần tài khoản Adobe) chỉ xuất `.fbx`: dùng Blender (File → Import FBX → Export glTF .glb) để đổi sang `.glb`.
+**Thêm trang phục / nhân vật** (trang điều khiển → mục 🧍 Nhân vật):
+
+1. Mở mixamo.com, đăng nhập tài khoản Adobe (miễn phí) → tab **Characters** → chọn nhân vật (khoảng 100 nhân vật, nhiều bộ đồ hiện đại).
+2. **Download** → Format **FBX Binary (.fbx)**, Pose **T-pose**.
+3. Tải file .fbx lên ở mục 🧍 Nhân vật, chọn Nam / Nữ. Màn hình game tự nạp, không cần Blender.
+
+Cũng nhận file `.glb` có khung xương người chuẩn Mixamo / Ready Player Me. File tải lên lưu ở `data/models/`.
 
 Hai mô hình có sẵn lấy từ bộ ví dụ của three.js (nhân vật Mixamo “Michelle” và một avatar Ready Player Me). Tài sản này thuộc giấy phép của Adobe Mixamo / Ready Player Me, dùng phát LIVE cá nhân được; nếu bán game cho người khác, hãy thay bằng mô hình bạn có quyền dùng.
 

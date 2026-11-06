@@ -1331,7 +1331,13 @@ resident.look = randomLook(false); resident.look.top = 'bomber'; resident.look.h
 resident.look.c.jacket = resident.look.c.uarm = resident.look.c.farm = col('#1b1b1f'); resident.look.c.shirt = resident.look.c.torso = col('#ff3d8b');
 window.addEventListener('resize', resize);
 resize();
-fetch('/api/models').then(r => r.json()).then(list => loadAvatars(list.map(f => '/models/' + encodeURIComponent(f)))).then(t => console.log('Đã nạp', t.length, 'mô hình người')).catch(e => console.warn(e));
+async function applyModels(list) {
+  await loadAvatars((list || []).filter(m => m.enabled).map(m => ({ url: m.url, female: m.female })));
+  for (const d of [...dancers.values(), ...clones, resident]) { if (d && d.av) { disposeAvatar(d.av); d.av = null; d.avT = null; } }
+  console.log('Đã nạp', avatarTemplates.length, 'mô hình người');
+}
+fetch('/api/models').then(r => r.json()).then(applyModels).catch(e => console.warn(e));
+socket.on('models', list => applyModels(list));
 Music.init();
 const tap = document.getElementById('tap');
 function checkAudio() { tap.style.display = Music.suspended() && !OBS && (Music.settings.musicEnabled || Music.settings.synthMusic) ? 'flex' : 'none'; }
