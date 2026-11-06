@@ -6,6 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { createThemes, THEME_NAMES } from './themes.js';
 import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates, setCostume, randomCostumeId, COSTUMES, costumeTime, setExtra } from './avatars.js';
 
 const W = 1080, H = 1920;
@@ -195,7 +196,7 @@ function drawLedOverlay(sh, t) {
   let name = sh.d.name; while (g.measureText(name).width > 560 && name.length > 2) name = name.slice(0, -2) + '…';
   g.fillText((tier ? '👑 ' : '') + name, ax + r + 26, H2 - 16 - bh / 2 - 14);
   g.font = `700 28px ${FONT}`; g.fillStyle = '#ffe9a8';
-  g.fillText(`tặng ${sh.count > 1 ? sh.count + '× ' : ''}${sh.gift.name} · ${sh.value}💎${tier ? ' · ' + tier.name : ''}`, ax + r + 26, H2 - 16 - bh / 2 + 28);
+  g.fillText(sh.label || `tặng ${sh.count > 1 ? sh.count + '× ' : ''}${sh.gift.name} · ${sh.value}💎${tier ? ' · ' + tier.name : ''}`, ax + r + 26, H2 - 16 - bh / 2 + 28);
   // chữ cảm ơn
   g.textAlign = 'right'; g.font = `900 40px ${FONT}`;
   g.fillStyle = `hsl(${(t * 120) % 360},100%,70%)`;
@@ -634,6 +635,7 @@ function ensureDancer(user, silent) {
   if (d) {
     if (user.name) d.name = user.name;
     if (user.avatar) d.avatar = user.avatar;
+    if (user.lv) d.lv = user.lv;
     d.lastActive = now(); d.leaving = 0;
     return d;
   }
@@ -647,6 +649,7 @@ function ensureDancer(user, silent) {
     if (old) old.leaving = now(); else return null;
   }
   d = new Dancer(user);
+  d.lv = user.lv || 1;
   dancers.set(user.id, d);
   if (!silent && S.showJoinTicker) pushTicker(`${d.name} lên sàn 🕺`, '#7cf7ff');
   return d;
@@ -660,16 +663,17 @@ DANCE_KEYS.sort((a, b) => b[0].length - a[0].length);
 function handleCommand(d, text) {
   const t = normText(text);
   if (!t) return;
+  if (featureCommand(d, t)) return;
   const num = t.match(/^(?:dieu\s*)?(\d{1,2})$/);
   if (num) { const n = +num[1]; if (n >= 1 && n <= DANCES.length) { d.dance = n - 1; sparkle(d, 6); } return; }
   if (/\bdi vong\b|\bdi dao\b/.test(t)) { d.mode = 'circle'; d.modeStart = now(); d.modeUntil = now() + 10; d.circleA = Math.random() * TAU; return; }
   if (/\bghep doi\b/.test(t)) { makePair(d); return; }
-  if (/\bdoi do\b|\bthay do\b/.test(t)) { d.look = randomLook(d.body.female, d.look); if (d.av) setCostume(d.av, Math.random() < 0.5 ? null : randomCostumeId()); sparkle(d, 14); return; }
-  if (/\bhoa trang\b|\bbien hinh\b/.test(t)) { if (d.av) setCostume(d.av, randomCostumeId()); sparkle(d, 20); return; }
-  if (/\bbo hoa trang\b|\bdo thuong\b/.test(t)) { if (d.av) setCostume(d.av, null); return; }
-  if (/\bbiet doi\b|\bsieu nhan\b/.test(t)) { if (d.av) setCostume(d.av, pick(['hero_red', 'hero_blue', 'hero_yellow', 'hero_green', 'hero_purple'])); sparkle(d, 20); return; }
-  if (/\btay du\b/.test(t)) { if (d.av) setCostume(d.av, pick(['wukong', 'tang', 'batgioi', 'satang'])); sparkle(d, 20); return; }
-  for (const [k, id] of COSTUME_KEYS) if (t.includes(k)) { if (d.av) setCostume(d.av, id); sparkle(d, 20); return; }
+  if (/\bdoi do\b|\bthay do\b/.test(t)) { d.look = randomLook(d.body.female, d.look); wear(d, Math.random() < 0.5 ? null : randomAllowedCostume(d)); sparkle(d, 14); return; }
+  if (/\bhoa trang\b|\bbien hinh\b/.test(t)) { wear(d, randomAllowedCostume(d)); sparkle(d, 20); return; }
+  if (/\bbo hoa trang\b|\bdo thuong\b/.test(t)) { wear(d, null); return; }
+  if (/\bbiet doi\b|\bsieu nhan\b/.test(t)) { wear(d, pick(['hero_red', 'hero_blue', 'hero_yellow', 'hero_green', 'hero_purple'])); sparkle(d, 20); return; }
+  if (/\btay du\b/.test(t)) { wear(d, pick(['wukong', 'tang', 'batgioi', 'satang'])); sparkle(d, 20); return; }
+  for (const [k, id] of COSTUME_KEYS) if (t.includes(k)) { wear(d, id); sparkle(d, 20); return; }
   for (const [k, i] of DANCE_KEYS) {
     if (k.length < 2) continue;
     if (t === k || t.startsWith(k + ' ') || t.endsWith(' ' + k) || t.includes(' ' + k + ' ')) { d.dance = i; sparkle(d, 6); return; }
@@ -722,7 +726,9 @@ function startAction(z) {
   const d = z.d, t = now();
   d.lastActive = t;
   switch (z.id) {
-    case 'outfit': d.look = randomLook(d.body.female, d.look); if (d.av) setCostume(d.av, randomCostumeId()); sparkle(d, 30); break;
+    case 'outfit': d.look = randomLook(d.body.female, d.look); wear(d, randomAllowedCostume(d)); sparkle(d, 30); break;
+    case 'solo': requestSolo(d); break;
+    case 'flashmob': startFlashmob(); break;
     case 'catwalk': d.mode = 'catwalk'; d.modeStart = t; d.modeUntil = t + Math.max(z.dur, 7); d.tx = 0; d.tz = 1; break;
     case 'jump': d.jumpStart = t; break;
     case 'fireworks': for (let i = 0; i < 6; i++) setTimeout(launchRocket, i * 300); break;
@@ -792,6 +798,7 @@ function basePos(d, t, dj) {
     return _base.set(bx + (cx - bx) * e, 2.4 * e, bz + (cz - bz) * e);
   }
   if (d.mode === 'throne') return _base.copy(THRONE_POS);
+  if (d.mode === 'solo') return _base.set(d.soloSide * 1.25, STAGE_Y, -5.95);
   return _base.set(bx, 0, bz);
 }
 
@@ -805,8 +812,9 @@ function poseFor(d, bi, t, dj) {
   if (d.jumpStart && t - d.jumpStart < 0.8) return P.jump((t - d.jumpStart) / 0.8);
   if (d.mode === 'catwalk') return d.moving ? P.catwalk((t * 1.4) % 1) : P.pose();
   if (d.moving || d.mode === 'circle') return P.walk((t * 1.7 + d.zi * 0.37) % 1);
-  let p = bi.p + d.offset, b = bi.b; if (p >= 1) { p -= 1; b += 1; }
-  return DANCES[d.dance].f(p, b, t);
+  const forced = d.forceUntil > t;
+  let p = bi.p + (forced ? 0 : d.offset), b = bi.b; if (p >= 1) { p -= 1; b += 1; }
+  return DANCES[forced ? d.forceDance : d.dance].f(p, b, t);
 }
 
 function legPose(hip, knee, foot, a, s) {
@@ -937,7 +945,10 @@ function propsFrame(list, kind, maker) {
 const camPos = CAM_POS.clone(), camLook = CAM_LOOK.clone();
 const _tp = new THREE.Vector3(), _tl = new THREE.Vector3();
 function updateCam(dt, t) {
-  if (zoom) {
+  if ((solo.on || inResult(solo)) && solo.a && solo.b) {
+    _tl.set(0, STAGE_Y + 1.0, -5.95);
+    _tp.set(Math.sin(t * 0.3) * 0.8, 4.3, 1.4);
+  } else if (zoom) {
     const d = zoom.d, z = Number(S.camZoom) || 2.4;
     _tl.copy(d._head); _tl.y -= 0.45 * d.body.h * d.sc;
     let dist = 9.5 / z * Math.max(1, d.sc * 0.9);
@@ -953,7 +964,9 @@ function updateCam(dt, t) {
   } else { _tp.copy(CAM_POS); _tl.copy(CAM_LOOK); }
   const a = 1 - Math.pow(0.03, dt);
   camPos.lerp(_tp, a); camLook.lerp(_tl, a);
-  camera.position.copy(camPos); camera.lookAt(camLook);
+  camera.position.copy(camPos);
+  if (t < fireUntil && fireLevel >= 3) { const k = 0.012 * fireLevel * (1 - Music.phase); camera.position.x += (Math.random() - 0.5) * k; camera.position.y += (Math.random() - 0.5) * k; }
+  camera.lookAt(camLook);
 }
 
 // chiếu toạ độ 3D → màn hình 1080×1920
@@ -974,14 +987,15 @@ function update(t, dt) {
   const fire = t < fireUntil;
   const target = Number(S.heatTarget) > 0 ? Number(S.heatTarget) : clamp(Math.round(viewers * 4 / 50) * 50, 150, 3000);
   curHeatTarget = target;
-  if (!fire && heat >= target) { fireUntil = t + Number(S.fireSeconds || 15); fireStart = t; heat = 0; confetti(150); flash = 0.3; pushTicker('🔥 SÀN CHÁY RỒI! 🔥', '#ff7a3d'); }
-  if (!fire) heat = Math.max(0, heat - dt * target * 0.004);
+  if (heat >= target) fireUp(t, Number(S.fireSeconds || 15));
+  if (!fire) { heat = Math.max(0, heat - dt * target * 0.004); if (fireLevel && t > fireUntil + 0.5) fireLevel = 0; }
 
   if (zoom && (t > zoom.until || (!dancers.has(zoom.d.id) && !zoom.d.clone))) zoom = null;
   if (!zoom && zoomQueue.length) {
     const z = zoomQueue.shift();
     if (dancers.has(z.d.id)) { z.start = t; z.until = t + z.dur; zoom = z; startAction(z); }
   }
+  updateFeatures(t, dt);
 
   const all = [...dancers.values(), ...clones];
   const crowd = all.length;
@@ -989,17 +1003,19 @@ function update(t, dt) {
     if (d.dropH > 0) { d.vy += 22 * dt; d.dropH -= d.vy * dt; if (d.dropH <= 0) { d.dropH = 0; d.land = t; d.vy = 0; } }
     if (!d.clone && !d.leaving && t - d.lastActive > Number(S.idleSeconds || 420) && d.mode === 'dance' && !(zoom && zoom.d === d)) d.leaving = t;
     if (d.clone && t > d.cloneUntil && !d.leaving) d.leaving = t;
-    if (d.mode !== 'dance' && t > d.modeUntil) { d.mode = 'dance'; if (d.tz > 0.85) d.tz = rand(0.2, 0.8); }
+    if (d.mode !== 'dance' && t > d.modeUntil) { if (d.mode === 'solo') { d.dropH = 3; d.vy = 0; } d.mode = 'dance'; if (d.tz > 0.85) d.tz = rand(0.2, 0.8); }
     if (d.pairWith && t > d.pairUntil) d.pairWith = null;
     if (d.mode === 'dance' && t > d.wanderAt && !d.pairWith) { d.tx = clamp(d.x + rand(-0.3, 0.3), -0.9, 0.9); d.tz = clamp(d.z + rand(-0.2, 0.2), 0, 1); d.wanderAt = t + rand(6, 16); }
     if (d.mode === 'circle') { d.circleA += dt * 1.0; d.tx = clamp(Math.cos(d.circleA) * 0.6, -0.9, 0.9); d.tz = 0.5 + Math.sin(d.circleA) * 0.35; }
     const dx = d.tx - d.x, dz = d.tz - d.z, dist = Math.hypot(dx, dz);
-    const speed = d.mode === 'catwalk' ? 0.13 : 0.16;
-    d.moving = dist > 0.015 && d.dropH <= 0 && d.mode !== 'throne' && d.mode !== 'cloud' && d.mode !== 'rocket';
+    const speed = d.mode === 'catwalk' ? 0.13 : (d.mode === 'solo' || d.mode === 'spot') ? 0.7 : d.mode === 'flash' ? 0.9 : 0.16;
+    d.moving = dist > 0.015 && d.dropH <= 0 && d.mode !== 'throne' && d.mode !== 'cloud' && d.mode !== 'rocket' && d.mode !== 'solo';
     let targetYaw = 0;
     if (d.moving) {
       const st = Math.min(dist, speed * dt); d.x += dx / dist * st; d.z += dz / dist * st;
       targetYaw = Math.atan2(dx * halfW(d.z), dz * 9);
+    } else if (d.mode === 'solo') {
+      targetYaw = -d.soloSide * 0.6;
     } else if (d.pairWith) {
       targetYaw = d.pairWith.x > d.x ? 0.9 : -0.9;
     }
@@ -1037,7 +1053,7 @@ function update(t, dt) {
     if (p.type === 'balloon') p.x += Math.sin(t * 2 + p.wob) * 20 * dt;
   }
   if (particles.length > 2500) particles.splice(0, particles.length - 2500);
-  if (fire && S.quality !== 'low' && Math.random() < dt * 6) confetti(6);
+  if (fire && S.quality !== 'low' && Math.random() < dt * (3 + fireLevel * 2)) confetti(6);
   flash = Math.max(0, flash - dt * 1.5);
 }
 
@@ -1057,9 +1073,9 @@ function updateStage(t, bi) {
   for (let ix = 0; ix < TX; ix++) for (let iz = 0; iz < TZ; iz++) {
     const c = ix - TX / 2, r = iz;
     const k = pat === 0 ? ((ix + iz + bi.b) % 4 + 4) % 4 : pat === 1 ? (Math.abs(Math.round(c)) + bi.b) % 4 : pat === 2 ? (TZ - r + bi.b) % 4 : ((r * 3 + ix * 7) + bi.b) % 4;
-    const hue = ((k * 75 + ix * 10 + iz * 7 + (bi.fire ? t * 120 : t * 12)) % 360) / 360;
+    const hue = ((themes.hue(k, ix, iz, t, bi.fire) % 1) + 1) % 1;
     const l = k === 0 ? 0.32 + 0.14 * pulse : 0.06 + (bi.fire ? 0.06 : 0.015);
-    tileColor.setHSL(hue, 0.9, l);
+    tileColor.setHSL(hue, themes.sat(k), l);
     tileMesh.setColorAt(i++, tileColor);
   }
   tileMesh.instanceColor.needsUpdate = true;
@@ -1095,7 +1111,7 @@ function updateStage(t, bi) {
     m.rotation.x = 0.35 + Math.sin(t * 0.5 + j) * 0.25;
     m.material.opacity = (bi.fire ? 0.22 : 0.13) * (0.75 + 0.25 * pulse);
   });
-  const nL = S.quality === 'low' ? 0 : bi.fire ? 12 : 4;
+  const nL = S.quality === 'low' ? 0 : bi.fire ? Math.min(12, 4 + fireLevel * 2) : 4;
   lasers.forEach((m, j) => {
     m.visible = j < nL;
     const sd = j % 2 ? -1 : 1;
@@ -1139,10 +1155,10 @@ function drawTag(d, t) {
   ctx.fillStyle = ring; ctx.beginPath(); ctx.arc(x, ay, r + 3 * sc, 0, TAU); ctx.fill();
   avatarCircle(d, x, ay, r);
   ctx.font = `700 ${Math.round(14 * sc)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  const label = (tier ? tier.name + ' · ' : '') + fit(d.name, 150 * sc);
+  const label = (d.lv > 1 ? 'Lv' + d.lv + ' ' : '') + (tier ? tier.name + ' · ' : '') + fit(d.name, 150 * sc);
   const tw = ctx.measureText(label).width + 16 * sc, ny = ay - r - 14 * sc;
   ctx.fillStyle = 'rgba(30,10,60,0.82)'; roundRect(x - tw / 2, ny - 10 * sc, tw, 20 * sc, 10 * sc); ctx.fill();
-  ctx.strokeStyle = tier ? tier.color : 'rgba(255,90,220,0.9)'; ctx.lineWidth = 1.5 * sc; ctx.stroke();
+  ctx.strokeStyle = d.team && (battle.on || inResult(battle)) ? TEAM[d.team].color : tier ? tier.color : 'rgba(255,90,220,0.9)'; ctx.lineWidth = (d.team ? 3 : 1.5) * sc; ctx.stroke();
   ctx.fillStyle = tier ? tier.color : '#fff'; ctx.fillText(label, x, ny + 1);
   if (S.showComments && d.comment && t < d.commentUntil) {
     ctx.font = `600 ${Math.round(15 * sc)}px ${FONT}`;
@@ -1198,7 +1214,7 @@ function wingPlate(cx, cy, w, h, c1, c2) {
 }
 function drawZoomBanner(t) {
   const k = clamp((t - zoom.start) / 0.35, 0, 1), out = clamp((zoom.until - t) / 0.3, 0, 1);
-  ctx.save(); ctx.globalAlpha = Math.min(k, out); ctx.translate(0, (1 - k) * -60);
+  ctx.save(); ctx.globalAlpha = Math.min(k, out); ctx.translate(0, (1 - k) * -60 + hudTopOffset());
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = `900 46px ${FONT}`;
   const at = `${zoom.icon} ${zoom.label}`;
@@ -1239,7 +1255,7 @@ function drawHUD(t, bi) {
     ctx.restore();
   }
   if (S.showTop && TOP.length) {
-    const x = W - 330, y = 150;
+    const x = W - 330, y = 150 + (battle.on || inResult(battle) ? 74 : 0);
     ctx.fillStyle = 'rgba(25,8,50,0.72)'; roundRect(x, y, 310, 50 + Math.min(3, TOP.length) * 54, 18); ctx.fill();
     ctx.strokeStyle = 'rgba(255,207,51,0.6)'; ctx.lineWidth = 2; ctx.stroke();
     ctx.font = `900 24px ${FONT}`; ctx.fillStyle = '#ffcf33'; ctx.textAlign = 'left'; ctx.fillText('💎 TOP ĐẠI GIA', x + 18, y + 27);
@@ -1252,8 +1268,6 @@ function drawHUD(t, bi) {
       if (S.showCoins) { ctx.textAlign = 'right'; ctx.fillStyle = '#ffd84d'; ctx.fillText(u.coins + '💎', x + 296, yy); }
     });
   }
-  const tn = Music.trackName();
-  if (tn) { ctx.font = `600 20px ${FONT}`; ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fillText('♫ ' + fit(tn, 600), 30, 160); }
   if (S.showGiftMenu) {
     const list = (S.actions || []).map(a => ({ a, m: actionMeta(a.id) }));
     const x = W - 220, y0 = 1650 - list.length * 42 - 10;
@@ -1268,14 +1282,15 @@ function drawHUD(t, bi) {
     });
   }
   if (zoom) drawZoomBanner(t);
+  drawFeatureHUD(t);
   if (bi.fire && t - fireStart < 4) {
     const k = t - fireStart, s = k < 0.3 ? k / 0.3 * 1.15 : k < 0.5 ? 1.15 - (k - 0.3) * 0.75 : 1;
-    ctx.save(); ctx.translate(W / 2, 560); ctx.scale(s, s);
+    ctx.save(); ctx.translate(W / 2, zoom ? 600 + hudTopOffset() : 560); ctx.scale(s * (zoom ? 0.75 : 1), s * (zoom ? 0.75 : 1));
     const g = ctx.createLinearGradient(-380, -80, 380, 80); g.addColorStop(0, '#ff3d00'); g.addColorStop(0.5, '#ffb300'); g.addColorStop(1, '#ff3d00');
     ctx.fillStyle = 'rgba(60,0,40,0.85)'; roundRect(-400, -90, 800, 180, 40); ctx.fill();
     ctx.strokeStyle = g; ctx.lineWidth = 10; ctx.stroke();
     ctx.font = `900 92px ${FONT}`; ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
-    ctx.shadowColor = '#ff6a00'; ctx.shadowBlur = 30; ctx.fillText('🔥 SÀN CHÁY! 🔥', 0, 5);
+    ctx.shadowColor = '#ff6a00'; ctx.shadowBlur = 30; ctx.fillText(fireLevel > 1 ? `🔥 CẤP ${fireLevel}! 🔥` : '🔥 SÀN CHÁY! 🔥', 0, 5);
     ctx.restore();
   }
   const py = 1665, ph = 235;
@@ -1284,7 +1299,7 @@ function drawHUD(t, bi) {
   const bg = ctx.createLinearGradient(20, 0, W - 20, 0); bg.addColorStop(0, '#3dd9ff'); bg.addColorStop(0.5, '#ff3df2'); bg.addColorStop(1, '#ffb300');
   ctx.strokeStyle = bg; ctx.lineWidth = 5; ctx.stroke();
   ctx.font = `900 32px ${FONT}`; ctx.textAlign = 'center'; ctx.fillStyle = '#ffd84d';
-  ctx.fillText(bi.fire ? `🔥 SÀN CHÁY — còn ${Math.max(0, Math.ceil(fireUntil - t))}s` : `⚡ Nhiệt sàn ${Math.floor(heat)} / ${curHeatTarget}`, W / 2, py + 36);
+  ctx.fillText(bi.fire ? `🔥 SÀN CHÁY CẤP ${fireLevel} — còn ${Math.max(0, Math.ceil(fireUntil - t))}s${fireLevel < 5 ? ` · nhiệt ${Math.floor(heat)}/${curHeatTarget} lên cấp` : ''}` : `⚡ Nhiệt sàn ${Math.floor(heat)} / ${curHeatTarget}`, W / 2, py + 36);
   const bx = 60, by = py + 62, bw = W - 120, bh = 34;
   ctx.fillStyle = 'rgba(0,0,0,0.5)'; roundRect(bx, by, bw, bh, 17); ctx.fill();
   const frac = bi.fire ? (fireUntil - t) / Number(S.fireSeconds || 15) : Math.min(1, heat / curHeatTarget);
@@ -1324,7 +1339,7 @@ function frame() {
 
   // nhân vật
   for (const p of PARTS) p.mesh.count = 0;
-  wingMesh.count = 0; shadowMesh.count = 0;
+  wingMesh.count = 0; shadowMesh.count = 0; teamRing.count = 0;
   const dj = currentDJ();
   visible.length = 0;
   if (dj) visible.push(dj);
@@ -1341,7 +1356,7 @@ function frame() {
     if (d.mode === 'rocket' || (d.dropH > 0)) { rig.root.position.y = b.y; rig.root.updateMatrixWorld(true); d._head.set(0, HEAD_Y + HEAD_R + 0.06, 0).applyMatrix4(rig.head.matrixWorld); }
     const alpha = d.leaving ? clamp(1 - (t - d.leaving) / 1.2, 0.001, 1) : 1;
     const real = avatarTemplates.length > 0 && S.charStyle !== 'toon' && S.quality !== 'low';
-    if (real && !d.av) d.av = createAvatar(scene, d.body.female, d.avT, d.avCostume !== undefined ? d.avCostume : (Math.random() * 100 < (Number(S.costumeRate) || 0) ? randomCostumeId() : null));
+    if (real && !d.av) d.av = createAvatar(scene, d.body.female, d.avT, d.avCostume !== undefined ? d.avCostume : (Math.random() * 100 < (Number(S.costumeRate) || 0) ? randomAllowedCostume(d) : null));
     else if (!real && d.av) { disposeAvatar(d.av); d.av = null; }
     if (d.av) {
       _hp.set(0, HEAD_Y, 0).applyMatrix4(rig.head.matrixWorld);
@@ -1349,6 +1364,7 @@ function frame() {
       driveAvatar(d.av, rig, { yaw: rig.root.rotation.y, scale: d.body.h * d.sc, hipH0: 0.88, flat: !pose.rot && !pose.sit, alpha, floorY: b.y, headPt: _hp, headTop: _ht, beat: 1 - bi.p, sing: (d.zi % 3 === 0) ? Math.max(0, Math.sin(t * 9 + d.zi)) * 0.35 : 0 });
     }
     writeInstances(d, t, alpha);
+    writeTeamRing(d);
     d._sp = screenOf(d);
     const rx = rig.root.position.x, ry = rig.root.position.y, rz = rig.root.position.z;
     if (d.mode === 'cloud') clouds.push(g => { g.position.set(rx, b.y + 0.05, rz); g.scale.setScalar(d.sc); });
@@ -1357,6 +1373,7 @@ function frame() {
   }
   for (const p of PARTS) { p.mesh.instanceMatrix.needsUpdate = true; if (p.mesh.instanceColor) p.mesh.instanceColor.needsUpdate = true; }
   wingMesh.instanceMatrix.needsUpdate = true; shadowMesh.instanceMatrix.needsUpdate = true;
+  teamRing.instanceMatrix.needsUpdate = true; if (teamRing.instanceColor) teamRing.instanceColor.needsUpdate = true;
   propsFrame(clouds, 'cloud', makeCloud);
   propsFrame(thrones, 'throne', makeThrone);
   propsFrame(rocketsP, 'rocket', makeRocket);
@@ -1365,7 +1382,7 @@ function frame() {
   costumeTime.value = t;
   updateLedShow(t, dt);
   updateCam(dt, t);
-  if (bloom) bloom.strength = bi.fire ? 0.65 : 0.55;
+  if (bloom) bloom.strength = bi.fire ? 0.6 + fireLevel * 0.04 : 0.55;
   renderLed();
   if (S.quality === 'high' && composer) composer.render(); else renderer.render(scene, camera);
 
@@ -1380,16 +1397,433 @@ function frame() {
   if (flash > 0) { ctx.fillStyle = `rgba(255,255,255,${flash * 0.35})`; ctx.fillRect(0, 0, W, H); }
   if (bi.fire) { ctx.fillStyle = `rgba(255,60,180,${0.06 * (1 - bi.p)})`; ctx.fillRect(0, 0, W, H); }
   drawHUD(t, bi);
+  recordFrame();
   requestAnimationFrame(frame);
+}
+
+// ======================================================================
+// TÍNH NĂNG THU HÚT: MC, đấu đội, solo, sàn cháy nhiều cấp, đèn chiếu,
+// flash mob, bình chọn nhạc, mục tiêu phòng, cấp độ fan, quay clip
+// ======================================================================
+let isPrimary = true;
+const shuffleArr = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const inResult = o => o.result && now() < o.resultUntil;
+
+// ---------- MC giọng nói ----------
+const sayRate = new Map();
+function say(text, key, gap = 0, prio = false) {
+  if (!S.ttsEnabled || !isPrimary || !text) return;
+  if (key) { const last = sayRate.get(key) || -1e9; if (now() - last < gap) return; sayRate.set(key, now()); }
+  if (S.ttsWhere === 'admin') socket.emit('say', text);
+  else if (window.MC) { MC.enabled = true; MC.volume = Number(S.ttsVolume) || 1; MC.rate = Number(S.ttsRate) || 1.05; MC.say(text, prio); }
+}
+const nm = n => (window.MC ? MC.clean(n) : String(n || ''));
+
+// ---------- hoá trang theo cấp độ fan ----------
+const costumeLevel = id => Number((S.costumeLevels || {})[id]) || 0;
+const canWear = (d, id) => !id || (d.lv || 1) >= costumeLevel(id);
+function wear(d, id) {
+  if (id && !canWear(d, id)) {
+    const c = COSTUMES.find(x => x.id === id);
+    pushTicker(`🔒 ${d.name}: cần Lv${costumeLevel(id)} để hoá trang ${c ? c.name : id} (đang Lv${d.lv || 1})`, '#ffb3c7');
+    return false;
+  }
+  d.avCostume = id;
+  if (d.av) setCostume(d.av, id);
+  return true;
+}
+function randomAllowedCostume(d) { const list = COSTUMES.filter(c => canWear(d, c.id)); return list.length ? pick(list).id : null; }
+
+// ---------- đấu đội Đỏ – Xanh ----------
+const battle = { on: false, until: 0, start: 0, score: { r: 0, b: 0 }, result: null, resultUntil: 0, nextAuto: 0 };
+const TEAM = { r: { name: 'ĐỎ', color: '#ff3d4f', hex: 0xff3d4f }, b: { name: 'XANH', color: '#3d9bff', hex: 0x3d9bff } };
+function startBattle() {
+  if (battle.on) return;
+  Object.assign(battle, { on: true, start: now(), until: now() + (Number(S.battleSeconds) || 180), score: { r: 0, b: 0 }, result: null });
+  for (const d of dancers.values()) d.team = null;
+  pushTicker('⚔️ ĐẤU ĐỘI BẮT ĐẦU! Gõ 1 vào đội ĐỎ · gõ 2 vào đội XANH', '#ffd84d');
+  say('Đấu đội bắt đầu! Gõ một để vào đội Đỏ, gõ hai để vào đội Xanh!', null, 0, true);
+  flash = 0.4;
+}
+function joinTeam(d, tm) {
+  if (!battle.on || d.team === tm) return;
+  d.team = tm; d.tx = tm === 'r' ? -rand(0.2, 0.85) : rand(0.2, 0.85);
+  sparkle(d, 8);
+}
+function autoTeam(d) {
+  if (!battle.on || d.team) return;
+  let r = 0, b = 0; for (const x of dancers.values()) { if (x.team === 'r') r++; else if (x.team === 'b') b++; }
+  joinTeam(d, r <= b ? 'r' : 'b');
+}
+function addScore(d, pts) { if (!battle.on || !d) return; autoTeam(d); if (d.team) battle.score[d.team] += pts; }
+function endBattle(stop) {
+  battle.on = false;
+  const { r, b } = battle.score; const win = stop ? null : (r === b ? null : (r > b ? 'r' : 'b'));
+  if (stop) { for (const d of dancers.values()) d.team = null; return; }
+  battle.result = win || 'draw'; battle.resultUntil = now() + 15;
+  const T = now();
+  for (const d of dancers.values()) {
+    if (!d.team || !win) continue;
+    if (d.team === win) { d.forceDance = 4; d.forceUntil = T + 15; d.jumpStart = T + Math.random() * 2; }
+    else { d.forceDance = 10; d.forceUntil = T + 15; }
+  }
+  const name = win === 'r' ? 'Đội Đỏ' : win === 'b' ? 'Đội Xanh' : '';
+  if (win) { for (let i = 0; i < 8; i++) setTimeout(launchRocket, i * 250); confetti(220); flash = 0.4; }
+  pushTicker(win ? `🏆 ${name.toUpperCase()} CHIẾN THẮNG! (${r} – ${b})` : `🤝 HAI ĐỘI HOÀ ${r} – ${b}`, '#ffd84d');
+  say(win ? `${name} chiến thắng! Đội thua nhảy điệu con gà nhé!` : 'Hai đội hoà nhau!', null, 0, true);
+  startClip('doi-dau', 12);
+  setTimeout(() => { if (!battle.on) for (const d of dancers.values()) d.team = null; }, 15500);
+}
+const teamRing = new THREE.InstancedMesh(new THREE.TorusGeometry(0.42, 0.045, 6, 28).rotateX(PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }), CAP);
+teamRing.frustumCulled = false; teamRing.count = 0; teamRing.setColorAt(0, new THREE.Color()); scene.add(teamRing);
+const _tc = new THREE.Color(), _tm = new THREE.Matrix4();
+function writeTeamRing(d) {
+  if (!d.team || !(battle.on || inResult(battle))) return;
+  const s = d.body.h * d.sc;
+  _tm.makeScale(s, s, s).setPosition(d._feet.x, d._feet.y + 0.03, d._feet.z);
+  teamRing.setMatrixAt(teamRing.count, _tm); teamRing.setColorAt(teamRing.count, _tc.set(TEAM[d.team].hex)); teamRing.count++;
+}
+
+// ---------- solo đấu nhảy ----------
+const solo = { on: false, a: null, b: null, votes: { 1: 0, 2: 0 }, voters: new Set(), until: 0, start: 0, result: null, resultUntil: 0 };
+const soloQueue = [];
+function requestSolo(a) {
+  if (solo.on || inResult(solo)) { if (!soloQueue.includes(a) && soloQueue.length < 5) soloQueue.push(a); pushTicker(`⚔️ ${a.name} đang chờ lượt thách đấu`, '#ff7ad9'); return; }
+  startSolo(a);
+}
+function startSolo(a) {
+  if (!dancers.has(a.id)) return;
+  let pool = [...dancers.values()].filter(x => x !== a && !x.leaving && !x.clone && x.mode === 'dance');
+  if (!pool.length) pool = [...dancers.values()].filter(x => x !== a && !x.leaving && !x.clone);
+  if (!pool.length) return;
+  pool.sort((p, q) => (q.lastComment || 0) - (p.lastComment || 0));
+  const b = pick(pool.slice(0, 8));
+  const secs = Number(S.soloSeconds) || 20;
+  Object.assign(solo, { on: true, a, b, votes: { 1: 0, 2: 0 }, voters: new Set(), start: now(), until: now() + secs, result: null });
+  for (const [d, side] of [[a, -1], [b, 1]]) { d.mode = 'solo'; d.soloSide = side; d.modeStart = now(); d.modeUntil = solo.until + 6; d.pairWith = null; d.dropH = 4; d.vy = 0; }
+  a.dance = 5; b.dance = 4;
+  pushTicker(`⚔️ ${a.name} THÁCH ĐẤU ${b.name}! Gõ 1 hoặc 2 để bình chọn`, '#ff7ad9');
+  say(`${nm(a.name)} thách đấu ${nm(b.name)}! Gõ một hoặc hai để bình chọn!`, null, 0, true);
+  startClip('solo', secs + 6);
+}
+function voteSolo(d, n) { if (!solo.on || solo.voters.has(d.id) || d === solo.a || d === solo.b) return false; solo.voters.add(d.id); solo.votes[n]++; return true; }
+function endSolo() {
+  solo.on = false;
+  const v1 = solo.votes[1], v2 = solo.votes[2];
+  const w = v1 === v2 ? (Math.random() < 0.5 ? 1 : 2) : (v1 > v2 ? 1 : 2);
+  const win = w === 1 ? solo.a : solo.b, lose = w === 1 ? solo.b : solo.a;
+  solo.result = { win, lose }; solo.resultUntil = now() + 6;
+  win.modeUntil = lose.modeUntil = now() + 6;
+  const T = now();
+  win.crownUntil = T + 40; win.forceDance = 4; win.forceUntil = T + 6; win.jumpStart = T;
+  lose.forceDance = 10; lose.forceUntil = T + 6;
+  confetti(140); for (let i = 0; i < 4; i++) setTimeout(launchRocket, i * 250);
+  pushTicker(`🏆 ${win.name} THẮNG SOLO! (${v1} – ${v2})`, '#ffd84d');
+  say(`${nm(win.name)} thắng solo!`, null, 0, true);
+  if (S.ledShow !== false) ledQueue.unshift({ d: win, gift: { name: '' }, count: 1, value: 0, label: `🏆 Thắng solo ${Math.max(v1, v2)} – ${Math.min(v1, v2)} phiếu` });
+}
+
+// ---------- sàn cháy nhiều cấp ----------
+let fireLevel = 0;
+function fireUp(t, secs) {
+  if (t >= fireUntil) fireLevel = 1; else fireLevel = Math.min(5, fireLevel + 1);
+  fireUntil = t + secs; fireStart = t; heat = 0;
+  confetti(120 + fireLevel * 30); flash = 0.3;
+  pushTicker(`🔥 SÀN CHÁY CẤP ${fireLevel}! 🔥`, '#ff7a3d');
+  say(fireLevel === 1 ? 'Sàn cháy rồi!' : `Sàn cháy cấp ${fireLevel}!`, 'fire', 3, true);
+  if (fireLevel >= 2) startClip('san-chay', 12);
+}
+
+// ---------- đèn chiếu ngẫu nhiên ----------
+const spot = { d: null, until: 0, next: now() + 40 };
+const spotBeam = new THREE.Mesh(new THREE.ConeGeometry(1.0, 11, 24, 1, true).translate(0, -5.5, 0), new THREE.MeshBasicMaterial({ color: 0xfff6c8, map: beamTex, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+spotBeam.visible = false; scene.add(spotBeam);
+function runSpotlight() {
+  let cands = [...dancers.values()].filter(d => !d.leaving && !d.clone && d.mode === 'dance' && now() - (d.lastComment || 0) < 90);
+  if (!cands.length) cands = [...dancers.values()].filter(d => !d.leaving && !d.clone && d.mode === 'dance');
+  if (!cands.length) return;
+  const d = pick(cands);
+  spot.d = d; spot.until = now() + 10;
+  d.mode = 'spot'; d.modeStart = now(); d.modeUntil = now() + 10; d.tx = 0; d.tz = 0.78; d.dance = pick([4, 5, 13, 1]);
+  pushTicker(`🔦 Đèn chiếu gọi tên ${d.name}!`, '#fff3a0');
+  say(`Đèn chiếu gọi tên ${nm(d.name)}!`, 'spot', 5);
+  if (!zoom && !zoomQueue.length) zoomQueue.push({ d, id: 'camera', label: 'Đèn chiếu', icon: '🔦', dur: 5 });
+}
+
+// ---------- flash mob ----------
+const flashmob = { until: 0 };
+function startFlashmob() {
+  const list = [...dancers.values()].filter(d => !d.leaving && !d.clone && d.mode === 'dance');
+  if (!list.length) return;
+  const n = list.length, cols = Math.max(1, Math.ceil(Math.sqrt(n * 1.6))), rows = Math.ceil(n / cols);
+  const dn = pick([4, 5, 3, 7, 13, 6]), secs = Number(S.flashSeconds) || 20, T = now();
+  list.forEach((d, i) => {
+    const c = i % cols, r = Math.floor(i / cols);
+    d.tx = cols > 1 ? -0.85 + 1.7 * c / (cols - 1) : 0; d.tz = rows > 1 ? 0.08 + 0.84 * r / (rows - 1) : 0.5;
+    d.mode = 'flash'; d.modeStart = T; d.modeUntil = T + secs; d.forceDance = dn; d.forceUntil = T + secs; d.pairWith = null;
+  });
+  flashmob.until = T + secs;
+  pushTicker('🕺 FLASH MOB! Cả sàn cùng nhảy! 🕺', '#7cf7ff');
+  say('Flash mob! Cả sàn cùng nhảy nào!', null, 0, true);
+  flash = 0.4; startClip('flash-mob', 14);
+}
+
+// ---------- bình chọn nhạc ----------
+const songVote = { cands: [], votes: [0, 0, 0], voters: new Set() };
+function refreshSongVote() {
+  const pl = (Music.playlist || []).filter(n => n !== Music.current);
+  songVote.cands = shuffleArr(pl).slice(0, 3); songVote.votes = [0, 0, 0]; songVote.voters = new Set();
+  Music.requested = null;
+}
+Music.onTrack = () => refreshSongVote();
+function voteSong(d, n) {
+  if (!S.songVote || n < 1 || n > songVote.cands.length || songVote.voters.has(d.id)) return;
+  songVote.voters.add(d.id); songVote.votes[n - 1]++;
+  let best = 0; songVote.votes.forEach((v, i) => { if (v > songVote.votes[best]) best = i; });
+  Music.requested = songVote.cands[best];
+}
+
+// ---------- mục tiêu phòng → sân khấu mới ----------
+const themes = createThemes(scene, { hemi });
+const goals = { likes: 0, coins: 0, idx: 0, loaded: false };
+const goalNow = () => (S.goalsEnabled ? (S.goals || [])[goals.idx] : null);
+const goalVal = g => (g.kind === 'likes' ? goals.likes : goals.coins);
+function checkGoal() {
+  const g = goalNow(); if (!g || goalVal(g) < g.n) return;
+  goals.idx++;
+  themes.apply(g.theme);
+  for (let i = 0; i < 10; i++) setTimeout(launchRocket, i * 200);
+  confetti(250); flash = 0.6;
+  const tn = THEME_NAMES[g.theme] || g.theme;
+  pushTicker(`🎯 MỤC TIÊU HOÀN THÀNH! Mở khoá sân khấu ${tn.toUpperCase()}!`, '#c8ff3d');
+  say(`Cả phòng đã mở khoá sân khấu ${tn}!`, null, 0, true);
+  themeBanner = { name: tn, until: now() + 4 };
+  startClip('mo-khoa', 12);
+  saveGoals();
+}
+let themeBanner = null;
+function saveGoals() { socket.emit('goalState', { likes: goals.likes, coins: goals.coins, idx: goals.idx, theme: themes.current }); }
+setInterval(() => { if (isPrimary) saveGoals(); }, 5000);
+
+// ---------- quay clip khoảnh khắc ----------
+let rec = null;
+function startClip(reason, seconds) {
+  if (!isPrimary || !S.clipsEnabled || typeof MediaRecorder === 'undefined') return;
+  const secs = Math.max(5, Number(seconds) || Number(S.clipSeconds) || 15);
+  if (rec) { rec.until = Math.max(rec.until, now() + Math.min(secs, 10)); return; }
+  try {
+    const cc = document.createElement('canvas');
+    const scale = Math.min(1, 1080 / hud.width);
+    cc.width = Math.round(hud.width * scale / 2) * 2; cc.height = Math.round(hud.height * scale / 2) * 2;
+    const stream = cc.captureStream(30);
+    const at = Music.audioStream && Music.audioStream();
+    if (at) at.getAudioTracks().forEach(tr => stream.addTrack(tr));
+    const mime = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m));
+    if (!mime) return;
+    const mr = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 6e6 });
+    const chunks = [];
+    mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+    mr.onstop = () => {
+      const blob = new Blob(chunks, { type: mime.split(';')[0] });
+      if (blob.size > 10000) fetch('/api/clips?reason=' + encodeURIComponent(reason), { method: 'POST', headers: { 'Content-Type': mime.split(';')[0] }, body: blob }).catch(() => {});
+      stream.getTracks().forEach(tr => { if (tr.kind === 'video') tr.stop(); });
+    };
+    rec = { mr, cc, cx: cc.getContext('2d'), until: now() + secs };
+    mr.start(1000);
+  } catch (e) { console.warn('Không quay được clip', e); rec = null; }
+}
+function recordFrame() {
+  if (!rec) return;
+  const { cx, cc } = rec;
+  cx.drawImage(glCanvas, 0, 0, cc.width, cc.height);
+  cx.drawImage(hud, 0, 0, cc.width, cc.height);
+  if (now() > rec.until) { try { rec.mr.stop(); } catch (e) {} rec = null; }
+}
+
+// ---------- lệnh bình luận của các tính năng (trả về true nếu đã xử lý) ----------
+function featureCommand(d, t) {
+  d.lastComment = now();
+  const n = t.match(/^(?:so\s*)?([12])$/);
+  if (n && solo.on) { voteSolo(d, +n[1]); return true; }
+  if (battle.on) {
+    if (n) { joinTeam(d, n[1] === '1' ? 'r' : 'b'); return true; }
+    if (/^(doi\s*)?do$/.test(t)) { joinTeam(d, 'r'); return true; }
+    if (/^(doi\s*)?xanh$/.test(t)) { joinTeam(d, 'b'); return true; }
+  }
+  const bv = t.match(/^bai\s*([1-3])$/);
+  if (bv) { voteSong(d, +bv[1]); return true; }
+  return false;
+}
+
+// ---------- cập nhật mỗi khung hình ----------
+function updateFeatures(t, dt) {
+  // đấu đội
+  if (battle.on && t > battle.until) endBattle();
+  const autoMin = Number(S.battleAuto) || 0;
+  if (autoMin > 0 && !battle.on && isPrimary) { if (!battle.nextAuto) battle.nextAuto = t + autoMin * 60; if (t > battle.nextAuto) { battle.nextAuto = t + autoMin * 60; if (dancers.size >= 4) startBattle(); } }
+  if (battle.on || inResult(battle)) for (const d of dancers.values()) {
+    if (!d.team || d.mode !== 'dance') continue;
+    if (d.team === 'r' && d.tx > -0.12) d.tx = -rand(0.2, 0.85);
+    if (d.team === 'b' && d.tx < 0.12) d.tx = rand(0.2, 0.85);
+  }
+  // solo
+  if (solo.on) {
+    if (!dancers.has(solo.a.id) || !dancers.has(solo.b.id)) { solo.on = false; for (const x of [solo.a, solo.b]) x.modeUntil = 0; }
+    else if (t > solo.until) endSolo();
+  } else if (!inResult(solo) && soloQueue.length) startSolo(soloQueue.shift());
+  // dọn chỗ phía trước cho đèn chiếu
+  if (spot.d) for (const d of dancers.values()) {
+    if (d.mode !== 'dance' || d === spot.d) continue;
+    if (d.z > 0.62 && Math.abs(d.x) < 0.55) { d.tz = rand(0.05, 0.55); d.wanderAt = t + 8; }
+  }
+  // đèn chiếu
+  const every = Number(S.spotlightEvery) || 0;
+  if (every > 0 && isPrimary !== null && t > spot.next) { spot.next = t + every; if (!solo.on && t > flashmob.until) runSpotlight(); }
+  if (spot.d && (t > spot.until || !dancers.has(spot.d.id))) spot.d = null;
+  spotBeam.visible = !!spot.d && S.quality !== 'low';
+  if (spot.d) { spotBeam.position.set(spot.d._feet.x, 10.6, spot.d._feet.z); spotBeam.material.opacity = 0.26 + 0.08 * Math.sin(t * 6); }
+  // mục tiêu
+  checkGoal();
+  themes.update(t, dt);
+  // bình chọn nhạc
+  if (S.songVote && Music.mode === 'track' && !songVote.cands.length && (Music.playlist || []).length > 1) refreshSongVote();
+}
+
+// ---------- HUD ----------
+function drawFeatureHUD(t) {
+  let y = 142;
+  // thanh đấu đội
+  if (battle.on || inResult(battle)) {
+    const { r, b } = battle.score, tot = Math.max(1, r + b), fr = r / tot;
+    const x = 20, w = W - 40, h = 64;
+    ctx.fillStyle = 'rgba(15,4,30,0.88)'; roundRect(x, y, w, h, 20); ctx.fill();
+    const bw = w - 330, bx = x + 165;
+    ctx.save(); roundRect(bx, y + 14, bw, 36, 18); ctx.clip();
+    ctx.fillStyle = TEAM.r.color; ctx.fillRect(bx, y + 14, bw * fr, 36);
+    ctx.fillStyle = TEAM.b.color; ctx.fillRect(bx + bw * fr, y + 14, bw * (1 - fr), 36);
+    ctx.restore();
+    ctx.textBaseline = 'middle'; ctx.font = `900 26px ${FONT}`;
+    const fk = n => n >= 10000 ? (n / 1000).toFixed(0) + 'K' : n >= 1000 ? (n / 1000).toFixed(1) + 'K' : String(n);
+    ctx.textAlign = 'left'; ctx.fillStyle = TEAM.r.color; ctx.fillText('ĐỎ ' + fk(r), x + 14, y + 32);
+    ctx.textAlign = 'right'; ctx.fillStyle = TEAM.b.color; ctx.fillText(fk(b) + ' XANH', x + w - 14, y + 32);
+    ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.font = `900 24px ${FONT}`;
+    if (battle.on) { const left = Math.max(0, Math.ceil(battle.until - t)); ctx.fillText(`⚔️ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} · gõ 1 / 2`, x + w / 2, y + 32); }
+    else ctx.fillText(battle.result === 'draw' ? '🤝 HOÀ' : `🏆 ĐỘI ${TEAM[battle.result].name} THẮNG`, x + w / 2, y + 32);
+    y += h + 10;
+  }
+  // mục tiêu phòng
+  const g = goalNow();
+  if (g) {
+    const v = goalVal(g), fr = clamp(v / g.n, 0, 1), x = 20, w = 690, h = 40;
+    ctx.fillStyle = 'rgba(15,4,30,0.8)'; roundRect(x, y, w, h, 20); ctx.fill();
+    const gg = ctx.createLinearGradient(x, 0, x + w, 0); gg.addColorStop(0, '#22c55e'); gg.addColorStop(1, '#c8ff3d');
+    ctx.fillStyle = gg; roundRect(x, y, Math.max(h, w * fr), h, 20); ctx.fill();
+    ctx.font = `800 21px ${FONT}`; ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle';
+    const fmt = n => n >= 1000 ? (n / 1000).toFixed(n % 1000 ? 1 : 0) + 'K' : String(Math.floor(n));
+    ctx.fillText(`🎯 ${fmt(v)}/${fmt(g.n)} ${g.kind === 'likes' ? '❤️ tim' : '💎 xu'} → mở sân khấu ${THEME_NAMES[g.theme] || g.theme}`, x + 16, y + h / 2 + 1);
+    y += h + 8;
+  }
+  const tn = Music.trackName();
+  if (tn) { ctx.font = `600 20px ${FONT}`; ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.fillText('♫ ' + fit(tn, 640), 30, y + 14); }
+  // solo
+  if (solo.on || inResult(solo)) {
+    const a = solo.a, b = solo.b, cy = 1260;
+    ctx.save();
+    ctx.fillStyle = 'rgba(20,4,40,0.88)'; roundRect(90, cy - 80, W - 180, 170, 30); ctx.fill();
+    const sg = ctx.createLinearGradient(90, 0, W - 90, 0); sg.addColorStop(0, '#ff3d9a'); sg.addColorStop(1, '#3dd9ff');
+    ctx.strokeStyle = sg; ctx.lineWidth = 5; ctx.stroke();
+    avatarCircle(a, 170, cy - 15, 46); avatarCircle(b, W - 170, cy - 15, 46);
+    ctx.font = `900 54px ${FONT}`; ctx.textAlign = 'center'; ctx.fillStyle = '#ffd84d'; ctx.fillText('VS', W / 2, cy - 22);
+    ctx.font = `800 24px ${FONT}`; ctx.fillStyle = '#fff';
+    ctx.fillText(fit('1 · ' + a.name, 300), 290, cy - 40); ctx.fillText(fit('2 · ' + b.name, 300), W - 290, cy - 40);
+    ctx.font = `900 34px ${FONT}`; ctx.fillStyle = '#ff7ab8'; ctx.fillText(solo.votes[1], 290, cy + 2); ctx.fillStyle = '#7cd8ff'; ctx.fillText(solo.votes[2], W - 290, cy + 2);
+    const tot = Math.max(1, solo.votes[1] + solo.votes[2]), bw = W - 340;
+    ctx.fillStyle = '#ff3d9a'; roundRect(170, cy + 48, bw * solo.votes[1] / tot + 1, 18, 9); ctx.fill();
+    ctx.fillStyle = '#3dd9ff'; roundRect(170 + bw * solo.votes[1] / tot, cy + 48, bw * solo.votes[2] / tot + 1, 18, 9); ctx.fill();
+    ctx.font = `700 22px ${FONT}`; ctx.fillStyle = '#fff';
+    ctx.fillText(solo.on ? `⏳ ${Math.max(0, Math.ceil(solo.until - t))}s · gõ 1 hoặc 2 để bình chọn` : `🏆 ${solo.result.win.name} thắng!`, W / 2, cy + 30);
+    ctx.restore();
+  }
+  // bình chọn nhạc
+  if (S.songVote && Music.mode === 'track' && songVote.cands.length > 1) {
+    const x = 20, h = 34 + songVote.cands.length * 34, yy = 1650 - h - 10;
+    ctx.fillStyle = 'rgba(15,4,30,0.78)'; roundRect(x, yy, 520, h, 16); ctx.fill();
+    ctx.textAlign = 'left'; ctx.font = `800 20px ${FONT}`; ctx.fillStyle = '#ffd84d'; ctx.fillText('🎵 Bài tiếp theo — gõ "bài 1/2/3"', x + 14, yy + 20);
+    songVote.cands.forEach((c, i) => {
+      ctx.font = `700 19px ${FONT}`; ctx.fillStyle = Music.requested === c ? '#c8ff3d' : '#fff';
+      ctx.fillText(`${i + 1}. ${fit(c.replace(/\.[^.]+$/, ''), 380)}`, x + 14, yy + 54 + i * 34);
+      ctx.textAlign = 'right'; ctx.fillText(songVote.votes[i] + ' phiếu', x + 506, yy + 54 + i * 34); ctx.textAlign = 'left';
+    });
+  }
+  // biển mở khoá chủ đề
+  if (themeBanner && t < themeBanner.until) {
+    ctx.save(); ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(10,40,10,0.85)'; roundRect(140, 760, W - 280, 140, 34); ctx.fill();
+    ctx.strokeStyle = '#c8ff3d'; ctx.lineWidth = 6; ctx.stroke();
+    ctx.font = `800 30px ${FONT}`; ctx.fillStyle = '#c8ff3d'; ctx.fillText('🎯 MỞ KHOÁ SÂN KHẤU MỚI', W / 2, 805);
+    ctx.font = `900 54px ${FONT}`; ctx.fillStyle = '#fff'; ctx.fillText(themeBanner.name.toUpperCase(), W / 2, 862);
+    ctx.restore();
+  }
+}
+const hudTopOffset = () => (battle.on || inResult(battle) ? 74 : 0) + (goalNow() ? 48 : 0);
+
+// ---------- sự kiện từ máy chủ ----------
+function featureEvent(ev) {
+  const T = now();
+  switch (ev.type) {
+    case 'chat': case 'like': case 'gift': {
+      const d = dancers.get(ev.user.id);
+      if (d && ev.user.lv) d.lv = ev.user.lv;
+      if (ev.type === 'like') { goals.likes += ev.count; if (d) addScore(d, ev.count); }
+      if (ev.type === 'chat' && d) { const k = 'cs' + d.id; if (!sayRate.get(k) || T - sayRate.get(k) > 5) { sayRate.set(k, T); addScore(d, 2); } }
+      if (ev.type === 'gift') {
+        goals.coins += ev.value || 0;
+        if (d) addScore(d, (ev.value || 1) * 10);
+        const v = ev.value || 0;
+        if (v >= (Number(S.ledCoins) || 99)) { say(`Wow! Cảm ơn ${nm(ev.user.name)} đã tặng ${ev.count > 1 ? ev.count + ' ' : ''}${ev.gift.name}! Mời bạn lên màn hình lớn!`, null, 0, true); startClip('qua-lon', Number(S.clipSeconds) || 15); }
+        else if (v >= (Number(S.ttsMinCoins) || 1)) say(`Cảm ơn ${nm(ev.user.name)} đã tặng ${ev.count > 1 ? ev.count + ' ' : ''}${ev.gift.name}`, 'g' + ev.user.id, 4);
+      }
+      break;
+    }
+    case 'member': if (S.ttsJoin) say(`Chào mừng ${nm(ev.user.name)}`, 'join', 8); break;
+    case 'follow': if (S.ttsFollow !== false) say(`Cảm ơn ${nm(ev.user.name)} đã theo dõi kênh!`, 'follow', 3); break;
+    case 'share': say(`Cảm ơn ${nm(ev.user.name)} đã chia sẻ!`, 'share', 6); break;
+    case 'welcomeback':
+      pushTicker(`🎉 ${ev.user.name} quay lại lần thứ ${ev.sessions} · Lv${ev.user.lv}`, '#c8ff3d');
+      say(`Chào mừng ${nm(ev.user.name)} quay lại lần thứ ${ev.sessions}!`, 'wb', 6);
+      break;
+    case 'levelup': {
+      const d = dancers.get(ev.user.id); if (d) { d.lv = ev.lv; sparkle(d, 24); }
+      pushTicker(`⬆️ ${ev.user.name} lên Lv${ev.lv}!`, '#ffd84d');
+      if (ev.lv % 5 === 0 || ev.lv <= 3) say(`Chúc mừng ${nm(ev.user.name)} lên cấp ${ev.lv}!`, 'lv', 4);
+      const un = Object.entries(S.costumeLevels || {}).filter(([, l]) => Number(l) === ev.lv).map(([id]) => (COSTUMES.find(c => c.id === id) || {}).name).filter(Boolean);
+      if (un.length) pushTicker(`🔓 ${ev.user.name} mở khoá hoá trang: ${un.join(', ')}`, '#c8ff3d');
+      break;
+    }
+  }
+}
+function featureCmd(c) {
+  if (c.type === 'battleStart') startBattle();
+  if (c.type === 'battleStop') endBattle(true);
+  if (c.type === 'flashmob') startFlashmob();
+  if (c.type === 'spotlight') runSpotlight();
+  if (c.type === 'solo') { const list = [...dancers.values()].filter(d => !d.leaving && !d.clone); if (list.length >= 2) requestSolo(pick(list)); }
+  if (c.type === 'theme') { themes.apply(c.theme); saveGoals(); }
+  if (c.type === 'goalsReset') { goals.likes = 0; goals.coins = 0; goals.idx = 0; themes.apply(S.theme || 'club'); saveGoals(); }
+  if (c.type === 'clipNow') startClip('thu-cong', Number(S.clipSeconds) || 15);
+  if (c.type === 'sayTest') say('Xin chào! Tôi là MC của Vũ Trường Neon. Cảm ơn các bạn đã ghé phòng LIVE!', null, 0, true);
 }
 
 // ---------- kết nối ----------
 const socket = io();
-socket.on('connect', () => socket.emit('hello', 'game'));
+socket.on('connect', () => socket.emit('hello', 'game', { obs: OBS }));
+socket.on('primary', v => { isPrimary = !!v; });
+socket.on('goalState', gs => { if (!gs || goals.loaded) return; goals.loaded = true; goals.likes = gs.likes || 0; goals.coins = gs.coins || 0; goals.idx = gs.idx || 0; if (gs.theme) themes.apply(gs.theme); });
 socket.on('settings', s => {
   const oldQ = S.quality;
-  S = Object.assign(S, s);
+  const first = !S._got; S = Object.assign(S, s); S._got = true;
   Music.setSettings(S);
+  if (first && !goals.loaded) themes.apply(S.theme || 'club');
   if (oldQ !== S.quality) resize();
 });
 socket.on('gifts', g => { GIFTS = g || {}; });
@@ -1406,6 +1840,7 @@ socket.on('ev', ev => {
       case 'share': pushTicker(`📣 ${ev.user.name} đã chia sẻ`, '#a3e635'); heat += 20; break;
       case 'viewers': viewers = ev.count; break;
     }
+    featureEvent(ev);
   } catch (e) { console.error(e); }
 });
 socket.on('cmd', c => {
@@ -1413,6 +1848,8 @@ socket.on('cmd', c => {
   if (c.type === 'endZoom') zoom = null;
   if (c.type === 'fire') heat = curHeatTarget + 1;
   if (c.type === 'reload') location.reload();
+  if (c.type === 'clear') { battle.on = false; solo.on = false; soloQueue.length = 0; spot.d = null; flashmob.until = 0; }
+  featureCmd(c);
 });
 fetch('/api/info').then(r => r.json()).then(i => { ACTIONS = i.actions; }).catch(() => {});
 let fps = 60, lastF = now();
@@ -1441,5 +1878,5 @@ window.addEventListener('pointerdown', unlock);
 window.addEventListener('keydown', unlock);
 setInterval(checkAudio, 1500);
 Music.resume();
-window._dbg = { ledCam, ledRT, renderer, get ledShow() { return ledShow; }, dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
+window._dbg = { get flashInfo() { return [...dancers.values()].slice(0, 8).map(d => [d.mode, d.x.toFixed(2), d.z.toFixed(2), d.tx.toFixed(2), d.tz.toFixed(2)].join(' ')); }, ledCam, ledRT, renderer, get ledShow() { return ledShow; }, dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
 requestAnimationFrame(frame);

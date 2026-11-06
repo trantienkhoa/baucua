@@ -122,6 +122,45 @@
   </div>
 
   <div class="card">
+    <h2>🎮 Sự kiện LIVE</h2>
+    <div class="row">
+      <button class="pri" id="evBattle">⚔️ Bắt đầu đấu đội</button>
+      <button id="evBattleStop">⏹ Dừng đấu đội</button>
+      <button id="evSolo">🥊 Solo ngẫu nhiên</button>
+      <button id="evFlash">🕺 Flash mob</button>
+      <button id="evSpot">🔦 Đèn chiếu ngay</button>
+      <button id="evClip">🎬 Quay clip ngay</button>
+      <button id="evSay">🎙 Thử giọng MC</button>
+    </div>
+    <div class="muted" id="ttsInfo"></div>
+    <div class="grid" id="evGrid" style="margin-top:10px"></div>
+    <h3 style="font-size:15px;margin:16px 0 6px">🎯 Mục tiêu phòng → mở sân khấu</h3>
+    <div class="muted">Cả phòng góp tim / xu để mở khoá lần lượt từng sân khấu. Đổi sân khấu tay ở ô bên dưới.</div>
+    <table><thead><tr><th>#</th><th>Loại</th><th>Số lượng</th><th>Sân khấu mở</th></tr></thead><tbody id="goalsBody"></tbody></table>
+    <div class="row">
+      <select id="themeSel"></select><button id="themeApply">Đổi sân khấu ngay</button>
+      <button id="goalsReset">↺ Làm lại mục tiêu từ đầu</button>
+    </div>
+    <h3 style="font-size:15px;margin:16px 0 6px">🔒 Hoá trang cần cấp độ fan</h3>
+    <div class="muted">Người xem lên cấp nhờ bình luận, thả tim, tặng quà, follow — cấp được giữ qua các buổi LIVE. Đặt 0 = ai cũng mặc được.</div>
+    <div class="grid" id="lvGrid"></div>
+    <div class="row"><button class="pri" id="btnSave3">Lưu</button><span id="saved3" class="ok"></span></div>
+  </div>
+
+  <div class="card">
+    <h2>🎬 Clip khoảnh khắc</h2>
+    <div class="muted">Tự quay khi có quà lớn, solo, đấu đội, sàn cháy cấp 2+, flash mob, mở khoá sân khấu. Video dọc kèm nhạc — tải về đăng TikTok. (Chỉ màn hình game chính, ưu tiên màn hình OBS, mới quay.)</div>
+    <div class="tracks" id="clips"></div>
+  </div>
+
+  <div class="card">
+    <h2>🏅 Fan trung thành</h2>
+    <div class="muted">Cấp độ và số buổi xem được lưu lại giữa các lần LIVE.</div>
+    <table><thead><tr><th>#</th><th>Tên</th><th>Cấp</th><th>Số buổi</th><th>Xu đã tặng</th></tr></thead><tbody id="fansBody"></tbody></table>
+    <div class="row"><button id="fansRefresh">↻ Cập nhật</button><button class="red" id="fansReset">Xoá dữ liệu fan</button></div>
+  </div>
+
+  <div class="card">
     <h2>🧍 Nhân vật (trang phục)</h2>
     <div class="muted">Mỗi file là một nhân vật với bộ đồ riêng. Người xem lên sàn được chọn ngẫu nhiên trong các nhân vật đang bật (theo nam / nữ). Càng nhiều file → sàn càng đa dạng trang phục. Mọi nhân vật đều tự nhảy đủ 14 điệu.</div>
     <details style="margin:10px 0">
@@ -161,6 +200,8 @@
       <button id="tJoin50">+50 khách thử</button>
       <button id="tLike">❤️ Thả 50 tim</button>
       <button id="tBig">📺 Quà lớn (500 xu)</button>
+      <button id="tTeam">⚔️ 20 khách gõ 1/2</button>
+      <button id="tVote">🗳 20 phiếu solo</button>
       <input id="tText" type="text" placeholder="bình luận thử, vd: disco" style="width:220px">
       <button id="tChat">Gửi bình luận</button>
     </div>
@@ -168,6 +209,7 @@
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
+<script src="/tts.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 const socket = io();
@@ -231,7 +273,7 @@ function collect() {
   return out;
 }
 function save(msgId) {
-  socket.emit('saveSettings', collect());
+  socket.emit('saveSettings', Object.assign(collect(), $('evGrid').children.length ? collectEvents() : {}));
   $(msgId).textContent = '✓ Đã lưu'; setTimeout(() => $(msgId).textContent = '', 2000);
 }
 
@@ -267,9 +309,90 @@ function renderUrls() {
   for (const b of $('urls').querySelectorAll('[data-copy]')) b.onclick = () => { navigator.clipboard.writeText(b.dataset.copy).then(() => { b.textContent = '✓ Đã chép'; setTimeout(() => b.textContent = 'Sao chép', 1500); }); };
 }
 
-socket.on('settings', s => { S = s; renderSettings(); renderActions(); });
+socket.on('settings', s => { S = s; renderSettings(); renderActions(); renderEvents(); });
 socket.on('gifts', g => { GIFTS = g; if (S.actions) renderActions(); });
 socket.on('connState', c => { const el = $('connStatus'); el.textContent = c.text; el.className = 'status ' + c.status; });
+
+// ---------- sự kiện LIVE ----------
+const EV_FIELDS = [
+  ['ttsEnabled', '🎙 Bật MC giọng nói', 'check'],
+  ['ttsWhere', '🎙 MC đọc ở', 'select', [['game', 'Màn hình game (OBS)'], ['admin', 'Trang điều khiển này']]],
+  ['ttsVolume', '🎙 Âm lượng MC (0–1)', 'num', 0.1],
+  ['ttsRate', '🎙 Tốc độ đọc (0.6–1.6)', 'num', 0.05],
+  ['ttsMinCoins', '🎙 Đọc cảm ơn quà từ (xu)', 'num', 1],
+  ['ttsJoin', '🎙 Chào người mới vào', 'check'],
+  ['ttsFollow', '🎙 Cảm ơn follow', 'check'],
+  ['battleSeconds', '⚔️ Thời gian đấu đội (giây)', 'num', 10],
+  ['battleAuto', '⚔️ Tự mở đấu đội mỗi (phút, 0 = tắt)', 'num', 1],
+  ['soloSeconds', '🥊 Thời gian bình chọn solo (giây)', 'num', 1],
+  ['spotlightEvery', '🔦 Đèn chiếu mỗi (giây, 0 = tắt)', 'num', 5],
+  ['flashSeconds', '🕺 Thời gian flash mob (giây)', 'num', 1],
+  ['songVote', '🎵 Cho người xem chọn bài tiếp theo', 'check'],
+  ['goalsEnabled', '🎯 Bật mục tiêu phòng', 'check'],
+  ['clipsEnabled', '🎬 Tự quay clip khoảnh khắc', 'check'],
+  ['clipSeconds', '🎬 Độ dài clip (giây)', 'num', 1],
+];
+const THEMES = [['club', 'Vũ trường'], ['beach', 'Bãi biển'], ['space', 'Vũ trụ'], ['tet', 'Tết'], ['halloween', 'Halloween'], ['noel', 'Giáng sinh']];
+const LV_COSTUMES = [['wukong', 'Tề Thiên Đại Thánh'], ['tang', 'Đường Tăng'], ['angel', 'Thiên thần'], ['king', 'Hoàng đế'], ['hero_red', 'Neon Hoả'], ['astro', 'Phi hành gia'], ['devil', 'Ác quỷ'], ['samurai', 'Samurai']];
+function fieldEl(k, type, opt, val) {
+  let input;
+  if (type === 'check') { input = document.createElement('input'); input.type = 'checkbox'; input.checked = !!val; }
+  else if (type === 'num') { input = document.createElement('input'); input.type = 'number'; input.step = opt; input.value = val ?? 0; }
+  else { input = document.createElement('select'); for (const [v, t] of opt) { const o = document.createElement('option'); o.value = v; o.textContent = t; input.appendChild(o); } input.value = val; }
+  input.dataset.key = k; input.dataset.type = type; return input;
+}
+function renderEvents() {
+  const g = $('evGrid'); g.innerHTML = '';
+  for (const [k, label, type, opt] of EV_FIELDS) { const div = document.createElement('label'); div.className = 'field'; div.append(document.createTextNode(label), fieldEl(k, type, opt, S[k])); g.appendChild(div); }
+  const opts = THEMES.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+  $('goalsBody').innerHTML = (S.goals || []).map((gl, i) => `<tr data-i="${i}"><td>${i + 1}</td><td><select data-g="kind"><option value="likes" ${gl.kind === 'likes' ? 'selected' : ''}>❤️ Tim</option><option value="coins" ${gl.kind === 'coins' ? 'selected' : ''}>💎 Xu</option></select></td><td><input type="number" data-g="n" value="${gl.n}"></td><td><select data-g="theme">${opts.replace(`value="${gl.theme}"`, `value="${gl.theme}" selected`)}</select></td></tr>`).join('');
+  $('themeSel').innerHTML = opts;
+  const lg = $('lvGrid'); lg.innerHTML = '';
+  for (const [id, name] of LV_COSTUMES) { const div = document.createElement('label'); div.className = 'field'; const inp = document.createElement('input'); inp.type = 'number'; inp.min = 0; inp.value = (S.costumeLevels || {})[id] || 0; inp.dataset.lv = id; div.append(document.createTextNode('🔒 ' + name + ' — cần Lv'), inp); lg.appendChild(div); }
+  ttsInfo();
+}
+function ttsInfo() {
+  const el = $('ttsInfo'); if (!el) return;
+  if (!window.MC || !MC.available()) el.textContent = 'Trình duyệt này không có giọng đọc.';
+  else el.textContent = MC.hasVietnamese() ? '✓ Máy này có giọng đọc tiếng Việt.' : '⚠️ Máy này chưa có giọng tiếng Việt — Windows: Cài đặt → Thời gian & ngôn ngữ → Giọng nói → thêm Tiếng Việt; hoặc dùng Chrome / Edge (có giọng Google / Microsoft tiếng Việt).';
+}
+setTimeout(ttsInfo, 1500);
+function collectEvents() {
+  const out = {};
+  for (const el of $('evGrid').querySelectorAll('[data-key]')) out[el.dataset.key] = el.dataset.type === 'check' ? el.checked : el.dataset.type === 'num' ? Number(el.value) : el.value;
+  out.goals = [...$('goalsBody').querySelectorAll('tr')].map(tr => ({ kind: tr.querySelector('[data-g=kind]').value, n: Math.max(1, Number(tr.querySelector('[data-g=n]').value) || 1), theme: tr.querySelector('[data-g=theme]').value }));
+  out.costumeLevels = Object.assign({}, S.costumeLevels || {});
+  for (const inp of $('lvGrid').querySelectorAll('[data-lv]')) out.costumeLevels[inp.dataset.lv] = Math.max(0, Number(inp.value) || 0);
+  return out;
+}
+const cmd = (type, extra) => socket.emit('cmd', Object.assign({ type }, extra || {}));
+$('evBattle').onclick = () => cmd('battleStart');
+$('evBattleStop').onclick = () => cmd('battleStop');
+$('evSolo').onclick = () => cmd('solo');
+$('evFlash').onclick = () => cmd('flashmob');
+$('evSpot').onclick = () => cmd('spotlight');
+$('evClip').onclick = () => cmd('clipNow');
+$('evSay').onclick = () => { cmd('sayTest'); if (S.ttsWhere === 'admin') { MC.enabled = true; MC.say('Xin chào! Tôi là MC của Vũ Trường Neon.'); } };
+$('themeApply').onclick = () => cmd('theme', { theme: $('themeSel').value });
+$('goalsReset').onclick = () => { if (confirm('Làm lại mục tiêu phòng từ đầu (về sân khấu mặc định)?')) cmd('goalsReset'); };
+$('btnSave3').onclick = () => { socket.emit('saveSettings', Object.assign(collect(), collectEvents())); $('saved3').textContent = '✓ Đã lưu'; setTimeout(() => $('saved3').textContent = '', 2000); };
+// MC đọc ở trang điều khiển
+socket.on('say', text => { if (S.ttsWhere === 'admin' && S.ttsEnabled) { MC.enabled = true; MC.volume = Number(S.ttsVolume) || 1; MC.rate = Number(S.ttsRate) || 1.05; MC.say(text); } });
+// clip
+socket.on('clips', list => {
+  $('clips').innerHTML = list.length ? list.map(c => `<div><span>🎬 ${esc(c.file)} <span class="muted">${(c.size / 1048576).toFixed(1)} MB</span></span><span><a href="${c.url}" download><button>Tải về</button></a> <a href="${c.url}" target="_blank"><button>Xem</button></a> <button data-delclip="${esc(c.file)}">Xoá</button></span></div>`).join('') : '<div class="muted">Chưa có clip nào.</div>';
+  for (const b of $('clips').querySelectorAll('[data-delclip]')) b.onclick = () => fetch('/api/clips/' + encodeURIComponent(b.dataset.delclip), { method: 'DELETE' });
+});
+// fan
+function loadFans() {
+  fetch('/api/fans').then(r => r.json()).then(list => {
+    $('fansBody').innerHTML = list.slice(0, 30).map((f, i) => `<tr><td>${i + 1}</td><td>${esc(f.name)}</td><td>Lv${f.lv}</td><td>${f.sessions || 1}</td><td>${f.coins || 0}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">Chưa có dữ liệu.</td></tr>';
+  });
+}
+loadFans(); setInterval(loadFans, 30000);
+$('fansRefresh').onclick = loadFans;
+$('fansReset').onclick = () => { if (confirm('Xoá toàn bộ cấp độ fan?')) fetch('/api/fans', { method: 'DELETE' }).then(loadFans); };
+
 socket.on('stats', s => {
   const items = [[s.onFloor ?? 0, 'Trên sàn'], [s.zooming ?? '—', 'Đang zoom'], [s.queue ?? 0, 'Chờ zoom'], [s.viewers, 'Người xem'], [s.comments, 'Bình luận'], [s.likes, 'Tim'], [s.gifts, 'Quà (lượt)'], [s.coins, 'Xu'], [s.screens, 'Màn hình mở'], [s.fps ?? '—', 'FPS game'], [s.ram, 'RAM (MB)']];
   $('stats').innerHTML = items.map(([v, l]) => `<div class="stat"><b>${esc(v)}</b><span>${l}</span></div>`).join('');
@@ -316,6 +439,8 @@ $('tJoin').onclick = () => socket.emit('test', { kind: 'join', n: 10 });
 $('tJoin50').onclick = () => socket.emit('test', { kind: 'join', n: 50 });
 $('tLike').onclick = () => socket.emit('test', { kind: 'like', n: 50 });
 $('tBig').onclick = () => socket.emit('test', { kind: 'biggift', value: 500 });
+$('tTeam').onclick = () => socket.emit('test', { kind: 'chat', text: ['1', '2', '1', '1', '2'], repeat: 20 });
+$('tVote').onclick = () => socket.emit('test', { kind: 'chat', text: ['1', '2', '1'], repeat: 20 });
 $('tChat').onclick = () => socket.emit('test', { kind: 'chat', text: $('tText').value });
 $('tText').onkeydown = e => { if (e.key === 'Enter') $('tChat').click(); };
 $('musicFile').onchange = async e => {

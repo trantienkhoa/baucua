@@ -16,4 +16,7 @@ Lên LIVE:
 Không cần key bản quyền. Key EulerStream là tuỳ chọn.
 Cần máy có card đồ hoạ; máy yếu chọn "Kiểu nhân vật: Hoạt hình" hoặc "Mức hiệu ứng: Nhẹ".
 Thêm nhân vật riêng: trang điều khiển → mục 🧍 Nhân vật (hỗ trợ .vrm / .glb / .fbx).
+Sự kiện LIVE (trang điều khiển → 🎮 Sự kiện LIVE): đấu đội, solo, flash mob,
+đèn chiếu, MC giọng nói, mục tiêu phòng mở sân khấu mới, clip khoảnh khắc.
+Lệnh người xem: 1/2 (chọn đội, bình chọn solo), bài 1/2/3 (chọn nhạc).
 Chi tiết: xem README.md

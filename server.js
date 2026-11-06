@@ -33,8 +33,10 @@ const ACTIONS = [
   { id: 'clone', label: 'Phân thân', icon: '👯', min: 50 },
   { id: 'wings', label: 'Mọc cánh', icon: '🪽', min: 70 },
   { id: 'dj', label: 'Lên DJ', icon: '🎧', min: 99 },
+  { id: 'solo', label: 'Thách đấu solo', icon: '⚔️', min: 150 },
   { id: 'rocket', label: 'Tên lửa', icon: '🚀', min: 199 },
   { id: 'cloud', label: 'Cưỡi mây', icon: '☁️', min: 299 },
+  { id: 'flashmob', label: 'Flash mob', icon: '🕺', min: 399 },
   { id: 'throne', label: 'Ngai vàng', icon: '🪑', min: 499 },
   { id: 'king', label: 'Đăng quang', icon: '👑', min: 999 },
 ];
@@ -70,6 +72,25 @@ const DEFAULT_SETTINGS = {
   tierKing: 299,
   tierEmperor: 999,
   bannedWords: '',
+  // MC giọng nói
+  ttsEnabled: true, ttsWhere: 'game', ttsVolume: 1, ttsRate: 1.05, ttsMinCoins: 1, ttsJoin: false, ttsFollow: true,
+  // đấu đội
+  battleSeconds: 180, battleAuto: 0,          // tự mở mỗi N phút (0 = tắt)
+  // solo
+  soloSeconds: 20,
+  // đèn chiếu ngẫu nhiên
+  spotlightEvery: 60,                          // giây (0 = tắt)
+  // flash mob
+  flashSeconds: 20,
+  // bình chọn nhạc
+  songVote: true,
+  // mục tiêu phòng → sân khấu
+  goalsEnabled: true, theme: 'club',
+  goals: [{ kind: 'likes', n: 2000, theme: 'beach' }, { kind: 'coins', n: 500, theme: 'space' }, { kind: 'likes', n: 8000, theme: 'tet' }, { kind: 'coins', n: 2000, theme: 'halloween' }, { kind: 'likes', n: 20000, theme: 'noel' }],
+  // clip
+  clipsEnabled: true, clipSeconds: 15,
+  // cấp độ fan: hoá trang cần cấp
+  costumeLevels: { wukong: 5, angel: 8, king: 10 },
   actions: ACTIONS.map(a => ({ id: a.id, gift: '', min: a.min })),
 };
 
@@ -136,11 +157,46 @@ function topList() {
   return [...coins.values()].sort((a, b) => b.coins - a.coins).slice(0, 5);
 }
 
+// ---------- cấp độ fan (lưu qua các buổi LIVE) ----------
+let fans = readJSON('fans.json', {});
+let fansDirty = false;
+let session = { id: Date.now(), start: Date.now() };
+const seenThisSession = new Set();
+const chatXpAt = new Map();
+const levelOf = xp => Math.min(99, Math.floor(Math.sqrt(Math.max(0, xp) / 15)) + 1);
+function fanTouch(user, xp, extra) {
+  if (!user || !user.id) return user;
+  let f = fans[user.id];
+  if (!f) f = fans[user.id] = { name: user.name, avatar: user.avatar || '', xp: 0, sessions: 0, coins: 0, first: Date.now() };
+  f.name = user.name; if (user.avatar) f.avatar = user.avatar;
+  const extraEv = [];
+  if (!seenThisSession.has(user.id)) {
+    seenThisSession.add(user.id);
+    f.sessions = (f.sessions || 0) + 1;
+    f.last = Date.now();
+    if (f.sessions > 1) extraEv.push({ type: 'welcomeback', user: { ...user, lv: levelOf(f.xp) }, sessions: f.sessions });
+  }
+  const before = levelOf(f.xp);
+  f.xp += xp || 0;
+  if (extra && extra.coins) f.coins = (f.coins || 0) + extra.coins;
+  const lv = levelOf(f.xp);
+  fansDirty = true;
+  user.lv = lv; user.sessions = f.sessions;
+  if (lv > before) extraEv.push({ type: 'levelup', user: { ...user }, lv });
+  for (const e of extraEv) setTimeout(() => broadcast(e), 300);
+  return user;
+}
+setInterval(() => { if (fansDirty) { fansDirty = false; writeJSON('fans.json', fans); } }, 10000);
+function topFans(n = 50) {
+  return Object.entries(fans).map(([id, f]) => ({ id, ...f, lv: levelOf(f.xp) })).sort((a, b) => b.xp - a.xp).slice(0, n);
+}
+
 // ---------- web ----------
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { maxHttpBufferSize: 1e6 });
 app.use(express.json({ limit: '1mb' }));
+app.use('/api/clips', express.raw({ type: () => true, limit: '300mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/music', express.static(MUSIC));
 app.use('/three', express.static(path.join(__dirname, 'node_modules', 'three')));
@@ -157,6 +213,30 @@ function musicList() {
 }
 app.get('/api/info', (req, res) => res.json({ port: PORT, ips: lanIPs(), actions: ACTIONS, version: require('./package.json').version }));
 app.get('/api/music', (req, res) => res.json(musicList()));
+// ---------- fan ----------
+app.get('/api/fans', (req, res) => res.json(topFans(100)));
+app.delete('/api/fans', (req, res) => { fans = {}; seenThisSession.clear(); writeJSON('fans.json', fans); res.json([]); });
+// ---------- clip khoảnh khắc ----------
+const CLIPS = path.join(DATA, 'clips');
+fs.mkdirSync(CLIPS, { recursive: true });
+app.use('/clips', express.static(CLIPS));
+function clipList() {
+  try { return fs.readdirSync(CLIPS).filter(f => /\.(webm|mp4)$/i.test(f)).sort().reverse().map(f => ({ file: f, url: '/clips/' + encodeURIComponent(f), size: fs.statSync(path.join(CLIPS, f)).size })); } catch { return []; }
+}
+app.get('/api/clips', (req, res) => res.json(clipList()));
+app.post('/api/clips', (req, res) => {
+  const ext = /mp4/i.test(String(req.headers['content-type'])) ? 'mp4' : 'webm';
+  const reason = String(req.query.reason || 'clip').replace(/[^a-z0-9-]/gi, '').slice(0, 20) || 'clip';
+  const d = new Date(); const pad = n => String(n).padStart(2, '0');
+  const name = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}-${reason}.${ext}`;
+  if (!req.body || !req.body.length) return res.status(400).end();
+  fs.writeFileSync(path.join(CLIPS, name), req.body);
+  // giữ tối đa 200 clip
+  const all = clipList(); for (const c of all.slice(200)) { try { fs.unlinkSync(path.join(CLIPS, c.file)); } catch {} }
+  io.to('admin').emit('clips', clipList());
+  res.json({ file: name });
+});
+app.delete('/api/clips/:file', (req, res) => { const f = path.join(CLIPS, path.basename(req.params.file)); if (fs.existsSync(f)) fs.unlinkSync(f); io.to('admin').emit('clips', clipList()); res.json(clipList()); });
 // ---------- nhân vật (mô hình 3D) ----------
 const BUILTIN_MODELS = path.join(__dirname, 'public', 'models');
 const USER_MODELS = path.join(DATA, 'models');
@@ -235,7 +315,7 @@ function setState(status, text) {
   console.log('[TikTok]', text);
 }
 
-function broadcast(ev) { io.to('game').emit('ev', ev); }
+function broadcast(ev) { session.lastEvent = Date.now(); io.to('game').emit('ev', ev); }
 
 const pendingStreaks = new Map();
 function handleGift(d) {
@@ -273,6 +353,7 @@ function handleGift(d) {
 
 function processGift(user, gift, count) {
   const value = gift.diamonds * count;
+  fanTouch(user, value * 3, { coins: value });
   const total = addCoins(user, value);
   stats.gifts += count; stats.coins += value;
   broadcast({ type: 'gift', user, gift, count, value, total });
@@ -283,17 +364,20 @@ function attach(c) {
   c.on(WebcastEvent.CHAT, d => {
     const user = pickUser(d);
     stats.comments++;
+    const now = Date.now();
+    const give = now - (chatXpAt.get(user.id) || 0) > 20000; if (give) chatXpAt.set(user.id, now);
+    fanTouch(user, give ? 2 : 0);
     broadcast({ type: 'chat', user, text: cleanText(d.comment, 80) });
   });
   c.on(WebcastEvent.GIFT, d => { try { handleGift(d); } catch (e) { console.error('gift', e); } });
   c.on(WebcastEvent.LIKE, d => {
     const n = Number(d.likeCount || 1);
     stats.likes += n;
-    broadcast({ type: 'like', user: pickUser(d), count: n });
+    broadcast({ type: 'like', user: fanTouch(pickUser(d), Math.min(5, n * 0.05)), count: n });
   });
   c.on(WebcastEvent.MEMBER, d => broadcast({ type: 'member', user: pickUser(d) }));
-  c.on(WebcastEvent.FOLLOW, d => broadcast({ type: 'follow', user: pickUser(d) }));
-  c.on(WebcastEvent.SHARE, d => broadcast({ type: 'share', user: pickUser(d) }));
+  c.on(WebcastEvent.FOLLOW, d => broadcast({ type: 'follow', user: fanTouch(pickUser(d), 20) }));
+  c.on(WebcastEvent.SHARE, d => broadcast({ type: 'share', user: fanTouch(pickUser(d), 10) }));
   c.on(WebcastEvent.ROOM_USER, d => {
     stats.viewers = Number(d.viewerCount || d.totalUser || stats.viewers);
     broadcast({ type: 'viewers', count: stats.viewers });
@@ -325,6 +409,7 @@ async function connectTikTok() {
     await c.connect();
     if (conn !== c) return;
     reconnectDelay = 5000;
+    if (Date.now() - (session.lastEvent || session.start) > 30 * 60000) { session = { id: Date.now(), start: Date.now() }; seenThisSession.clear(); }
     setState('connected', `✓ Đang nhận @${uname}`);
   } catch (e) {
     if (conn !== c) return;
@@ -349,6 +434,15 @@ async function disconnectTikTok() {
 }
 
 // ---------- socket ----------
+let primaryId = null;
+let goalState = null;   // tiến độ mục tiêu phòng (giữ khi tải lại màn hình game)
+function pickPrimary() {
+  if (primaryId && screens.has(primaryId)) return;
+  let best = null;
+  for (const [id, s] of screens) { if (!best || (s.obs && !screens.get(best).obs)) best = id; }
+  primaryId = best;
+  for (const id of screens.keys()) io.to(id).emit('primary', id === primaryId);
+}
 const screens = new Map(); // socket.id -> status
 let testN = 0;
 const TEST_NAMES = ['Mây Hồng', 'Tuấn Béo', 'Linh Xinh', 'Bảo Ngọc', 'Hải Đăng', 'Minh Thư', 'Gấu Trúc', 'Cún Con', 'Thỏ Bông', 'Khoai Tây', 'Bé Na', 'Anh Ba', 'Trà Sữa', 'Mèo Mập', 'Su Su'];
@@ -358,17 +452,19 @@ function testUser(i) {
 }
 
 io.on('connection', socket => {
-  socket.on('hello', role => {
-    if (role === 'game') { socket.join('game'); screens.set(socket.id, {}); }
-    else socket.join('admin');
+  socket.on('hello', (role, info) => {
+    if (role === 'game') { socket.join('game'); screens.set(socket.id, { obs: !!(info && info.obs) }); pickPrimary(); socket.emit('goalState', goalState); }
+    else { socket.join('admin'); socket.emit('clips', clipList()); }
     socket.emit('settings', settings);
     socket.emit('gifts', gifts);
     socket.emit('music', musicList());
     socket.emit('top', topList());
     socket.emit('connState', connState);
   });
-  socket.on('status', s => { if (screens.has(socket.id)) screens.set(socket.id, s || {}); });
-  socket.on('disconnect', () => screens.delete(socket.id));
+  socket.on('status', s => { if (screens.has(socket.id)) screens.set(socket.id, Object.assign(screens.get(socket.id) || {}, s || {})); });
+  socket.on('disconnect', () => { if (screens.delete(socket.id)) pickPrimary(); });
+  socket.on('goalState', gs => { if (gs && typeof gs === 'object' && socket.id === primaryId) goalState = { likes: +gs.likes || 0, coins: +gs.coins || 0, idx: +gs.idx || 0, theme: String(gs.theme || 'club') }; });
+  socket.on('say', text => { if (typeof text === 'string') io.to('admin').emit('say', text.slice(0, 200)); });
 
   socket.on('saveSettings', s => {
     if (!s || typeof s !== 'object') return;
@@ -391,11 +487,11 @@ io.on('connection', socket => {
     if (!t) return;
     if (t.kind === 'join') {
       const n = Math.min(100, Number(t.n) || 10);
-      for (let i = 0; i < n; i++) setTimeout(() => broadcast({ type: 'chat', user: testUser(), text: 'hi' }), i * 120);
+      for (let i = 0; i < n; i++) setTimeout(() => broadcast({ type: 'chat', user: fanTouch(testUser(), 2), text: 'hi' }), i * 120);
     } else if (t.kind === 'chat') {
-      broadcast({ type: 'chat', user: testUser(Math.max(1, Math.floor(Math.random() * Math.max(1, testN)))), text: String(t.text || '').slice(0, 80) });
+      const n = Math.max(1, Number(t.repeat) || 1); for (let i = 0; i < n; i++) setTimeout(() => broadcast({ type: 'chat', user: fanTouch(testUser(Math.max(1, Math.floor(Math.random() * Math.max(1, testN)))), 2), text: String(typeof t.text === 'function' ? '' : (Array.isArray(t.text) ? t.text[i % t.text.length] : t.text) || '').slice(0, 80) }), i * 80);
     } else if (t.kind === 'like') {
-      broadcast({ type: 'like', user: testUser(1), count: Number(t.n) || 30 });
+      const n = Number(t.n) || 30; for (let i = 0; i < 10; i++) setTimeout(() => broadcast({ type: 'like', user: fanTouch(testUser(Math.max(1, Math.floor(Math.random() * Math.max(1, testN)))), 0.5), count: Math.ceil(n / 10) }), i * 100);
     } else if (t.kind === 'biggift') {
       const user = testUser(Math.max(1, Math.floor(Math.random() * Math.max(1, testN))) || 1);
       const g = { name: 'Quà lớn thử', diamonds: Number(t.value) || 500, img: '' };
@@ -420,7 +516,7 @@ setInterval(() => {
   let s = { onFloor: 0, zooming: '—', queue: 0 };
   for (const v of screens.values()) { s = v; break; }
   io.to('admin').emit('stats', {
-    ...stats, ...s, screens: screens.size,
+    ...stats, ...s, screens: screens.size, fans: Object.keys(fans).length,
     ram: Math.round(process.memoryUsage().rss / 1048576),
   });
 }, 1500);

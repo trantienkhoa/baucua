@@ -22,6 +22,7 @@
     A.analyser = A.ctx.createAnalyser(); A.analyser.fftSize = 1024; A.analyser.smoothingTimeConstant = 0.6;
     A.freq = new Uint8Array(A.analyser.frequencyBinCount);
     A.master.connect(A.analyser); A.analyser.connect(A.ctx.destination);
+    try { A.streamDest = A.ctx.createMediaStreamDestination(); A.master.connect(A.streamDest); } catch (e) { A.streamDest = null; }
     A.el = new Audio(); A.el.crossOrigin = 'anonymous'; A.el.preload = 'auto';
     A.src = A.ctx.createMediaElementSource(A.el); A.src.connect(A.master);
     A.el.addEventListener('ended', () => A.nextTrack());
@@ -55,13 +56,18 @@
   };
   A.nextTrack = function () {
     if (A.mode !== 'track' || !A.playlist.length) return;
-    A.idx = (A.idx + 1) % A.order.length;
-    if (A.idx === 0) A.order = shuffle(A.playlist.slice());
-    A.el.src = '/music/' + encodeURIComponent(A.order[A.idx]);
+    let name;
+    if (A.requested && A.playlist.includes(A.requested)) { name = A.requested; A.requested = null; A.idx = Math.max(0, A.order.indexOf(name)); }
+    else { A.idx = (A.idx + 1) % A.order.length; if (A.idx === 0) A.order = shuffle(A.playlist.slice()); name = A.order[A.idx]; }
+    A.current = name;
+    A.el.src = '/music/' + encodeURIComponent(name);
+    if (A.onTrack) try { A.onTrack(name); } catch (e) {}
     A.iois = []; A.hist = [];
     A.el.play().catch(() => {});
   };
-  A.trackName = () => A.mode === 'track' && A.order[A.idx] ? A.order[A.idx].replace(/\.[^.]+$/, '') : '';
+  A.trackName = () => A.mode === 'track' && A.current ? A.current.replace(/\.[^.]+$/, '') : '';
+  A.audioStream = () => A.streamDest ? A.streamDest.stream : null;
+  A.timeLeft = () => (A.mode === 'track' && A.el && A.el.duration) ? A.el.duration - A.el.currentTime : Infinity;
 
   // ---------- máy tự đánh nhạc ----------
   const BASS = [41.2, 41.2, 49.0, 55.0, 36.7, 36.7, 49.0, 43.65]; // E1.. tiến trình
