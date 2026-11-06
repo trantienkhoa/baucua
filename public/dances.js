@@ -4,7 +4,7 @@
 // lt/rt: đùi (tuyệt đối), ls/rs: cẳng chân (tương đối)
 (function () {
   const S = Math.sin, C = Math.cos, PI = Math.PI, TAU = PI * 2;
-  const N = () => ({ bob: 0, lean: 0, lu: -0.18, lf: -0.15, ru: 0.18, rf: 0.15, lt: -0.07, ls: 0.02, rt: 0.07, rs: -0.02, head: 0, spin: 1, rot: 0, lift: 0, dx: 0, sit: 0 });
+  const N = () => ({ yaw: 0, walk: -1, bob: 0, lean: 0, lu: -0.18, lf: -0.15, ru: 0.18, rf: 0.15, lt: -0.07, ls: 0.02, rt: 0.07, rs: -0.02, head: 0, spin: 1, rot: 0, lift: 0, dx: 0, sit: 0 });
   const ease = x => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
   const bounce = p => Math.abs(S(p * PI));
 
@@ -26,7 +26,7 @@
       return o; } },
     { name: 'xoay', keys: ['xoay', 'spin', 'quay'], f(p, b) {
       const o = N(), q = ((b % 2) + p) / 2;
-      o.spin = C(q * TAU); o.bob = 0.03 * bounce(p);
+      o.spin = C(q * TAU); o.yaw = q * TAU; o.bob = 0.03 * bounce(p);
       o.lu = -1.3; o.lf = -0.3; o.ru = 1.3; o.rf = 0.3;
       o.lt = -0.12; o.rt = 0.12;
       return o; } },
@@ -73,7 +73,7 @@
       return o; } },
     { name: 'xoay đầu', keys: ['xoay dau', 'xoay đầu', 'headspin', 'trồng cây'], f(p, b) {
       const o = N(), q = ((b % 2) + p) / 2;
-      o.rot = PI; o.lift = 0.88; o.spin = C(q * TAU * 2);
+      o.rot = PI; o.lift = 0; o.spin = C(q * TAU * 2); o.yaw = q * TAU * 2;
       o.lu = -0.6; o.lf = -0.9; o.ru = 0.6; o.rf = 0.9;
       o.lt = -0.5 - 0.3 * S(q * TAU * 2); o.ls = 0.1; o.rt = 0.5 + 0.3 * S(q * TAU * 2); o.rs = -0.1;
       return o; } },
@@ -86,7 +86,7 @@
     { name: 'máy bay', keys: ['may bay', 'máy bay', 'plane', 'bay'], f(p, b) {
       const o = N(), w = S((b % 4 + p) / 4 * TAU);
       o.lu = -1.57; o.lf = 0; o.ru = 1.57; o.rf = 0;
-      o.lean = 0.35 * w; o.dx = 0.2 * w; o.bob = 0.02;
+      o.lean = 0.35 * w; o.dx = 0.2 * w; o.bob = 0.02; o.yaw = 0.5 * w;
       o.lt = -0.12; o.rt = 0.12 + 0.3 * Math.max(0, -w); o.rs = -0.3 * Math.max(0, -w);
       return o; } },
     { name: 'đá chân', keys: ['da chan', 'đá chân', 'kick', 'đá'], f(p, b) {
@@ -98,7 +98,7 @@
     { name: 'moonwalk', keys: ['moonwalk', 'moon', 'trượt'], f(p, b) {
       const o = N(), q = (b % 4 + p) / 4, ph = (b % 2 + p) / 2 * TAU;
       o.dx = 0.35 * (q < 0.5 ? q * 2 - 0.5 : 1.5 - q * 2);
-      o.spin = q < 0.5 ? -1 : 1;
+      o.spin = q < 0.5 ? -1 : 1; o.yaw = q < 0.5 ? -PI / 2 : PI / 2;
       o.lt = -0.05 + 0.15 * S(ph); o.ls = Math.max(0, 0.5 * S(ph)); o.rt = 0.05 + 0.15 * S(ph + PI); o.rs = -Math.max(0, 0.5 * S(ph + PI));
       o.lu = -0.25 + 0.25 * S(ph + PI); o.ru = 0.25 + 0.25 * S(ph); o.lf = -0.4; o.rf = 0.4;
       o.lean = -0.06 * o.spin; o.head = 0.1 * S(ph * 2);
@@ -111,7 +111,7 @@
       const o = N(), ph = p * TAU;
       o.lt = 0.3 * S(ph); o.rt = -0.3 * S(ph); o.ls = Math.max(0, 0.5 * S(ph + 1)); o.rs = -Math.max(0, 0.5 * S(ph + PI + 1));
       o.lu = -0.15 - 0.3 * S(ph); o.ru = 0.15 - 0.3 * S(ph + PI); o.lf = -0.3; o.rf = 0.3;
-      o.bob = 0.015 * Math.abs(S(ph)); return o;
+      o.bob = 0.015 * Math.abs(S(ph)); o.walk = p; return o;
     },
     catwalk(p) {
       const o = SPECIAL.walk(p); o.lean = 0.06 * S(p * TAU); o.lu = -0.9; o.lf = -2.2; o.ru = 0.35 + 0.2 * S(p * TAU); o.rf = 0.2; o.head = 0.1; return o;

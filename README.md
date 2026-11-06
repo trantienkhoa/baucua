@@ -1,6 +1,6 @@
 # 🪩 Vũ Trường Neon — game TikTok LIVE sàn nhảy
 
-Sàn nhảy trong phòng LIVE: người xem **bình luận** là có một nhân vật mang **ảnh đại diện + tên TikTok** của họ rơi xuống sàn và nhảy theo nhạc. Chạy trên máy bạn, **không cần key bản quyền**.
+Sàn nhảy **3D** trong phòng LIVE (Three.js: nhân vật người 3D có tóc, mặt, quần áo/váy, sàn đèn LED 3D, sân khấu, màn LED, cầu disco, đèn quét, laser): người xem **bình luận** là có một nhân vật mang **ảnh đại diện + tên TikTok** của họ rơi xuống sàn và nhảy theo nhạc. Chạy trên máy bạn, **không cần key bản quyền**.
 
 ## Cài đặt (Windows)
 
@@ -29,7 +29,8 @@ Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dù
 - **Bảng top đại gia**, danh hiệu Quý Tộc / Vua / Hoàng Đế, người tặng nhiều nhất lên đứng bàn DJ.
 - **Nhạc**: tải MP3/M4A lên, game tự dò nhịp từng bài; chưa có bài thì máy tự đánh nhạc EDM.
 - **Bộ lọc**: link, số điện thoại, Zalo luôn bị chặn; thêm từ cấm tuỳ ý.
-- 3 mức hiệu ứng cho máy yếu; công cụ thử không cần LIVE.
+- 3 mức hiệu ứng: Mạnh (có bloom phát sáng), Vừa, Nhẹ (máy yếu); công cụ thử không cần LIVE.
+- Cần máy có card đồ hoạ / WebGL. Trong OBS nhớ bật tăng tốc phần cứng cho Browser Source.
 
 Dữ liệu (cài đặt, nhạc, hình quà) lưu trong thư mục `data/`.
 

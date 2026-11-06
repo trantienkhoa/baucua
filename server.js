@@ -138,6 +138,7 @@ const io = new Server(server, { maxHttpBufferSize: 1e6 });
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/music', express.static(MUSIC));
+app.use('/three', express.static(path.join(__dirname, 'node_modules', 'three')));
 app.get('/', (req, res) => res.redirect('/admin.html'));
 app.get('/game', (req, res) => res.sendFile(path.join(__dirname, 'public', 'game.html')));
 

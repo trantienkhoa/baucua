@@ -6,17 +6,22 @@
 <title>Vũ Trường Neon</title>
 <style>
   html,body{margin:0;height:100%;background:#000;overflow:hidden}
-  body.obs{background:transparent}
   canvas{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:block}
   #tap{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);color:#fff;font:700 22px system-ui;cursor:pointer;z-index:5;text-align:center}
+  #err{position:fixed;left:0;right:0;top:40%;color:#fff;font:600 18px system-ui;text-align:center;display:none;padding:20px}
 </style>
+<script type="importmap">
+{ "imports": { "three": "/three/build/three.module.js", "three/addons/": "/three/examples/jsm/" } }
+</script>
 </head>
 <body>
-<canvas id="c"></canvas>
+<canvas id="gl"></canvas>
+<canvas id="hud"></canvas>
 <div id="tap">🔊 Bấm vào màn hình để bật nhạc</div>
+<div id="err">Máy này không chạy được đồ hoạ 3D (WebGL). Hãy bật “tăng tốc phần cứng” trong trình duyệt / OBS.</div>
 <script src="/socket.io/socket.io.js"></script>
 <script src="/dances.js"></script>
 <script src="/audio.js"></script>
-<script src="/game.js"></script>
+<script type="module" src="/game.js"></script>
 </body>
 </html>
