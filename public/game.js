@@ -1055,6 +1055,12 @@ function update(t, dt) {
     if (d.mode === 'rocket' && d._sp && Math.random() < 0.8) particles.push({ x: d._sp.x + rand(-10, 10), y: d._sp.y + 20, vx: rand(-40, 40), vy: rand(150, 300), g: 0, life: 0.5, max: 0.5, color: pick(['#ffd84d', '#ff8a3d', '#ff3d3d', '#fff']), size: rand(6, 14), type: 'spark' });
     if (d.pairWith && d._sp && Math.random() < dt * 2.5) hearts(d._sp.hx, d._sp.hy - 30, 1);
     if (d.hyper && d.mode === 'dance' && Math.random() < dt * 0.08) d.jumpStart = t;
+    // mô hình riêng của vai tải xong → thay vào
+    if (d.char && !d.avT && t > (d._charPoll || 0)) {
+      d._charPoll = t + 0.5;
+      const tp = templateForChar(d.char.id);
+      if (tp) { d.avT = tp; if (d.av) { disposeAvatar(d.av); d.av = null; } }
+    }
     const tsc = t < d.giantUntil ? 2.1 : 1;
     d.sc += (tsc - d.sc) * Math.min(1, dt * 4);
     d._wings = t < d.wingsUntil;

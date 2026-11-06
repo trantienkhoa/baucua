@@ -180,11 +180,26 @@ const templates = [];
 export const avatarTemplates = templates;
 
 const cache = new Map();
+const lazyChars = new Map();      // charId -> { url, female }
+const loadingChars = new Map();   // charId -> Promise
+async function loadOne(it) {
+  let t = cache.get(it.url);
+  if (t) return t;
+  const gl = new GLTFLoader(), fbx = new FBXLoader();
+  const scene = /\.fbx(\?|$)/i.test(it.url) ? fixFbx(await fbx.loadAsync(it.url)) : loadGltfScene(await gl.loadAsync(it.url), it.url);
+  t = prepare(scene, it.url);
+  if (t) { t.female = !!it.female; cache.set(it.url, t); }
+  return t;
+}
 // list: [{ url, female }]
 export async function loadAvatars(list) {
   const gl = new GLTFLoader(), fbx = new FBXLoader();
   const next = [];
+  lazyChars.clear();
   for (const it of list) {
+    // mô hình riêng của từng vai (charXX): chỉ tải khi có người nhận vai đó
+    const cm = decodeURIComponent(it.url.split('/').pop()).match(/^(char\d+)/i);
+    if (cm) { lazyChars.set(cm[1].toLowerCase(), it); continue; }
     try {
       let t = cache.get(it.url);
       if (!t) {
@@ -508,4 +523,14 @@ function costumeShape(av) {
 }
 export { randomCostumeId };
 
-export function templateForChar(id) { id = String(id || '').toLowerCase(); return templates.find(t => t.charId === id) || null; }
+// trả về mô hình riêng của vai nếu đã tải; nếu chưa thì bắt đầu tải (trả null, gọi lại sau)
+export function templateForChar(id) {
+  id = String(id || '').toLowerCase();
+  const it = lazyChars.get(id);
+  if (!it) return templates.find(t => t.charId === id) || null;
+  const t = cache.get(it.url);
+  if (t) return t;
+  if (!loadingChars.has(id)) loadingChars.set(id, loadOne(it).catch(e => { console.warn('Không nạp được', it.url, e); return null; }));
+  return null;
+}
+export function hasCharModel(id) { return lazyChars.has(String(id || '').toLowerCase()); }
