@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Điều khiển Vũ Trường Neon</title>
+<style>
+  :root{--bg:#f4f2fa;--card:#fff;--line:#e4e0ef;--text:#1d1830;--mut:#6b6580;--pri:#d61f7a;--ok:#14915a;--err:#c62828}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Segoe UI",system-ui,Arial,sans-serif}
+  .wrap{max-width:1000px;margin:0 auto;padding:20px 16px 60px}
+  h1{font-size:24px;margin:0 0 4px}
+  .sub{color:var(--mut);margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+  .card h2{font-size:17px;margin:0 0 12px}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+  input[type=text],input[type=number],input[type=password],select,textarea{border:1px solid var(--line);border-radius:9px;padding:8px 10px;font:inherit;background:#faf9fd;min-width:0}
+  textarea{width:100%;min-height:60px}
+  button{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 14px;font:inherit;cursor:pointer}
+  button:hover{background:#f6f3ff}
+  button.pri{background:var(--pri);border-color:var(--pri);color:#fff;font-weight:600}
+  button.red{background:#e0384f;border-color:#e0384f;color:#fff}
+  .status{font-weight:600}
+  .status.connected{color:var(--ok)} .status.error,.status.ended{color:var(--err)} .status.connecting,.status.reconnecting{color:#b26a00}
+  .stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+  .stat{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .stat b{display:block;font-size:22px}
+  .stat span{color:var(--mut);font-size:13px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px 20px}
+  .field{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .field input[type=number]{width:100px}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+  th{font-size:13px;color:var(--mut);font-weight:600}
+  td select{width:100%}
+  td input[type=number]{width:80px}
+  .gimg{width:26px;height:26px;object-fit:contain;vertical-align:middle;margin-right:4px}
+  code{background:#f1eef9;padding:1px 6px;border-radius:5px}
+  .url{flex:1;min-width:240px;font-family:monospace}
+  .muted{color:var(--mut);font-size:13px}
+  details summary{cursor:pointer;font-weight:600}
+  ol li{margin:4px 0}
+  .tracks div{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding:5px 0}
+  .ok{color:var(--ok)} .bad{color:var(--err)}
+  @media (max-width:600px){.field{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🪩 Điều khiển Vũ Trường Neon</h1>
+  <div class="sub">Phiên bản <span id="ver">…</span> · Bản tự chạy trên máy bạn — không cần key bản quyền.</div>
+
+  <div class="card">
+    <details open>
+      <summary>📖 Hướng dẫn nhanh (bấm để thu gọn)</summary>
+      <ol>
+        <li><b>Thêm màn hình game vào phần mềm phát</b>: sao chép đường dẫn ở mục 1.
+          <ul>
+            <li><b>OBS:</b> Sources → + → <b>Browser</b> → dán URL, Width <b>1080</b>, Height <b>1920</b>, bật <b>Control audio via OBS</b>.</li>
+            <li><b>TikTok LIVE Studio:</b> Thêm nguồn → <b>Liên kết</b> → dán đường dẫn (dùng đường dẫn LAN nếu localhost không chạy), khung 1080×1920. Không được thì mở màn hình game trong cửa sổ trình duyệt rồi dùng <b>Window Capture</b>.</li>
+          </ul></li>
+        <li><b>Bắt đầu LIVE</b> trên TikTok.</li>
+        <li>Nhập <b>tên kênh</b> ở mục 1 → bấm <b>Kết nối</b>. Thấy “✓ Đang nhận @kênh” là xong.</li>
+        <li>Thử: bình luận bất kỳ → nhân vật mang ảnh đại diện rơi xuống sàn. Gõ <code>disco</code> hoặc số <code>1–14</code> để đổi điệu.</li>
+        <li><b>Live bằng điện thoại:</b> điện thoại cùng Wi-Fi mở đường dẫn LAN ở mục 1.</li>
+        <li>Không nghe tiếng trong OBS: chuột phải nguồn → <b>Refresh</b>.</li>
+      </ol>
+      <div class="muted">Key EulerStream là <b>không bắt buộc</b>. Không có key vẫn kết nối được, chỉ bị giới hạn số lần kết nối mỗi giờ — đừng bấm Kết nối liên tục.</div>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>1. Kết nối TikTok LIVE</h2>
+    <div class="row">
+      <input id="username" type="text" placeholder="ten_kenh_cua_ban" style="width:220px">
+      <button class="pri" id="btnConnect">Kết nối</button>
+      <button id="btnDisconnect">Ngắt</button>
+      <span class="status" id="connStatus">Chưa kết nối</span>
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="autoReconnect"> Tự kết nối lại khi rớt mạng / mở lại app</label>
+    </div>
+    <details>
+      <summary class="muted">Tuỳ chọn: API key EulerStream (không bắt buộc)</summary>
+      <div class="row">
+        <input id="apiKey" type="password" placeholder="Để trống cũng được" style="flex:1;min-width:220px">
+      </div>
+    </details>
+    <h3 style="font-size:15px;margin:16px 0 6px">Đường dẫn màn hình game</h3>
+    <div id="urls"></div>
+  </div>
+
+  <div class="card">
+    <h2>2. Tình hình sàn</h2>
+    <div class="stats" id="stats"></div>
+    <div class="row" style="margin-top:12px">
+      <button id="btnEndZoom">⏭ Kết thúc zoom hiện tại</button>
+      <button id="btnFire">🔥 Đốt sàn ngay</button>
+      <button id="btnResetTop">🏆 Xoá bảng top</button>
+      <button class="red" id="btnClear">🧹 Dọn sàn</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>3. Cài đặt</h2>
+    <div class="grid" id="settingsGrid"></div>
+    <div style="margin-top:12px">
+      <div class="muted">Bộ lọc từ (mỗi từ cách nhau dấu phẩy). Link, số điện thoại, Zalo luôn bị chặn.</div>
+      <textarea id="bannedWords" placeholder="ví dụ: từ cấm 1, từ cấm 2"></textarea>
+    </div>
+    <div class="row"><button class="pri" id="btnSave">Lưu cài đặt</button><span id="saved" class="ok"></span></div>
+  </div>
+
+  <div class="card">
+    <h2>4. Quà → hành động</h2>
+    <div class="muted">Chọn quà cho từng hành động. Quà không gán cho hành động nào thì game chọn theo giá trị (cột “Từ xu”). Hình quà tự học khi có người tặng trong phòng bạn.</div>
+    <table>
+      <thead><tr><th>Hành động</th><th>Quà</th><th>Từ xu</th><th>Thử</th></tr></thead>
+      <tbody id="actionsBody"></tbody>
+    </table>
+    <div class="row"><button class="pri" id="btnSave2">Lưu</button><span id="saved2" class="ok"></span></div>
+  </div>
+
+  <div class="card">
+    <h2>🎵 Nhạc nền của bạn</h2>
+    <div class="muted">Tải lên MP3 / M4A / OGG / WAV (tối đa 40 MB mỗi bài). Có bài thì game phát lần lượt (xáo trộn) và nhân vật nhảy theo nhịp tự dò của từng bài; chưa có bài thì máy tự đánh nhạc.<br>
+      Nên dùng nhạc miễn phí bản quyền: NCS, StreamBeats, Pixabay Music. Nhạc có bản quyền có thể bị TikTok tắt tiếng.</div>
+    <div class="row"><input type="file" id="musicFile" multiple accept=".mp3,.m4a,.ogg,.wav,.aac,audio/*"><span id="upMsg" class="muted"></span></div>
+    <div class="tracks" id="tracks"></div>
+  </div>
+
+  <div class="card">
+    <h2>🧪 Thử không cần LIVE</h2>
+    <div class="row">
+      <button id="tJoin">+10 khách thử</button>
+      <button id="tJoin50">+50 khách thử</button>
+      <button id="tLike">❤️ Thả 50 tim</button>
+      <input id="tText" type="text" placeholder="bình luận thử, vd: disco" style="width:220px">
+      <button id="tChat">Gửi bình luận</button>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const socket = io();
+let S = {}, GIFTS = {}, ACTIONS = [], INFO = {};
+socket.on('connect', () => socket.emit('hello', 'admin'));
+
+const FIELDS = [
+  ['quality', '✨ Mức hiệu ứng', 'select', [['high', 'Mạnh (máy mạnh)'], ['medium', 'Vừa'], ['low', 'Nhẹ (máy yếu)']]],
+  ['musicEnabled', 'Phát nhạc đã tải lên', 'check'],
+  ['synthMusic', 'Chưa có bài → máy tự đánh nhạc', 'check'],
+  ['volume', 'Âm lượng nhạc (0–1)', 'num', 0.05],
+  ['maxDancers', 'Số chỗ trên sàn', 'num', 1],
+  ['idleSeconds', 'Im lặng bao lâu thì rời sàn (giây)', 'num', 1],
+  ['zoomMin', 'Zoom quà nhỏ nhất (giây)', 'num', 0.5],
+  ['zoomMax', 'Zoom quà lớn nhất (giây)', 'num', 0.5],
+  ['camZoom', 'Độ phóng to máy quay', 'num', 0.1],
+  ['heatTarget', 'Mục tiêu nhiệt sàn (0 = tự động)', 'num', 10],
+  ['fireSeconds', 'Thời gian "sàn cháy" (giây)', 'num', 1],
+  ['tierNoble', '👑 Quý Tộc từ (xu)', 'num', 1],
+  ['tierKing', '👑 Vua từ (xu)', 'num', 1],
+  ['tierEmperor', '👑 Hoàng Đế từ (xu)', 'num', 1],
+  ['showComments', 'Hiện bình luận trên đầu', 'check'],
+  ['autoCam', 'Máy quay tự lia', 'check'],
+  ['showTop', '🏆 Bảng top tặng quà', 'check'],
+  ['topDJ', '🎧 Người tặng nhiều nhất lên làm DJ', 'check'],
+  ['showCoins', 'Ghi số xu trên bảng top', 'check'],
+  ['showGiftMenu', 'Hiện menu quà bên phải màn hình', 'check'],
+  ['showJoinTicker', '👋 Dòng chạy khi có người vào / lên sàn', 'check'],
+];
+
+function renderSettings() {
+  const g = $('settingsGrid'); g.innerHTML = '';
+  for (const [k, label, type, opt] of FIELDS) {
+    const div = document.createElement('label'); div.className = 'field';
+    let input;
+    if (type === 'check') { input = document.createElement('input'); input.type = 'checkbox'; input.checked = !!S[k]; }
+    else if (type === 'num') { input = document.createElement('input'); input.type = 'number'; input.step = opt; input.value = S[k]; }
+    else { input = document.createElement('select'); for (const [v, t] of opt) { const o = document.createElement('option'); o.value = v; o.textContent = t; input.appendChild(o); } input.value = S[k]; }
+    input.dataset.key = k; input.dataset.type = type;
+    div.append(document.createTextNode(label), input);
+    g.appendChild(div);
+  }
+  $('bannedWords').value = S.bannedWords || '';
+  $('autoReconnect').checked = !!S.autoReconnect;
+  if (document.activeElement !== $('username')) $('username').value = S.username || '';
+  if (document.activeElement !== $('apiKey')) $('apiKey').value = S.apiKey || '';
+}
+function collect() {
+  const out = {};
+  for (const el of $('settingsGrid').querySelectorAll('[data-key]')) {
+    out[el.dataset.key] = el.dataset.type === 'check' ? el.checked : el.dataset.type === 'num' ? Number(el.value) : el.value;
+  }
+  out.bannedWords = $('bannedWords').value;
+  out.autoReconnect = $('autoReconnect').checked;
+  out.actions = collectActions();
+  return out;
+}
+function save(msgId) {
+  socket.emit('saveSettings', collect());
+  $(msgId).textContent = '✓ Đã lưu'; setTimeout(() => $(msgId).textContent = '', 2000);
+}
+
+function renderActions() {
+  const tb = $('actionsBody'); tb.innerHTML = '';
+  const giftList = Object.values(GIFTS).sort((a, b) => a.diamonds - b.diamonds || a.name.localeCompare(b.name));
+  for (const a of (S.actions || [])) {
+    const meta = ACTIONS.find(x => x.id === a.id) || { label: a.id, icon: '🎁' };
+    const tr = document.createElement('tr'); tr.dataset.id = a.id;
+    const sel = document.createElement('select');
+    sel.innerHTML = '<option value="">— Theo giá trị (không gán quà) —</option>' + giftList.map(g => `<option value="${esc(g.name)}">${esc(g.name)} · ${g.diamonds} xu</option>`).join('');
+    sel.value = a.gift || '';
+    const g = GIFTS[a.gift];
+    const imgHtml = g && g.img ? `<img class="gimg" src="${esc(g.img)}" referrerpolicy="no-referrer">` : '';
+    tr.innerHTML = `<td>${meta.icon} ${esc(meta.label)}</td><td class="gcell">${imgHtml}</td><td><input type="number" min="0" value="${Number(a.min) || 0}"></td><td><button>Thử</button></td>`;
+    tr.querySelector('.gcell').appendChild(sel);
+    sel.style.width = imgHtml ? 'calc(100% - 34px)' : '100%';
+    tr.querySelector('button').onclick = () => socket.emit('test', { kind: 'gift', action: a.id });
+    tb.appendChild(tr);
+  }
+}
+function collectActions() {
+  return [...$('actionsBody').querySelectorAll('tr')].map(tr => ({ id: tr.dataset.id, gift: tr.querySelector('select').value, min: Number(tr.querySelector('input').value) || 0 }));
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function renderUrls() {
+  const p = INFO.port || location.port;
+  const list = [['Cho OBS / LIVE Studio (máy này)', `http://localhost:${p}/game.html?obs=1`]];
+  for (const ip of INFO.ips || []) list.push(['Cho điện thoại / máy khác cùng Wi-Fi', `http://${ip}:${p}/game.html`], ['LIVE Studio (nếu localhost không chạy)', `http://${ip}:${p}/game.html?obs=1`]);
+  list.push(['Xem thử trong trình duyệt', `http://localhost:${p}/game.html`]);
+  $('urls').innerHTML = list.map(([l, u]) => `<div class="row"><span class="muted" style="width:260px">${l}</span><input class="url" type="text" readonly value="${u}"><button data-copy="${u}">Sao chép</button><a href="${u}" target="_blank"><button>Mở</button></a></div>`).join('');
+  for (const b of $('urls').querySelectorAll('[data-copy]')) b.onclick = () => { navigator.clipboard.writeText(b.dataset.copy).then(() => { b.textContent = '✓ Đã chép'; setTimeout(() => b.textContent = 'Sao chép', 1500); }); };
+}
+
+socket.on('settings', s => { S = s; renderSettings(); renderActions(); });
+socket.on('gifts', g => { GIFTS = g; if (S.actions) renderActions(); });
+socket.on('connState', c => { const el = $('connStatus'); el.textContent = c.text; el.className = 'status ' + c.status; });
+socket.on('stats', s => {
+  const items = [[s.onFloor ?? 0, 'Trên sàn'], [s.zooming ?? '—', 'Đang zoom'], [s.queue ?? 0, 'Chờ zoom'], [s.viewers, 'Người xem'], [s.comments, 'Bình luận'], [s.likes, 'Tim'], [s.gifts, 'Quà (lượt)'], [s.coins, 'Xu'], [s.screens, 'Màn hình mở'], [s.fps ?? '—', 'FPS game'], [s.ram, 'RAM (MB)']];
+  $('stats').innerHTML = items.map(([v, l]) => `<div class="stat"><b>${esc(v)}</b><span>${l}</span></div>`).join('');
+});
+socket.on('music', list => {
+  $('tracks').innerHTML = list.length ? list.map(n => `<div><span>🎵 ${esc(n)}</span><button data-del="${esc(n)}">Xoá</button></div>`).join('') : '<div class="muted">Chưa có bài nào — đang dùng nhạc máy tự đánh.</div>';
+  for (const b of $('tracks').querySelectorAll('[data-del]')) b.onclick = () => fetch('/api/music/' + encodeURIComponent(b.dataset.del), { method: 'DELETE' });
+});
+
+fetch('/api/info').then(r => r.json()).then(i => { INFO = i; ACTIONS = i.actions; $('ver').textContent = i.version; renderUrls(); if (S.actions) renderActions(); });
+
+$('btnConnect').onclick = () => socket.emit('connect-tiktok', { username: $('username').value, apiKey: $('apiKey').value });
+$('btnDisconnect').onclick = () => socket.emit('disconnect-tiktok');
+$('btnSave').onclick = () => save('saved');
+$('btnSave2').onclick = () => save('saved2');
+$('btnEndZoom').onclick = () => socket.emit('cmd', { type: 'endZoom' });
+$('btnFire').onclick = () => socket.emit('cmd', { type: 'fire' });
+$('btnClear').onclick = () => { if (confirm('Dọn hết nhân vật trên sàn?')) socket.emit('cmd', { type: 'clear' }); };
+$('btnResetTop').onclick = () => { if (confirm('Xoá bảng top tặng quà?')) socket.emit('resetTop'); };
+$('tJoin').onclick = () => socket.emit('test', { kind: 'join', n: 10 });
+$('tJoin50').onclick = () => socket.emit('test', { kind: 'join', n: 50 });
+$('tLike').onclick = () => socket.emit('test', { kind: 'like', n: 50 });
+$('tChat').onclick = () => socket.emit('test', { kind: 'chat', text: $('tText').value });
+$('tText').onkeydown = e => { if (e.key === 'Enter') $('tChat').click(); };
+$('musicFile').onchange = async e => {
+  const files = [...e.target.files]; if (!files.length) return;
+  const fd = new FormData(); files.forEach(f => fd.append('files', f));
+  $('upMsg').textContent = 'Đang tải lên…';
+  try { const r = await fetch('/api/music', { method: 'POST', body: fd }); $('upMsg').textContent = r.ok ? '✓ Đã tải lên' : 'Lỗi tải lên'; }
+  catch { $('upMsg').textContent = 'Lỗi tải lên'; }
+  e.target.value = '';
+};
+</script>
+</body>
+</html>
