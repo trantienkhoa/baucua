@@ -6,7 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, avatarTemplates } from './avatars.js';
+import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates } from './avatars.js';
 
 const W = 1080, H = 1920;
 const PI = Math.PI, TAU = PI * 2;
@@ -514,7 +514,7 @@ function randomLook(female, keep) {
 function randomBody(female) {
   return {
     female,
-    h: (female ? 0.94 : 1.0) * rand(0.95, 1.05),
+    h: (female ? 0.94 : 1.0) * rand(0.9, 1.1),
     sw: female ? 0.185 : 0.215,
     chestS: new THREE.Vector3(1, 1, 1),
     hipS: female ? new THREE.Vector3(1.1, 1, 1) : new THREE.Vector3(1, 1, 1),
@@ -1254,7 +1254,7 @@ function frame() {
     if (d.av) {
       _hp.set(0, HEAD_Y, 0).applyMatrix4(rig.head.matrixWorld);
       _ht.set(0, HEAD_Y + 0.3, 0).applyMatrix4(rig.head.matrixWorld);
-      driveAvatar(d.av, rig, { yaw: rig.root.rotation.y, scale: d.body.h * d.sc, hipH0: 0.88, flat: !pose.rot && !pose.sit, alpha, floorY: b.y, headPt: _hp, headTop: _ht });
+      driveAvatar(d.av, rig, { yaw: rig.root.rotation.y, scale: d.body.h * d.sc, hipH0: 0.88, flat: !pose.rot && !pose.sit, alpha, floorY: b.y, headPt: _hp, headTop: _ht, beat: 1 - bi.p, sing: (d.zi % 3 === 0) ? Math.max(0, Math.sin(t * 9 + d.zi)) * 0.35 : 0 });
     }
     writeInstances(d, t, alpha);
     d._sp = screenOf(d);
@@ -1346,5 +1346,5 @@ window.addEventListener('pointerdown', unlock);
 window.addEventListener('keydown', unlock);
 setInterval(checkAudio, 1500);
 Music.resume();
-window._dbg = { dancers, rig, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
+window._dbg = { dancers, rig, avatarTemplates, restyle, applyShape, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
 requestAnimationFrame(frame);

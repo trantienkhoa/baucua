@@ -37,6 +37,8 @@ Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dù
 
 Mặc định nhân vật là **người thật 3D**. Mỗi file mô hình là một nhân vật với bộ đồ riêng; người xem lên sàn được chọn ngẫu nhiên trong các nhân vật đang bật (theo nam / nữ). 14 điệu nhảy điều khiển trực tiếp khung xương nên **mọi nhân vật thêm vào đều tự nhảy được**.
 
+Mỗi người lên sàn còn được tạo ngẫu nhiên **thân hình** (gầy, bình thường, vạm vỡ, đầy đặn, dáng cong; cao/thấp; chân dài/ngắn; vai rộng/hẹp; đầu to/nhỏ) và **khuôn mặt** (hàm rộng/hẹp, cằm dài/ngắn/nhô, má đầy/hóp, mũi cao/thấp, trán cao/thấp, mặt rộng/thon), cộng màu da, có/không râu, độ cười, nhép miệng theo nhạc (với mô hình có biểu cảm). Các biến đổi này áp dụng cho mọi nhân vật, kể cả nhân vật bạn tải lên.
+
 **Thêm trang phục / nhân vật** (trang điều khiển → mục 🧍 Nhân vật):
 
 1. Mở mixamo.com, đăng nhập tài khoản Adobe (miễn phí) → tab **Characters** → chọn nhân vật (khoảng 100 nhân vật, nhiều bộ đồ hiện đại).
