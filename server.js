@@ -47,6 +47,7 @@ const DEFAULT_SETTINGS = {
   autoReconnect: true,
   quality: 'high',          // high | medium | low
   charStyle: 'real',
+  partyMix: 25,             // % người mặc đồ dạ hội (còn lại đồ đi bar hot trend)
   costumeRate: 15,          // % người lên sàn được hoá trang sẵn (còn lại mặc đồ dạ hội)
   ledShow: true,            // người tặng quà lớn được chiếu lên màn LED
   ledCoins: 99,             // từ bao nhiêu xu thì lên màn LED

@@ -20,6 +20,13 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## Trang phục đi bar / hot trend (bản 1.5)
+
+Mặc định 75% người lên sàn mặc đồ đi bar, 25% đồ dạ hội (chỉnh “% mặc đồ dạ hội” trong cài đặt):
+
+- **Nữ**: croptop + quần jean, áo hai dây + váy ngắn (da / jean / satin), áo quây + jean, đầm ôm hai dây, đầm lụa hai dây, áo thun in chữ + chân váy xoè hoặc jean. Áo ôm sát người (cắt từ chính cơ thể mô hình), váy gắn xương bay theo bước nhảy. Chất liệu satin, da bóng, kim sa, jean.
+- **Nam**: áo thun in chữ (VIBES, NEON, LIT, SAIGON…) + jean / kaki, áo ba lỗ, áo khoác da, áo khoác jean, áo bomber. Mũ lưỡi trai (xuôi / ngược), mũ len, mũ bucket, mũ phớt; dây chuyền vàng, kính râm, que phát sáng.
+
 ## Trang phục dạ hội / ăn chơi (bản 1.4)
 
 Mặc định mỗi người lên sàn mặc một bộ dạ hội ngẫu nhiên (15% hoá trang nhân vật — chỉnh trong cài đặt):

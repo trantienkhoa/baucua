@@ -7,7 +7,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createThemes, THEME_NAMES } from './themes.js';
-import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates, setCostume, randomCostumeId, COSTUMES, costumeTime, setExtra, outfitTime } from './avatars.js';
+import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates, setCostume, randomCostumeId, COSTUMES, costumeTime, setExtra, outfitTime, setOutfitMix } from './avatars.js';
 
 const W = 1080, H = 1920;
 const PI = Math.PI, TAU = PI * 2;
@@ -1822,6 +1822,7 @@ socket.on('goalState', gs => { if (!gs || goals.loaded) return; goals.loaded = t
 socket.on('settings', s => {
   const oldQ = S.quality;
   const first = !S._got; S = Object.assign(S, s); S._got = true;
+  setOutfitMix(S.partyMix ?? 25);
   Music.setSettings(S);
   if (first && !goals.loaded) themes.apply(S.theme || 'club');
   if (oldQ !== S.quality) resize();

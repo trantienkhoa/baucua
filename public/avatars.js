@@ -5,8 +5,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { applyCostume, randomCostumeId, animateCostume, costumeTime, COSTUMES, setExtra, attachProp } from './costumes.js';
-import { applyOutfit, removeOutfit, randomOutfit, outfitLayers, fabricize, outfitTime } from './outfits.js';
-export { outfitTime };
+import { applyOutfit, removeOutfit, randomOutfit, pickOutfit, setOutfitMix, barHidden, outfitLayers, fabricize, outfitTime } from './outfits.js';
+export { outfitTime, setOutfitMix };
 export { COSTUMES, costumeTime, setExtra };
 
 // chuẩn hoá tên xương từ nhiều phần mềm về tên kiểu Mixamo
@@ -324,8 +324,9 @@ export function createAvatar(parent, female, tpl, costume) {
   av.beard = Math.random() < 0.4;
   applyShape(av);
   av.seed = Math.random() * 10;
+  if (t.rpm) av.skin = pick(SKIN_TINT);
   applyCostume(av, costume === undefined ? null : costume);
-  if (!av.costume) applyOutfit(av, randomOutfit(t.female), (b, o) => attachProp(av, b, o));
+  if (!av.costume) applyOutfit(av, pickOutfit(t.female), (b, o) => attachProp(av, b, o));
   costumeShape(av);
   restyle(av);
   return av;
@@ -347,15 +348,17 @@ export function restyle(av) {
   }
   const layers = !av.costume ? outfitLayers(av.outfit) : null;
   let recolor = !av.t.rpm ? pick(RECOLOR) : null;
-  const recolTo = av.costumeTint ? av.costumeTint[1] : (av.outfit && av.outfit.female ? av.outfit.color : (av.outfit ? av.outfit.top[0] : null));
+  const ou = av.outfit;
+  const recolTo = av.costumeTint ? av.costumeTint[1] : !ou ? null : ou.bar ? (ou.female ? ou.legs : ou.bottom[0]) : (ou.female ? ou.color : ou.top[0]);
   if (recolor && recolTo) {
     // đưa vùng vải vàng gốc (hue ~0.14) về màu quần của bộ hoá trang
     const hsl = {}; new THREE.Color(recolTo).getHSL(hsl, THREE.SRGBColorSpace);
     const dark = hsl.l < 0.15, light = hsl.l > 0.88;
-    recolor = [(hsl.h - 0.14) * Math.PI * 2, dark || light ? 0 : Math.min(1.2, hsl.s * 1.1), dark ? 0.22 : light ? 1.25 : Math.min(1.3, 0.35 + hsl.l)];
+    recolor = [(hsl.h - 0.14) * Math.PI * 2, dark || light ? 0 : Math.min(1.2, hsl.s * 1.1), dark ? (hsl.l < 0.1 ? 0.1 : 0.22) : light ? 1.25 : Math.min(1.3, 0.35 + hsl.l)];
   }
+  const hiddenNames = !av.costume ? barHidden(av.outfit) : [];
   av.root.traverse(o => {
-    if (!o.isMesh) return;
+    if (!o.isMesh || o.userData.outfit) return;
     if (!o.userData.baseMat) o.userData.baseMat = o.material;
     const base = o.userData.baseMat;
     const c = tint[base.name];
@@ -367,7 +370,8 @@ export function restyle(av) {
     av.mats.push(m); o.material = m;
     if (/Teeth/i.test(o.name)) o.visible = false;
     if (/Beard/i.test(o.name)) o.visible = av.beard && !(av.costume && av.costume.hideHat && !['wukong', 'satang'].includes(av.costume.id));
-    if (av.t.rpm && /Headwear|Hair/i.test(base.name)) o.visible = !(av.costume && av.costume.hideHat);
+    if (av.t.rpm && /Headwear|Hair/i.test(base.name)) o.visible = !(av.costume && av.costume.hideHat) && !(!av.costume && ou && ou.bar && ou.hat !== 'fedora');
+    if (/Wolf3D_Outfit_(Top|Bottom)/.test(base.name)) o.visible = !hiddenNames.includes(base.name);
     if (o.morphTargetDictionary && o.morphTargetDictionary.mouthSmile !== undefined) (av.morphs || (av.morphs = [])).push(o);
   });
 }
@@ -473,7 +477,7 @@ export function driveAvatar(av, rig, opts) {
 // đổi hoá trang (id = null: bỏ hoá trang)
 export function setCostume(av, id) {
   applyCostume(av, id);
-  if (av.costume) removeOutfit(av); else applyOutfit(av, randomOutfit(av.t.female), (b, o) => attachProp(av, b, o));
+  if (av.costume) removeOutfit(av); else applyOutfit(av, pickOutfit(av.t.female), (b, o) => attachProp(av, b, o));
   costumeShape(av); restyle(av);
 }
 if (typeof window !== 'undefined') { window._applyOutfit = (av, o) => applyOutfit(av, o, (b, x) => attachProp(av, b, x)); window._restyle = av => restyle(av); }
