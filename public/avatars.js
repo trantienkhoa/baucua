@@ -4,7 +4,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
-import { applyCostume, randomCostumeId, animateCostume, costumeTime, COSTUMES, setExtra } from './costumes.js';
+import { applyCostume, randomCostumeId, animateCostume, costumeTime, COSTUMES, setExtra, attachProp } from './costumes.js';
+import { applyOutfit, removeOutfit, randomOutfit, outfitLayers, fabricize, outfitTime } from './outfits.js';
+export { outfitTime };
 export { COSTUMES, costumeTime, setExtra };
 
 // chuẩn hoá tên xương từ nhiều phần mềm về tên kiểu Mixamo
@@ -97,7 +99,7 @@ function patchMat(base, o) {
     if (o.recolor) { sh.uniforms.uRe = { value: new THREE.Vector3(...o.recolor) }; head += 'uniform vec3 uRe;\n'; }
     if (o.skin) { sh.uniforms.uSk = { value: new THREE.Vector2(...o.skin) }; head += 'uniform vec2 uSk;\n'; }
     let frag = '#include <map_fragment>\n{ vec3 c = diffuseColor.rgb; vec3 h = rgb2hsv(c); bool fab = false;\n';
-    if (o.recolor) frag += 'float wf = smoothstep(0.22, 0.42, h.y) * smoothstep(0.035, 0.075, h.x) * (1.0 - smoothstep(0.2, 0.26, h.x)) * smoothstep(0.5, 0.68, c.g / max(c.r, 0.001)); fab = wf > 0.5; vec3 h2 = vec3(fract(h.x + uRe.x / 6.2831853), clamp(h.y * uRe.y, 0., 1.), clamp(h.z * uRe.z, 0., 1.)); vec3 c2 = hsv2rgb(h2); c = mix(c, c2, wf); h = rgb2hsv(c);\n';
+    if (o.recolor) frag += 'float wf = smoothstep(0.22, 0.42, h.y) * smoothstep(0.035, 0.075, h.x) * (1.0 - smoothstep(0.2, 0.26, h.x)) * smoothstep(0.5, 0.68, c.g / max(c.r, 0.001)); fab = wf > 0.5; vec3 h2 = vec3(fract(h.x + uRe.x / 6.2831853), clamp(h.y * uRe.y, 0., 1.), clamp(h.z * uRe.z, 0., 1.)); vec3 c2 = hsv2rgb(h2); c = mix(c, c2, wf); float wc = smoothstep(0.28, 0.4, h.y) * smoothstep(0.4, 0.45, h.x) * (1.0 - smoothstep(0.55, 0.6, h.x)); vec3 c3 = hsv2rgb(vec3(fract(0.14 + uRe.x / 6.2831853), clamp(0.75 * uRe.y, 0., 1.), clamp(0.75 * uRe.z, 0.05, 1.))); c = mix(c, c3, wc); fab = fab || wc > 0.5; h = rgb2hsv(c);\n';
     if (o.skin) frag += 'float ws = (1.0 - smoothstep(0.08, 0.12, h.x)) * smoothstep(0.15, 0.28, h.y) * (1.0 - smoothstep(0.72, 0.85, h.y)) * smoothstep(0.04, 0.1, h.z) * (1.0 - smoothstep(0.7, 0.8, h.z)) * (fab ? 0.0 : 1.0); h.z = mix(h.z, clamp(h.z * uSk.x, 0., 0.95), ws); h.y = mix(h.y, clamp(h.y * uSk.y, 0., 1.), ws);\n';
     frag += 'diffuseColor.rgb = hsv2rgb(h); }';
     if (o.recolor || o.skin) sh.fragmentShader = sh.fragmentShader.replace('#include <common>', head).replace('#include <map_fragment>', frag);
@@ -323,6 +325,7 @@ export function createAvatar(parent, female, tpl, costume) {
   applyShape(av);
   av.seed = Math.random() * 10;
   applyCostume(av, costume === undefined ? null : costume);
+  if (!av.costume) applyOutfit(av, randomOutfit(t.female), (b, o) => attachProp(av, b, o));
   costumeShape(av);
   restyle(av);
   return av;
@@ -342,10 +345,12 @@ export function restyle(av) {
     const sk = av.skin || (av.skin = pick(SKIN_TINT));
     tint.Wolf3D_Skin = tint.Wolf3D_Body = sk;
   }
+  const layers = !av.costume ? outfitLayers(av.outfit) : null;
   let recolor = !av.t.rpm ? pick(RECOLOR) : null;
-  if (recolor && av.costumeTint) {
+  const recolTo = av.costumeTint ? av.costumeTint[1] : (av.outfit && av.outfit.female ? av.outfit.color : (av.outfit ? av.outfit.top[0] : null));
+  if (recolor && recolTo) {
     // đưa vùng vải vàng gốc (hue ~0.14) về màu quần của bộ hoá trang
-    const hsl = {}; new THREE.Color(av.costumeTint[1]).getHSL(hsl, THREE.SRGBColorSpace);
+    const hsl = {}; new THREE.Color(recolTo).getHSL(hsl, THREE.SRGBColorSpace);
     const dark = hsl.l < 0.15, light = hsl.l > 0.88;
     recolor = [(hsl.h - 0.14) * Math.PI * 2, dark || light ? 0 : Math.min(1.2, hsl.s * 1.1), dark ? 0.22 : light ? 1.25 : Math.min(1.3, 0.35 + hsl.l)];
   }
@@ -356,7 +361,9 @@ export function restyle(av) {
     const c = tint[base.name];
     const face = av.t.faceInfo[o.name];
     const m = patchMat(base, { recolor, skin: !av.t.rpm ? av.skinTone : null, face, faceParams: av.face });
-    if (c) m.color = new THREE.Color(c);
+    const lay = layers && layers[base.name];
+    if (lay) { m.color = new THREE.Color(0xffffff); fabricize(m, lay[1], lay[0]); }
+    else if (c) m.color = new THREE.Color(c);
     av.mats.push(m); o.material = m;
     if (/Teeth/i.test(o.name)) o.visible = false;
     if (/Beard/i.test(o.name)) o.visible = av.beard && !(av.costume && av.costume.hideHat && !['wukong', 'satang'].includes(av.costume.id));
@@ -368,6 +375,7 @@ export function restyle(av) {
 export function disposeAvatar(av) {
   if (!av) return;
   applyCostume(av, null);
+  removeOutfit(av);
   setExtra(av, 'crown', false); setExtra(av, 'wings', false);
   av.holder.parent && av.holder.parent.remove(av.holder);
   for (const m of av.mats) m.dispose();
@@ -463,7 +471,13 @@ export function driveAvatar(av, rig, opts) {
 }
 
 // đổi hoá trang (id = null: bỏ hoá trang)
-export function setCostume(av, id) { applyCostume(av, id); costumeShape(av); restyle(av); }
+export function setCostume(av, id) {
+  applyCostume(av, id);
+  if (av.costume) removeOutfit(av); else applyOutfit(av, randomOutfit(av.t.female), (b, o) => attachProp(av, b, o));
+  costumeShape(av); restyle(av);
+}
+if (typeof window !== 'undefined') { window._applyOutfit = (av, o) => applyOutfit(av, o, (b, x) => attachProp(av, b, x)); window._restyle = av => restyle(av); }
+export function outfitName(av) { return av && av.outfit ? av.outfit.name : ''; }
 function costumeShape(av) {
   if (!av.shape) return;
   if (!av.shape.baseType) av.shape.baseType = av.shape.type;

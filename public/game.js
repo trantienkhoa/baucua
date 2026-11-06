@@ -7,7 +7,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createThemes, THEME_NAMES } from './themes.js';
-import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates, setCostume, randomCostumeId, COSTUMES, costumeTime, setExtra } from './avatars.js';
+import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates, setCostume, randomCostumeId, COSTUMES, costumeTime, setExtra, outfitTime } from './avatars.js';
 
 const W = 1080, H = 1920;
 const PI = Math.PI, TAU = PI * 2;
@@ -1379,7 +1379,7 @@ function frame() {
   propsFrame(rocketsP, 'rocket', makeRocket);
   updateBooth(dj && dj !== resident ? '👑 ' + dj.name : '🎧 DJ NEON', S.showTop && TOP.length > 1 ? TOP.slice(1, 3).map(u => u.name).join(' · ') : '');
 
-  costumeTime.value = t;
+  costumeTime.value = t; outfitTime.value = t;
   updateLedShow(t, dt);
   updateCam(dt, t);
   if (bloom) bloom.strength = bi.fire ? 0.6 + fireLevel * 0.04 : 0.55;
@@ -1878,5 +1878,5 @@ window.addEventListener('pointerdown', unlock);
 window.addEventListener('keydown', unlock);
 setInterval(checkAudio, 1500);
 Music.resume();
-window._dbg = { get flashInfo() { return [...dancers.values()].slice(0, 8).map(d => [d.mode, d.x.toFixed(2), d.z.toFixed(2), d.tx.toFixed(2), d.tz.toFixed(2)].join(' ')); }, ledCam, ledRT, renderer, get ledShow() { return ledShow; }, dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
+window._dbg = { setOutfitT: (d, o) => { if (d.av) { setCostume(d.av, null); window._applyOutfit(d.av, o); window._restyle(d.av); } }, get flashInfo() { return [...dancers.values()].slice(0, 8).map(d => [d.mode, d.x.toFixed(2), d.z.toFixed(2), d.tx.toFixed(2), d.tz.toFixed(2)].join(' ')); }, ledCam, ledRT, renderer, get ledShow() { return ledShow; }, dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
 requestAnimationFrame(frame);

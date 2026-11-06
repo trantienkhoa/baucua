@@ -47,7 +47,7 @@ const DEFAULT_SETTINGS = {
   autoReconnect: true,
   quality: 'high',          // high | medium | low
   charStyle: 'real',
-  costumeRate: 50,          // % người lên sàn được hoá trang sẵn
+  costumeRate: 15,          // % người lên sàn được hoá trang sẵn (còn lại mặc đồ dạ hội)
   ledShow: true,            // người tặng quà lớn được chiếu lên màn LED
   ledCoins: 99,             // từ bao nhiêu xu thì lên màn LED
   ledSeconds: 12,           // thời gian chiếu mỗi người

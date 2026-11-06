@@ -215,6 +215,20 @@ export function applyCostume(av, id) {
   c.build(attach, t.headLen, tt);
   return c;
 }
+// gắn một vật vào xương (khung đứng nghỉ, đơn vị mét, +Z trước mặt) — trả về vật chứa
+export function attachProp(av, boneName, obj) {
+  const t = av.t;
+  let b = av.bones[boneName];
+  if (!b && boneName === 'RightHand') { b = av.bones.RightForeArm; boneName = 'RightForeArm'; }
+  if (!b || !t.restWorld[boneName]) return null;
+  const holder = new THREE.Object3D();
+  _q.copy(t.restWorld[boneName]).invert();
+  if (t.flip) _q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), PI));
+  holder.quaternion.copy(_q);
+  holder.scale.setScalar(1 / (t.norm * (t.boneScale[boneName] || 1)));
+  holder.add(obj); b.add(holder);
+  return holder;
+}
 export function randomCostumeId() { return pick(COSTUMES).id; }
 
 // đạo cụ phụ từ quà (vương miện, đôi cánh) — gắn/bỏ độc lập với hoá trang
