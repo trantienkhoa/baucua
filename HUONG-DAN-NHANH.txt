@@ -1,0 +1,19 @@
+VŨ TRƯỜNG NEON — game TikTok LIVE sàn nhảy 3D
+=============================================
+
+1. Cài Node.js bản LTS: https://nodejs.org  (chỉ làm 1 lần)
+2. Giải nén thư mục này ra ổ đĩa (đừng chạy trong file nén).
+3. Windows: bấm đúp ChayGame.bat
+   macOS / Linux: mở Terminal trong thư mục, chạy ./chay-game.sh
+4. Trình duyệt tự mở trang điều khiển: http://localhost:3300/admin.html
+
+Lên LIVE:
+- OBS: Sources → + → Browser → URL  http://localhost:3300/game.html?obs=1
+  Width 1080, Height 1920, bật "Control audio via OBS".
+- TikTok LIVE Studio: Thêm nguồn → Liên kết → dán đường dẫn LAN (có ở trang điều khiển).
+- Bật LIVE trên TikTok → ở trang điều khiển nhập tên kênh → Kết nối.
+
+Không cần key bản quyền. Key EulerStream là tuỳ chọn.
+Cần máy có card đồ hoạ; máy yếu chọn "Kiểu nhân vật: Hoạt hình" hoặc "Mức hiệu ứng: Nhẹ".
+Thêm nhân vật riêng: trang điều khiển → mục 🧍 Nhân vật (hỗ trợ .vrm / .glb / .fbx).
+Chi tiết: xem README.md
