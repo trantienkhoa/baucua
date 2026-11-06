@@ -36,20 +36,26 @@ simple_mat(eyes, '%s/eyes/materials/%s_eye.png' % (D, spec.get('eye', 'brown')),
 br = spec.get('brow', 'eyebrow001')
 simple_mat(add('%s/eyebrows/%s/%s.mhclo' % (D, br, br), 'Eyebrows'), '%s/eyebrows/%s/%s.png' % (D, br, br), True)
 simple_mat(add(D + '/eyelashes/eyelashes01/eyelashes01.mhclo', 'Eyelashes'), D + '/eyelashes/eyelashes01/eyelashes01.png', True)
-def tint(objs, rgb):
+def tint(objs, rgb, keep_alpha=False):
     for o in objs:
         for slot in o.material_slots:
             m = slot.material
             if not m or not m.use_nodes: continue
             for n in m.node_tree.nodes:
-                if n.type == 'TEX_IMAGE' and n.image and 'diffuse' in (n.image.name + n.label + n.name).lower() or (n.type == 'TEX_IMAGE' and n.image and n.outputs[0].links and any(l.to_socket.name in ('Base Color', 'Color', 'Color1', 'A') for l in n.outputs[0].links)):
+                if n.type == 'TEX_IMAGE' and n.image and not re.search('normal|bump|spec|rough|_ao|occlu|alpha|opac|metal|disp', (n.image.name + ' ' + n.name + ' ' + n.label).lower()):
                     im = n.image.copy(); im.name = o.name + '_tint'
                     px = np.array(im.pixels[:], dtype=np.float32).reshape(-1, 4)
                     lum = (px[:, 0] * 0.3 + px[:, 1] * 0.59 + px[:, 2] * 0.11)
-                    lum = np.clip(lum / max(1e-3, np.percentile(lum, 90)), 0, 1.3)
-                    lum = np.where(px[:, 3] < 0.5, 1.0, lum)
+                    if not keep_alpha:
+                        # làm phẳng hoa văn gốc (chỉ giữ nếp vải nhẹ) để ra đúng màu trơn theo mô tả
+                        mean = float(np.mean(lum[px[:, 3] > 0.5])) if np.any(px[:, 3] > 0.5) else float(np.mean(lum))
+                        lum = mean + (lum - mean) * 0.3
+                        lum = np.clip(lum / max(1e-3, mean) * 0.85, 0, 1.2)
+                    else:
+                        lum = np.clip(lum / max(1e-3, np.percentile(lum, 90)), 0, 1.3)
+                    if not keep_alpha: lum = np.where(px[:, 3] < 0.5, 1.0, lum)
                     for i in range(3): px[:, i] = np.clip(lum * rgb[i], 0, 1)
-                    px[:, 3] = 1.0
+                    if not keep_alpha: px[:, 3] = 1.0
                     im.pixels[:] = px.ravel(); n.image = im
                 for inp in getattr(n, 'inputs', []):
                     if inp.name == 'Base Color' and not inp.is_linked: inp.default_value = (*rgb, 1)
@@ -71,7 +77,7 @@ for kind, name, *rest in spec['assets']:
             tex = pngs[0] if pngs else None
         simple_mat(objs, tex, True)
     if rest and rest[0]:
-        h = rest[0].lstrip('#'); tint(objs, [((int(h[i:i+2], 16) / 255) ** 2.2) for i in (0, 2, 4)])
+        h = rest[0].lstrip('#'); tint(objs, [((int(h[i:i+2], 16) / 255) ** 2.2) for i in (0, 2, 4)], keep_alpha=(kind == 'hair'))
 import bmesh
 # đồ mặc chồng (liệt kê từ trong ra ngoài): xoá phần đồ bên trong bị đồ bên ngoài che, tránh lốm đốm
 from mathutils.bvhtree import BVHTree
@@ -116,7 +122,7 @@ for o in [x for x in bpy.data.objects if x.type == 'MESH']:
     print('xoa', o.name, len(kill))
 # giảm ảnh
 for im in bpy.data.images:
-    if im.size[0] > 1024: im.scale(1024, int(1024 * im.size[1] / im.size[0]))
+    if im.size[0] > 512: im.scale(512, int(512 * im.size[1] / im.size[0]))
 bpy.ops.object.select_all(action='DESELECT')
 for o in bpy.data.objects:
     if o.type in ('MESH', 'ARMATURE'): o.select_set(True)

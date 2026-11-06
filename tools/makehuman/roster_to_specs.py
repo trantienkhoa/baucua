@@ -127,7 +127,11 @@ def spec_for(ch, rnd):
     jackets = [x for x in outer if x not in tops_first]
     clothes = inner + pants + tops_first + jackets
     if not shoes: shoes = 'shoes05' if age < 30 else ('toigo_ballet_flats' if female else 'shoes03')
-    clothes.append(['clothes', shoes, None])
+    # giày cao gót / búp bê: nhuộm theo mô tả (nude) hoặc đen; giày kho gốc màu đỏ/hoa văn
+    shoe_col = None
+    if shoes in ('toigo_stiletto_booties', 'toigo_ballet_flats', 'toigo_flats'):
+        shoe_col = '#d9b49a' if 'nude' in text else '#1c1c20'
+    clothes.append(['clothes', shoes, shoe_col])
 
     # ---------- người ----------
     if age < 25: mh_age = 0.1875 + (age - 11) / 14 * 0.3125

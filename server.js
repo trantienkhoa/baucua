@@ -293,8 +293,10 @@ function modelList() {
     for (const f of files) {
       const key = (builtin ? 'b:' : 'u:') + f;
       const m = meta[key] || {};
+      // charXX: giới tính lấy theo danh sách nhân vật
+      const cm = f.match(/^(char\d+)/i), rc = cm && roster.find(r => r.id.toLowerCase() === cm[1].toLowerCase());
       out.push({ key, file: f, url: prefix + encodeURIComponent(f), builtin,
-        female: m.female ?? /(^|[^a-z])(nu|female|girl|woman)([^a-z]|$)/i.test(f.replace(MODEL_RE, '')),
+        female: m.female ?? (rc ? rc.female : /(^|[^a-z])(nu|female|girl|woman)([^a-z]|$)/i.test(f.replace(MODEL_RE, ''))),
         enabled: m.enabled ?? true, size: (() => { try { return fs.statSync(path.join(dir, f)).size; } catch { return 0; } })() });
     }
   };
