@@ -201,7 +201,23 @@ export async function loadAvatars(list) {
 function loadGltfScene(gltf, url) {
   const ext = (gltf.parser && gltf.parser.json && gltf.parser.json.extensionsUsed) || [];
   const isVrm = /\.vrm(\?|$)/i.test(url) || ext.some(e => /VRM/i.test(e));
-  return isVrm ? fixVrm(gltf.scene) : gltf.scene;
+  return isVrm ? fixVrm(gltf.scene) : fixOpaque(gltf.scene);
+}
+// Mô hình xuất từ Blender/MakeHuman hay để mọi vật liệu ở chế độ trong suốt → phần trong miệng lộ ra.
+// Chỉ tóc, lông mày, mi được cắt alpha; còn lại vẽ đặc.
+function fixOpaque(root) {
+  root.traverse(o => {
+    if (!o.isMesh) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      if (!m) continue;
+      const thin = /hair|brow|lash|eyebrow|eyelash|short\d|long\d|bob|braid|ponytail|afro/i.test(m.name + ' ' + o.name);
+      if (m.transparent) { m.transparent = false; m.depthWrite = true; m.alphaTest = thin ? 0.45 : 0; }
+      // da / quần áo: một mặt (hai mặt làm mặt trong của đầu, miệng chen lên da)
+      m.side = thin ? THREE.DoubleSide : THREE.FrontSide;
+      m.needsUpdate = true;
+    }
+  });
+  return root;
 }
 // VRM / glTF: bỏ lưới đổ bóng phụ, giữ chất liệu cắt alpha cho tóc
 function fixVrm(root) {
@@ -349,7 +365,7 @@ export function restyle(av) {
     tint.Wolf3D_Skin = tint.Wolf3D_Body = sk;
   }
   const layers = !av.costume ? outfitLayers(av.outfit) : null;
-  let recolor = !av.t.rpm ? pick(RECOLOR) : null;
+  let recolor = !av.t.rpm && !av.t.charId ? pick(RECOLOR) : null;
   const ou = av.outfit;
   const recolTo = av.costumeTint ? av.costumeTint[1] : !ou ? null : ou.bar ? (ou.female ? ou.legs : ou.bottom[0]) : (ou.female ? ou.color : ou.top[0]);
   if (recolor && recolTo) {
@@ -364,8 +380,8 @@ export function restyle(av) {
     if (!o.userData.baseMat) o.userData.baseMat = o.material;
     const base = o.userData.baseMat;
     const c = tint[base.name];
-    const face = av.t.faceInfo[o.name];
-    const m = patchMat(base, { recolor, skin: !av.t.rpm ? av.skinTone : null, face, faceParams: av.face });
+    const face = av.t.charId ? null : av.t.faceInfo[o.name];
+    const m = patchMat(base, { recolor, skin: !av.t.rpm && !av.t.charId ? av.skinTone : null, face, faceParams: av.face });
     const lay = layers && layers[base.name];
     if (lay) { m.color = new THREE.Color(0xffffff); fabricize(m, lay[1], lay[0]); }
     else if (c) m.color = new THREE.Color(c);
