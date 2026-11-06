@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { applyCostume, randomCostumeId, animateCostume, costumeTime, COSTUMES } from './costumes.js';
+export { COSTUMES, costumeTime };
 
 const canon = n => String(n || '').replace(/^mixamorig\d*[:_]?/i, '');
 const BONES = ['Hips', 'Spine', 'Spine1', 'Spine2', 'Neck', 'Head', 'HeadTop_End',
@@ -239,11 +241,13 @@ function prepare(scene, url) {
     restLocal, dirLocal, restWorld,
     hipsParentInv: hipsParentWorld.clone().invert(), hipsParentQInv: hipsParentQ.clone().invert(),
     rpm: mats.has('Wolf3D_Outfit_Top'), faceInfo,
+    headLen: Math.max(0.16, Math.min(0.32, (headTop.y - wp(bones.Head).y) * norm)),
+    boneScale: Object.fromEntries(Object.entries(bones).map(([k, b]) => [k, new THREE.Vector3().setFromMatrixScale(b.matrixWorld).x])),
   };
 }
 
 // ---------- một nhân vật ----------
-export function createAvatar(parent, female, tpl) {
+export function createAvatar(parent, female, tpl, costume) {
   if (!templates.length) return null;
   let pool = templates.filter(t => t.female === female);
   if (!pool.length) pool = templates;
@@ -265,6 +269,8 @@ export function createAvatar(parent, female, tpl) {
   av.smile = Math.random() * 0.7;
   av.beard = Math.random() < 0.4;
   applyShape(av);
+  av.seed = Math.random() * 10;
+  applyCostume(av, costume === undefined ? null : costume);
   restyle(av);
   return av;
 }
@@ -275,9 +281,10 @@ export function restyle(av) {
   av.mats = []; av.morphs = [];
   const tint = {};
   if (av.t.rpm) {
-    tint.Wolf3D_Outfit_Top = pick(OUTFIT.top);
-    tint.Wolf3D_Outfit_Bottom = pick(OUTFIT.bottom);
-    tint.Wolf3D_Outfit_Footwear = pick(OUTFIT.shoes);
+    const ct = av.costumeTint;
+    tint.Wolf3D_Outfit_Top = ct ? ct[0] : pick(OUTFIT.top);
+    tint.Wolf3D_Outfit_Bottom = ct ? ct[1] : pick(OUTFIT.bottom);
+    tint.Wolf3D_Outfit_Footwear = ct ? ct[2] : pick(OUTFIT.shoes);
     tint.Wolf3D_Hair = tint.Wolf3D_Headwear = pick(OUTFIT.hair);
     const sk = av.skin || (av.skin = pick(SKIN_TINT));
     tint.Wolf3D_Skin = tint.Wolf3D_Body = sk;
@@ -293,13 +300,15 @@ export function restyle(av) {
     if (c) m.color = new THREE.Color(c);
     av.mats.push(m); o.material = m;
     if (/Teeth/i.test(o.name)) o.visible = false;
-    if (/Beard/i.test(o.name)) o.visible = av.beard;
+    if (/Beard/i.test(o.name)) o.visible = av.beard && !(av.costume && av.costume.hideHat && av.costume.id !== 'wukong');
+    if (/Headwear|Hair/i.test(base.name)) o.visible = !(av.costume && av.costume.hideHat);
     if (o.morphTargetDictionary && o.morphTargetDictionary.mouthSmile !== undefined) (av.morphs || (av.morphs = [])).push(o);
   });
 }
 
 export function disposeAvatar(av) {
   if (!av) return;
+  applyCostume(av, null);
   av.holder.parent && av.holder.parent.remove(av.holder);
   for (const m of av.mats) m.dispose();
   av.root.traverse(o => { if (o.isSkinnedMesh && o.skeleton) o.skeleton.dispose(); });
@@ -357,6 +366,7 @@ export function driveAvatar(av, rig, opts) {
   _p.y += t.footY;
   hb.position.copy(_p.applyMatrix4(t.hipsParentInv));
 
+  animateCostume(av, costumeTime.value);
   // nụ cười / hát theo nhạc
   if (av.morphs && av.morphs.length) {
     const sm = Math.min(1, av.smile + 0.25 * (opts.beat || 0)), op = (opts.sing || 0);
@@ -391,3 +401,7 @@ export function driveAvatar(av, rig, opts) {
     av.bones.LeftFoot.quaternion.copy(t.restLocal.LeftFoot);
   }
 }
+
+// đổi hoá trang (id = null: bỏ hoá trang)
+export function setCostume(av, id) { applyCostume(av, id); restyle(av); }
+export { randomCostumeId };

@@ -168,6 +168,7 @@ socket.on('connect', () => socket.emit('hello', 'admin'));
 const FIELDS = [
   ['quality', '✨ Mức hiệu ứng', 'select', [['high', 'Mạnh (máy mạnh)'], ['medium', 'Vừa'], ['low', 'Nhẹ (máy yếu)']]],
   ['charStyle', '🧍 Kiểu nhân vật', 'select', [['real', 'Người thật 3D'], ['toon', 'Hoạt hình (nhẹ máy)']]],
+  ['costumeRate', '🦸 % người hoá trang sẵn (0–100)', 'num', 5],
   ['musicEnabled', 'Phát nhạc đã tải lên', 'check'],
   ['synthMusic', 'Chưa có bài → máy tự đánh nhạc', 'check'],
   ['volume', 'Âm lượng nhạc (0–1)', 'num', 0.05],

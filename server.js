@@ -44,7 +44,8 @@ const DEFAULT_SETTINGS = {
   apiKey: '',
   autoReconnect: true,
   quality: 'high',          // high | medium | low
-  charStyle: 'real',        // real = người thật (mô hình .glb) | toon = hoạt hình nhẹ
+  charStyle: 'real',
+  costumeRate: 50,          // % người lên sàn được hoá trang sẵn
   musicEnabled: true,       // phát bài đã tải lên
   synthMusic: true,         // chưa có bài → máy tự đánh nhạc
   volume: 0.35,

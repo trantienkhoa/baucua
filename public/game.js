@@ -6,7 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates } from './avatars.js';
+import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates, setCostume, randomCostumeId, COSTUMES, costumeTime } from './avatars.js';
 
 const W = 1080, H = 1920;
 const PI = Math.PI, TAU = PI * 2;
@@ -574,6 +574,7 @@ function ensureDancer(user, silent) {
 }
 
 // ---------- lệnh từ bình luận ----------
+const COSTUME_KEYS = [['ngo khong', 'wukong'], ['ton ngo khong', 'wukong'], ['te thien', 'wukong'], ['thanh giong', 'giong'], ['son tinh', 'sontinh'], ['thuy tinh', 'thuytinh'], ['ninja', 'ninja'], ['samurai', 'samurai'], ['phi hanh gia', 'astro'], ['hiep si', 'knight'], ['phu thuy', 'wizard'], ['cuop bien', 'pirate'], ['nguoi may', 'robot'], ['ac quy', 'devil'], ['thien than', 'angel'], ['anime', 'anime'], ['sieu anh hung', 'hero'], ['hoang de', 'king']];
 const DANCE_KEYS = [];
 DANCES.forEach((d, i) => d.keys.forEach(k => DANCE_KEYS.push([normText(k), i])));
 DANCE_KEYS.sort((a, b) => b[0].length - a[0].length);
@@ -584,7 +585,10 @@ function handleCommand(d, text) {
   if (num) { const n = +num[1]; if (n >= 1 && n <= DANCES.length) { d.dance = n - 1; sparkle(d, 6); } return; }
   if (/\bdi vong\b|\bdi dao\b/.test(t)) { d.mode = 'circle'; d.modeStart = now(); d.modeUntil = now() + 10; d.circleA = Math.random() * TAU; return; }
   if (/\bghep doi\b/.test(t)) { makePair(d); return; }
-  if (/\bdoi do\b|\bthay do\b/.test(t)) { d.look = randomLook(d.body.female, d.look); if (d.av) restyle(d.av); sparkle(d, 14); return; }
+  if (/\bdoi do\b|\bthay do\b/.test(t)) { d.look = randomLook(d.body.female, d.look); if (d.av) setCostume(d.av, Math.random() < 0.5 ? null : randomCostumeId()); sparkle(d, 14); return; }
+  if (/\bhoa trang\b|\bbien hinh\b/.test(t)) { if (d.av) setCostume(d.av, randomCostumeId()); sparkle(d, 20); return; }
+  if (/\bbo hoa trang\b|\bdo thuong\b/.test(t)) { if (d.av) setCostume(d.av, null); return; }
+  for (const [k, id] of COSTUME_KEYS) if (t.includes(k)) { if (d.av) setCostume(d.av, id); sparkle(d, 20); return; }
   for (const [k, i] of DANCE_KEYS) {
     if (k.length < 2) continue;
     if (t === k || t.startsWith(k + ' ') || t.endsWith(' ' + k) || t.includes(' ' + k + ' ')) { d.dance = i; sparkle(d, 6); return; }
@@ -631,7 +635,7 @@ function startAction(z) {
   const d = z.d, t = now();
   d.lastActive = t;
   switch (z.id) {
-    case 'outfit': d.look = randomLook(d.body.female, d.look); if (d.av) restyle(d.av); sparkle(d, 30); break;
+    case 'outfit': d.look = randomLook(d.body.female, d.look); if (d.av) setCostume(d.av, randomCostumeId()); sparkle(d, 30); break;
     case 'catwalk': d.mode = 'catwalk'; d.modeStart = t; d.modeUntil = t + Math.max(z.dur, 7); d.tx = 0; d.tz = 1; break;
     case 'jump': d.jumpStart = t; break;
     case 'fireworks': for (let i = 0; i < 6; i++) setTimeout(launchRocket, i * 300); break;
@@ -641,7 +645,7 @@ function startAction(z) {
     case 'clone':
       for (let i = 0; i < 3; i++) {
         const c = new Dancer({ id: d.id + '#c' + Math.random(), name: d.name, avatar: d.avatar }, { clone: true, cloneUntil: t + 25 });
-        c.body = d.body; c.look = d.look; c.dance = d.dance; c.avT = d.av && d.av.t;
+        c.body = d.body; c.look = d.look; c.dance = d.dance; c.avT = d.av && d.av.t; c.avCostume = d.av && d.av.costume ? d.av.costume.id : null;
         c.x = clamp(d.x + (i - 1) * 0.3, -0.9, 0.9); c.tx = c.x; c.z = clamp(d.z + rand(-0.12, 0.12), 0, 1); c.tz = c.z;
         clones.push(c);
       }
@@ -1198,7 +1202,7 @@ function drawHUD(t, bi) {
   const frac = bi.fire ? (fireUntil - t) / Number(S.fireSeconds || 15) : Math.min(1, heat / curHeatTarget);
   if (frac > 0.01) { const fg = ctx.createLinearGradient(bx, 0, bx + bw, 0); fg.addColorStop(0, '#ffb300'); fg.addColorStop(1, '#ff3d3d'); ctx.fillStyle = fg; roundRect(bx, by, Math.max(bh, bw * clamp(frac, 0, 1)), bh, 17); ctx.fill(); }
   ctx.font = `700 25px ${FONT}`;
-  rich(['💬 Bình luận để ', ['lên sàn', '#7cf7ff'], ' · gõ ', ['nhảy', '#7cf7ff'], ', ', ['đi vòng', '#7cf7ff'], ', ', ['ghép đôi', '#7cf7ff'], ', ', ['đổi đồ', '#7cf7ff']], W / 2, py + 135);
+  rich(['💬 Bình luận để ', ['lên sàn', '#7cf7ff'], ' · gõ ', ['nhảy', '#7cf7ff'], ', ', ['đi vòng', '#7cf7ff'], ', ', ['ghép đôi', '#7cf7ff'], ', ', ['hoá trang', '#7cf7ff']], W / 2, py + 135);
   rich(['điệu: ', ['disco', '#ffd84d'], ', ', ['robot', '#ffd84d'], ', ', ['xoay đầu', '#ffd84d'], ', ', ['moonwalk', '#ffd84d'], '… (số 1–14) · ❤️ thả tim tăng nhiệt'], W / 2, py + 172);
   ctx.font = `500 18px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.textAlign = 'center';
   ctx.fillText('Sàn nhảy giải trí · không có giải thưởng', W / 2, py + 210);
@@ -1249,7 +1253,7 @@ function frame() {
     if (d.mode === 'rocket' || (d.dropH > 0)) { rig.root.position.y = b.y; rig.root.updateMatrixWorld(true); d._head.set(0, HEAD_Y + HEAD_R + 0.06, 0).applyMatrix4(rig.head.matrixWorld); }
     const alpha = d.leaving ? clamp(1 - (t - d.leaving) / 1.2, 0.001, 1) : 1;
     const real = avatarTemplates.length > 0 && S.charStyle !== 'toon' && S.quality !== 'low';
-    if (real && !d.av) d.av = createAvatar(scene, d.body.female, d.avT);
+    if (real && !d.av) d.av = createAvatar(scene, d.body.female, d.avT, d.avCostume !== undefined ? d.avCostume : (Math.random() * 100 < (Number(S.costumeRate) || 0) ? randomCostumeId() : null));
     else if (!real && d.av) { disposeAvatar(d.av); d.av = null; }
     if (d.av) {
       _hp.set(0, HEAD_Y, 0).applyMatrix4(rig.head.matrixWorld);
@@ -1270,6 +1274,7 @@ function frame() {
   propsFrame(rocketsP, 'rocket', makeRocket);
   updateBooth(dj && dj !== resident ? '👑 ' + dj.name : '🎧 DJ NEON', S.showTop && TOP.length > 1 ? TOP.slice(1, 3).map(u => u.name).join(' · ') : '');
 
+  costumeTime.value = t;
   updateCam(dt, t);
   if (bloom) bloom.strength = bi.fire ? 0.65 : 0.55;
   if (S.quality === 'high' && composer) composer.render(); else renderer.render(scene, camera);
@@ -1346,5 +1351,5 @@ window.addEventListener('pointerdown', unlock);
 window.addEventListener('keydown', unlock);
 setInterval(checkAudio, 1500);
 Music.resume();
-window._dbg = { dancers, rig, avatarTemplates, restyle, applyShape, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
+window._dbg = { dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
 requestAnimationFrame(frame);
