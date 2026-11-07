@@ -58,6 +58,8 @@ const DEFAULT_SETTINGS = {
   coupleEnabled: true,      // cặp đôi của đêm (2 người ở lại lâu nhất)
   likeGoalEnabled: true, likeGoal: 5000, likeGoalStep: 1.5,   // đủ tim → bao cả sàn; mục tiêu sau ×1.5
   staffEnabled: true,       // nhân viên phục vụ bưng khay rượu đi quanh sàn
+  mcHype: true,             // MC hô hào sự kiện lớn: giọng hô, MC trên sân khấu giơ tay, khách hưởng ứng
+  mcCaption: true,          // phụ đề lời MC trên màn hình
   mcEnabled: true,          // MC cầm micro đứng cạnh DJ (mấp máy miệng khi MC giọng nói đọc)
   barEnabled: true,         // bàn ghế quán bar (salon + bàn tròn đứng), sàn nhảy thu hẹp lại
   lcdEvents: true,          // sự kiện LIVE (quà, follow, sàn cháy…) hiện trên màn LCD

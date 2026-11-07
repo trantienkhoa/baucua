@@ -20,6 +20,21 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## MC hô hào sự kiện lớn (bản 2.2.0)
+
+- **Câu hô đa dạng:** mỗi sự kiện có 2–3 câu khác nhau, chọn ngẫu nhiên nên không lặp. Gồm:
+  - sàn cháy (theo cấp), đấu đội bắt đầu / có đội thắng / hoà, thách đấu solo, thắng solo;
+  - flash mob, giờ vàng bắt đầu và kết thúc, cặp đôi của đêm;
+  - bao cả sàn (khách bao, hoặc cả phòng đủ tim), quà lớn;
+  - khui sâm panh, vào bàn VIP, lên sân khấu, lên DJ;
+  - mở khoá sân khấu, nhạc “drop”;
+  - đếm ngược: còn 5 phút, còn 1 phút, mười giây.
+- **Giọng hô:** nhanh hơn, cao hơn, to hết cỡ. Câu hô chen lên trước, cắt ngang câu cảm ơn thường đang đọc.
+- **MC trên sân khấu:** khi hô, tay trái đấm lên trời theo nhịp, nhún mạnh, nghiêng người ra trước, micro vẫn sát miệng.
+- **Khán giả hưởng ứng:** gần nửa sàn nhảy cẫng lên và đèn chớp mỗi lần MC hô sự kiện lớn.
+- **Phụ đề lời MC:** bong bóng thoại cạnh MC, vì nhiều người xem TikTok tắt tiếng. Câu hô có viền rực và nảy to. Phụ đề vẫn hiện kể cả khi tắt giọng đọc.
+- Tắt riêng được: Cài đặt → “📣 MC hô hào sự kiện lớn”, “💬 Phụ đề lời MC trên màn hình”.
+
 ## Sàn theo mùa và ngày lễ (bản 2.1.0)
 
 Có tổng cộng **16 sàn**. Sàn mới thêm:

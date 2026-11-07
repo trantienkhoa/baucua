@@ -776,7 +776,7 @@ function startAction(z) {
     case 'sparkle': fx.sparkle(5); break;
     case 'balloons': balloons(70); break;
     case 'pair': makePair(d); break;
-    case 'dj': djOverride = { id: d.id, until: t + 30 }; break;
+    case 'dj': djOverride = { id: d.id, until: t + 30 }; hype('dj', { x: nm(d.name) }, { key: 'dj', gap: 5, quiet: true }); break;
     // --- hành động quán bar ---
     case 'cheer': cheerFor(d, t); break;
     case 'confetti': confetti(180); flash = Math.max(flash, 0.2); for (const n of nearest(d, 6)) n.jumpStart = t + rand(0, 0.5); break;
@@ -804,7 +804,7 @@ function champagne(d, t) {
   fx.sparkleAt(() => d.bottleUntil > now() && !d.leaving && d._head ? [d._head.x, d._head.y + 0.42 * (d.body.h * d.sc), d._head.z] : null, 8);
   for (const n of nearest(d, 5)) n.jumpStart = t + rand(0, 0.8);
   confetti(60);
-  say(`${nm(d.name)} khui sâm panh! Cạn ly nào!`, 'champ', 4, true);
+  hype('champagne', { x: nm(d.name) }, { key: 'champ', gap: 4, quiet: true });
 }
 // lên sân khấu nhảy cạnh DJ (2 chỗ hai bên bàn DJ)
 const STAGE_SLOTS = [new THREE.Vector3(-3.6, STAGE_Y, -6.3), new THREE.Vector3(4.1, STAGE_Y, -6.3)];
@@ -825,6 +825,10 @@ const mic = new THREE.Group(), _micUp = new THREE.Vector3(0, 1, 0);
 }
 function mcPose(bi, t) {
   const talk = t < mcTalkUntil, k = Math.exp(-bi.p * 5);
+  if (t < mcHypeUntil) {   // hô hào: tay trái đấm lên trời theo nhịp, nhún mạnh, nghiêng người ra trước
+    const pump = Math.exp(-bi.p * 4);
+    return { yaw: 0, walk: -1, bob: 0.06 * pump, lift: 0.05 * pump * (bi.b % 2), lean: -0.06, lu: -2.3 - 0.4 * pump, lf: -0.2 - 0.6 * (1 - pump), ru: MC_RU, rf: MC_RF, rsx: MC_RSX, rex: MC_REX, lt: -0.18, ls: 0.3 * (1 - pump), rt: 0.18, rs: -0.3 * (1 - pump), head: 0.2 * Math.sin(t * 6), spin: 1, rot: 0, dx: 0, sit: 0 };
+  }
   const wave = talk ? 0.5 + 0.5 * Math.sin(t * 5) : k;
   return { yaw: 0, walk: -1, bob: 0.02 * k, lean: 0.03 * Math.sin(t * 0.7), lu: -0.35 - 0.9 * wave * (talk ? 1 : 0.6), lf: -0.4 - 0.5 * wave, ru: MC_RU, rf: MC_RF, rsx: MC_RSX, rex: MC_REX, lt: -0.07, ls: 0.02, rt: 0.07, rs: -0.02, head: 0.15 * Math.sin(t * (talk ? 3 : 1.2)), spin: 1, rot: 0, lift: 0, dx: 0, sit: 0 };
 }
@@ -916,6 +920,7 @@ function staffPose(w, bi, t) {
 function toStage(d, t) {
   const used = new Set([...dancers.values()].filter(x => x.mode === 'stage' && t < x.modeUntil).map(x => x.stageSlot));
   let slot = [0, 1].find(i => !used.has(i)); if (slot === undefined) slot = Math.random() < 0.5 ? 0 : 1;
+  hype('stage', { x: nm(d.name) }, { key: 'stage', gap: 5, quiet: true });
   startTravel(d, t); d.mode = 'stage'; d.stageSlot = slot; d.modeStart = t; d.modeUntil = t + 30; d.dance = pick([4, 5, 13, 1, 6]);
   sparkle(d, 30); fx.sparkle(3, slot === 0 ? 'side' : 'side');
 }
@@ -930,7 +935,7 @@ function toVip(d, t) {
   let seat = [0, 1, 2, 3].find(i => !used.has(i)); if (seat === undefined) seat = Math.floor(Math.random() * 4);
   startTravel(d, t); d.mode = 'vip'; d.vipSeat = seat; d.modeStart = t; d.modeUntil = t + 38; d.bottleUntil = t + 11;
   fx.sparkleAt(() => d.bottleUntil > now() && d._head ? [d._head.x, d._head.y + 0.4, d._head.z] : null, 7);
-  say(`Mời ${nm(d.name)} vào bàn VIP!`, 'vip', 4, true);
+  hype('vip', { x: nm(d.name) }, { key: 'vip', gap: 4, quiet: true });
   // màn LCD chiếu cận cảnh bàn VIP (đồ trên bàn nhỏ, toàn cảnh khó thấy)
   const [sx, sz, sry] = SALONS[seat >> 1];
   d.vipTable = new THREE.Vector3(sx + Math.sin(sry) * 0.56, 0.5, sz + Math.cos(sry) * 0.56);
@@ -949,13 +954,13 @@ function partyAll(d, t) {
   if (!d) {   // cả phòng thả tim đủ mục tiêu
     confetti(300); balloons(100); fx.smokeBurst(1.5); fx.sparkle(10); flash = Math.max(flash, 0.45);
     pushTicker('🥂 CẢ PHÒNG ĐỦ TIM — BAO CẢ SÀN! 🥂', '#ffd84d', { big: true });
-    say('Cả phòng đã thả đủ tim! Bao cả sàn! Cảm ơn mọi người!', 'party', 0, true);
+    hype('partyRoom');
     startClip('bao-san-tim', 15); return;
   }
   confetti(260); balloons(80); fx.smokeBurst(1.5); fx.sparkle(9); flash = Math.max(flash, 0.4);
   d.bottleUntil = t + 10; fx.sparkleAt(() => d.bottleUntil > now() && d._head ? [d._head.x, d._head.y + 0.42, d._head.z] : null, 10);
   pushTicker(`🥂 ${d.name} BAO CẢ SÀN! 🥂`, '#ffd84d', { big: true });
-  say(`${nm(d.name)} bao cả sàn! Cảm ơn đại gia!`, 'party', 0, true);
+  hype('partyUser', { x: nm(d.name) });
   startClip('bao-san', 15);
 }
 
@@ -1323,7 +1328,7 @@ function updateStage(t, bi) {
   const bass = live ? (Music.bass || 0) : 0.5 + 0.5 * kick, hat = live ? (Music.hat || 0) : 0, mid = live ? (Music.mid || 0) : 0.5;
   const pulse = Math.max(1 - bi.p, kick);
   stageMood.kick = kick; stageMood.bass = bass;
-  if (Music.drop > 0.97 && S.fxOnFire !== false) { Music.drop = 0.96; fx.smokeBurst(1); fx.sparkle(5); flash = Math.max(flash, 0.35); }
+  if (Music.drop > 0.97 && S.fxOnFire !== false) { Music.drop = 0.96; hype('drop', {}, { key: 'drop', gap: 30 }); fx.smokeBurst(1); fx.sparkle(5); flash = Math.max(flash, 0.35); }
   // sàn
   const pat = Math.floor(bi.b / 8) % 4;
   let i = 0;
@@ -1403,6 +1408,27 @@ function avatarCircle(u, x, y, r) {
   ctx.save(); ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.clip();
   if (im) ctx.drawImage(im, x - r, y - r, r * 2, r * 2);
   else { ctx.fillStyle = '#5b3bb0'; ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.fillStyle = '#fff'; ctx.font = `800 ${Math.round(r)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(((u.name || '?').trim()[0] || '?').toUpperCase(), x, y + 1); }
+  ctx.restore();
+}
+// phụ đề lời MC (nhiều người xem TikTok tắt tiếng): bong bóng thoại cạnh MC, hô hào thì to và rực hơn
+function drawMcCaption(t) {
+  const c = mcCaption; if (!c || t > c.until) return;
+  const a = Math.min(1, (t - c.start) / 0.2, (c.until - t) / 0.4), pop = 1 + 0.12 * Math.max(0, 1 - (t - c.start) / 0.25);
+  ctx.save(); ctx.globalAlpha = a;
+  const fs = c.hype ? 30 : 25; ctx.font = `${c.hype ? 900 : 700} ${fs}px ${FONT}`;
+  const words = ('🎤 ' + c.text).split(' '), lines = []; let cur = '';
+  for (const w of words) { const tt = cur ? cur + ' ' + w : w; if (ctx.measureText(tt).width > 620 && cur) { lines.push(cur); cur = w; } else cur = tt; }
+  if (cur) lines.push(cur); lines.length = Math.min(lines.length, 3);
+  const lh = fs * 1.25, bw = Math.max(...lines.map(l => ctx.measureText(l).width)) + 44, bh = lines.length * lh + 28;
+  const sp = mc && mc._sp && !mc._sp.behind && S.mcEnabled !== false ? mc._sp : null;
+  const cx = sp ? clamp(sp.hx - 120, bw / 2 + 16, W - bw / 2 - 230) : W / 2, by = sp ? Math.max(330, sp.hy - 60 - bh) : 330;
+  ctx.translate(cx, by + bh / 2); ctx.scale(pop, pop); ctx.translate(-cx, -(by + bh / 2));
+  const x = cx - bw / 2;
+  ctx.fillStyle = c.hype ? 'rgba(120,0,60,0.92)' : 'rgba(20,6,44,0.88)'; roundRect(x, by, bw, bh, 22); ctx.fill();
+  if (sp) { ctx.beginPath(); ctx.moveTo(cx + bw * 0.25, by + bh - 1); ctx.lineTo(cx + bw * 0.25 + 26, by + bh + 26); ctx.lineTo(cx + bw * 0.25 + 30, by + bh - 1); ctx.fill(); }   // đuôi bong bóng chỉ về MC
+  if (c.hype) { const gr = ctx.createLinearGradient(x, 0, x + bw, 0); gr.addColorStop(0, '#ffd84d'); gr.addColorStop(0.5, '#ff3d9a'); gr.addColorStop(1, '#3dd9ff'); ctx.strokeStyle = gr; ctx.lineWidth = 4; roundRect(x, by, bw, bh, 22); ctx.stroke(); }
+  ctx.fillStyle = c.hype ? '#fff6c4' : '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  lines.forEach((l, i) => ctx.fillText(l, cx, by + 14 + lh / 2 + i * lh));
   ctx.restore();
 }
 function drawTag(d, t) {
@@ -1699,6 +1725,7 @@ function frame() {
   // nhãn: xa trước, gần sau
   const tags = visible.filter(d => d !== resident && d !== mc && !d.isStaff && d._sp).sort((a, b) => a._sp.y - b._sp.y);
   for (const d of tags) drawTag(d, t);
+  drawMcCaption(t);
   drawParticles();
   if (flash > 0) { ctx.fillStyle = `rgba(255,255,255,${flash * 0.35})`; ctx.fillRect(0, 0, W, H); }
   if (bi.fire) { ctx.fillStyle = `rgba(255,60,180,${0.06 * (1 - bi.p)})`; ctx.fillRect(0, 0, W, H); }
@@ -1717,14 +1744,55 @@ const inResult = o => o.result && now() < o.resultUntil;
 
 // ---------- MC giọng nói ----------
 const sayRate = new Map();
-function say(text, key, gap = 0, prio = false) {
-  if (!S.ttsEnabled || !isPrimary || !text) return;
+function say(text, key, gap = 0, prio = false, hyped = false) {
+  if (!text) return;
   if (key) { const last = sayRate.get(key) || -1e9; if (now() - last < gap) return; sayRate.set(key, now()); }
+  if (S.mcCaption !== false && (prio || hyped)) mcCaption = { text, hype: hyped, start: now(), until: now() + Math.min(7, 2.2 + String(text).length * 0.055) };
+  if (!S.ttsEnabled || !isPrimary) { mcTalkUntil = Math.max(mcTalkUntil, now()) + Math.min(6, 0.8 + String(text).length * 0.06); return; }
   mcTalkUntil = Math.max(mcTalkUntil, now()) + Math.min(8, 0.8 + String(text).length * 0.065);   // MC trên sân khấu mấp máy miệng, khua tay
   if (S.ttsWhere === 'admin') socket.emit('say', text);
-  else if (window.MC) { MC.enabled = true; MC.volume = Number(S.ttsVolume) || 1; MC.rate = Number(S.ttsRate) || 1.05; MC.say(text, prio); }
+  else if (window.MC) { MC.enabled = true; MC.volume = Number(S.ttsVolume) || 1; MC.rate = Number(S.ttsRate) || 1.05; MC.say(text, prio, hyped); }
 }
 const nm = n => (window.MC ? MC.clean(n) : String(n || ''));
+
+// ---------- MC hô hào sự kiện lớn ----------
+let mcCaption = null, mcHypeUntil = 0;
+const HYPE = {
+  fire1: ['Sàn cháy rồi cả nhà ơi! Quẩy lên nào!', 'Cháy! Cháy! Sàn cháy rồi! Tay lên trời nào!', 'Nóng quá! Sàn cháy rồi! Cả phòng thả tim tiếp đi nào!'],
+  fireN: ['Sàn cháy cấp {n}! Không dừng lại được nữa rồi!', 'Cấp {n} rồi! Cả phòng điên lên nào!', 'Cháy cấp {n}! Thả tim mạnh nữa lên, mình lên cấp tiếp!'],
+  battle: ['Đấu đội bắt đầu! Gõ một vào đội Đỏ, gõ hai vào đội Xanh! Đội nào đông hơn nào!', 'Chia phe nào cả nhà! Một là Đỏ, hai là Xanh! Chiến thôi!'],
+  battleWin: ['{x} chiến thắng! Xin chúc mừng! Đội thua nhảy điệu con gà nhé!', 'Và đội thắng là… {x}! Tràng pháo tay nào!'],
+  battleDraw: ['Hai đội hoà nhau! Hẹn trận sau phân thắng bại nhé!'],
+  solo: ['Có biến rồi! {a} thách đấu {b}! Gõ một hoặc hai để bình chọn!', 'Một trận solo nảy lửa! {a} đấu với {b}! Cả phòng bình chọn ngay!'],
+  soloWin: ['{x} thắng solo! Quá đỉnh!', 'Người chiến thắng là {x}! Vỗ tay nào cả nhà!'],
+  flashmob: ['Flash mob! Tất cả xếp hàng, cùng nhảy nào!', 'Cả sàn cùng nhảy một điệu nào! Năm, sáu, bảy, tám!'],
+  golden: ['Giờ vàng đã tới! {n} phút, mọi món quà đều được nâng hạng hiệu ứng! Tranh thủ nào cả nhà!', 'Giờ vàng! Giờ vàng! Quà nào cũng được nâng cấp, nhiệt sàn nhân đôi trong {n} phút!'],
+  goldenEnd: ['Giờ vàng đã kết thúc! Cảm ơn cả nhà đã quẩy hết mình!', 'Hết giờ vàng rồi! Hẹn mọi người ở giờ vàng tiếp theo nhé!'],
+  couple: ['Cặp đôi của đêm nay là {a} và {b}! Cả phòng gõ số một để chúc mừng nào!', 'Đèn rọi gọi tên {a} và {b}! Cặp đôi của đêm! Thả tim cho hai bạn nào!'],
+  partyRoom: ['Cả phòng đã thả đủ tim! Bao cả sàn! Cảm ơn mọi người quá trời!', 'Đủ tim rồi! Sâm panh cho cả sàn! Quẩy lên nào!'],
+  partyUser: ['{x} bao cả sàn! Cảm ơn đại gia! Cả phòng cảm ơn {x} nào!', 'Chơi lớn quá! {x} bao trọn cả sàn! Mở sâm panh!'],
+  bigGift: ['Wow! {x} vừa tặng {g}! Mời bạn lên màn hình lớn!', 'Quá đẳng cấp! Cảm ơn {x} đã tặng {g}! Cả phòng vỗ tay nào!', 'Ôi trời ơi! {g} từ {x}! Lên màn hình lớn ngay!'],
+  champagne: ['{x} khui sâm panh! Cạn ly nào cả nhà!', 'Bốp! Sâm panh đã mở! Cảm ơn {x}! Một hai ba, dô!'],
+  vip: ['Mời {x} vào bàn VIP! Trái cây, sâm panh đã sẵn sàng!', 'Bàn VIP xin chào {x}! Phục vụ đâu, mang rượu ra nào!'],
+  stage: ['Mời {x} lên sân khấu! Cháy hết mình đi nào!', '{x} lên sân khấu rồi! Cả phòng cổ vũ nào!'],
+  dj: ['{x} lên bàn DJ! Lên nhạc đi nào!', 'DJ mới của chúng ta là {x}! Drop the beat!'],
+  theme: ['Cả phòng đã mở khoá sân khấu {x}! Đẹp quá cả nhà ơi!', 'Sân khấu mới, {x}! Cảm ơn cả phòng!'],
+  soon5: ['Còn năm phút nữa tới {x}! Ở lại với mình nhé cả nhà!', 'Năm phút nữa thôi là {x}! Đừng đi đâu nha!'],
+  soon1: ['Còn một phút nữa tới {x}! Chuẩn bị nào!', 'Một phút nữa! {x} sắp bắt đầu! Gọi bạn bè vào xem đi!'],
+  drop: ['Lên! Lên! Lên!', 'Tay lên trời nào!', 'Quẩy lên nào cả nhà!'],
+};
+function hype(kind, v = {}, opts = {}) {
+  const pool = HYPE[kind]; if (!pool) return;
+  const text = pick(pool).replace(/\{(\w)\}/g, (m, k) => v[k] !== undefined ? v[k] : '');
+  say(text, opts.key || null, opts.gap || 0, true, S.mcHype !== false);
+  if (S.mcHype === false) return;
+  const t = now();
+  mcHypeUntil = Math.max(mcHypeUntil, t + Math.min(6, 1.5 + text.length * 0.05));
+  if (!opts.quiet) {   // khách quanh sân khấu hưởng ứng: nhảy lên
+    for (const d of dancers.values()) if (!d.leaving && d.mode === 'dance' && Math.random() < 0.45) d.jumpStart = t + rand(0.1, 0.9);
+    flash = Math.max(flash, 0.15);
+  }
+}
 
 // ---------- hoá trang theo cấp độ fan ----------
 const costumeLevel = id => Number((S.costumeLevels || {})[id]) || 0;
@@ -1749,7 +1817,7 @@ function startBattle() {
   Object.assign(battle, { on: true, start: now(), until: now() + (Number(S.battleSeconds) || 180), score: { r: 0, b: 0 }, result: null });
   for (const d of dancers.values()) d.team = null;
   pushTicker('⚔️ ĐẤU ĐỘI BẮT ĐẦU! Gõ 1 vào đội ĐỎ · gõ 2 vào đội XANH', '#ffd84d', { big: true });
-  say('Đấu đội bắt đầu! Gõ một để vào đội Đỏ, gõ hai để vào đội Xanh!', null, 0, true);
+  hype('battle');
   flash = 0.4;
 }
 function joinTeam(d, tm) {
@@ -1777,7 +1845,7 @@ function endBattle(stop) {
   const name = win === 'r' ? 'Đội Đỏ' : win === 'b' ? 'Đội Xanh' : '';
   if (win) { for (let i = 0; i < 8; i++) setTimeout(launchRocket, i * 250); confetti(220); flash = 0.4; }
   pushTicker(win ? `🏆 ${name.toUpperCase()} CHIẾN THẮNG! (${r} – ${b})` : `🤝 HAI ĐỘI HOÀ ${r} – ${b}`, '#ffd84d', { big: true });
-  say(win ? `${name} chiến thắng! Đội thua nhảy điệu con gà nhé!` : 'Hai đội hoà nhau!', null, 0, true);
+  if (win) hype('battleWin', { x: name }); else hype('battleDraw');
   startClip('doi-dau', 12);
   setTimeout(() => { if (!battle.on) for (const d of dancers.values()) d.team = null; }, 15500);
 }
@@ -1810,7 +1878,7 @@ function startSolo(a) {
   for (const [d, side] of [[a, -1], [b, 1]]) { d.mode = 'solo'; d.soloSide = side; d.modeStart = now(); d.modeUntil = solo.until + 6; d.pairWith = null; d.dropH = 4; d.vy = 0; }
   a.dance = 5; b.dance = 4;
   pushTicker(`⚔️ ${a.name} THÁCH ĐẤU ${b.name}! Gõ 1 hoặc 2 để bình chọn`, '#ff7ad9', { big: true });
-  say(`${nm(a.name)} thách đấu ${nm(b.name)}! Gõ một hoặc hai để bình chọn!`, null, 0, true);
+  hype('solo', { a: nm(a.name), b: nm(b.name) });
   startClip('solo', secs + 6);
 }
 function voteSolo(d, n) { if (!solo.on || solo.voters.has(d.id) || d === solo.a || d === solo.b) return false; solo.voters.add(d.id); solo.votes[n]++; return true; }
@@ -1826,7 +1894,7 @@ function endSolo() {
   lose.forceDance = 10; lose.forceUntil = T + 6;
   confetti(140); for (let i = 0; i < 4; i++) setTimeout(launchRocket, i * 250);
   pushTicker(`🏆 ${win.name} THẮNG SOLO! (${v1} – ${v2})`, '#ffd84d', { big: true });
-  say(`${nm(win.name)} thắng solo!`, null, 0, true);
+  hype('soloWin', { x: nm(win.name) });
   if (S.ledShow !== false && (!lcd || lcd.giftAllowed())) ledQueue.unshift({ d: win, gift: { name: '' }, count: 1, value: 0, label: `🏆 Thắng solo ${Math.max(v1, v2)} – ${Math.min(v1, v2)} phiếu` });
 }
 
@@ -1838,7 +1906,7 @@ function fireUp(t, secs) {
   confetti(120 + fireLevel * 30); flash = 0.3;
   if (S.fxOnFire !== false) { fx.smokeBurst(0.8 + fireLevel * 0.15); fx.sparkle(4 + fireLevel); }
   pushTicker(`🔥 SÀN CHÁY CẤP ${fireLevel}! 🔥`, '#ff7a3d', { big: true });
-  say(fireLevel === 1 ? 'Sàn cháy rồi!' : `Sàn cháy cấp ${fireLevel}!`, 'fire', 3, true);
+  hype(fireLevel === 1 ? 'fire1' : 'fireN', { n: fireLevel }, { key: 'fire', gap: 3 });
   if (fireLevel >= 2) startClip('san-chay', 12);
 }
 
@@ -1885,7 +1953,7 @@ function startGolden() {
   const mins = Math.max(1, Number(S.goldenMinutes) || 3);
   golden.until = now() + mins * 60; golden.nextSpark = now() + 3;
   pushTicker(`⭐ GIỜ VÀNG ${mins} PHÚT! Quà được nâng hạng hiệu ứng, sàn nhân đôi nhiệt!`, '#ffd84d', { big: true });
-  say(`Giờ vàng bắt đầu! Trong ${mins} phút, mọi món quà đều được nâng hạng hiệu ứng!`, 'golden', 0, true);
+  hype('golden', { n: mins }); golden.announcedEnd = false;
   fx.smokeBurst(1.2); fx.sparkle(6); confetti(150);
 }
 function startCouple() {
@@ -1899,7 +1967,7 @@ function startCouple() {
     d.pairWith = side < 0 ? b : a; d.pairUntil = t + dur; d.dance = 16;
   }
   pushTicker(`💞 CẶP ĐÔI CỦA ĐÊM: ${a.name} ❤ ${b.name}`, '#ff7ab8', { big: true });
-  say(`Cặp đôi của đêm nay là ${nm(a.name)} và ${nm(b.name)}! Cả phòng gõ số 1 để chúc mừng nào!`, 'couple', 0, true);
+  hype('couple', { a: nm(a.name), b: nm(b.name) });
   if (!zoom && !zoomQueue.length) zoomQueue.push({ d: a, id: 'camera', label: 'Cặp đôi của đêm', icon: '💞', dur: 6 });
   fx.sparkle(4, 'center'); startClip('cap-doi', 15);
   return true;
@@ -1926,13 +1994,14 @@ function retention(t, dt) {
     sched.slot = si.slot;
     if (si.next) {
       const L = Math.ceil(si.left);
-      for (const [mark, txt] of [[300, `Còn 5 phút nữa tới ${si.next.label.toLowerCase()}! Ở lại nhé!`], [60, `Còn 1 phút nữa tới ${si.next.label.toLowerCase()}!`], [10, 'Mười giây!']]) {
-        if (L === mark && !sched.said[mark]) { sched.said[mark] = 1; say(txt, 'cd' + mark, 0, true); if (mark >= 60) pushTicker(`⏳ ${mark >= 300 ? '5 phút' : '1 phút'} nữa tới ${si.next.icon} ${si.next.label}!`, '#ffd84d', { lcd: false }); }
+      for (const [mark, txt] of [[300, 'soon5'], [60, 'soon1'], [10, null]]) {
+        if (L === mark && !sched.said[mark]) { sched.said[mark] = 1; if (txt) hype(txt, { x: si.next.label.toLowerCase() }, { quiet: true }); else say('Mười giây! Đếm cùng mình nào!', 'cd10', 0, true, true); if (mark >= 60) pushTicker(`⏳ ${mark >= 300 ? '5 phút' : '1 phút'} nữa tới ${si.next.icon} ${si.next.label}!`, '#ffd84d', { lcd: false }); }
       }
       if (lcd && lcd.setCountdown) lcd.setCountdown(si.left <= 60 ? { secs: si.left, icon: si.next.icon, label: si.next.label } : null);
     } else if (lcd && lcd.setCountdown) lcd.setCountdown(null);
   } else if (lcd && lcd.setCountdown) lcd.setCountdown(null);
   // --- giờ vàng: pháo sáng định kỳ ---
+  if (!goldenOn() && golden.until && !golden.announcedEnd && t - golden.until < 5) { golden.announcedEnd = true; hype('goldenEnd', {}, { quiet: true }); }
   if (goldenOn() && t > golden.nextSpark) { golden.nextSpark = t + 18; fx.sparkle(3, Math.random() < 0.5 ? 'side' : 'center'); }
   // --- cặp đôi: đèn rọi + tim bay ---
   if (couple.a) {
@@ -2013,7 +2082,7 @@ function startFlashmob() {
   });
   flashmob.until = T + secs;
   pushTicker('🕺 FLASH MOB! Cả sàn cùng nhảy! 🕺', '#7cf7ff', { big: true });
-  say('Flash mob! Cả sàn cùng nhảy nào!', null, 0, true);
+  hype('flashmob', {}, { quiet: true });
   flash = 0.4; startClip('flash-mob', 14);
 }
 
@@ -2045,7 +2114,7 @@ function checkGoal() {
   confetti(250); flash = 0.6;
   const tn = THEME_NAMES[g.theme] || g.theme;
   pushTicker(`🎯 MỤC TIÊU HOÀN THÀNH! Mở khoá sân khấu ${tn.toUpperCase()}!`, '#c8ff3d', { big: true });
-  say(`Cả phòng đã mở khoá sân khấu ${tn}!`, null, 0, true);
+  hype('theme', { x: tn });
   themeBanner = { name: tn, until: now() + 4 };
   startClip('mo-khoa', 12);
   saveGoals();
@@ -2235,7 +2304,7 @@ function featureEvent(ev) {
         goals.coins += ev.value || 0;
         if (d) addScore(d, (ev.value || 1) * 10);
         const v = ev.value || 0;
-        if (v >= (Number(S.ledCoins) || 99)) { say(`Wow! Cảm ơn ${nm(ev.user.name)} đã tặng ${ev.count > 1 ? ev.count + ' ' : ''}${ev.gift.name}! Mời bạn lên màn hình lớn!`, null, 0, true); startClip('qua-lon', Number(S.clipSeconds) || 15); }
+        if (v >= (Number(S.ledCoins) || 99)) { hype('bigGift', { x: nm(ev.user.name), g: (ev.count > 1 ? ev.count + ' ' : '') + ev.gift.name }); startClip('qua-lon', Number(S.clipSeconds) || 15); }
         else if (v >= (Number(S.ttsMinCoins) || 1)) say(`Cảm ơn ${nm(ev.user.name)} đã tặng ${ev.count > 1 ? ev.count + ' ' : ''}${ev.gift.name}`, 'g' + ev.user.id, 4);
       }
       break;
@@ -2358,5 +2427,5 @@ window.addEventListener('pointerdown', unlock);
 window.addEventListener('keydown', unlock);
 setInterval(checkAudio, 1500);
 Music.resume();
-window._dbg = { setChar: (d, id) => assignChar(d, ROSTER.find(c => c.id === id)), setOutfitT: (d, o) => { if (d.av) { setCostume(d.av, null); window._applyOutfit(d.av, o); window._restyle(d.av); } }, get flashInfo() { return [...dancers.values()].slice(0, 8).map(d => [d.mode, d.x.toFixed(2), d.z.toFixed(2), d.tx.toFixed(2), d.tz.toFixed(2)].join(' ')); }, ledCam, ledRT, renderer, get ledShow() { return ledShow; }, get ledQueue() { return ledQueue; }, get lcd() { return lcd; }, get resident() { return resident; }, get mc() { return mc; }, staff, schedInfo, party, couple, goldenOn, mic, mcArm(ru, rf, sx, ex) { MC_RU = ru; MC_RF = rf; MC_RSX = sx; MC_REX = ex; }, dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
+window._dbg = { setChar: (d, id) => assignChar(d, ROSTER.find(c => c.id === id)), setOutfitT: (d, o) => { if (d.av) { setCostume(d.av, null); window._applyOutfit(d.av, o); window._restyle(d.av); } }, get flashInfo() { return [...dancers.values()].slice(0, 8).map(d => [d.mode, d.x.toFixed(2), d.z.toFixed(2), d.tx.toFixed(2), d.tz.toFixed(2)].join(' ')); }, ledCam, ledRT, renderer, get ledShow() { return ledShow; }, get ledQueue() { return ledQueue; }, get lcd() { return lcd; }, get resident() { return resident; }, get mc() { return mc; }, get cap() { return [mcCaption && mcCaption.text, now() < mcHypeUntil]; }, staff, schedInfo, party, couple, goldenOn, mic, mcArm(ru, rf, sx, ex) { MC_RU = ru; MC_RF = rf; MC_RSX = sx; MC_REX = ex; }, dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
 requestAnimationFrame(frame);
