@@ -225,11 +225,15 @@ function updateLedShow(t, dt) {
   const d = ledShow.d;
   // máy quay riêng: chính diện, nửa người trên
   const h = d._head, sc = d.body.h * d.sc;
-  const yaw = d.av ? d.av.holder.rotation.y : 0;
-  const tx = h.x, ty = h.y - 0.45 * sc, tz = h.z;
-  const dist = 2.3 * sc;
+  let yaw = d.av ? d.av.holder.rotation.y : 0;
+  let tx = h.x, ty = h.y - 0.45 * sc, tz = h.z;
+  let dist = 2.3 * sc;
+  if (ledShow.vip && d.vipTable && d.mode === 'vip') {   // khung hình bàn VIP: khách + bàn đầy đồ
+    // nhắm vào bàn (hơi lệch về phía khách), máy quay cao nhìn xuống: bàn nằm nửa trên màn (nửa dưới bị bàn DJ che)
+    const v = d.vipTable; tx = v.x + (h.x - v.x) * 0.3; ty = 0.3; tz = v.z + (h.z - v.z) * 0.3; dist = 2.2; yaw = vipSeat(d.vipSeat || 0).yaw;
+  }
   const k = 1 - Math.pow(0.05, dt);
-  _v1.set(tx + Math.sin(yaw) * dist + Math.sin(t * 0.5) * 0.4, ty + 0.15 * sc, tz + Math.cos(yaw) * dist);
+  _v1.set(tx + Math.sin(yaw) * dist + Math.sin(t * 0.5) * 0.4, (ledShow.vip ? 1.55 : ty + 0.15 * sc), tz + Math.cos(yaw) * dist);   // bàn VIP: nhìn từ trên xuống thấy rõ đồ trên bàn
   if (!ledShow.snapped) { ledCam.position.copy(_v1); ledShow.snapped = true; } else ledCam.position.lerp(_v1, Math.max(k, 0.25));
   ledCam.lookAt(tx, ty, tz);
   if (!ledShow.lastDraw || t - ledShow.lastDraw > 0.1) { drawLedOverlay(ledShow, t); ledShow.lastDraw = t; }
@@ -805,7 +809,7 @@ const STAGE_SLOTS = [new THREE.Vector3(-3.6, STAGE_Y, -6.3), new THREE.Vector3(4
 // ---------- MC cầm micro đứng cạnh DJ ----------
 const MC_POS = new THREE.Vector3(2.55, STAGE_Y, -6.85), MC_YAW = -0.32, MC_CHAR = 'char66';   // vest navy, cà vạt
 let mc = null, mcTalkUntil = 0;
-const mic = new THREE.Group();
+const mic = new THREE.Group(), _micUp = new THREE.Vector3(0, 1, 0);
 {
   const h = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.012, 0.17, 12), new THREE.MeshStandardMaterial({ color: 0x111114, metalness: 0.6, roughness: 0.35 }));
   h.position.y = -0.02; mic.add(h);
@@ -818,9 +822,9 @@ const mic = new THREE.Group();
 function mcPose(bi, t) {
   const talk = t < mcTalkUntil, k = Math.exp(-bi.p * 5);
   const wave = talk ? 0.5 + 0.5 * Math.sin(t * 5) : k;
-  return { yaw: 0, walk: -1, bob: 0.02 * k, lean: 0.03 * Math.sin(t * 0.7), lu: -0.35 - 0.9 * wave * (talk ? 1 : 0.6), lf: -0.4 - 0.5 * wave, ru: MC_RU, rf: MC_RF, lt: -0.07, ls: 0.02, rt: 0.07, rs: -0.02, head: 0.15 * Math.sin(t * (talk ? 3 : 1.2)), spin: 1, rot: 0, lift: 0, dx: 0, sit: 0 };
+  return { yaw: 0, walk: -1, bob: 0.02 * k, lean: 0.03 * Math.sin(t * 0.7), lu: -0.35 - 0.9 * wave * (talk ? 1 : 0.6), lf: -0.4 - 0.5 * wave, ru: MC_RU, rf: MC_RF, rsx: MC_RSX, rex: MC_REX, lt: -0.07, ls: 0.02, rt: 0.07, rs: -0.02, head: 0.15 * Math.sin(t * (talk ? 3 : 1.2)), spin: 1, rot: 0, lift: 0, dx: 0, sit: 0 };
 }
-let MC_RU = 0.85, MC_RF = 3.0;   // tay phải co lên, micro sát miệng
+let MC_RU = -0.8, MC_RF = -0.6, MC_RSX = -1.2, MC_REX = -2.0;   // tay phải đưa ra trước, gập khuỷu: micro sát miệng
 function toStage(d, t) {
   const used = new Set([...dancers.values()].filter(x => x.mode === 'stage' && t < x.modeUntil).map(x => x.stageSlot));
   let slot = [0, 1].find(i => !used.has(i)); if (slot === undefined) slot = Math.random() < 0.5 ? 0 : 1;
@@ -839,6 +843,17 @@ function toVip(d, t) {
   startTravel(d, t); d.mode = 'vip'; d.vipSeat = seat; d.modeStart = t; d.modeUntil = t + 38; d.bottleUntil = t + 11;
   fx.sparkleAt(() => d.bottleUntil > now() && d._head ? [d._head.x, d._head.y + 0.4, d._head.z] : null, 7);
   say(`Mời ${nm(d.name)} vào bàn VIP!`, 'vip', 4, true);
+  // màn LCD chiếu cận cảnh bàn VIP (đồ trên bàn nhỏ, toàn cảnh khó thấy)
+  const [sx, sz, sry] = SALONS[seat >> 1];
+  d.vipTable = new THREE.Vector3(sx + Math.sin(sry) * 0.56, 0.5, sz + Math.cos(sry) * 0.56);
+  if (S.ledShow !== false && (!lcd || lcd.giftAllowed())) {
+    const lab = '🛋️ Bàn VIP · trái cây · sâm panh';
+    if (ledShow && ledShow.d === d) { ledShow.vip = true; ledShow.label = lab; ledShow.snapped = false; ledShow.until = Math.max(ledShow.until, t + 14); }
+    else {
+      const i = ledQueue.findIndex(x => x.d === d); if (i >= 0) ledQueue.splice(i, 1);   // gộp với khung “quà lớn” đang chờ của chính người này
+      ledQueue.unshift({ d, gift: { name: '' }, count: 1, value: 0, label: lab, vip: true });
+    }
+  }
 }
 // bao cả sàn: sâm panh cho cả sàn — khói, pháo sáng, pháo giấy, bong bóng, ai cũng nhảy lên
 function partyAll(d, t) {
@@ -965,6 +980,9 @@ function poseRig(d, p, base, t, grounded) {
   rig.elL.rotation.set(-0.35 * Math.min(1, Math.abs(p.lf)) - 0.1, 0, p.lf);
   rig.shR.rotation.set(-0.18 * Math.abs(Math.sin(p.ru)), 0, p.ru);
   rig.elR.rotation.set(-0.35 * Math.min(1, Math.abs(p.rf)) - 0.1, 0, p.rf);
+  // đưa tay ra trước (MC cầm micro): rsx = vai gập trước/sau, rex = khuỷu gập trước
+  if (p.rsx !== undefined) rig.shR.rotation.x = p.rsx;
+  if (p.rex !== undefined) rig.elR.rotation.x = p.rex;
   if (p.walk >= 0) {
     const ph = p.walk * TAU, sw = Math.sin(ph);
     rig.hipL.rotation.set(0.5 * sw, 0, -0.03); rig.knL.rotation.set(Math.max(0, -Math.sin(ph - 0.6)) * 0.9 + 0.05, 0, 0);
@@ -1508,14 +1526,6 @@ function frame() {
     const airborne = d.mode === 'rocket' || d.mode === 'cloud' || d.dropH > 0;
     const b = base.clone(); if (d.dropH > 0) b.y += d.dropH;
     poseRig(d, pose, b, t, !airborne || d.mode === 'cloud');
-    if (d === mc) {
-      // micro nằm giữa bàn tay và miệng (tay chỉ co được trong mặt phẳng ngang người)
-      rig.haR.getWorldPosition(_v2); rig.head.getWorldPosition(_v1);
-      const sc = d.body.h * d.sc;
-      _v1.x += Math.sin(MC_YAW) * 0.24 * sc; _v1.z += Math.cos(MC_YAW) * 0.24 * sc; _v1.y -= 0.09 * sc;   // trước miệng (rig to hơn người thật một chút)
-      mic.position.copy(_v2).lerp(_v1, 0.85);
-      mic.lookAt(_v1.x, _v1.y + 0.1, _v1.z); mic.rotateX(Math.PI / 2); mic.scale.setScalar(1.5 * sc);
-    }
     if (d.mode === 'rocket' || (d.dropH > 0)) { rig.root.position.y = b.y; rig.root.updateMatrixWorld(true); d._head.set(0, HEAD_Y + HEAD_R + 0.06, 0).applyMatrix4(rig.head.matrixWorld); }
     const alpha = d.leaving ? clamp(1 - (t - d.leaving) / 1.2, 0.001, 1) : 1;
     const real = avatarTemplates.length > 0 && S.charStyle !== 'toon' && S.quality !== 'low';
@@ -1525,6 +1535,20 @@ function frame() {
       _hp.set(0, HEAD_Y, 0).applyMatrix4(rig.head.matrixWorld);
       _ht.set(0, HEAD_Y + 0.3, 0).applyMatrix4(rig.head.matrixWorld);
       driveAvatar(d.av, rig, { yaw: rig.root.rotation.y, scale: d.body.h * d.sc, hipH0: 0.88, flat: !pose.rot && !pose.sit, alpha, floorY: b.y, headPt: _hp, headTop: _ht, beat: 1 - bi.p, sing: d === mc ? (t < mcTalkUntil ? Math.abs(Math.sin(t * 13)) * 0.6 : 0) : (d.zi % 3 === 0) ? Math.max(0, Math.sin(t * 9 + d.zi)) * 0.35 : 0 });
+    }
+    if (d === mc) {
+      // micro nằm trong bàn tay phải của MÔ HÌNH (khung xương điều khiển dài tay hơn người thật)
+      const sc = d.body.h * d.sc, B = d.av && d.av.bones;
+      // tay “phải” của khung điều khiển lái xương LeftHand của mô hình (mô hình quay mặt ra khán giả nên trái/phải đảo)
+      if (B && B.LeftHand && B.LeftForeArm) { B.LeftHand.updateWorldMatrix(true, false); B.LeftHand.getWorldPosition(_v2); B.LeftForeArm.getWorldPosition(_v1); }
+      else { rig.elR.getWorldPosition(_v1); rig.haR.getWorldPosition(_v2); }
+      // đầu micro chĩa vào miệng: miệng = xương đầu, lùi xuống và ra trước một chút
+      if (B && B.Head) { B.Head.getWorldPosition(_v1); } else rig.head.getWorldPosition(_v1);
+      _v1.x += Math.sin(MC_YAW) * 0.1 * sc; _v1.z += Math.cos(MC_YAW) * 0.1 * sc; _v1.y += 0.02 * sc;
+      mic.position.copy(_v2).lerp(_v1, 0.35);
+      _v1.sub(_v2).normalize();
+      mic.quaternion.setFromUnitVectors(_micUp, _v1);
+      mic.scale.setScalar(1.25 * sc);
     }
     writeInstances(d, t, alpha);
     writeTeamRing(d);
@@ -2070,5 +2094,5 @@ window.addEventListener('pointerdown', unlock);
 window.addEventListener('keydown', unlock);
 setInterval(checkAudio, 1500);
 Music.resume();
-window._dbg = { setChar: (d, id) => assignChar(d, ROSTER.find(c => c.id === id)), setOutfitT: (d, o) => { if (d.av) { setCostume(d.av, null); window._applyOutfit(d.av, o); window._restyle(d.av); } }, get flashInfo() { return [...dancers.values()].slice(0, 8).map(d => [d.mode, d.x.toFixed(2), d.z.toFixed(2), d.tx.toFixed(2), d.tz.toFixed(2)].join(' ')); }, ledCam, ledRT, renderer, get ledShow() { return ledShow; }, get ledQueue() { return ledQueue; }, get lcd() { return lcd; }, get resident() { return resident; }, get mc() { return mc; }, mic, mcArm(ru, rf) { MC_RU = ru; MC_RF = rf; }, dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
+window._dbg = { setChar: (d, id) => assignChar(d, ROSTER.find(c => c.id === id)), setOutfitT: (d, o) => { if (d.av) { setCostume(d.av, null); window._applyOutfit(d.av, o); window._restyle(d.av); } }, get flashInfo() { return [...dancers.values()].slice(0, 8).map(d => [d.mode, d.x.toFixed(2), d.z.toFixed(2), d.tx.toFixed(2), d.tz.toFixed(2)].join(' ')); }, ledCam, ledRT, renderer, get ledShow() { return ledShow; }, get ledQueue() { return ledQueue; }, get lcd() { return lcd; }, get resident() { return resident; }, get mc() { return mc; }, mic, mcArm(ru, rf, sx, ex) { MC_RU = ru; MC_RF = rf; MC_RSX = sx; MC_REX = ex; }, dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
 requestAnimationFrame(frame);

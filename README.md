@@ -20,6 +20,12 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## MC cầm micro thật, cận cảnh bàn VIP trên màn LCD (bản 1.9.5)
+
+- **MC cầm micro đúng tay:** khung xương có thêm khớp đưa tay ra trước, nên MC đưa tay phải lên trước mặt và cầm micro sát miệng. Micro nằm trong bàn tay của mô hình, đầu micro chĩa vào miệng.
+- **Cận cảnh bàn VIP:** khi có khách vào bàn VIP, màn LCD tự chiếu cận cảnh bàn (dĩa trái cây, sâm panh, mực khô, thuốc 555, gạt tàn) cùng khách đang ngồi, nhìn từ trên xuống.
+  - Nếu người đó vừa tặng quà lớn và màn đang chiếu họ, khung hình đổi luôn sang bàn VIP, không chiếu hai lần.
+
 ## Bàn VIP đầy đủ, MC cầm micro, đi bộ lên/xuống (bản 1.9.4)
 
 - **Bàn VIP:** bàn chữ nhật mặt đá viền vàng trước sofa, bày:
