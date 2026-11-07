@@ -20,6 +20,15 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## Sự kiện trên màn LCD + tên trên đầu DJ (bản 1.9.1)
+
+- **Sự kiện LIVE hiện trên màn LCD**, ở mọi chế độ chiếu (sóng nhạc, YouTube, video, ảnh) và cả trong clip:
+  - Thẻ có ảnh đại diện ở nửa trên màn: quà tặng (tên quà và hiệu ứng), follow, chia sẻ, lên cấp, quay lại, mở khoá hoá trang, đèn chiếu gọi tên.
+  - Băng rôn phủ cả màn cho sự kiện lớn: sàn cháy, đấu đội bắt đầu/kết thúc, thách đấu solo, thắng solo, flash mob, hoàn thành mục tiêu phòng.
+  - Sự kiện dồn nhiều thì hiện nhanh hơn và bỏ bớt cái cũ; sự kiện lớn luôn được ưu tiên.
+  - Bật/tắt trong Cài đặt (trang chính) hoặc Tuỳ chọn (bảng điều khiển màn hình). Mặc định người vào xem không lên màn (bật được).
+- **Tên “🎧 DJ Tiến Khoa” trên đầu nhân vật DJ**: bảng tên neon đổi màu, nhún theo nhịp. Đổi tên ở ô “Tên DJ” trong Cài đặt; có thể tắt bảng tên.
+
 ## Lời nhắn lên màn hình, đèn theo nhạc, khói & pháo sáng (bản 1.9)
 
 - **Lời nhắn theo quà:** người xem bình luận `mh: lời nhắn` (hoặc `màn hình: …`, `chữ: …`) rồi tặng quà có tổng từ **30💎** (đổi được).

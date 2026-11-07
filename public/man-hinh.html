@@ -147,6 +147,8 @@
       <div class="field"><span>Độ sáng màn</span><input type="range" id="bright" min="40" max="160"></div>
       <label class="field"><span>Giảm nhạc game khi video đang phát tiếng</span><input type="checkbox" id="duck"></label>
       <label class="field"><span>Hiện biển “VŨ TRƯỜNG NEON” đè lên video</span><input type="checkbox" id="showSign"></label>
+      <label class="field"><span>Sự kiện LIVE (quà, follow, chia sẻ, sàn cháy, đấu đội…) hiện trên màn</span><input type="checkbox" id="lcdEvents"></label>
+      <label class="field"><span>Cả người vào xem cũng hiện trên màn</span><input type="checkbox" id="lcdJoin"></label>
       <label class="field"><span>Người tặng quà lớn được chiếu lên màn</span><input type="checkbox" id="giftOverlay"></label>
       <label class="field"><span>Tạm dừng video trong lúc chiếu người tặng quà</span><input type="checkbox" id="giftPause"></label>
       <div class="field"><span>Quà từ bao nhiêu 💎 thì lên màn</span><input type="number" id="ledCoins" min="1"></div>
@@ -214,12 +216,13 @@ socket.on('screen', s => { S = s; render(); });
 socket.on('screenMedia', m => { MEDIA = m || []; render(); });
 socket.on('screenStatus', st => { ST = st || {}; renderNow(); });
 socket.on('settings', s => { SET = s; $('ledCoins').value = s.ledCoins ?? 99; $('ledSeconds').value = s.ledSeconds ?? 12;
-  for (const k of ['textEnabled', 'textApprove', 'smokeEnabled', 'sparkEnabled', 'fxOnFire']) $(k).checked = s[k] !== false && !!(s[k] ?? true);
+  for (const k of ['textEnabled', 'textApprove', 'smokeEnabled', 'sparkEnabled', 'fxOnFire', 'lcdEvents']) $(k).checked = s[k] !== false && !!(s[k] ?? true);
+  $('lcdJoin').checked = !!s.lcdJoin;
   $('textApprove').checked = !!s.textApprove;
   for (const k of ['textCoins', 'textSeconds', 'fxCoins', 'smokeDensity']) if (document.activeElement !== $(k)) $(k).value = s[k] ?? '';
 });
 const saveSet = p => socket.emit('saveSettings', p);
-for (const k of ['textEnabled', 'textApprove', 'smokeEnabled', 'sparkEnabled', 'fxOnFire']) $(k).onchange = () => saveSet({ [k]: $(k).checked });
+for (const k of ['textEnabled', 'textApprove', 'smokeEnabled', 'sparkEnabled', 'fxOnFire', 'lcdEvents', 'lcdJoin']) $(k).onchange = () => saveSet({ [k]: $(k).checked });
 for (const k of ['textCoins', 'textSeconds', 'fxCoins', 'smokeDensity']) $(k).onchange = () => saveSet({ [k]: Math.max(0, +$(k).value || 0) });
 const fmtT = ts => new Date(ts).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 const textRow = (it, btns) => `<tr><td class="muted">${fmtT(it.at)}</td><td><b>${esc(it.user.name)}</b>${it.value ? ' · ' + it.value + '💎' : ''}${it.flagged ? ' <span class="warn">đã che từ tục</span>' : ''}</td><td class="t">${esc(it.text)}</td>${btns}</tr>`;

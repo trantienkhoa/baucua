@@ -635,7 +635,11 @@ function tierOf(c) {
   return null;
 }
 function onFloorCount() { let n = 0; for (const d of dancers.values()) if (!d.leaving) n++; return n; }
-function pushTicker(text, color) { ticker.push({ text, color }); if (ticker.length > 30) ticker.splice(0, ticker.length - 30); }
+function pushTicker(text, color, meta = {}) {
+  ticker.push({ text, color }); if (ticker.length > 30) ticker.splice(0, ticker.length - 30);
+  // sự kiện cũng hiện trên màn LCD (meta.lcd === false: chỉ chạy chữ phía trên)
+  if (lcd && meta.lcd !== false) lcd.event({ text, color, user: meta.user ? { name: meta.user.name, avatar: meta.user.avatar } : null, big: !!meta.big });
+}
 
 // ---------- nhập vai nhân vật trong danh sách ----------
 function pickChar(female) {
@@ -678,7 +682,7 @@ function ensureDancer(user, silent) {
   d.lv = user.lv || 1;
   assignChar(d, pickChar());
   dancers.set(user.id, d);
-  if (!silent && S.showJoinTicker) pushTicker(d.char ? `${d.name} lên sàn vai ${d.char.name} · ${d.char.style} 🕺` : `${d.name} lên sàn 🕺`, '#7cf7ff');
+  if (!silent && S.showJoinTicker) pushTicker(d.char ? `${d.name} lên sàn vai ${d.char.name} · ${d.char.style} 🕺` : `${d.name} lên sàn 🕺`, '#7cf7ff', { lcd: false });
   return d;
 }
 
@@ -695,7 +699,7 @@ function handleCommand(d, text) {
   if (num) { const n = +num[1]; if (n >= 1 && n <= DANCES.length) { d.dance = n - 1; sparkle(d, 6); } return; }
   if (/\bdi vong\b|\bdi dao\b/.test(t)) { d.mode = 'circle'; d.modeStart = now(); d.modeUntil = now() + 10; d.circleA = Math.random() * TAU; return; }
   if (/\bghep doi\b/.test(t)) { makePair(d); return; }
-  if (/\bdoi vai\b/.test(t) || (d.char && /\bdoi do\b|\bthay do\b/.test(t))) { const ch = pickChar(d.body.female); if (ch) { assignChar(d, ch); sparkle(d, 20); pushTicker(`🎭 ${d.name} đổi vai ${ch.name}`, '#7cf7ff'); return; } }
+  if (/\bdoi vai\b/.test(t) || (d.char && /\bdoi do\b|\bthay do\b/.test(t))) { const ch = pickChar(d.body.female); if (ch) { assignChar(d, ch); sparkle(d, 20); pushTicker(`🎭 ${d.name} đổi vai ${ch.name}`, '#7cf7ff', { lcd: false }); return; } }
   if (/\bdoi do\b|\bthay do\b/.test(t)) { d.look = randomLook(d.body.female, d.look); wear(d, Math.random() < 0.5 ? null : randomAllowedCostume(d)); sparkle(d, 14); return; }
   if (/\bhoa trang\b|\bbien hinh\b/.test(t)) { wear(d, randomAllowedCostume(d)); sparkle(d, 20); return; }
   if (/\bbo hoa trang\b|\bdo thuong\b/.test(t)) { wear(d, null); return; }
@@ -741,7 +745,7 @@ function handleGift(ev) {
   const dur = clamp(Number(S.zoomMin) + (Number(S.zoomMax) - Number(S.zoomMin)) * Math.min(1, Math.log10(v) / 3), 1, 30);
   zoomQueue.push({ d, id, label: m.label, icon: m.icon, gift: ev.gift, count: ev.count, dur });
   if (zoomQueue.length > 60) zoomQueue.splice(0, zoomQueue.length - 60);
-  pushTicker(`${d.name} tặng ${ev.count > 1 ? ev.count + '× ' : ''}${ev.gift.name} → ${m.label}`, '#ffd84d');
+  pushTicker(`🎁 ${d.name} tặng ${ev.count > 1 ? ev.count + '× ' : ''}${ev.gift.name} → ${m.icon} ${m.label}`, '#ffd84d', { user: d });
   heat += v;
   if (v >= (Number(S.fxCoins) || 99)) { fx.smokeBurst(Math.min(1.5, 0.6 + v / 1000)); fx.sparkle(Math.min(8, 3 + v / 200)); }
   if (S.ledShow !== false && v >= (Number(S.ledCoins) || 99) && (!lcd || lcd.giftAllowed())) {
@@ -1189,6 +1193,26 @@ function avatarCircle(u, x, y, r) {
   else { ctx.fillStyle = '#5b3bb0'; ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.fillStyle = '#fff'; ctx.font = `800 ${Math.round(r)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(((u.name || '?').trim()[0] || '?').toUpperCase(), x, y + 1); }
   ctx.restore();
 }
+// bảng tên DJ: chữ neon phát sáng trên đầu, nhún theo nhịp
+function drawDJTag(d, t) {
+  const sp = d._sp; if (!sp || sp.behind) return;
+  const name = S.djName || 'DJ Tiến Khoa';
+  const sc = clamp(sp.s * 1.25, 1.05, 2.4), k = stageMood.kick || 0;
+  const x = sp.hx, y = sp.hy - 30 * sc - 6 * k * sc;
+  ctx.save();
+  ctx.font = `900 ${Math.round(26 * sc)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const label = '🎧 ' + name;
+  const w = ctx.measureText(label).width + 34 * sc, h = 44 * sc;
+  const hue = (t * 50) % 360;
+  const g = ctx.createLinearGradient(x - w / 2, 0, x + w / 2, 0);
+  g.addColorStop(0, `hsl(${hue},100%,60%)`); g.addColorStop(0.5, `hsl(${(hue + 120) % 360},100%,60%)`); g.addColorStop(1, `hsl(${(hue + 240) % 360},100%,60%)`);
+  ctx.shadowColor = `hsl(${hue},100%,60%)`; ctx.shadowBlur = (14 + 16 * k) * sc;
+  ctx.fillStyle = 'rgba(14,4,34,0.9)'; roundRect(x - w / 2, y - h / 2, w, h, h / 2); ctx.fill();
+  ctx.lineWidth = 3 * sc; ctx.strokeStyle = g; roundRect(x - w / 2, y - h / 2, w, h, h / 2); ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fff3c4'; ctx.fillText(label, x, y + 1 * sc);
+  ctx.restore();
+}
 function drawTag(d, t) {
   const sp = d._sp; if (!sp || sp.behind) return;
   const fade = d.leaving ? clamp(1 - (t - d.leaving) / 1.2, 0, 1) : 1;
@@ -1455,6 +1479,7 @@ function frame() {
   // nhãn: xa trước, gần sau
   const tags = visible.filter(d => d !== resident && d._sp).sort((a, b) => a._sp.y - b._sp.y);
   for (const d of tags) drawTag(d, t);
+  if (dj === resident && resident._sp && S.djTag !== false) drawDJTag(resident, t);
   drawParticles();
   if (flash > 0) { ctx.fillStyle = `rgba(255,255,255,${flash * 0.35})`; ctx.fillRect(0, 0, W, H); }
   if (bi.fire) { ctx.fillStyle = `rgba(255,60,180,${0.06 * (1 - bi.p)})`; ctx.fillRect(0, 0, W, H); }
@@ -1487,7 +1512,7 @@ const canWear = (d, id) => !id || (d.lv || 1) >= costumeLevel(id);
 function wear(d, id) {
   if (id && !canWear(d, id)) {
     const c = COSTUMES.find(x => x.id === id);
-    pushTicker(`🔒 ${d.name}: cần Lv${costumeLevel(id)} để hoá trang ${c ? c.name : id} (đang Lv${d.lv || 1})`, '#ffb3c7');
+    pushTicker(`🔒 ${d.name}: cần Lv${costumeLevel(id)} để hoá trang ${c ? c.name : id} (đang Lv${d.lv || 1})`, '#ffb3c7', { lcd: false });
     return false;
   }
   d.avCostume = id;
@@ -1503,7 +1528,7 @@ function startBattle() {
   if (battle.on) return;
   Object.assign(battle, { on: true, start: now(), until: now() + (Number(S.battleSeconds) || 180), score: { r: 0, b: 0 }, result: null });
   for (const d of dancers.values()) d.team = null;
-  pushTicker('⚔️ ĐẤU ĐỘI BẮT ĐẦU! Gõ 1 vào đội ĐỎ · gõ 2 vào đội XANH', '#ffd84d');
+  pushTicker('⚔️ ĐẤU ĐỘI BẮT ĐẦU! Gõ 1 vào đội ĐỎ · gõ 2 vào đội XANH', '#ffd84d', { big: true });
   say('Đấu đội bắt đầu! Gõ một để vào đội Đỏ, gõ hai để vào đội Xanh!', null, 0, true);
   flash = 0.4;
 }
@@ -1531,7 +1556,7 @@ function endBattle(stop) {
   }
   const name = win === 'r' ? 'Đội Đỏ' : win === 'b' ? 'Đội Xanh' : '';
   if (win) { for (let i = 0; i < 8; i++) setTimeout(launchRocket, i * 250); confetti(220); flash = 0.4; }
-  pushTicker(win ? `🏆 ${name.toUpperCase()} CHIẾN THẮNG! (${r} – ${b})` : `🤝 HAI ĐỘI HOÀ ${r} – ${b}`, '#ffd84d');
+  pushTicker(win ? `🏆 ${name.toUpperCase()} CHIẾN THẮNG! (${r} – ${b})` : `🤝 HAI ĐỘI HOÀ ${r} – ${b}`, '#ffd84d', { big: true });
   say(win ? `${name} chiến thắng! Đội thua nhảy điệu con gà nhé!` : 'Hai đội hoà nhau!', null, 0, true);
   startClip('doi-dau', 12);
   setTimeout(() => { if (!battle.on) for (const d of dancers.values()) d.team = null; }, 15500);
@@ -1550,7 +1575,7 @@ function writeTeamRing(d) {
 const solo = { on: false, a: null, b: null, votes: { 1: 0, 2: 0 }, voters: new Set(), until: 0, start: 0, result: null, resultUntil: 0 };
 const soloQueue = [];
 function requestSolo(a) {
-  if (solo.on || inResult(solo)) { if (!soloQueue.includes(a) && soloQueue.length < 5) soloQueue.push(a); pushTicker(`⚔️ ${a.name} đang chờ lượt thách đấu`, '#ff7ad9'); return; }
+  if (solo.on || inResult(solo)) { if (!soloQueue.includes(a) && soloQueue.length < 5) soloQueue.push(a); pushTicker(`⚔️ ${a.name} đang chờ lượt thách đấu`, '#ff7ad9', { lcd: false }); return; }
   startSolo(a);
 }
 function startSolo(a) {
@@ -1564,7 +1589,7 @@ function startSolo(a) {
   Object.assign(solo, { on: true, a, b, votes: { 1: 0, 2: 0 }, voters: new Set(), start: now(), until: now() + secs, result: null });
   for (const [d, side] of [[a, -1], [b, 1]]) { d.mode = 'solo'; d.soloSide = side; d.modeStart = now(); d.modeUntil = solo.until + 6; d.pairWith = null; d.dropH = 4; d.vy = 0; }
   a.dance = 5; b.dance = 4;
-  pushTicker(`⚔️ ${a.name} THÁCH ĐẤU ${b.name}! Gõ 1 hoặc 2 để bình chọn`, '#ff7ad9');
+  pushTicker(`⚔️ ${a.name} THÁCH ĐẤU ${b.name}! Gõ 1 hoặc 2 để bình chọn`, '#ff7ad9', { big: true });
   say(`${nm(a.name)} thách đấu ${nm(b.name)}! Gõ một hoặc hai để bình chọn!`, null, 0, true);
   startClip('solo', secs + 6);
 }
@@ -1580,7 +1605,7 @@ function endSolo() {
   win.crownUntil = T + 40; win.forceDance = 4; win.forceUntil = T + 6; win.jumpStart = T;
   lose.forceDance = 10; lose.forceUntil = T + 6;
   confetti(140); for (let i = 0; i < 4; i++) setTimeout(launchRocket, i * 250);
-  pushTicker(`🏆 ${win.name} THẮNG SOLO! (${v1} – ${v2})`, '#ffd84d');
+  pushTicker(`🏆 ${win.name} THẮNG SOLO! (${v1} – ${v2})`, '#ffd84d', { big: true });
   say(`${nm(win.name)} thắng solo!`, null, 0, true);
   if (S.ledShow !== false && (!lcd || lcd.giftAllowed())) ledQueue.unshift({ d: win, gift: { name: '' }, count: 1, value: 0, label: `🏆 Thắng solo ${Math.max(v1, v2)} – ${Math.min(v1, v2)} phiếu` });
 }
@@ -1592,7 +1617,7 @@ function fireUp(t, secs) {
   fireUntil = t + secs; fireStart = t; heat = 0;
   confetti(120 + fireLevel * 30); flash = 0.3;
   if (S.fxOnFire !== false) { fx.smokeBurst(0.8 + fireLevel * 0.15); fx.sparkle(4 + fireLevel); }
-  pushTicker(`🔥 SÀN CHÁY CẤP ${fireLevel}! 🔥`, '#ff7a3d');
+  pushTicker(`🔥 SÀN CHÁY CẤP ${fireLevel}! 🔥`, '#ff7a3d', { big: true });
   say(fireLevel === 1 ? 'Sàn cháy rồi!' : `Sàn cháy cấp ${fireLevel}!`, 'fire', 3, true);
   if (fireLevel >= 2) startClip('san-chay', 12);
 }
@@ -1608,7 +1633,7 @@ function runSpotlight() {
   const d = pick(cands);
   spot.d = d; spot.until = now() + 10;
   d.mode = 'spot'; d.modeStart = now(); d.modeUntil = now() + 10; d.tx = 0; d.tz = 0.78; d.dance = pick([4, 5, 13, 1]);
-  pushTicker(`🔦 Đèn chiếu gọi tên ${d.name}!`, '#fff3a0');
+  pushTicker(`🔦 Đèn chiếu gọi tên ${d.name}!`, '#fff3a0', { user: d });
   say(`Đèn chiếu gọi tên ${nm(d.name)}!`, 'spot', 5);
   if (!zoom && !zoomQueue.length) zoomQueue.push({ d, id: 'camera', label: 'Đèn chiếu', icon: '🔦', dur: 5 });
 }
@@ -1626,7 +1651,7 @@ function startFlashmob() {
     d.mode = 'flash'; d.modeStart = T; d.modeUntil = T + secs; d.forceDance = dn; d.forceUntil = T + secs; d.pairWith = null;
   });
   flashmob.until = T + secs;
-  pushTicker('🕺 FLASH MOB! Cả sàn cùng nhảy! 🕺', '#7cf7ff');
+  pushTicker('🕺 FLASH MOB! Cả sàn cùng nhảy! 🕺', '#7cf7ff', { big: true });
   say('Flash mob! Cả sàn cùng nhảy nào!', null, 0, true);
   flash = 0.4; startClip('flash-mob', 14);
 }
@@ -1658,7 +1683,7 @@ function checkGoal() {
   for (let i = 0; i < 10; i++) setTimeout(launchRocket, i * 200);
   confetti(250); flash = 0.6;
   const tn = THEME_NAMES[g.theme] || g.theme;
-  pushTicker(`🎯 MỤC TIÊU HOÀN THÀNH! Mở khoá sân khấu ${tn.toUpperCase()}!`, '#c8ff3d');
+  pushTicker(`🎯 MỤC TIÊU HOÀN THÀNH! Mở khoá sân khấu ${tn.toUpperCase()}!`, '#c8ff3d', { big: true });
   say(`Cả phòng đã mở khoá sân khấu ${tn}!`, null, 0, true);
   themeBanner = { name: tn, until: now() + 4 };
   startClip('mo-khoa', 12);
@@ -1854,15 +1879,15 @@ function featureEvent(ev) {
     case 'follow': if (S.ttsFollow !== false) say(`Cảm ơn ${nm(ev.user.name)} đã theo dõi kênh!`, 'follow', 3); break;
     case 'share': say(`Cảm ơn ${nm(ev.user.name)} đã chia sẻ!`, 'share', 6); break;
     case 'welcomeback':
-      pushTicker(`🎉 ${ev.user.name} quay lại lần thứ ${ev.sessions} · Lv${ev.user.lv}`, '#c8ff3d');
+      pushTicker(`🎉 ${ev.user.name} quay lại lần thứ ${ev.sessions} · Lv${ev.user.lv}`, '#c8ff3d', { user: ev.user });
       say(`Chào mừng ${nm(ev.user.name)} quay lại lần thứ ${ev.sessions}!`, 'wb', 6);
       break;
     case 'levelup': {
       const d = dancers.get(ev.user.id); if (d) { d.lv = ev.lv; sparkle(d, 24); }
-      pushTicker(`⬆️ ${ev.user.name} lên Lv${ev.lv}!`, '#ffd84d');
+      pushTicker(`⬆️ ${ev.user.name} lên Lv${ev.lv}!`, '#ffd84d', { user: ev.user });
       if (ev.lv % 5 === 0 || ev.lv <= 3) say(`Chúc mừng ${nm(ev.user.name)} lên cấp ${ev.lv}!`, 'lv', 4);
       const un = Object.entries(S.costumeLevels || {}).filter(([, l]) => Number(l) === ev.lv).map(([id]) => (COSTUMES.find(c => c.id === id) || {}).name).filter(Boolean);
-      if (un.length) pushTicker(`🔓 ${ev.user.name} mở khoá hoá trang: ${un.join(', ')}`, '#c8ff3d');
+      if (un.length) pushTicker(`🔓 ${ev.user.name} mở khoá hoá trang: ${un.join(', ')}`, '#c8ff3d', { user: ev.user });
       break;
     }
   }
@@ -1888,12 +1913,12 @@ socket.on('primary', v => { isPrimary = !!v; });
 lcd = createLCD({ scene, camera, led, glCanvas, socket, Music, isPrimary: () => isPrimary, settings: () => S });
 socket.on('screenText', it => {
   if (!it || !it.text) return;
-  pushTicker(`💌 ${it.user.name}: ${it.text}`, '#ff9de2');
+  pushTicker(`💌 ${it.user.name}: ${it.text}`, '#ff9de2', { lcd: false });
   if (!it.host) say(`Cảm ơn ${nm(it.user.name)}! Lời nhắn của bạn đã lên màn hình lớn.`, 'text', 4, true);
   if (!it.host) fx.sparkle(3, 'center');
 });
 // nhắc người xem cách gửi lời nhắn lên màn hình
-setInterval(() => { if (S.textEnabled !== false && onFloorCount() > 0) pushTicker(`💌 Bình luận “mh: lời nhắn” + tặng quà từ ${S.textCoins || 30}💎 → chữ của bạn lên màn hình lớn!`, '#7cf7ff'); }, 120000);
+setInterval(() => { if (S.textEnabled !== false && onFloorCount() > 0) pushTicker(`💌 Bình luận “mh: lời nhắn” + tặng quà từ ${S.textCoins || 30}💎 → chữ của bạn lên màn hình lớn!`, '#7cf7ff', { lcd: false }); }, 120000);
 socket.on('goalState', gs => { if (!gs || goals.loaded) return; goals.loaded = true; goals.likes = gs.likes || 0; goals.coins = gs.coins || 0; goals.idx = gs.idx || 0; if (gs.theme) themes.apply(gs.theme); });
 socket.on('settings', s => {
   const oldQ = S.quality;
@@ -1913,9 +1938,9 @@ socket.on('ev', ev => {
       case 'chat': { const d = ensureDancer(ev.user); if (!d) return; if (ev.text) { d.comment = ev.text; d.commentUntil = now() + 4; handleCommand(d, ev.text); } break; }
       case 'like': { heat += ev.count; const d = dancers.get(ev.user.id); if (d) { d.lastActive = now(); if (d._sp && Math.random() < 0.3) hearts(d._sp.hx, d._sp.hy - 40, 1); } break; }
       case 'gift': handleGift(ev); break;
-      case 'member': if (S.showJoinTicker) pushTicker(`👋 ${ev.user.name} vào xem`, '#ffffff'); break;
-      case 'follow': pushTicker(`💖 ${ev.user.name} đã follow`, '#ff7ad9'); heat += 20; break;
-      case 'share': pushTicker(`📣 ${ev.user.name} đã chia sẻ`, '#a3e635'); heat += 20; break;
+      case 'member': if (S.showJoinTicker) pushTicker(`👋 ${ev.user.name} vào xem`, '#ffffff', { lcd: S.lcdJoin === true, user: ev.user }); break;
+      case 'follow': pushTicker(`💖 ${ev.user.name} đã follow`, '#ff7ad9', { user: ev.user }); heat += 20; break;
+      case 'share': pushTicker(`📣 ${ev.user.name} đã chia sẻ`, '#a3e635', { user: ev.user }); heat += 20; break;
       case 'viewers': viewers = ev.count; break;
     }
     featureEvent(ev);

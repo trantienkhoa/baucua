@@ -247,7 +247,7 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
     let tt = '▶ ' + (curTitle || 'YouTube'); while (cx.measureText(tt).width > bw * 0.9 && tt.length > 4) tt = tt.slice(0, -2) + '…';
     cx.fillText(tt, x0 + bw * 0.04, y1 - fs * 1.6);
     try { const d = player.getDuration(), t = player.getCurrentTime(); if (d > 0) { cx.fillStyle = 'rgba(255,255,255,0.3)'; cx.fillRect(x0 + bw * 0.04, y1 - fs * 0.6, bw * 0.92, fs * 0.18); cx.fillStyle = '#ff2d55'; cx.fillRect(x0 + bw * 0.04, y1 - fs * 0.6, bw * 0.92 * Math.min(1, t / d), fs * 0.18); } } catch (e) {}
-    if (tCur) cx.drawImage(tCan, x0, y0, bw, bh);   // lời nhắn cũng vào clip
+    if (tCur || evCur) cx.drawImage(tCan, x0, y0, bw, bh);   // lời nhắn, sự kiện cũng vào clip
     cx.restore();
   }
 
@@ -297,11 +297,10 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
     vis0 += (u0 - vis0) * 0.25; vis1 += (u1 - vis1) * 0.25;
   }
   function drawText(t) {
-    visibleRange();
     const X0 = vis0 * TW, X1 = vis1 * TW, VW = X1 - X0, CX = (X0 + X1) / 2;
     const it = tCur.item, age = t - tCur.start, left = tCur.until - t;
     const a = Math.min(1, age / 0.35, Math.max(0, left) / 0.5);
-    const g = tg; g.clearRect(0, 0, TW, TH); g.globalAlpha = a;
+    const g = tg; g.globalAlpha = a;
     g.fillStyle = 'rgba(6,0,18,0.78)'; g.fillRect(0, 0, TW, TH);
     const hue = (t * 60) % 360;
     const bg = g.createLinearGradient(0, 0, TW, 0);
@@ -340,8 +339,79 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
     const st = settings();
     g.font = `600 22px ${FONT}`; g.fillStyle = 'rgba(255,255,255,0.6)'; g.textAlign = 'center';
     let hint = `Bình luận “mh: lời nhắn” + tặng quà từ ${st.textCoins || 30}💎 để lên màn hình`; while (g.measureText(hint).width > VW - 30 && hint.length > 10) hint = hint.slice(0, -2);
-    g.fillText(hint, CX, TH - 34);
+    if (!evCur) g.fillText(hint, CX, TH - 34);
     g.globalAlpha = 1;
+  }
+
+  // ---------- sự kiện LIVE trên màn: thẻ nhỏ ở chân màn, sự kiện lớn phủ cả màn ----------
+  const evQ = []; let evCur = null;
+  const stripEmoji = s => s.replace(/^[\p{Extended_Pictographic}\uFE0F\u200D\s]+/u, '');
+  const ease = x => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
+  function drawEvent(t) {
+    const X0 = vis0 * TW, X1 = vis1 * TW, VW = X1 - X0, CX = (X0 + X1) / 2;
+    const e = evCur, age = t - e.start, left = e.until - t, g = tg;
+    const big = e.big && !tCur && !giftHoldNow;
+    if (big) {
+      const a = Math.min(1, age / 0.25, left / 0.4);
+      g.globalAlpha = a;
+      g.fillStyle = 'rgba(4,0,14,0.72)'; g.fillRect(0, 0, TW, TH);
+      g.globalAlpha = a * ((Math.floor(t * 6) % 2) ? 1 : 0.45);
+      g.lineWidth = 14; g.strokeStyle = e.color; g.strokeRect(X0 + 12, 14, VW - 24, TH - 28); g.globalAlpha = a;
+      let size = 120, lines;
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      for (; size >= 40; size -= 4) { g.font = `900 ${size}px ${FONT}`; lines = wrap(e.text, VW - 80); if (lines.length <= 3 && lines.length * size * 1.1 <= TH - 80) break; }
+      lines = lines.slice(0, 3);
+      const pop = 1 + 0.25 * (1 - ease(age / 0.35)) + 0.03 * (Music && Music.kick || 0);
+      const lh = size * 1.1, y0 = TH / 2 - (lines.length - 1) * lh / 2;
+      g.save(); g.translate(CX, TH / 2); g.scale(pop, pop); g.translate(-CX, -TH / 2);
+      g.lineJoin = 'round'; g.lineWidth = Math.max(6, size * 0.09); g.strokeStyle = 'rgba(10,0,25,0.85)';
+      lines.forEach((ln, i) => g.strokeText(ln, CX, y0 + i * lh));
+      g.shadowColor = e.color; g.shadowBlur = 22; g.fillStyle = e.color;   // chữ màu sự kiện (chữ trắng bị hiệu ứng toả sáng làm chói)
+      lines.forEach((ln, i) => g.fillText(ln, CX, y0 + i * lh));
+      g.shadowBlur = 0; g.restore(); g.globalAlpha = 1;
+      return;
+    }
+    // thẻ ở chân màn
+    // nửa trên màn (biển neon tạm ẩn): nửa dưới bị DJ, bàn DJ, đám đông che
+    const h = 104, y = Math.round(TH * 0.3), slide = (1 - ease(age / 0.3)) * (h + 30), a = Math.min(1, left / 0.3);
+    g.globalAlpha = a;
+    g.save(); g.translate(0, slide);
+    g.font = `800 38px ${FONT}`;
+    const r = 36, pad = 18, hasAv = !!e.user;
+    let txt = e.text; const maxW = VW - 60 - (hasAv ? r * 2 + pad : 0) - pad * 2;
+    while (g.measureText(txt).width > maxW && txt.length > 4) txt = txt.slice(0, -2) + '…';
+    const w = Math.min(VW - 40, g.measureText(txt).width + pad * 3 + (hasAv ? r * 2 + pad : 0) + 10), x = CX - w / 2;
+    rrect(g, x, y, w, h, 24); g.fillStyle = 'rgba(12,2,32,0.9)'; g.fill();
+    g.save(); g.clip(); g.fillStyle = e.color; g.fillRect(x, y, 14, h); g.restore();
+    rrect(g, x, y, w, h, 24); g.lineWidth = 5; g.strokeStyle = e.color; g.stroke();
+    let tx = x + pad + 14;
+    if (hasAv) {
+      const ax = tx + r, ay = y + h / 2;
+      g.save(); g.beginPath(); g.arc(ax, ay, r + 3, 0, Math.PI * 2); g.fillStyle = e.color; g.fill();
+      g.beginPath(); g.arc(ax, ay, r, 0, Math.PI * 2); g.clip();
+      const im = avatarImg(e.user.avatar);
+      if (im) g.drawImage(im, ax - r, ay - r, r * 2, r * 2); else { g.fillStyle = '#5b3bb0'; g.fillRect(ax - r, ay - r, r * 2, r * 2); g.fillStyle = '#fff'; g.font = `900 34px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(((e.user.name || '?').trim()[0] || '?').toUpperCase(), ax, ay + 2); }
+      g.restore(); tx += r * 2 + pad;
+    }
+    g.font = `800 38px ${FONT}`; g.fillStyle = '#fff'; g.textAlign = 'left'; g.textBaseline = 'middle';
+    g.fillText(txt, tx, y + h / 2 + 2);
+    g.restore(); g.globalAlpha = 1;
+  }
+  // bo góc (không dùng ctx.roundRect: OBS bản cũ chưa có)
+  function rrect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+  let giftHoldNow = false;
+  function pushEvent(e) {
+    if (!e || !e.text || settings().lcdEvents === false) return;
+    const it = Object.assign({ color: '#ffd84d' }, e);
+    if (it.big) { const k = evQ.findIndex(x => !x.big); evQ.splice(k < 0 ? evQ.length : k, 0, it); }   // sự kiện lớn chen lên trước
+    else evQ.push(it);
+    while (evQ.length > 10) { const k = evQ.findIndex(x => !x.big); evQ.splice(k < 0 ? 0 : k, 1); }   // dồn quá nhiều: bỏ bớt sự kiện nhỏ cũ nhất
+  }
+  function drawOverlay(t) {
+    tg.clearRect(0, 0, TW, TH);
+    visibleRange();
+    if (tCur) drawText(t);
+    if (evCur) drawEvent(t);
     tTex.needsUpdate = true;
   }
   socket.on('screenText', it => { if (it && it.text) { textQ.push(it); if (textQ.length > 30) textQ.shift(); } });
@@ -349,8 +419,15 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
   function updateText(t, giftActive) {
     if (tCur && t > tCur.until) tCur = null;
     if (!tCur && textQ.length && !giftActive) { const dur = Math.max(4, Number(settings().textSeconds) || 10); tCur = { item: textQ.shift(), start: t, until: t + dur }; }
-    const on = !!tCur;
-    if (on && t - tDrawAt > 1 / 20) { tDrawAt = t; drawText(t); if (holeOn) { tdg.clearRect(0, 0, TW, TH); tdg.drawImage(tCan, 0, 0); } }
+    giftHoldNow = giftActive;
+    if (evCur && t > evCur.until) evCur = null;
+    if (!evCur && evQ.length) {
+      const e = evQ.shift(); const busy = evQ.length;
+      const dur = e.big && !tCur ? 4 : Math.max(1.8, 3.6 - busy * 0.35);
+      evCur = Object.assign(e, { start: t, until: t + dur });
+    }
+    const on = !!tCur || !!evCur;
+    if (on && t - tDrawAt > 1 / 20) { tDrawAt = t; drawOverlay(t); if (holeOn) { tdg.clearRect(0, 0, TW, TH); tdg.drawImage(tCan, 0, 0); } }
     tMesh.visible = on && !holeOn;
     tDom.style.display = on && holeOn ? 'block' : 'none';
   }
@@ -358,13 +435,15 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
   let lastSync = 0;
   return {
     get textActive() { return !!tCur; },
+    event: pushEvent,
+    get lastEvent() { return evCur || evQ[evQ.length - 1] || null; },
     drawBehind,
     holePass,
     get state() { return S; },
     get hole() { return holeOn; },
     /** người tặng quà lớn có được chen lên màn không */
     giftAllowed() { return S.mode === 'eq' || S.giftOverlay !== false; },
-    signVisible() { return !tCur && (S.mode === 'eq' || !!S.showSign); },
+    signVisible() { return !tCur && !evCur && (S.mode === 'eq' || !!S.showSign); },
     /** vật liệu của màn khi không chiếu người tặng quà */
     idleMaterial(eqMat) {
       if (S.mode === 'youtube') return blackMat;
