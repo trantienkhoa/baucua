@@ -108,7 +108,7 @@ const DEFAULT_SETTINGS = {
   // bình chọn nhạc
   songVote: true,
   // mục tiêu phòng → sân khấu
-  goalsEnabled: true, theme: 'club',
+  goalsEnabled: true, theme: 'auto',   // auto = tự đổi sàn theo mùa / ngày lễ
   goals: [{ kind: 'likes', n: 2000, theme: 'beach' }, { kind: 'coins', n: 500, theme: 'space' }, { kind: 'likes', n: 8000, theme: 'tet' }, { kind: 'coins', n: 2000, theme: 'halloween' }, { kind: 'likes', n: 20000, theme: 'noel' }],
   // clip
   clipsEnabled: true, clipSeconds: 15,

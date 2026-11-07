@@ -6,7 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { createThemes, THEME_NAMES } from './themes.js';
+import { createThemes, THEME_NAMES, themeForDate } from './themes.js';
 import { rosterOutfit, danceFor, tempoFor, hyperFor, shapeFor } from './roster.js';
 import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates, setCostume, randomCostumeId, COSTUMES, costumeTime, setExtra, outfitTime, setOutfitMix, templateForChar, hasCharModel } from './avatars.js';
 import { createLCD } from './lcd.js';
@@ -220,7 +220,7 @@ function updateLedShow(t, dt) {
   if (!ledShow && ledQueue.length) { ledShow = ledQueue.shift(); ledShow.start = t; ledShow.until = t + Math.max(4, Number(S.ledSeconds) || 12); ledCam.position.set(0, 3, 8); }
   led.material = ledShow ? ledLiveMat : lcd ? lcd.idleMaterial(ledIdleMat) : ledIdleMat;
   ledOver.visible = !!ledShow;
-  sign.visible = !ledShow && (!lcd || lcd.signVisible());
+  sign.visible = !ledShow && (!lcd || lcd.signVisible()) && !(themes.art && (!lcd || lcd.state.mode === 'eq'));   // tranh chủ đề đã có chữ riêng
   if (!ledShow) return;
   const d = ledShow.d;
   // máy quay riêng: chính diện, nửa người trên
@@ -1343,16 +1343,21 @@ function updateStage(t, bi) {
   if (S.quality === 'high' || Math.floor(t * 30) % 2 === 0) {
     const { g, canvas: c } = ledTex.userData;
     g.fillStyle = '#05010c'; g.fillRect(0, 0, c.width, c.height);
-    const spec = Music.spectrum(), cols = 32, cw = c.width / cols, rows = 14, rh = c.height / rows;
+    const art = themes.art;   // sàn theo mùa / lễ: chiếu tranh chủ đề, sóng nhạc thấp hơn và trong suốt
+    if (art) { const sc = Math.max(c.width / art.width, c.height / art.height), dw = art.width * sc, dh = art.height * sc; g.filter = 'brightness(0.6) saturate(1.15)'; g.drawImage(art, (c.width - dw) / 2, (c.height - dh) / 2 + Math.sin(t * 0.3) * 4, dw, dh); g.filter = 'none'; }
+    const spec = Music.spectrum(), cols = 32, cw = c.width / cols, rows = art ? 7 : 14, rh = (art ? c.height * 0.42 : c.height) / rows;
+    if (art) g.globalAlpha = 0.7;
     for (let x = 0; x < cols; x++) {
       let v = spec ? spec[2 + Math.floor(x * 1.6)] / 255 : 0;
       if (!spec || Music.mode === 'none' || Music.suspended()) v = 0.35 + 0.3 * Math.sin(t * 3 + x * 0.5) * pulse;
       const on = Math.round(v * rows);
       for (let y = 0; y < rows; y++) {
+        if (art && y >= on) continue;
         g.fillStyle = y < on ? `hsl(${(x * 8 + t * 40 + y * 6) % 360},95%,${50 + y * 2}%)` : 'rgba(80,40,140,0.18)';
         g.fillRect(x * cw + 1.5, c.height - (y + 1) * rh + 1.5, cw - 3, rh - 3);
       }
     }
+    g.globalAlpha = 1;
     ledTex.needsUpdate = true;
   }
   sign.material.color.setScalar(0.8 + 0.35 * pulse);
@@ -2284,12 +2289,17 @@ socket.on('screenText', it => {
 // nhắc người xem cách gửi lời nhắn lên màn hình
 setInterval(() => { if (S.textEnabled !== false && onFloorCount() > 0) pushTicker(`💌 Bình luận “mh: lời nhắn” + tặng quà từ ${S.textCoins || 30}💎 → chữ của bạn lên màn hình lớn!`, '#7cf7ff', { lcd: false }); }, 120000);
 socket.on('goalState', gs => { if (!gs || goals.loaded) return; goals.loaded = true; goals.likes = gs.likes || 0; goals.coins = gs.coins || 0; goals.idx = gs.idx || 0; if (gs.theme) themes.apply(gs.theme); if (gs.partyTarget) { party.likes = gs.partyLikes || 0; party.target = gs.partyTarget; } });
+// sàn “tự động”: qua ngày mới (hoặc tới ngày lễ) thì đổi sàn, trừ khi phòng vừa mở khoá sàn bằng mục tiêu
+let lastThemeSetting = null;
+setInterval(() => { if ((S.theme || '') === 'auto' && !goals.idx) { const n = themeForDate(); if (n !== themes.current) themes.apply('auto'); } }, 60000);
 socket.on('settings', s => {
   const oldQ = S.quality;
   const first = !S._got; S = Object.assign(S, s); S._got = true;
   setOutfitMix(S.partyMix ?? 25);
   Music.setSettings(S);
   if (first && !goals.loaded) themes.apply(S.theme || 'club');
+  if (!first && s.theme && s.theme !== lastThemeSetting && !goals.idx) themes.apply(s.theme);
+  lastThemeSetting = s.theme;
   if (oldQ !== S.quality) resize();
 });
 socket.on('gifts', g => { GIFTS = g || {}; });

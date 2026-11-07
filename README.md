@@ -20,6 +20,34 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## Sàn theo mùa và ngày lễ (bản 2.1.0)
+
+Có tổng cộng **16 sàn**. Sàn mới thêm:
+
+| Sàn | Trang trí |
+|---|---|
+| 🌸 Mùa xuân | cây hoa đào, hoa mai, cánh hoa hồng rơi, trời hồng nhạt |
+| 🍁 Mùa thu | cây lá đỏ, cam, lá vàng rơi, “Hà Nội mùa thu” |
+| ❄️ Mùa đông | cây trơ cành phủ tuyết, tuyết rơi dày, núi tuyết |
+| 💘 Valentine 14/2 | trái tim 3D phát sáng lơ lửng, tim hồng bay lên |
+| 🌹 Phụ nữ 8/3 · 20/10 | bình hoa hồng, cánh hoa rơi, “Tôn vinh phái đẹp” |
+| 🎈 Thiếu nhi 1/6 | chùm bóng bay đủ màu, trời xanh mây trắng |
+| 🏮 Trung thu | đèn ông sao 5 cánh, đèn lồng, trăng rằm, “Rước đèn Trung thu” |
+| 🇻🇳 Quốc khánh 2/9 | cờ đỏ sao vàng bay phấp phới, đèn lồng, pháo hoa 3D |
+| 🎆 Năm mới | pháo hoa 3D nổ liên tục, bóng bay vàng bạc, “Happy New Year” |
+
+Vẫn giữ các sàn cũ: Vũ trường, Bãi biển (mùa hè), Vũ trụ, Tết, Halloween, Giáng sinh.
+
+- **Màn LCD chiếu tranh chủ đề:** khi màn đang ở chế độ sóng nhạc, màn LCD chiếu tranh của sàn kèm tiêu đề, cột sóng nhạc chạy phía dưới. Màu sàn LED, đèn quét và khói cũng đổi theo chủ đề.
+- **📅 Tự động theo mùa và ngày lễ** (mặc định cho bản cài mới):
+  - Tết: 10 ngày trước đến 7 ngày sau mùng 1, theo âm lịch.
+  - Trung thu: 10 ngày trước rằm tháng 8, theo âm lịch.
+  - Năm mới 28/12–2/1, Valentine 10–15/2, Phụ nữ 5–9/3 và 17–21/10, Thiếu nhi 29/5–2/6, Quốc khánh 30/8–3/9, Halloween 25/10–1/11, Giáng sinh 15–27/12.
+  - Ngày thường: mùa xuân (tháng 2–4), mùa hè (5–8), mùa thu (9–11), mùa đông (12–1).
+  - Ngày Tết và Trung thu có sẵn từ 2025 đến 2032.
+  - Qua ngày mới, sàn tự đổi.
+- **Đổi tay:** Cài đặt → “🎪 Sàn mặc định”, hoặc nút “Đổi sân khấu ngay”. Mục tiêu phòng vẫn mở khoá sàn như cũ, và chọn được cả các sàn mới.
+
 ## Giữ khách ở lại (bản 2.0.0)
 
 - **⏳ Đếm ngược sự kiện lớn:** cứ 6 phút (đổi được) có một sự kiện, lần lượt **Flash mob → Giờ vàng → Cặp đôi của đêm**.

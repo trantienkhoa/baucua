@@ -245,6 +245,7 @@ socket.on('connect', () => socket.emit('hello', 'admin'));
 
 const FIELDS = [
   ['djName', '🎧 Tên DJ trên bàn DJ', 'text'],
+  ['theme', '🎪 Sàn mặc định (📅 tự động = đổi theo mùa / ngày lễ)', 'select', () => THEMES],
   ['barEnabled', '🛋️ Bàn ghế quán bar (salon + bàn tròn đứng)', 'check'],
   ['mcEnabled', '🎤 MC cầm micro cạnh DJ', 'check'],
   ['staffEnabled', '🍾 Nhân viên phục vụ bưng rượu đi quanh sàn', 'check'],
@@ -305,7 +306,7 @@ function renderSettings() {
     if (type === 'check') { input = document.createElement('input'); input.type = 'checkbox'; input.checked = !!S[k]; }
     else if (type === 'num') { input = document.createElement('input'); input.type = 'number'; input.step = opt; input.value = S[k]; }
     else if (type === 'text') { input = document.createElement('input'); input.type = 'text'; input.value = S[k] || ''; input.maxLength = 40; }
-    else { input = document.createElement('select'); for (const [v, t] of opt) { const o = document.createElement('option'); o.value = v; o.textContent = t; input.appendChild(o); } input.value = S[k]; }
+    else { input = document.createElement('select'); for (const [v, t] of (typeof opt === 'function' ? opt() : opt)) { const o = document.createElement('option'); o.value = v; o.textContent = t; input.appendChild(o); } input.value = S[k]; }
     input.dataset.key = k; input.dataset.type = type;
     div.append(document.createTextNode(label), input);
     g.appendChild(div);
@@ -385,7 +386,9 @@ const EV_FIELDS = [
   ['clipsEnabled', '🎬 Tự quay clip khoảnh khắc', 'check'],
   ['clipSeconds', '🎬 Độ dài clip (giây)', 'num', 1],
 ];
-const THEMES = [['club', 'Vũ trường'], ['beach', 'Bãi biển'], ['space', 'Vũ trụ'], ['tet', 'Tết'], ['halloween', 'Halloween'], ['noel', 'Giáng sinh']];
+const THEMES = [['auto', '📅 Tự động theo mùa / ngày lễ'], ['club', '🪩 Vũ trường'], ['xuan', '🌸 Mùa xuân'], ['beach', '🏖️ Mùa hè · Bãi biển'], ['thu', '🍁 Mùa thu'], ['dong', '❄️ Mùa đông'],
+  ['tet', '🧧 Tết Nguyên Đán'], ['valentine', '💘 Valentine 14/2'], ['phunu', '🌹 Phụ nữ 8/3 · 20/10'], ['thieunhi', '🎈 Thiếu nhi 1/6'], ['quockhanh', '🇻🇳 Quốc khánh 2/9'],
+  ['trungthu', '🏮 Trung thu'], ['halloween', '🎃 Halloween'], ['noel', '🎄 Giáng sinh'], ['newyear', '🎆 Năm mới · Countdown'], ['space', '🚀 Vũ trụ']];
 const LV_COSTUMES = [['wukong', 'Tề Thiên Đại Thánh'], ['tang', 'Đường Tăng'], ['angel', 'Thiên thần'], ['king', 'Hoàng đế'], ['hero_red', 'Neon Hoả'], ['astro', 'Phi hành gia'], ['devil', 'Ác quỷ'], ['samurai', 'Samurai']];
 function fieldEl(k, type, opt, val) {
   let input;
