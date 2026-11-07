@@ -20,6 +20,15 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## Nhân viên phục vụ (bản 1.9.6)
+
+- **2 nhân viên phục vụ:** một người sơ mi trắng quần tây, một người sơ mi khoác gile (nhân vật char44 và char50).
+- **Khay rượu:** mỗi người bưng một khay bạc trên tay phải, có chai sâm panh cổ vàng và 4 ly sâm panh chân cao đủ màu. Khay luôn nằm ngang, tay bưng khay không đánh theo bước chân.
+- **Đường đi:** hai người đi vòng quanh sàn theo hai chiều ngược nhau, quay người theo hướng đi.
+  - Ghé bàn VIP bên trái, các bàn tròn đứng bên trái, băng qua phía trước, lên các bàn tròn bên phải, ghé bàn VIP bên phải, rồi băng qua giữa sàn quay lại.
+  - Đến mỗi bàn, nhân viên dừng 2–3 giây, quay mặt vào bàn và đưa khay ra như đang mời rượu.
+- **Tắt:** Cài đặt → “🍾 Nhân viên phục vụ bưng rượu đi quanh sàn”. Nếu tắt bàn ghế quán bar thì nhân viên cũng tự ẩn.
+
 ## MC cầm micro thật, cận cảnh bàn VIP trên màn LCD (bản 1.9.5)
 
 - **MC cầm micro đúng tay:** khung xương có thêm khớp đưa tay ra trước, nên MC đưa tay phải lên trước mặt và cầm micro sát miệng. Micro nằm trong bàn tay của mô hình, đầu micro chĩa vào miệng.

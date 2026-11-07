@@ -1,6 +1,6 @@
 {
   "name": "vu-truong-neon",
-  "version": "1.9.5",
+  "version": "1.9.6",
   "description": "Game TikTok LIVE san nhay - tu host, khong can key ban quyen",
   "main": "server.js",
   "scripts": {

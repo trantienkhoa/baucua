@@ -824,7 +824,72 @@ function mcPose(bi, t) {
   const wave = talk ? 0.5 + 0.5 * Math.sin(t * 5) : k;
   return { yaw: 0, walk: -1, bob: 0.02 * k, lean: 0.03 * Math.sin(t * 0.7), lu: -0.35 - 0.9 * wave * (talk ? 1 : 0.6), lf: -0.4 - 0.5 * wave, ru: MC_RU, rf: MC_RF, rsx: MC_RSX, rex: MC_REX, lt: -0.07, ls: 0.02, rt: 0.07, rs: -0.02, head: 0.15 * Math.sin(t * (talk ? 3 : 1.2)), spin: 1, rot: 0, lift: 0, dx: 0, sit: 0 };
 }
-let MC_RU = -0.8, MC_RF = -0.6, MC_RSX = -1.2, MC_REX = -2.0;   // tay phải đưa ra trước, gập khuỷu: micro sát miệng
+let MC_RU = -0.8, MC_RF = -0.6, MC_RSX = -1.2, MC_REX = -2.0;
+// ---------- nhân viên phục vụ bưng khay rượu đi quanh sàn ----------
+// vòng đi: ghé bàn VIP, các bàn tròn đứng (ser = vị trí bàn để quay mặt vào), băng qua phía trước và giữa sàn
+const STAFF_PATH = [
+  { x: -3.5, z: -3.35, ser: [-3.78, -4.02] }, { x: -2.62, z: -1.95, ser: [-3.25, -2.3] }, { x: -2.2, z: 0.5, ser: [-2.8, 0.1] }, { x: -1.8, z: 2.7, ser: [-2.38, 2.35] },
+  { x: 0, z: 3.7 },
+  { x: 1.8, z: 2.7, ser: [2.38, 2.35] }, { x: 2.2, z: 0.5, ser: [2.8, 0.1] }, { x: 2.62, z: -1.95, ser: [3.25, -2.3] }, { x: 3.5, z: -3.35, ser: [3.78, -4.02] },
+  { x: 1.3, z: -3.1 }, { x: -1.3, z: -3.1 },
+];
+const STAFF_CHARS = ['char44', 'char50'];   // sơ mi trắng quần tây / sơ mi + áo gile
+const staff = [];
+function makeTray() {
+  const g = new THREE.Group();
+  const silver = new THREE.MeshStandardMaterial({ color: 0xd9dce3, metalness: 0.9, roughness: 0.25 });
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.16, 0.012, 28), silver));
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.006, 6, 32).rotateX(Math.PI / 2), silver); rim.position.y = 0.008; g.add(rim);
+  const glassM = new THREE.MeshStandardMaterial({ color: 0xcfeaff, metalness: 0.1, roughness: 0.05, transparent: true, opacity: 0.4, depthWrite: false });
+  const drinks = [0xffd65a, 0xff3d9a, 0xffd65a, 0x3dd9ff].map(c => new THREE.MeshBasicMaterial({ color: c, toneMapped: false }));
+  [[-0.07, -0.05], [0.06, -0.07], [0.08, 0.06], [-0.05, 0.08]].forEach(([x, z], i) => {   // ly sâm panh chân cao
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.08, 6), glassM); stem.position.set(x, 0.046, z); g.add(stem);
+    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.012, 0.09, 12), glassM); bowl.position.set(x, 0.13, z); g.add(bowl);
+    const liq = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.012, 0.06, 12), drinks[i]); liq.position.set(x, 0.115, z); g.add(liq);
+  });
+  const bottle = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.24, 12), new THREE.MeshStandardMaterial({ color: 0x1d5a2c, metalness: 0.3, roughness: 0.1 }));
+  bottle.position.set(0, 0.13, 0); g.add(bottle);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.02, 0.08, 8), new THREE.MeshStandardMaterial({ color: 0xd4a84a, metalness: 0.9, roughness: 0.3 }));
+  neck.position.set(0, 0.29, 0); g.add(neck);
+  g.visible = false; scene.add(g);
+  return g;
+}
+function initStaff() {
+  STAFF_CHARS.forEach((cid, i) => {
+    const w = new Dancer({ id: '__staff' + i, name: 'Phục vụ', avatar: '' }, { noDrop: true });
+    w.body = randomBody(false); w.look = randomLook(false); w.isStaff = true; w.staffChar = cid;
+    w.wp = i === 0 ? 0 : 5; w.px = STAFF_PATH[w.wp].x; w.pz = STAFF_PATH[w.wp].z; w.dir = i === 0 ? 1 : -1;   // hai người đi ngược chiều nhau
+    w.wait = 0; w.walkPh = Math.random(); w.tray = makeTray();
+    staff.push(w);
+  });
+}
+function updateStaff(t, dt) {
+  for (const w of staff) {
+    if (!w.avT && t > (w._charPoll || 0)) { w._charPoll = t + 0.5; const tp = templateForChar(w.staffChar); if (tp) { w.avT = tp; if (w.av) { disposeAvatar(w.av); w.av = null; } } }
+    const n = STAFF_PATH.length, target = STAFF_PATH[w.wp];
+    if (w.wait > 0) {
+      w.wait -= dt; w.walking = false;
+      if (target.ser) w.yaw = Math.atan2(target.ser[0] - w.px, target.ser[1] - w.pz);
+      if (w.wait <= 0) w.wp = (w.wp + w.dir + n) % n;
+      continue;
+    }
+    const dx = target.x - w.px, dz = target.z - w.pz, dist = Math.hypot(dx, dz), step = 1.05 * dt;
+    if (dist <= step) { w.px = target.x; w.pz = target.z; if (target.ser) w.wait = rand(2.2, 3.5); else w.wp = (w.wp + w.dir + n) % n; }
+    else {
+      w.px += dx / dist * step; w.pz += dz / dist * step; w.walking = true;
+      const want = Math.atan2(dx, dz); let dy = want - w.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); w.yaw += dy * Math.min(1, dt * 6);   // quay người mượt
+      w.walkPh = (w.walkPh + dt * 1.6) % 1;
+    }
+  }
+}
+function staffPose(w, bi, t) {
+  const P = SPECIAL_POSES;
+  const o = w.walking ? Object.assign({}, P.walk(w.walkPh)) : { yaw: 0, walk: -1, bob: 0, lean: 0, lu: -0.18, lf: -0.15, ru: 0.18, rf: 0.15, lt: -0.07, ls: 0.02, rt: 0.07, rs: -0.02, head: 0, spin: 1, rot: 0, lift: 0, dx: 0, sit: 0 };   // đứng thẳng khi phục vụ
+  // tay phải: cánh tay khép sát người, cẳng tay đưa ngang ra trước, ngửa bàn tay đỡ khay; phục vụ thì đưa khay ra
+  o.ru = 0.18; o.rf = 0.15; o.rsx = w.walking ? -0.25 : -0.6; o.rex = w.walking ? -1.45 : -1.15;
+  if (!w.walking) { o.lu = -0.25; o.lf = -0.3; o.head = 0.15 * Math.sin(t * 1.5); }
+  return o;
+}   // tay phải đưa ra trước, gập khuỷu: micro sát miệng
 function toStage(d, t) {
   const used = new Set([...dancers.values()].filter(x => x.mode === 'stage' && t < x.modeUntil).map(x => x.stageSlot));
   let slot = [0, 1].find(i => !used.has(i)); if (slot === undefined) slot = Math.random() < 0.5 ? 0 : 1;
@@ -921,7 +986,8 @@ function basePos(d, t, dj) {
 }
 function rawBasePos(d, t, dj) {
   if (d === dj) { d.yaw = 0; return _base.copy(DJ_POS); }
-  if (d === mc) { d.yaw = MC_YAW; return _base.copy(MC_POS); }   // DJ quay mặt ra khán giả
+  if (d === mc) { d.yaw = MC_YAW; return _base.copy(MC_POS); }
+  if (d.isStaff) return _base.set(d.px, 0, d.pz);   // DJ quay mặt ra khán giả
   const bx = worldX(d.x, d.z), bz = worldZ(d.z);
   if (d.mode === 'rocket') {
     const k = (t - d.modeStart) / 4.5;
@@ -947,6 +1013,7 @@ function poseFor(d, bi, t, dj) {
   if (d.dropH > 0) return P.fall();
   if (d === dj) return P.dj(bi.p, bi.b);
   if (d === mc) return mcPose(bi, t);
+  if (d.isStaff) return staffPose(d, bi, t);
   if (d.travelling) return P.walk((t * 1.7 + d.zi * 0.37) % 1);
   if (d.mode === 'rocket') return P.fly();
   if (d.mode === 'throne' || d.mode === 'vip') return P.sit(bi.p);
@@ -988,7 +1055,7 @@ function poseRig(d, p, base, t, grounded) {
     rig.hipL.rotation.set(0.5 * sw, 0, -0.03); rig.knL.rotation.set(Math.max(0, -Math.sin(ph - 0.6)) * 0.9 + 0.05, 0, 0);
     rig.hipR.rotation.set(-0.5 * sw, 0, 0.03); rig.knR.rotation.set(Math.max(0, Math.sin(ph - 0.6)) * 0.9 + 0.05, 0, 0);
     rig.ftL.rotation.set(0, 0, 0); rig.ftR.rotation.set(0, 0, 0);
-    rig.shL.rotation.x = -0.45 * sw; rig.shR.rotation.x = 0.45 * sw;
+    rig.shL.rotation.x = -0.45 * sw; if (p.rsx === undefined) rig.shR.rotation.x = 0.45 * sw;   // tay bưng khay không đánh theo bước
   } else if (p.sit) {
     rig.hipL.rotation.set(-1.5, 0, -0.08); rig.knL.rotation.set(1.5, 0, 0); rig.ftL.rotation.set(0, 0, 0);
     rig.hipR.rotation.set(-1.5, 0, 0.08); rig.knR.rotation.set(1.5, 0, 0); rig.ftR.rotation.set(0, 0, 0);
@@ -1515,6 +1582,9 @@ function frame() {
   visible.length = 0;
   if (dj) visible.push(dj);
   if (mc && S.mcEnabled !== false) visible.push(mc);
+  const staffOn = S.staffEnabled !== false && S.barEnabled !== false;
+  if (staffOn) { updateStaff(t, dt); for (const w of staff) visible.push(w); }
+  for (const w of staff) w.tray.visible = staffOn && S.quality !== 'low';
   mic.visible = !!(mc && S.mcEnabled !== false && S.quality !== 'low');
   for (const d of dancers.values()) if (d !== dj) visible.push(d);
   for (const d of clones) visible.push(d);
@@ -1550,6 +1620,13 @@ function frame() {
       mic.quaternion.setFromUnitVectors(_micUp, _v1);
       mic.scale.setScalar(1.25 * sc);
     }
+    if (d.isStaff) {
+      // khay nằm ngang trên bàn tay (xương LeftHand của mô hình = tay phải khung điều khiển)
+      const B = d.av && d.av.bones, sc = d.body.h * d.sc;
+      if (B && B.LeftHand) { B.LeftHand.updateWorldMatrix(true, false); B.LeftHand.getWorldPosition(_v2); } else rig.haR.getWorldPosition(_v2);
+      d.tray.position.set(_v2.x + Math.sin(d.yaw) * 0.06 * sc, _v2.y + 0.035 * sc, _v2.z + Math.cos(d.yaw) * 0.06 * sc);
+      d.tray.rotation.set(0, d.yaw, 0); d.tray.scale.setScalar(sc);
+    }
     writeInstances(d, t, alpha);
     writeTeamRing(d);
     d._sp = screenOf(d);
@@ -1584,7 +1661,7 @@ function frame() {
   ctx.clearRect(0, 0, hud.width, hud.height);
   ctx.setTransform(pxScale, 0, 0, pxScale, 0, 0);
   // nhãn: xa trước, gần sau
-  const tags = visible.filter(d => d !== resident && d !== mc && d._sp).sort((a, b) => a._sp.y - b._sp.y);
+  const tags = visible.filter(d => d !== resident && d !== mc && !d.isStaff && d._sp).sort((a, b) => a._sp.y - b._sp.y);
   for (const d of tags) drawTag(d, t);
   drawParticles();
   if (flash > 0) { ctx.fillStyle = `rgba(255,255,255,${flash * 0.35})`; ctx.fillRect(0, 0, W, H); }
@@ -2075,13 +2152,14 @@ resident = new Dancer({ id: '__dj', name: 'DJ Tiến Khoa', avatar: '' }, { noDr
 resident.body = randomBody(false);
 resident.look = randomLook(false); resident.look.top = 'bomber'; resident.look.hat = 'capBack'; resident.look.neck = 'headphones'; resident.look.hs = 0; resident.look.glasses = true;
 resident.look.c.jacket = resident.look.c.uarm = resident.look.c.farm = col('#1b1b1f'); resident.look.c.shirt = resident.look.c.torso = col('#ff3d8b');
+initStaff();
 mc = new Dancer({ id: '__mc', name: 'MC', avatar: '' }, { noDrop: true });
 mc.body = randomBody(false); mc.look = randomLook(false);
 window.addEventListener('resize', resize);
 resize();
 async function applyModels(list) {
   await loadAvatars((list || []).filter(m => m.enabled).map(m => ({ url: m.url, female: m.female })));
-  for (const d of [...dancers.values(), ...clones, resident, mc]) { if (d && d.av) { disposeAvatar(d.av); d.av = null; d.avT = null; } }
+  for (const d of [...dancers.values(), ...clones, resident, mc, ...staff]) { if (d && d.av) { disposeAvatar(d.av); d.av = null; d.avT = null; } }
   console.log('Đã nạp', avatarTemplates.length, 'mô hình người');
 }
 fetch('/api/models').then(r => r.json()).then(applyModels).catch(e => console.warn(e));
@@ -2094,5 +2172,5 @@ window.addEventListener('pointerdown', unlock);
 window.addEventListener('keydown', unlock);
 setInterval(checkAudio, 1500);
 Music.resume();
-window._dbg = { setChar: (d, id) => assignChar(d, ROSTER.find(c => c.id === id)), setOutfitT: (d, o) => { if (d.av) { setCostume(d.av, null); window._applyOutfit(d.av, o); window._restyle(d.av); } }, get flashInfo() { return [...dancers.values()].slice(0, 8).map(d => [d.mode, d.x.toFixed(2), d.z.toFixed(2), d.tx.toFixed(2), d.tz.toFixed(2)].join(' ')); }, ledCam, ledRT, renderer, get ledShow() { return ledShow; }, get ledQueue() { return ledQueue; }, get lcd() { return lcd; }, get resident() { return resident; }, get mc() { return mc; }, mic, mcArm(ru, rf, sx, ex) { MC_RU = ru; MC_RF = rf; MC_RSX = sx; MC_REX = ex; }, dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
+window._dbg = { setChar: (d, id) => assignChar(d, ROSTER.find(c => c.id === id)), setOutfitT: (d, o) => { if (d.av) { setCostume(d.av, null); window._applyOutfit(d.av, o); window._restyle(d.av); } }, get flashInfo() { return [...dancers.values()].slice(0, 8).map(d => [d.mode, d.x.toFixed(2), d.z.toFixed(2), d.tx.toFixed(2), d.tz.toFixed(2)].join(' ')); }, ledCam, ledRT, renderer, get ledShow() { return ledShow; }, get ledQueue() { return ledQueue; }, get lcd() { return lcd; }, get resident() { return resident; }, get mc() { return mc; }, staff, mic, mcArm(ru, rf, sx, ex) { MC_RU = ru; MC_RF = rf; MC_RSX = sx; MC_REX = ex; }, dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
 requestAnimationFrame(frame);
