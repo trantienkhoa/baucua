@@ -381,7 +381,7 @@ app.delete('/api/music/:name', (req, res) => {
 let conn = null;
 let connState = { status: 'idle', text: 'Chưa kết nối', username: '' };
 let reconnectTimer = null;
-let reconnectDelay = 5000;
+let reconnectDelay = 15000;
 let manualStop = false;
 const stats = { viewers: 0, gifts: 0, coins: 0, likes: 0, comments: 0 };
 
@@ -524,8 +524,22 @@ function attach(c) {
   c.on('error', e => console.error('[TikTok] lỗi:', e && (e.message || e)));
 }
 
-async function connectTikTok() {
+// kết nối nhẹ nhàng để TikTok không nghi là bot (gọi dồn dập → captcha / chặn tạm thời):
+// - giãn cách tối thiểu giữa 2 lần kết nối, kể cả khi bấm nút liên tục
+// - kênh chưa LIVE: thử lại thưa (1 → 2 → 4 → tối đa 5 phút)
+// - bị captcha / chặn / giới hạn: nghỉ hẳn 15 phút rồi mới thử lại
+const MIN_GAP = 20000, BLOCK_PAUSE = 15 * 60000;
+let lastConnectAt = 0, blockedUntil = 0;
+async function connectTikTok(fromButton) {
   clearTimeout(reconnectTimer);
+  const nowMs = Date.now();
+  if (nowMs < blockedUntil && !fromButton) { reconnectTimer = setTimeout(() => connectTikTok(), blockedUntil - nowMs); return; }
+  if (nowMs - lastConnectAt < MIN_GAP) {
+    const wait = MIN_GAP - (nowMs - lastConnectAt);
+    setState('connecting', `Đợi ${Math.ceil(wait / 1000)} giây cho lần kết nối trước (tránh bị TikTok nghi là bot)…`);
+    reconnectTimer = setTimeout(() => connectTikTok(), wait); return;
+  }
+  lastConnectAt = nowMs;
   const uname = String(settings.username || '').replace(/^@/, '').trim();
   if (!uname) return setState('error', 'Chưa nhập tên kênh');
   if (conn) { try { manualStop = true; await conn.disconnect(); } catch {} conn = null; }
@@ -539,24 +553,31 @@ async function connectTikTok() {
   try {
     await c.connect();
     if (conn !== c) return;
-    reconnectDelay = 5000;
+    reconnectDelay = 15000;
     if (Date.now() - (session.lastEvent || session.start) > 30 * 60000) { session = { id: Date.now(), start: Date.now() }; seenThisSession.clear(); }
     setState('connected', `✓ Đang nhận @${uname}`);
   } catch (e) {
     if (conn !== c) return;
     const msg = String((e && (e.message || e.name)) || e);
     let text = 'Lỗi: ' + msg;
-    if (/offline|not.*live|UserOffline/i.test(msg) || (e && e.name === 'UserOfflineError')) text = `@${uname} chưa LIVE — bật LIVE trước rồi kết nối`;
-    else if (/rate|429|limit/i.test(msg)) text = 'Máy chủ ký đang giới hạn lượt — đợi vài phút rồi tự thử lại';
+    let kind = 'other';
+    if (/offline|not.*live|UserOffline/i.test(msg) || (e && e.name === 'UserOfflineError')) { kind = 'offline'; text = `@${uname} chưa LIVE — bật LIVE trước rồi kết nối (tự thử lại thưa dần)`; }
+    else if (/captcha|verify|403|forbidden|blocked|denied|rate|429|limit/i.test(msg)) {
+      kind = 'blocked'; blockedUntil = Date.now() + BLOCK_PAUSE;
+      text = 'TikTok đang yêu cầu xác minh / giới hạn lượt — game tạm nghỉ 15 phút rồi tự thử lại. Đừng bấm Kết nối liên tục.';
+    }
     setState('error', text);
-    if (settings.autoReconnect && !manualStop) scheduleReconnect();
+    if (settings.autoReconnect && !manualStop) {
+      if (kind === 'blocked') { clearTimeout(reconnectTimer); reconnectTimer = setTimeout(() => { if (!manualStop) connectTikTok(); }, BLOCK_PAUSE); }
+      else { if (kind === 'offline') reconnectDelay = Math.max(reconnectDelay, 60000); scheduleReconnect(); }
+    }
   }
 }
 function scheduleReconnect() {
   clearTimeout(reconnectTimer);
   if (!settings.autoReconnect) return;
   reconnectTimer = setTimeout(() => { if (!manualStop) connectTikTok(); }, reconnectDelay);
-  reconnectDelay = Math.min(reconnectDelay * 2, 120000);
+  reconnectDelay = Math.min(reconnectDelay * 2, 300000);
 }
 async function disconnectTikTok() {
   manualStop = true; clearTimeout(reconnectTimer);
@@ -782,7 +803,7 @@ io.on('connection', socket => {
     if (typeof username === 'string') settings.username = username.replace(/^@/, '').trim();
     if (typeof apiKey === 'string') settings.apiKey = apiKey.trim();
     saveSettings();
-    connectTikTok();
+    connectTikTok(true);
   });
   socket.on('disconnect-tiktok', () => disconnectTikTok());
   socket.on('cmd', c => { if (c && typeof c.type === 'string') io.to('game').emit('cmd', c); });

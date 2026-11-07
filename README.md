@@ -20,6 +20,15 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## Hạn chế bị TikTok bắt captcha (bản 2.2.1)
+
+Game không vượt captcha (đó là cơ chế chống bot của TikTok). Thay vào đó, game kết nối nhẹ nhàng để ít bị bắt hơn:
+- Hai lần kết nối luôn cách nhau ít nhất 20 giây, kể cả khi bấm nút liên tục.
+- Kênh chưa LIVE: tự thử lại thưa dần (1 → 2 → 4 phút, tối đa 5 phút).
+- Bị yêu cầu xác minh / giới hạn lượt: tạm nghỉ 15 phút rồi mới tự thử lại, kèm báo rõ trên trang điều khiển.
+
+**Mẹo để ít gặp captcha:** bật LIVE trước rồi mới bấm Kết nối; không mở 2 máy cùng kết nối một kênh; dùng mạng nhà ổn định, không dùng VPN; nhập key EulerStream (miễn phí có giới hạn) ở mục 1 để kết nối qua máy chủ ký chính thức của thư viện; nếu captcha hiện trên app/web TikTok thì giải bằng tay trên điện thoại một lần.
+
 ## MC hô hào sự kiện lớn (bản 2.2.0)
 
 - **Câu hô đa dạng:** mỗi sự kiện có 2–3 câu khác nhau, chọn ngẫu nhiên nên không lặp. Gồm:
