@@ -20,6 +20,26 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## Điệu nhảy hot trend (bản 1.9.8)
+
+Thêm 9 điệu mới, tổng cộng **26 điệu**, tất cả nhảy theo nhịp nhạc. Người xem gõ tên điệu hoặc số **1–26** để đổi điệu:
+
+| Số | Điệu | Gõ | Động tác |
+|---|---|---|---|
+| 14 | 🌙 Moonwalk (đã có) | `moonwalk` | trượt lùi |
+| 18 | 🐛 Con sâu | `con sâu`, `worm` | nằm sấp trên sàn, uốn người như sóng, ngực và chân nhấp nhô |
+| 19 | 🐎 Gangnam | `gangnam`, `cưỡi ngựa` | bắt chéo cổ tay trước ngực, nhún nhảy kiểu cưỡi ngựa; mỗi 8 phách quăng thòng lọng trên đầu |
+| 20 | 🕺 Floss | `floss` | vung hai tay thẳng qua lại trước/sau người, hông lắc ngược chiều |
+| 21 | 💪 Dab | `dab` | gục đầu vào khuỷu tay, tay kia duỗi chéo lên, đổi bên mỗi 2 phách |
+| 22 | 👟 Shuffle | `shuffle`, `running man` | co gối chạy tại chỗ, tay đánh theo nhịp |
+| 23 | 🔥 2 phút hơn | `2 phút hơn` | nhún gối, đấm tay lên trời đổi bên; phách thứ 4 hai tay cuộn tròn trước ngực |
+| 24 | 🪓 Băng búa rìu | `búa rìu`, `băng búa rìu` | hai tay chụm giơ búa từ từ lên đầu rồi bổ mạnh xuống đúng phách, khuỵu gối, cúi người |
+| 25 | 💃 Macarena | `macarena` | chuỗi 8 phách: duỗi tay, lật tay, ôm vai, ôm gáy, chống hông, nhún nhảy |
+| 26 | ✊ Hit the woah | `woah`, `hit the woah` | hai nắm tay giật ngang ngực, nghiêng người đổi bên mỗi phách |
+
+- Nhân vật theo danh sách sẽ có thêm các điệu mới hợp thể loại của mình: K-pop có Gangnam, Floss, Woah; Hip-hop có Dab, Shuffle; Breaking có Con sâu; Freestyle có gần hết…
+- Người mới lên sàn ít khi được chọn sẵn điệu Con sâu, để sàn đỡ rối.
+
 ## Nhân viên phục vụ (bản 1.9.6)
 
 - **2 nhân viên phục vụ:** một người sơ mi trắng quần tây, một người sơ mi khoác gile (nhân vật char44 và char50).

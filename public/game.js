@@ -623,7 +623,7 @@ class Dancer {
     const female = Math.random() < 0.5;
     this.body = randomBody(female); this.look = randomLook(female);
     this.x = rand(-0.9, 0.9); this.z = rand(0.05, 0.95); this.tx = this.x; this.tz = this.z;
-    this.dance = Math.floor(Math.random() * DANCES.length);
+    this.dance = randomDanceIdx();
     this.offset = Math.random() < 0.6 ? 0 : Math.random() * 0.15;
     this.dropH = opts.noDrop ? 0 : rand(9, 13); this.vy = 0; this.land = 0;
     this.lastActive = now(); this.born = now();
@@ -806,6 +806,8 @@ function champagne(d, t) {
 }
 // lên sân khấu nhảy cạnh DJ (2 chỗ hai bên bàn DJ)
 const STAGE_SLOTS = [new THREE.Vector3(-3.6, STAGE_Y, -6.3), new THREE.Vector3(4.1, STAGE_Y, -6.3)];
+// điệu ngẫu nhiên khi mới lên sàn: không chọn điệu nằm sàn (con sâu) cho đỡ rối
+function randomDanceIdx() { let i; do { i = Math.floor(Math.random() * DANCES.length); } while (DANCES[i].floor && Math.random() < 0.85); return i; }
 // ---------- MC cầm micro đứng cạnh DJ ----------
 const MC_POS = new THREE.Vector3(2.55, STAGE_Y, -6.85), MC_YAW = -0.32, MC_CHAR = 'char66';   // vest navy, cà vạt
 let mc = null, mcTalkUntil = 0;
@@ -1069,12 +1071,14 @@ function poseRig(d, p, base, t, grounded) {
   // đưa tay ra trước (MC cầm micro): rsx = vai gập trước/sau, rex = khuỷu gập trước
   if (p.rsx !== undefined) rig.shR.rotation.x = p.rsx;
   if (p.rex !== undefined) rig.elR.rotation.x = p.rex;
+  if (p.lsx !== undefined) rig.shL.rotation.x = p.lsx;
+  if (p.lex !== undefined) rig.elL.rotation.x = p.lex;
   if (p.walk >= 0) {
     const ph = p.walk * TAU, sw = Math.sin(ph);
     rig.hipL.rotation.set(0.5 * sw, 0, -0.03); rig.knL.rotation.set(Math.max(0, -Math.sin(ph - 0.6)) * 0.9 + 0.05, 0, 0);
     rig.hipR.rotation.set(-0.5 * sw, 0, 0.03); rig.knR.rotation.set(Math.max(0, Math.sin(ph - 0.6)) * 0.9 + 0.05, 0, 0);
     rig.ftL.rotation.set(0, 0, 0); rig.ftR.rotation.set(0, 0, 0);
-    rig.shL.rotation.x = -0.45 * sw; if (p.rsx === undefined) rig.shR.rotation.x = 0.45 * sw;   // tay bưng khay không đánh theo bước
+    if (p.lsx === undefined) rig.shL.rotation.x = -0.45 * sw; if (p.rsx === undefined) rig.shR.rotation.x = 0.45 * sw;   // tay bưng khay không đánh theo bước
   } else if (p.sit) {
     rig.hipL.rotation.set(-1.5, 0, -0.08); rig.knL.rotation.set(1.5, 0, 0); rig.ftL.rotation.set(0, 0, 0);
     rig.hipR.rotation.set(-1.5, 0, 0.08); rig.knR.rotation.set(1.5, 0, 0); rig.ftR.rotation.set(0, 0, 0);
@@ -1554,7 +1558,7 @@ function drawHUD(t, bi) {
   if (frac > 0.01) { const fg = ctx.createLinearGradient(bx, 0, bx + bw, 0); fg.addColorStop(0, '#ffb300'); fg.addColorStop(1, '#ff3d3d'); ctx.fillStyle = fg; roundRect(bx, by, Math.max(bh, bw * clamp(frac, 0, 1)), bh, 17); ctx.fill(); }
   ctx.font = `700 25px ${FONT}`;
   rich(['💬 Bình luận để ', ['lên sàn', '#7cf7ff'], ' · gõ ', ['nhảy', '#7cf7ff'], ', ', ['đi vòng', '#7cf7ff'], ', ', ['ghép đôi', '#7cf7ff'], ', ', ['hoá trang', '#7cf7ff']], W / 2, py + 135);
-  rich(['điệu: ', ['disco', '#ffd84d'], ', ', ['robot', '#ffd84d'], ', ', ['xoay đầu', '#ffd84d'], ', ', ['moonwalk', '#ffd84d'], `… (số 1–${DANCES.length}) · ❤️ thả tim tăng nhiệt`], W / 2, py + 172);
+  rich(['điệu: ', ['moonwalk', '#ffd84d'], ', ', ['gangnam', '#ffd84d'], ', ', ['con sâu', '#ffd84d'], ', ', ['2 phút hơn', '#ffd84d'], ', ', ['búa rìu', '#ffd84d'], `… (số 1–${DANCES.length}) · ❤️ thả tim tăng nhiệt`], W / 2, py + 172);
   ctx.font = `500 18px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.textAlign = 'center';
   ctx.fillText('Sàn nhảy giải trí · không có giải thưởng', W / 2, py + 210);
 }
