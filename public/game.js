@@ -8,7 +8,8 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createThemes, THEME_NAMES } from './themes.js';
 import { rosterOutfit, danceFor, tempoFor, hyperFor, shapeFor } from './roster.js';
-import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates, setCostume, randomCostumeId, COSTUMES, costumeTime, setExtra, outfitTime, setOutfitMix, templateForChar } from './avatars.js';
+import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates, setCostume, randomCostumeId, COSTUMES, costumeTime, setExtra, outfitTime, setOutfitMix, templateForChar, hasCharModel } from './avatars.js';
+import { createLCD } from './lcd.js';
 
 const W = 1080, H = 1920;
 const PI = Math.PI, TAU = PI * 2;
@@ -62,7 +63,7 @@ function img(url) {
 // ======================================================================
 let renderer;
 try {
-  renderer = new THREE.WebGLRenderer({ canvas: glCanvas, antialias: true, powerPreference: 'high-performance' });
+  renderer = new THREE.WebGLRenderer({ canvas: glCanvas, antialias: true, alpha: true, powerPreference: 'high-performance' });   // alpha: màn LCD phát YouTube nằm sau canvas
 } catch (e) {
   document.getElementById('err').style.display = 'block';
   throw e;
@@ -90,6 +91,7 @@ function setupComposer() {
   composer.addPass(new RenderPass(scene, camera));
   bloom = new UnrealBloomPass(new THREE.Vector2(W, H), 0.55, 0.45, 0.97);
   composer.addPass(bloom);
+  if (lcd) composer.addPass(lcd.holePass);   // đục lỗ màn LCD sau hiệu ứng toả sáng
   composer.addPass(new OutputPass());
 }
 
@@ -167,6 +169,7 @@ ledRT.texture.colorSpace = THREE.LinearSRGBColorSpace;
 const ledCam = new THREE.PerspectiveCamera(30, 13 / 5.7, 0.1, 60);
 const ledLiveMat = new THREE.MeshBasicMaterial({ map: ledRT.texture, toneMapped: true });
 const ledIdleMat = led.material;
+let lcd = null;   // màn LCD: YouTube / video / ảnh (lcd.js)
 const ledOverTex = canvasTex(1024, 448, () => {});
 const ledOver = new THREE.Mesh(new THREE.PlaneGeometry(13, 5.7), new THREE.MeshBasicMaterial({ map: ledOverTex, transparent: true, toneMapped: false, depthWrite: false }));
 ledOver.position.set(0, STAGE_Y + 3.3, -10.27); ledOver.visible = false; scene.add(ledOver);
@@ -209,9 +212,9 @@ function drawLedOverlay(sh, t) {
 function updateLedShow(t, dt) {
   if (ledShow && (t > ledShow.until || !dancers.has(ledShow.d.id))) ledShow = null;
   if (!ledShow && ledQueue.length) { ledShow = ledQueue.shift(); ledShow.start = t; ledShow.until = t + Math.max(4, Number(S.ledSeconds) || 12); ledCam.position.set(0, 3, 8); }
-  led.material = ledShow ? ledLiveMat : ledIdleMat;
+  led.material = ledShow ? ledLiveMat : lcd ? lcd.idleMaterial(ledIdleMat) : ledIdleMat;
   ledOver.visible = !!ledShow;
-  sign.visible = !ledShow;
+  sign.visible = !ledShow && (!lcd || lcd.signVisible());
   if (!ledShow) return;
   const d = ledShow.d;
   // máy quay riêng: chính diện, nửa người trên
@@ -227,7 +230,7 @@ function updateLedShow(t, dt) {
 }
 function renderLed() {
   if (!ledShow) return;
-  const prevMat = led.material; led.material = ledIdleMat;   // tránh hình lồng hình
+  const prevMat = led.material; led.material = lcd ? lcd.idleMaterial(ledIdleMat) : ledIdleMat;   // tránh hình lồng hình
   ledOver.visible = false;
   // chỉ chiếu riêng người tặng: ẩn tạm người khác
   const hidden = [];
@@ -737,7 +740,7 @@ function handleGift(ev) {
   if (zoomQueue.length > 60) zoomQueue.splice(0, zoomQueue.length - 60);
   pushTicker(`${d.name} tặng ${ev.count > 1 ? ev.count + '× ' : ''}${ev.gift.name} → ${m.label}`, '#ffd84d');
   heat += v;
-  if (S.ledShow !== false && v >= (Number(S.ledCoins) || 99)) {
+  if (S.ledShow !== false && v >= (Number(S.ledCoins) || 99) && (!lcd || lcd.giftAllowed())) {
     const same = ledQueue.find(x => x.d === d);
     if (same) { same.count += ev.count; same.value += v; }
     else if (ledShow && ledShow.d === d) { ledShow.count += ev.count; ledShow.value += v; ledShow.until += 4; }
@@ -806,7 +809,7 @@ function currentDJ() {
 // vị trí gốc (chân) trong thế giới 3D
 const _base = new THREE.Vector3();
 function basePos(d, t, dj) {
-  if (d === dj) return _base.copy(DJ_POS);
+  if (d === dj) { d.yaw = 0; return _base.copy(DJ_POS); }   // DJ quay mặt ra khán giả
   const bx = worldX(d.x, d.z), bz = worldZ(d.z);
   if (d.mode === 'rocket') {
     const k = (t - d.modeStart) / 4.5;
@@ -1354,6 +1357,7 @@ function resize() {
   pxScale = Math.min(view * dpr, 1) * q;
   const cw = Math.round(W * view) + 'px', ch = Math.round(H * view) + 'px';
   for (const c of [glCanvas, hud]) { c.style.width = cw; c.style.height = ch; }
+  if (lcd) lcd.resize(Math.round(W * view), Math.round(H * view));
   const rw = Math.round(W * pxScale), rh = Math.round(H * pxScale);
   renderer.setSize(rw, rh, false);
   hud.width = rw; hud.height = rh;
@@ -1371,6 +1375,12 @@ function frame() {
   // nhân vật
   for (const p of PARTS) p.mesh.count = 0;
   wingMesh.count = 0; shadowMesh.count = 0; teamRing.count = 0;
+  // DJ: dùng mô hình riêng public/models/dj.glb nếu có (tải khi cần)
+  if (resident && !resident.avT && t > (resident._charPoll || 0)) {
+    resident._charPoll = t + 0.5;
+    const tp = hasCharModel('dj') ? templateForChar('dj') : null;
+    if (tp) { resident.avT = tp; if (resident.av) { disposeAvatar(resident.av); resident.av = null; } }
+  }
   const dj = currentDJ();
   visible.length = 0;
   if (dj) visible.push(dj);
@@ -1387,7 +1397,7 @@ function frame() {
     if (d.mode === 'rocket' || (d.dropH > 0)) { rig.root.position.y = b.y; rig.root.updateMatrixWorld(true); d._head.set(0, HEAD_Y + HEAD_R + 0.06, 0).applyMatrix4(rig.head.matrixWorld); }
     const alpha = d.leaving ? clamp(1 - (t - d.leaving) / 1.2, 0.001, 1) : 1;
     const real = avatarTemplates.length > 0 && S.charStyle !== 'toon' && S.quality !== 'low';
-    if (real && !d.av) d.av = createAvatar(scene, d.body.female, d.avT, d.avCostume !== undefined && d.avCostume !== null ? d.avCostume : d.char ? null : (Math.random() * 100 < (Number(S.costumeRate) || 0) ? randomAllowedCostume(d) : null), { outfit: d.avOutfit, shape: d.avShape });
+    if (real && !d.av) d.av = createAvatar(scene, d.body.female, d.avT, d.avCostume !== undefined && d.avCostume !== null ? d.avCostume : d.char || (d.avT && d.avT.charId) ? null : (Math.random() * 100 < (Number(S.costumeRate) || 0) ? randomAllowedCostume(d) : null), { outfit: d.avOutfit, shape: d.avShape });
     else if (!real && d.av) { disposeAvatar(d.av); d.av = null; }
     if (d.av) {
       _hp.set(0, HEAD_Y, 0).applyMatrix4(rig.head.matrixWorld);
@@ -1412,10 +1422,12 @@ function frame() {
 
   costumeTime.value = t; outfitTime.value = t;
   updateLedShow(t, dt);
+  if (lcd) lcd.update(t, !!ledShow);
   updateCam(dt, t);
   if (bloom) bloom.strength = bi.fire ? 0.6 + fireLevel * 0.04 : 0.55;
   renderLed();
-  if (S.quality === 'high' && composer) composer.render(); else renderer.render(scene, camera);
+  if (S.quality === 'high' && composer) composer.render(); else { renderer.render(scene, camera); if (lcd) lcd.afterRender(renderer); }
+  if (lcd) lcd.renderCSS();
 
   // HUD
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1551,7 +1563,7 @@ function endSolo() {
   confetti(140); for (let i = 0; i < 4; i++) setTimeout(launchRocket, i * 250);
   pushTicker(`🏆 ${win.name} THẮNG SOLO! (${v1} – ${v2})`, '#ffd84d');
   say(`${nm(win.name)} thắng solo!`, null, 0, true);
-  if (S.ledShow !== false) ledQueue.unshift({ d: win, gift: { name: '' }, count: 1, value: 0, label: `🏆 Thắng solo ${Math.max(v1, v2)} – ${Math.min(v1, v2)} phiếu` });
+  if (S.ledShow !== false && (!lcd || lcd.giftAllowed())) ledQueue.unshift({ d: win, gift: { name: '' }, count: 1, value: 0, label: `🏆 Thắng solo ${Math.max(v1, v2)} – ${Math.min(v1, v2)} phiếu` });
 }
 
 // ---------- sàn cháy nhiều cấp ----------
@@ -1849,6 +1861,7 @@ function featureCmd(c) {
 const socket = io();
 socket.on('connect', () => socket.emit('hello', 'game', { obs: OBS }));
 socket.on('primary', v => { isPrimary = !!v; });
+lcd = createLCD({ scene, camera, led, glCanvas, socket, Music, isPrimary: () => isPrimary });
 socket.on('goalState', gs => { if (!gs || goals.loaded) return; goals.loaded = true; goals.likes = gs.likes || 0; goals.coins = gs.coins || 0; goals.idx = gs.idx || 0; if (gs.theme) themes.apply(gs.theme); });
 socket.on('settings', s => {
   const oldQ = S.quality;
@@ -1911,5 +1924,5 @@ window.addEventListener('pointerdown', unlock);
 window.addEventListener('keydown', unlock);
 setInterval(checkAudio, 1500);
 Music.resume();
-window._dbg = { setChar: (d, id) => assignChar(d, ROSTER.find(c => c.id === id)), setOutfitT: (d, o) => { if (d.av) { setCostume(d.av, null); window._applyOutfit(d.av, o); window._restyle(d.av); } }, get flashInfo() { return [...dancers.values()].slice(0, 8).map(d => [d.mode, d.x.toFixed(2), d.z.toFixed(2), d.tx.toFixed(2), d.tz.toFixed(2)].join(' ')); }, ledCam, ledRT, renderer, get ledShow() { return ledShow; }, dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
+window._dbg = { setChar: (d, id) => assignChar(d, ROSTER.find(c => c.id === id)), setOutfitT: (d, o) => { if (d.av) { setCostume(d.av, null); window._applyOutfit(d.av, o); window._restyle(d.av); } }, get flashInfo() { return [...dancers.values()].slice(0, 8).map(d => [d.mode, d.x.toFixed(2), d.z.toFixed(2), d.tx.toFixed(2), d.tz.toFixed(2)].join(' ')); }, ledCam, ledRT, renderer, get ledShow() { return ledShow; }, get ledQueue() { return ledQueue; }, get lcd() { return lcd; }, get resident() { return resident; }, dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
 requestAnimationFrame(frame);

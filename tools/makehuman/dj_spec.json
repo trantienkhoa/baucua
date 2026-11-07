@@ -1,0 +1,70 @@
+{
+ "id": "dj",
+ "name": "DJ",
+ "tex": 1024,
+ "macro": {
+  "gender": 1.0,
+  "age": 0.56,
+  "weight": 0.66,
+  "muscle": 0.58,
+  "height": 0.5,
+  "proportions": 0.55,
+  "cupsize": 0.5,
+  "firmness": 0.5,
+  "race": {
+   "asian": 0.95,
+   "caucasian": 0.05,
+   "african": 0.0
+  }
+ },
+ "skin": "young_asian_male",
+ "eye": "brown",
+ "brow": "eyebrow008",
+ "assets": [
+  [
+   "hair",
+   "short02",
+   "#0d0a08"
+  ],
+  [
+   "clothes",
+   "cortu_cargo_pants",
+   "#a7ab9f"
+  ],
+  [
+   "clothes",
+   "elvs_crude_t-shirt_male",
+   "#2a3a60"
+  ],
+  [
+   "clothes",
+   "shoes05",
+   "#ecebe6"
+  ]
+ ],
+ "cut_knee": "cortu_cargo_pants",
+ "cut_above": 0.04,
+ "extras": {
+  "beard": true,
+  "tattoo": "left",
+  "watch": "left",
+  "print_on": "elvs_crude_t-shirt_male",
+  "print_pos": [
+   0.075,
+   -0.3,
+   0.105
+  ],
+  "print": "tools/makehuman/dj_print.png",
+  "simplify": [
+   "elvs_crude_t-shirt_male",
+   "cortu_cargo_pants"
+  ]
+ },
+ "cull_body": true,
+ "extend_top": [
+  "elvs_crude_t-shirt_male",
+  "cortu_cargo_pants"
+ ],
+ "extend_by": 0.1,
+ "extend_flare": 0.12
+}

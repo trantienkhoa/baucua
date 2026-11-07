@@ -18,7 +18,7 @@
   A.init = function () {
     if (A.ctx) return;
     try { A.ctx = new AC(); } catch (e) { return; }
-    A.master = A.ctx.createGain(); A.master.gain.value = A.settings.volume;
+    A.master = A.ctx.createGain(); A.master.gain.value = A.settings.volume * (A.duckK ?? 1);
     A.analyser = A.ctx.createAnalyser(); A.analyser.fftSize = 1024; A.analyser.smoothingTimeConstant = 0.6;
     A.freq = new Uint8Array(A.analyser.frequencyBinCount);
     A.master.connect(A.analyser); A.analyser.connect(A.ctx.destination);
@@ -33,9 +33,15 @@
   A.suspended = () => !A.ctx || A.ctx.state !== 'running';
   A.resume = () => { if (A.ctx) A.ctx.resume(); };
 
+  A.duckK = 1;
+  // giảm nhạc game khi màn LCD đang phát video có tiếng (k: 0..1)
+  A.setDuck = function (k) {
+    A.duckK = k;
+    if (A.master) A.master.gain.setTargetAtTime(Math.max(0, Math.min(1, A.settings.volume || 0)) * k, A.ctx.currentTime, 0.4);
+  };
   A.setSettings = function (s) {
     Object.assign(A.settings, { musicEnabled: !!s.musicEnabled, synthMusic: !!s.synthMusic, volume: Number(s.volume) });
-    if (A.master) A.master.gain.setTargetAtTime(Math.max(0, Math.min(1, A.settings.volume || 0)), A.ctx.currentTime, 0.1);
+    if (A.master) A.master.gain.setTargetAtTime(Math.max(0, Math.min(1, A.settings.volume || 0)) * A.duckK, A.ctx.currentTime, 0.1);
     A.apply();
   };
   A.setPlaylist = function (list) {

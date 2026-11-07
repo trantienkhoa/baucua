@@ -20,6 +20,26 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## Màn hình LCD sau lưng DJ + DJ riêng (bản 1.8)
+
+**Bảng điều khiển riêng:** `http://localhost:3300/man-hinh.html` (hoặc nút “📺 Mở bảng điều khiển màn hình” ở trang chính).
+
+- **Chế độ chiếu:** 🎶 Sóng nhạc (mặc định) · ▶️ YouTube · 🎞️ Video trên máy · 🖼️ Ảnh.
+- **YouTube:** dán link (video, Shorts, playlist, youtu.be — mỗi dòng một link) rồi bấm **Thêm vào danh sách** hoặc **Thay cả danh sách & phát**.
+  - Nút điều khiển: phát / tạm dừng, bài trước / bài sau, phát lại, tua (bấm vào thanh thời gian), âm lượng, tắt tiếng, lặp lại, ngẫu nhiên.
+  - Sắp xếp và xoá từng bài trong danh sách. Video không cho nhúng sẽ tự được bỏ qua.
+  - Video hiện ngay trên màn 3D. DJ và người nhảy đứng trước vẫn che màn như thật.
+- **Video / ảnh trên máy:** tải file MP4/WebM/JPG/PNG lên rồi bấm **Chiếu**. Cách này không cần mạng và được ghi vào clip khoảnh khắc. Clip không ghi được hình YouTube: phần màn hình sẽ ra màu đen.
+- **Người tặng quà lớn** (từ số 💎 bạn đặt) vẫn được quay trực tiếp lên màn: video tự tạm dừng, chiếu xong thì phát tiếp. Có thể tắt cả hai việc này trong ⚙️ Tuỳ chọn.
+- **Tuỳ chọn khác:** lấp đầy màn hoặc vừa khung, độ sáng, tự giảm nhạc game khi video có tiếng, hiện biển “VŨ TRƯỜNG NEON” đè lên video.
+- **Âm thanh:** chỉ một màn hình game phát tiếng video (ưu tiên OBS) để không bị vọng tiếng. Mở màn hình game bằng trình duyệt thì bấm vào màn hình một lần để bật tiếng; OBS không cần.
+- **Bản quyền nhạc:** phát MV/nhạc có bản quyền từ YouTube lên TikTok LIVE có thể bị TikTok tắt tiếng hoặc cảnh cáo. Nên dùng nhạc/video bạn có quyền phát.
+
+**DJ riêng:**
+- `public/models/dj.glb` là DJ 3D dựng theo ảnh bạn gửi: nam, râu quai nón + ria mép, áo thun navy in chữ “DJ Neon”, quần short túi hộp xanh xám, giày trắng, hình xăm kín cẳng tay trái và đồng hồ bạc.
+- Muốn đổi DJ, tải lên mục 🧍 Nhân vật một file tên `dj.glb` hoặc `dj.vrm`.
+- Dựng lại từ đầu: `tools/makehuman/dj_spec.json` (chạy giống phần 100 nhân vật bên dưới).
+
 ## 100 nhân vật 3D dựng sẵn (bản 1.7)
 
 Bản phát hành có sẵn `public/models/char01.glb` … `char100.glb`: 100 người 3D (MakeHuman, giấy phép CC0) dựng theo `roster.csv` — giới tính, tuổi, dáng người, kiểu tóc/màu tóc, quần áo, giày theo mô tả. Mỗi file ~3 MB, **chỉ tải khi có người xem nhận vai đó** nên game vẫn mở nhanh.

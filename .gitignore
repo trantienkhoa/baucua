@@ -5,3 +5,5 @@ data/
 # mô hình 100 nhân vật (nặng ~300 MB) — có trong gói phát hành, không đưa vào git
 public/models/char*.glb
 public/_view.html
+public/models/dj.glb
+public/_fakeyt.html

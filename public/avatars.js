@@ -198,7 +198,7 @@ export async function loadAvatars(list) {
   lazyChars.clear();
   for (const it of list) {
     // mô hình riêng của từng vai (charXX): chỉ tải khi có người nhận vai đó
-    const cm = decodeURIComponent(it.url.split('/').pop()).match(/^(char\d+)/i);
+    const cm = decodeURIComponent(it.url.split('/').pop()).match(/^(char\d+|dj)(?![a-z0-9])/i);
     if (cm) { lazyChars.set(cm[1].toLowerCase(), it); continue; }
     try {
       let t = cache.get(it.url);
@@ -321,7 +321,7 @@ function prepare(scene, url) {
   const name = decodeURIComponent(url.split('/').pop());
   const female = false;
   return {
-    url, name, charId: (name.match(/^(char\d+)/i) || [])[1] ? name.match(/^(char\d+)/i)[1].toLowerCase() : null, scene, female, norm, footY, flip,
+    url, name, charId: (name.match(/^(char\d+|dj)(?![a-z0-9])/i) || [])[1] ? name.match(/^(char\d+|dj)(?![a-z0-9])/i)[1].toLowerCase() : null, scene, female, norm, footY, flip,
     hipH: (hips.y - footY) * norm,
     restLocal, dirLocal, restWorld,
     hipsParentInv: hipsParentWorld.clone().invert(), hipsParentQInv: hipsParentQ.clone().invert(),

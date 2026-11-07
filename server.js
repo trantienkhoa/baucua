@@ -477,15 +477,75 @@ async function disconnectTikTok() {
   setState('idle', 'Đã ngắt kết nối');
 }
 
+// ---------- màn hình LCD sau lưng DJ ----------
+const SCREEN_MEDIA = path.join(DATA, 'screen');
+fs.mkdirSync(SCREEN_MEDIA, { recursive: true });
+const SCREEN_DEFAULT = {
+  mode: 'eq',            // eq: sóng nhạc | youtube | video (file trên máy) | image
+  items: [],             // [{ type: 'video'|'list', id, title }]
+  idx: 0, playing: true, volume: 70, muted: false, loop: true, shuffle: false,
+  fit: 'fill',           // fill: lấp đầy (cắt trên/dưới) | contain: vừa khung
+  duck: true,            // giảm nhạc game khi phát video có tiếng
+  giftOverlay: true,     // người tặng quà lớn được chiếu chen ngang
+  giftPause: true,       // tạm dừng video trong lúc chiếu người tặng quà
+  showSign: false,       // hiện biển VŨ TRƯỜNG NEON đè lên màn
+  file: '', image: '', brightness: 1, seq: 0,
+};
+let screenState = Object.assign({}, SCREEN_DEFAULT, readJSON('screen.json', {}));
+let screenStatus = {};
+const saveScreen = () => { screenState.seq = (screenState.seq || 0) + 1; writeJSON('screen.json', screenState); io.emit('screen', screenState); };
+const MEDIA_RE = /\.(mp4|webm|mov|m4v|ogv|jpg|jpeg|png|gif|webp)$/i;
+function screenMedia() {
+  return fs.readdirSync(SCREEN_MEDIA).filter(f => MEDIA_RE.test(f)).sort().map(f => ({ file: f, url: '/screen-media/' + encodeURIComponent(f), kind: /\.(jpg|jpeg|png|gif|webp)$/i.test(f) ? 'image' : 'video', size: fs.statSync(path.join(SCREEN_MEDIA, f)).size }));
+}
+// nhận link YouTube (video, playlist, shorts, youtu.be, live) hoặc mã video
+function parseYouTube(text) {
+  const out = [];
+  for (let line of String(text || '').split(/[\s,]+/)) {
+    line = line.trim(); if (!line) continue;
+    let id = null, list = null;
+    try {
+      const u = new URL(/^https?:/i.test(line) ? line : 'https://' + line);
+      if (/youtu\.be$/i.test(u.hostname)) id = u.pathname.slice(1).split('/')[0];
+      else if (/youtube(-nocookie)?\.com$/i.test(u.hostname.replace(/^(www|m|music)\./, ''))) {
+        id = u.searchParams.get('v');
+        const m = u.pathname.match(/^\/(shorts|embed|live|v)\/([\w-]{6,})/); if (m) id = m[2];
+        list = u.searchParams.get('list');
+      }
+    } catch {}
+    if (!id && !list && /^[\w-]{11}$/.test(line)) id = line;
+    if (list && !id) out.push({ type: 'list', id: list, title: 'Danh sách phát' });
+    else if (id && /^[\w-]{6,20}$/.test(id)) out.push({ type: 'video', id, list: list || undefined, title: '' });
+  }
+  return out;
+}
+app.use('/screen-media', express.static(SCREEN_MEDIA));
+app.get('/api/screen', (req, res) => res.json({ state: screenState, media: screenMedia(), status: screenStatus }));
+const screenUpload = multer({
+  storage: multer.diskStorage({
+    destination: SCREEN_MEDIA,
+    filename: (req, file, cb) => cb(null, Buffer.from(file.originalname, 'latin1').toString('utf8').replace(/[\\/:*?"<>|#%]/g, '_')),
+  }),
+  limits: { fileSize: 2 * 1024 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => cb(null, MEDIA_RE.test(file.originalname)),
+});
+app.post('/api/screen-media', screenUpload.array('files', 20), (req, res) => { io.emit('screenMedia', screenMedia()); res.json(screenMedia()); });
+app.delete('/api/screen-media/:file', (req, res) => {
+  const f = path.join(SCREEN_MEDIA, path.basename(req.params.file));
+  if (fs.existsSync(f)) fs.unlinkSync(f);
+  io.emit('screenMedia', screenMedia()); res.json(screenMedia());
+});
+
 // ---------- socket ----------
 let primaryId = null;
 let goalState = null;   // tiến độ mục tiêu phòng (giữ khi tải lại màn hình game)
 function pickPrimary() {
-  if (primaryId && screens.has(primaryId)) return;
+  if (primaryId && screens.has(primaryId)) { screenStatus.screens = screens.size; io.to('screenctl').emit('screenStatus', screenStatus); return; }
   let best = null;
   for (const [id, s] of screens) { if (!best || (s.obs && !screens.get(best).obs)) best = id; }
   primaryId = best;
   for (const id of screens.keys()) io.to(id).emit('primary', id === primaryId);
+  screenStatus.screens = screens.size; io.to('screenctl').emit('screenStatus', screenStatus);
 }
 const screens = new Map(); // socket.id -> status
 let testN = 0;
@@ -498,7 +558,9 @@ function testUser(i) {
 io.on('connection', socket => {
   socket.on('hello', (role, info) => {
     if (role === 'game') { socket.join('game'); screens.set(socket.id, { obs: !!(info && info.obs) }); pickPrimary(); socket.emit('goalState', goalState); }
+    else if (role === 'screen') { socket.join('screenctl'); socket.emit('screenMedia', screenMedia()); socket.emit('screenStatus', screenStatus); }
     else { socket.join('admin'); socket.emit('clips', clipList()); }
+    socket.emit('screen', screenState);
     socket.emit('settings', settings);
     socket.emit('roster', roster);
     socket.emit('gifts', gifts);
@@ -509,6 +571,41 @@ io.on('connection', socket => {
   socket.on('status', s => { if (screens.has(socket.id)) screens.set(socket.id, Object.assign(screens.get(socket.id) || {}, s || {})); });
   socket.on('disconnect', () => { if (screens.delete(socket.id)) pickPrimary(); });
   socket.on('goalState', gs => { if (gs && typeof gs === 'object' && socket.id === primaryId) goalState = { likes: +gs.likes || 0, coins: +gs.coins || 0, idx: +gs.idx || 0, theme: String(gs.theme || 'club') }; });
+  socket.on('screen:set', patch => {
+    if (!patch || typeof patch !== 'object') return;
+    for (const k of Object.keys(SCREEN_DEFAULT)) if (k in patch && k !== 'seq') screenState[k] = patch[k];
+    if (typeof patch.addText === 'string') {
+      const found = parseYouTube(patch.addText);
+      if (found.length) { if (patch.replace) { screenState.items = found; screenState.idx = 0; } else screenState.items = screenState.items.concat(found); screenState.mode = 'youtube'; screenState.playing = true; if (patch.replace || screenState.items.length === found.length) screenState.idx = 0; }
+      socket.emit('screen:added', found.length);
+    }
+    if (!Array.isArray(screenState.items)) screenState.items = [];
+    screenState.items = screenState.items.slice(0, 500);
+    screenState.idx = Math.max(0, Math.min(screenState.items.length - 1, Number(screenState.idx) || 0));
+    screenState.volume = Math.max(0, Math.min(100, Number(screenState.volume) || 0));
+    saveScreen();
+  });
+  socket.on('screen:cmd', c => {
+    if (!c || typeof c.type !== 'string') return;
+    const n = screenState.items.length;
+    if ((c.type === 'next' || c.type === 'ended') && n) {
+      if (c.type === 'ended' && socket.id !== primaryId) return;   // chỉ màn chính báo hết bài
+      if (c.type === 'ended' && !screenState.loop && screenState.idx >= n - 1 && !screenState.shuffle) { screenState.playing = false; return saveScreen(); }
+      screenState.idx = screenState.shuffle && n > 1 ? (screenState.idx + 1 + Math.floor(Math.random() * (n - 1))) % n : (screenState.idx + 1) % n;
+      screenState.playing = true; return saveScreen();
+    }
+    if (c.type === 'prev' && n) { screenState.idx = (screenState.idx - 1 + n) % n; screenState.playing = true; return saveScreen(); }
+    if (c.type === 'play' && n) { screenState.idx = Math.max(0, Math.min(n - 1, Number(c.idx) || 0)); screenState.playing = true; screenState.mode = 'youtube'; return saveScreen(); }
+    io.to('game').emit('screen:cmd', c);   // seek, restart…
+  });
+  socket.on('screen:status', st => {
+    if (socket.id !== primaryId || !st || typeof st !== 'object') return;
+    screenStatus = st; st.screens = screens.size;
+    // lưu tên bài lấy được từ YouTube
+    const it = screenState.items[screenState.idx];
+    if (it && st.title && st.videoId && (it.id === st.videoId) && it.title !== st.title) { it.title = String(st.title).slice(0, 150); writeJSON('screen.json', screenState); }
+    io.to('screenctl').emit('screenStatus', st);
+  });
   socket.on('say', text => { if (typeof text === 'string') io.to('admin').emit('say', text.slice(0, 200)); });
 
   socket.on('saveSettings', s => {
