@@ -12,6 +12,7 @@ import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applySh
 import { createLCD } from './lcd.js';
 import { createFX } from './fx.js';
 import { createBar, SALONS } from './bar.js';
+import { applyStyle, randomStyleId, styleName, STYLE_KEYS } from './styles.js';
 
 const W = 1080, H = 1920;
 const PI = Math.PI, TAU = PI * 2;
@@ -706,6 +707,8 @@ function handleCommand(d, text) {
   if (num) { const n = +num[1]; if (n >= 1 && n <= DANCES.length) { d.dance = n - 1; sparkle(d, 6); } return; }
   if (/\bdi vong\b|\bdi dao\b/.test(t)) { d.mode = 'circle'; d.modeStart = now(); d.modeUntil = now() + 10; d.circleA = Math.random() * TAU; return; }
   if (/\bghep doi\b/.test(t)) { makePair(d); return; }
+  { const k = STYLE_KEYS.find(([w]) => new RegExp('(^|\\s)(phong cach\\s+)?' + w + '($|\\s)').test(t)); if (k && (/phong cach/.test(t) || t === k[0])) { d.style = k[1]; sparkle(d, 16); pushTicker(`😎 ${d.name} đổi phong cách ${styleName(k[1])}`, '#7cf7ff', { lcd: false }); return; } }
+  if (/^(phong cach|doi phong cach|style)$/.test(t)) { d.style = randomStyleId(d.body.female); sparkle(d, 16); return; }
   if (/\bdoi vai\b/.test(t) || (d.char && /\bdoi do\b|\bthay do\b/.test(t))) { const ch = pickChar(d.body.female); if (ch) { assignChar(d, ch); sparkle(d, 20); pushTicker(`🎭 ${d.name} đổi vai ${ch.name}`, '#7cf7ff', { lcd: false }); return; } }
   if (/\bdoi do\b|\bthay do\b/.test(t)) { d.look = randomLook(d.body.female, d.look); wear(d, Math.random() < 0.5 ? null : randomAllowedCostume(d)); sparkle(d, 14); return; }
   if (/\bhoa trang\b|\bbien hinh\b/.test(t)) { wear(d, randomAllowedCostume(d)); sparkle(d, 20); return; }
@@ -768,7 +771,7 @@ function startAction(z) {
   const d = z.d, t = now();
   d.lastActive = t;
   switch (z.id) {
-    case 'outfit': { const ch = S.rosterEnabled && ROSTER.length ? pickChar(d.body.female) : null; if (ch) assignChar(d, ch); else { d.look = randomLook(d.body.female, d.look); wear(d, null); } sparkle(d, 30); break; }   // đồ thật (không hoá trang)
+    case 'outfit': { const ch = S.rosterEnabled && ROSTER.length ? pickChar(d.body.female) : null; if (ch) assignChar(d, ch); else { d.look = randomLook(d.body.female, d.look); wear(d, null); } d.style = randomStyleId(d.body.female); sparkle(d, 30); break; }   // đồ thật (không hoá trang)
     case 'solo': requestSolo(d); break;
     case 'flashmob': startFlashmob(); break;
     case 'catwalk': d.mode = 'catwalk'; d.modeStart = t; d.modeUntil = t + Math.max(z.dur, 7); d.tx = 0; d.tz = 1; break;
@@ -1663,6 +1666,12 @@ function frame() {
     const real = avatarTemplates.length > 0 && S.charStyle !== 'toon' && S.quality !== 'low';
     if (real && !d.av) d.av = createAvatar(scene, d.body.female, d.avT, d.avCostume !== undefined && d.avCostume !== null ? d.avCostume : d.char || (d.avT && d.avT.charId) ? null : (Math.random() * 100 < (Number(S.costumeRate) || 0) ? randomAllowedCostume(d) : null), { outfit: d.avOutfit, shape: d.avShape });
     else if (!real && d.av) { disposeAvatar(d.av); d.av = null; }
+    // phong cách (kính, mũ, dây chuyền vàng…) — không áp cho DJ, MC, nhân viên, người đang hoá trang
+    if (d.av && d !== resident && d !== mc && !d.isStaff) {
+      if (d.style === undefined) d.style = Math.random() * 100 < Number(S.styleRate ?? 85) ? randomStyleId(d.body.female) : null;
+      const want = d.av.costume || S.stylesEnabled === false ? null : d.style;
+      if (d.av._style !== want) { applyStyle(d.av, want); d.av._style = want; }
+    }
     if (d.av) {
       _hp.set(0, HEAD_Y, 0).applyMatrix4(rig.head.matrixWorld);
       _ht.set(0, HEAD_Y + 0.3, 0).applyMatrix4(rig.head.matrixWorld);
@@ -1713,6 +1722,7 @@ function frame() {
   updateLedShow(t, dt);
   if (lcd) lcd.update(t, !!ledShow, !!zoom && !lcd.textActive);   // lời nhắn đợi máy quay zoom xong rồi mới hiện
   updateCam(dt, t);
+  if (window._camLock) window._camLock(camera);   // chỉ dùng khi thử nghiệm
   if (bloom) bloom.strength = bi.fire ? 0.6 + fireLevel * 0.04 : 0.55;
   renderLed();
   if (S.quality === 'high' && composer) composer.render(); else { renderer.render(scene, camera); if (lcd) lcd.afterRender(renderer); }

@@ -246,6 +246,8 @@ socket.on('connect', () => socket.emit('hello', 'admin'));
 const FIELDS = [
   ['djName', '🎧 Tên DJ trên bàn DJ', 'text'],
   ['theme', '🎪 Sàn mặc định (📅 tự động = đổi theo mùa / ngày lễ)', 'select', () => THEMES],
+  ['stylesEnabled', '😎 Phong cách phụ kiện (kính, mũ, dây chuyền vàng…)', 'check'],
+  ['styleRate', '😎 % người lên sàn có phong cách', 'num', 5],
   ['barEnabled', '🛋️ Bàn ghế quán bar (salon + bàn tròn đứng)', 'check'],
   ['mcEnabled', '🎤 MC cầm micro cạnh DJ', 'check'],
   ['mcHype', '📣 MC hô hào sự kiện lớn', 'check'],

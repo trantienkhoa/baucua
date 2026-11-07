@@ -20,6 +20,30 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## Phong cách trẻ trung: kính, mũ, vàng… (bản 2.4.0)
+
+Khoảng 85% người lên sàn (chỉnh được) được gắn sẵn một phong cách. Phụ kiện 3D gắn vào xương nên đi theo người khi nhảy, áp được cho mọi nhân vật, kể cả 100 nhân vật dựng sẵn:
+
+| Phong cách | Phụ kiện |
+|---|---|
+| 🧢 Hip-hop | mũ lưỡi trai đội ngược, kính đen vuông, dây chuyền vàng to + mặt dây, đồng hồ vàng |
+| 💰 Đại gia (dân chơi) | kính phi công gọng vàng, 3 dây chuyền vàng, đồng hồ vàng, lắc tay vàng, khuyên tai kim cương |
+| 🪣 Đường phố | mũ bucket, kính tròn, túi đeo chéo, băng cổ tay |
+| 🏃 Thể thao | băng đô, kính thể thao ôm mặt, băng cổ tay |
+| 🎤 K-pop | mũ nồi / mũ len, kính tròn, khuyên tai, dây chuyền bạc |
+| 🎸 Rocker | khăn bandana, kính phi công, dây chuyền bạc, vòng bạc |
+| 🤠 Cao bồi | mũ cao bồi, kính phi công, đồng hồ bạc |
+| 🎧 DJ | mũ lưỡi trai, tai nghe phát sáng, dây chuyền vàng |
+| 👜 Tiểu thư (nữ) | kính mắt mèo, vòng ngọc trai, hoa tai ngọc trai, vòng vàng |
+| 💖 Y2K (nữ) | kính trái tim hồng phát sáng, vòng cổ choker, khuyên tròn, vòng bạc |
+| ✨ Sang chảnh (nữ) | kính mắt mèo, khuyên tròn vàng, nhiều dây chuyền vàng, đồng hồ, vòng vàng |
+| Tối giản | khuyên tai, đồng hồ |
+
+- **Người xem tự đổi:** gõ `phong cách hip hop`, `đại gia`, `đeo vàng`, `kính đen`, `mũ ngược`, `k-pop`, `cao bồi`, `tiểu thư`, `y2k`… hoặc chỉ `phong cách` để đổi ngẫu nhiên.
+- Tặng quà **Đổi đồ** cũng đổi luôn phong cách.
+- Màu mũ, khăn, túi được chọn ngẫu nhiên, nên hai người cùng phong cách vẫn khác nhau.
+- **Tắt / chỉnh:** Cài đặt → “😎 Phong cách phụ kiện”, “% người lên sàn có phong cách”.
+
 ## Bỏ YouTube khỏi màn LCD (bản 2.3.0)
 
 - Màn LCD không còn phát YouTube. Còn 3 chế độ: 🎶 sóng nhạc (kèm tranh chủ đề mùa / lễ), 🎞️ video trên máy, 🖼️ ảnh.
