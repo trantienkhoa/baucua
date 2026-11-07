@@ -873,12 +873,31 @@ function updateStaff(t, dt) {
       if (w.wait <= 0) w.wp = (w.wp + w.dir + n) % n;
       continue;
     }
-    const dx = target.x - w.px, dz = target.z - w.pz, dist = Math.hypot(dx, dz), step = 1.05 * dt;
-    if (dist <= step) { w.px = target.x; w.pz = target.z; if (target.ser) w.wait = rand(2.2, 3.5); else w.wp = (w.wp + w.dir + n) % n; }
+    const dx = target.x - w.px, dz = target.z - w.pz, dist = Math.hypot(dx, dz);
+    // né khách: lực đẩy từ người đứng phía trước, đông thì đi chậm lại; khách quá gần thì bước sang bên nhường đường
+    let ax = 0, az = 0, crowd = 0;
+    const fx = dist > 1e-4 ? dx / dist : 0, fz = dist > 1e-4 ? dz / dist : 0;
+    for (const d of dancers.values()) {
+      if (!d._last || d.leaving || d.dropH > 0) continue;
+      const rx = w.px - d._last.x, rz = w.pz - d._last.z, r2 = rx * rx + rz * rz;
+      if (r2 > 1.1 * 1.1 || r2 < 1e-6) continue;
+      const r = Math.sqrt(r2), ahead = -(rx * fx + rz * fz) / r;   // >0: khách ở phía trước
+      if (ahead > -0.2) { const k = (1.1 - r) / 1.1; ax += rx / r * k * (0.6 + ahead); az += rz / r * k * (0.6 + ahead); crowd += k * Math.max(0, ahead); }
+      if (r < 0.6 && (d.mode === 'dance' || d.mode === 'circle') && !d.pairWith) {
+        const push = (0.6 - r) * Math.min(1, dt * 4), hw = Math.max(0.5, halfW(d.z));
+        const nx = -rx / r * push / hw, nz = -rz / r * push / 9;
+        d.x = clamp(d.x + nx, -0.9, 0.9); d.tx = clamp(d.tx + nx, -0.9, 0.9);
+        d.z = clamp(d.z + nz, 0, 1); d.tz = clamp(d.tz + nz, 0, 1);
+      }
+    }
+    let mx = fx + ax * 1.4, mz = fz + az * 1.4; const ml = Math.hypot(mx, mz) || 1; mx /= ml; mz /= ml;
+    if (mx * fx + mz * fz < 0.2) { mx = fx * 0.2 + (-fz) * Math.sign(ax * -fz + az * fx || 1); mz = fz * 0.2 + fx * Math.sign(ax * -fz + az * fx || 1); const l = Math.hypot(mx, mz); mx /= l; mz /= l; }   // không quay ngược: lách ngang
+    const step = 1.05 * dt * clamp(1 - crowd * 0.35, 0.35, 1);
+    if (dist <= Math.max(step, 0.06)) { w.px = target.x; w.pz = target.z; if (target.ser) w.wait = rand(2.2, 3.5); else w.wp = (w.wp + w.dir + n) % n; }
     else {
-      w.px += dx / dist * step; w.pz += dz / dist * step; w.walking = true;
-      const want = Math.atan2(dx, dz); let dy = want - w.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); w.yaw += dy * Math.min(1, dt * 6);   // quay người mượt
-      w.walkPh = (w.walkPh + dt * 1.6) % 1;
+      w.px += mx * step; w.pz += mz * step; w.walking = true;
+      const want = Math.atan2(mx, mz); let dy = want - w.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); w.yaw += dy * Math.min(1, dt * 6);   // quay người mượt
+      w.walkPh = (w.walkPh + 1.6 * step / 1.05) % 1;
     }
   }
 }

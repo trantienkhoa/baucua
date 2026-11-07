@@ -28,6 +28,7 @@ Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dù
   - Ghé bàn VIP bên trái, các bàn tròn đứng bên trái, băng qua phía trước, lên các bàn tròn bên phải, ghé bàn VIP bên phải, rồi băng qua giữa sàn quay lại.
   - Đến mỗi bàn, nhân viên dừng 2–3 giây, quay mặt vào bàn và đưa khay ra như đang mời rượu.
 - **Tắt:** Cài đặt → “🍾 Nhân viên phục vụ bưng rượu đi quanh sàn”. Nếu tắt bàn ghế quán bar thì nhân viên cũng tự ẩn.
+- **Né khách (bản 1.9.7):** nhân viên lách tránh người phía trước và đi chậm lại khi đông; khách đứng quá gần sẽ bước sang bên nhường đường. Khi thử với 100 khách trên sàn, nhân viên luôn cách khách gần nhất từ khoảng 0,7 m trở lên, không đi xuyên qua người.
 
 ## MC cầm micro thật, cận cảnh bàn VIP trên màn LCD (bản 1.9.5)
 
