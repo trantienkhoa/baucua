@@ -536,6 +536,53 @@ app.delete('/api/screen-media/:file', (req, res) => {
   io.emit('screenMedia', screenMedia()); res.json(screenMedia());
 });
 
+// ảnh bìa YouTube (tải qua máy chủ để vẽ được vào clip khoảnh khắc)
+const THUMBS = path.join(SCREEN_MEDIA, '.thumbs');
+fs.mkdirSync(THUMBS, { recursive: true });
+app.get('/api/yt-thumb/:id', async (req, res) => {
+  const id = String(req.params.id || '');
+  if (!/^[\w-]{6,20}$/.test(id)) return res.status(400).end();
+  const f = path.join(THUMBS, id + '.jpg');
+  if (!fs.existsSync(f)) {
+    for (const q of ['maxresdefault', 'hqdefault', 'mqdefault']) {
+      try {
+        const r = await fetch(`https://i.ytimg.com/vi/${id}/${q}.jpg`);
+        if (r.ok) { fs.writeFileSync(f, Buffer.from(await r.arrayBuffer())); break; }
+      } catch {}
+    }
+  }
+  if (!fs.existsSync(f)) return res.status(404).end();
+  res.set('Cache-Control', 'max-age=86400').sendFile(f, { dotfiles: 'allow' });
+});
+
+// mở màn hình game bằng Chrome/Edge với quyền tự phát tiếng (không cần bấm vào trang)
+function findBrowser() {
+  const c = [];
+  if (process.platform === 'win32') {
+    for (const base of [process.env['ProgramFiles(x86)'], process.env.ProgramFiles, process.env.LOCALAPPDATA].filter(Boolean)) {
+      c.push(path.join(base, 'Google', 'Chrome', 'Application', 'chrome.exe'), path.join(base, 'Microsoft', 'Edge', 'Application', 'msedge.exe'));
+    }
+  } else if (process.platform === 'darwin') {
+    c.push('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', '/Applications/Chromium.app/Contents/MacOS/Chromium');
+  } else {
+    for (const d of (process.env.PATH || '').split(':')) for (const n of ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'microsoft-edge']) c.push(path.join(d, n));
+  }
+  return c.find(f => { try { return fs.statSync(f).isFile(); } catch { return false; } }) || null;
+}
+app.post('/api/open-game', (req, res) => {
+  const ip = req.socket.remoteAddress || '';
+  if (!/^(::1|127\.|::ffff:127\.)/.test(ip)) return res.status(403).json({ ok: false, error: 'Chỉ mở được từ chính máy chạy game.' });
+  const exe = findBrowser();
+  if (!exe) return res.json({ ok: false, error: 'Không tìm thấy Chrome hoặc Edge trên máy.' });
+  const profile = path.join(DATA, 'browser-game');
+  const url = `http://localhost:${PORT}/game.html` + (req.body && req.body.obs ? '?obs=1' : '');
+  try {
+    const child = require('child_process').spawn(exe, ['--autoplay-policy=no-user-gesture-required', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check', '--window-size=560,1000', `--app=${url}`], { detached: true, stdio: 'ignore' });
+    child.on('error', () => {}); child.unref();
+    res.json({ ok: true, browser: path.basename(exe) });
+  } catch (e) { res.json({ ok: false, error: String(e.message || e) }); }
+});
+
 // ---------- socket ----------
 let primaryId = null;
 let goalState = null;   // tiến độ mục tiêu phòng (giữ khi tải lại màn hình game)

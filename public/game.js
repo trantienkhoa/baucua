@@ -1678,6 +1678,8 @@ function startClip(reason, seconds) {
 function recordFrame() {
   if (!rec) return;
   const { cx, cc } = rec;
+  cx.fillStyle = '#000'; cx.fillRect(0, 0, cc.width, cc.height);
+  if (lcd) lcd.drawBehind(cx, cc.width, cc.height);   // ảnh bìa YouTube nằm sau chỗ “đục lỗ”
   cx.drawImage(glCanvas, 0, 0, cc.width, cc.height);
   cx.drawImage(hud, 0, 0, cc.width, cc.height);
   if (now() > rec.until) { try { rec.mr.stop(); } catch (e) {} rec = null; }

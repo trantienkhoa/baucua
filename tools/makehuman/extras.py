@@ -162,6 +162,99 @@ if ex.get('tattoo'):
     lo = [min(e.x, w.x) - pad, min(e.y, w.y) - pad, min(e.z, w.z) - pad]; hi = [max(e.x, w.x) + pad, max(e.y, w.y) + pad, max(e.z, w.z) + pad]
     paint(body, lo, hi, tattoo)
 
+# ---------- mặt thật từ ảnh (chiếu từ phía trước, căn theo 2 mắt, miệng, cằm) ----------
+def load_photo(path):
+    im = bpy.data.images.load(path, check_existing=True)
+    W, H = im.size
+    return np.array(im.pixels[:], np.float32).reshape(H, W, 4), W, H
+
+def sample(img, W, H, px, py):
+    """lấy mẫu song tuyến; px, py theo toạ độ ảnh (y hướng xuống)"""
+    x = np.clip(px - 0.5, 0, W - 1.001); y = np.clip((H - 1) - (py - 0.5), 0, H - 1.001)
+    x0 = np.floor(x).astype(int); y0 = np.floor(y).astype(int); fx = (x - x0)[:, None]; fy = (y - y0)[:, None]
+    return (img[y0, x0] * (1 - fx) * (1 - fy) + img[y0, x0 + 1] * fx * (1 - fy) + img[y0 + 1, x0] * (1 - fx) * fy + img[y0 + 1, x0 + 1] * fx * fy)
+
+def smooth(e0, e1, v):
+    t = np.clip((v - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t)
+
+if ex.get('face_photo'):
+    fp = ex['face_photo']
+    ph, PW, PHh = load_photo(fp['path'])
+    eR = np.array(fp['eyeR'], float); eL = np.array(fp['eyeL'], float); mid = (eR + eL) / 2
+    k = complex(*(eL - eR)) / (2 * eye_dx)
+    md = np.array(fp['map_model']); pdn = np.array(fp['map_photo'])
+    # cân màu da: ảnh chụp nắng ↔ da mô hình
+    _, skin_im = base_image(body)
+    sk = np.array(skin_im.pixels[:], np.float32).reshape(-1, 4)[:, :3]
+    skin_mean = np.median(sk[::7], axis=0)
+    cs = [sample(ph, PW, PHh, np.array([c[0]] * 9, float) + np.repeat([-2, 0, 2], 3), np.array([c[1]] * 9, float) + np.tile([-2, 0, 2], 3))[:, :3] for c in fp['skin_pts']]
+    photo_skin = np.median(np.concatenate(cs), axis=0)
+    g = skin_mean / np.maximum(photo_skin, 1e-3)
+    gp = g ** fp.get('photo_match', 0.7)            # ảnh kéo về màu da mô hình
+    gb = (1 / g) ** (1 - fp.get('photo_match', 0.7))  # da mô hình kéo về màu ảnh
+    print('mau da', skin_mean, photo_skin, gp, gb)
+    px_all = np.array(skin_im.pixels[:], np.float32).reshape(-1, 4)
+    px_all[:, :3] = np.clip(px_all[:, :3] * gb, 0, 1); skin_im.pixels[:] = px_all.ravel(); skin_im.update()
+    ec = np.array(fp.get('ellipse', [0, 0, 1e9, 1e9]), float)
+    def face(P, N, gx, gy):
+        x = P[:, 0]; down = eye_z - P[:, 2]
+        dp = np.where(down > 0, np.interp(down, md, pdn), down)
+        w = mid[0] + mid[1] * 1j + k * (x + 1j * dp)
+        px, py = w.real, w.imag
+        raw = sample(ph, PW, PHh, px, py)[:, :3]; c = raw * gp
+        m = smooth(-0.05, -0.35, N[:, 1])                                  # mặt hướng về trước
+        m = m * (1 - smooth(fp.get('half_w', 0.046), fp.get('half_w', 0.046) + 0.016, np.abs(x) / U))
+        dz = -down / U
+        m = m * smooth(-0.142, -0.122, dz) * (1 - smooth(fp.get('top', 0.045), fp.get('top', 0.045) + 0.02, dz))
+        r = ((px - ec[0]) / ec[2]) ** 2 + ((py - ec[1]) / ec[3]) ** 2
+        m = m * (1 - smooth(0.75, 1.0, r))
+        m = m * smooth(-0.02, 0.06, raw[:, 0] - raw[:, 2])                 # bỏ điểm ảnh không phải da (áo, nền xanh)
+        return np.clip(c, 0, 1), m * fp.get('strength', 1.0)
+    paint(body, (-0.09 * U, eye_y - 0.05, eye_z - 0.16 * U), (0.09 * U, eye_y + 0.09 * U, eye_z + 0.08 * U), face)
+
+# ---------- hình xăm thật từ ảnh (trải quanh cánh tay) ----------
+if ex.get('tattoo_photo'):
+    tp = ex['tattoo_photo']; side = tp.get('side', 'left')
+    ph2, W2, H2 = load_photo(tp['path'])
+    sh_, _, _ = bone(side + 'arm'); el_, _, _ = bone(side + 'forearm'); wr_, _, _ = bone(side + 'hand')
+    start = sh_ + (el_ - sh_) * tp.get('start', 0.5)
+    pts = [np.array(tuple(v)) for v in (start, el_, wr_)]
+    segL = [np.linalg.norm(pts[1] - pts[0]), np.linalg.norm(pts[2] - pts[1])]; Ltot = sum(segL)
+    (tx, ty), (bx, by) = tp['top'], tp['bottom']; wt, wb = tp['width_top'], tp['width_bottom']
+    # độ sáng da tham chiếu theo từng hàng ảnh (phần sáng nhất trong bề ngang cánh tay)
+    lum2 = ph2[..., 0] * 0.3 + ph2[..., 1] * 0.59 + ph2[..., 2] * 0.11
+    rows = {}
+    for yy in range(int(ty), int(by) + 1):
+        f = (yy - ty) / (by - ty); cx = tx + (bx - tx) * f; hw = (wt + (wb - wt) * f) / 2
+        r = H2 - 1 - yy; seg = lum2[r, max(0, int(cx - hw * 0.8)):int(cx + hw * 0.8)]
+        rows[yy] = float(np.percentile(seg, 92)) if seg.size else 0.5
+    rk = np.array(sorted(rows)); rv = np.array([rows[y] for y in rk])
+    ink = np.array(tp.get('color', [0.05, 0.055, 0.06]), np.float32)
+    FRONT = np.array([0.0, -1.0, 0.0])
+    def tat(P, N, gx, gy):
+        best_s = np.full(len(P), -1.0); best_d = np.full(len(P), 1e9); best_phi = np.zeros(len(P))
+        acc = 0.0
+        for i in range(2):
+            a = pts[i + 1] - pts[i]; L = segL[i]; an = a / L
+            q = P - pts[i]; t = np.clip(q @ an, 0, L); rv_ = q - np.outer(t, an); d = np.linalg.norm(rv_, axis=1)
+            f1 = FRONT - an * (FRONT @ an); f1 /= np.linalg.norm(f1); f2 = np.cross(an, f1)
+            phi = np.arctan2(rv_ @ f2, rv_ @ f1)
+            upd = d < best_d
+            best_d[upd] = d[upd]; best_s[upd] = (acc + t[upd]) / Ltot; best_phi[upd] = phi[upd]
+            acc += L
+        s_ = best_s; on = (best_d < 0.07 * U) & (s_ > 0.0) & (s_ < 0.97)
+        f = s_; py = ty + (by - ty) * f; cx = tx + (bx - tx) * f; hw = (wt + (wb - wt) * f) / 2
+        px = cx + np.sin(best_phi) * hw * 0.92
+        c = sample(ph2, W2, H2, px, py)
+        L_ = c[:, 0] * 0.3 + c[:, 1] * 0.59 + c[:, 2] * 0.11
+        ref = np.interp(py, rk, rv)
+        a = np.clip((ref - L_) / (0.55 * ref + 1e-3), 0, 1) ** 0.85
+        a = a * smooth(0.0, 0.04, s_) * (1 - smooth(0.92, 0.97, s_)) * on * tp.get('strength', 0.95)
+        return np.broadcast_to(ink, (len(a), 3)), a
+    pad = 0.08 * U
+    allp = np.array(pts); lo = allp.min(0) - pad; hi = allp.max(0) + pad
+    paint(body, lo, hi, tat)
+
 # ---------- chữ in trên ngực áo ----------
 if ex.get('print') and ex.get('print_on'):
     import bpy as _b

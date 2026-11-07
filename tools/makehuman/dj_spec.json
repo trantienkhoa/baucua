@@ -46,7 +46,7 @@
  "cut_above": 0.04,
  "extras": {
   "beard": true,
-  "tattoo": "left",
+  "tattoo": false,
   "watch": "left",
   "print_on": "elvs_crude_t-shirt_male",
   "print_pos": [
@@ -58,7 +58,70 @@
   "simplify": [
    "elvs_crude_t-shirt_male",
    "cortu_cargo_pants"
-  ]
+  ],
+  "face_photo": {
+   "path": "anh-cua-ban.jpg",
+   "eyeR": [
+    115,
+    436.7
+   ],
+   "eyeL": [
+    166,
+    428.3
+   ],
+   "map_model": [
+    0,
+    0.061,
+    0.107,
+    0.15,
+    0.4
+   ],
+   "map_photo": [
+    0,
+    0.056,
+    0.111,
+    0.154,
+    0.404
+   ],
+   "skin_pts": [
+    [
+     116.7,
+     466.7
+    ],
+    [
+     186.7,
+     456.7
+    ],
+    [
+     143.3,
+     393.3
+    ]
+   ],
+   "ellipse": [
+    152,
+    462,
+    55,
+    73
+   ],
+   "half_w": 0.046,
+   "top": 0.012,
+   "photo_match": 0.7
+  },
+  "tattoo_photo": {
+   "path": "anh-cua-ban.jpg",
+   "side": "left",
+   "top": [
+    351.7,
+    663.3
+   ],
+   "bottom": [
+    378.3,
+    863.3
+   ],
+   "width_top": 63,
+   "width_bottom": 40,
+   "start": 0.5
+  }
  },
  "cull_body": true,
  "extend_top": [

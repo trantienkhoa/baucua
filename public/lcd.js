@@ -116,7 +116,7 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
   // ---------- âm thanh ----------
   function wantMuted() { return S.muted || !isPrimary(); }
   // trình duyệt chặn tự phát có tiếng khi chưa bấm vào trang → phát không tiếng, bấm vào trang thì bật tiếng
-  window.addEventListener('pointerdown', () => { if (ytMutedAuto && player && ytReady && !wantMuted()) { player.unMute(); ytMutedAuto = false; } if (video.muted && !wantMuted()) { video.muted = false; video.play().catch(() => {}); } });
+  window.addEventListener('pointerdown', () => { if (ytMutedAuto && player && ytReady && !wantMuted()) { player.unMute(); ytMutedAuto = false; } if (video.muted && !wantMuted()) { video.muted = false; video._autoMuted = false; video.play().catch(() => {}); } });
 
   let giftHold = false, pausedByGift = false;
   function sync(gift) {
@@ -178,7 +178,7 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
         const d = player.getVideoData ? player.getVideoData() : {};
         Object.assign(st, { state: giftHold && S.giftPause ? 'gift' : ytError ? 'error' : ({ 1: 'playing', 2: 'paused', 3: 'buffering', 0: 'ended' }[ytState] || 'loading'), time: player.getCurrentTime(), duration: player.getDuration(), title: d.title || '', videoId: d.video_id || '', autoMuted: ytMutedAuto });
       } catch (e) {}
-    } else if (S.mode === 'video') Object.assign(st, { state: video.paused ? 'paused' : 'playing', time: video.currentTime, duration: video.duration || 0 });
+    } else if (S.mode === 'video') Object.assign(st, { state: video.paused ? 'paused' : 'playing', time: video.currentTime, duration: video.duration || 0, autoMuted: !!video._autoMuted && video.muted });
     socket.emit('screen:status', st);
   }, 1000);
 
@@ -206,8 +206,49 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
     if (k !== duckK) { duckK = k; if (Music.setDuck) Music.setDuck(k); }
   }
 
+  // ---------- ảnh bìa cho clip khoảnh khắc (không ghi được hình trong khung YouTube) ----------
+  let curVid = '', curTitle = '', thumb = null, thumbId = '';
+  const _c = new THREE.Vector3();
+  function currentVideo() {
+    try { const d = player && ytReady && player.getVideoData ? player.getVideoData() : null; if (d && d.video_id) { curVid = d.video_id; curTitle = d.title || curTitle; return; } } catch (e) {}
+    const it = S.items[S.idx]; if (it && it.type === 'video') { curVid = it.id; curTitle = it.title || ''; }
+  }
+  function drawBehind(cx, w, h) {
+    if (!holeOn) return;
+    currentVideo();
+    if (curVid && thumbId !== curVid) { thumbId = curVid; thumb = new Image(); thumb.src = '/api/yt-thumb/' + curVid; }
+    led.updateMatrixWorld();
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+      _c.set(sx * SW / 2, sy * SH / 2, 0); led.localToWorld(_c); _c.project(camera);
+      const X = (_c.x + 1) / 2 * w, Y = (1 - _c.y) / 2 * h;
+      x0 = Math.min(x0, X); x1 = Math.max(x1, X); y0 = Math.min(y0, Y); y1 = Math.max(y1, Y);
+    }
+    const bw = x1 - x0, bh = y1 - y0; if (bw < 2 || bh < 2) return;
+    cx.save(); cx.beginPath(); cx.rect(x0, y0, bw, bh); cx.clip();
+    cx.fillStyle = '#000'; cx.fillRect(x0, y0, bw, bh);
+    if (thumb && thumb.complete && thumb.naturalWidth) {
+      const ia = thumb.naturalWidth / thumb.naturalHeight, ba = bw / bh;
+      let dw = bw, dh = bh;
+      if ((S.fit === 'contain') === (ia > ba)) dh = bw / ia; else dw = bh * ia;
+      cx.filter = S.brightness && S.brightness !== 1 ? `brightness(${S.brightness})` : 'none';
+      cx.drawImage(thumb, x0 + (bw - dw) / 2, y0 + (bh - dh) / 2, dw, dh);
+      cx.filter = 'none';
+    }
+    // dải "đang phát" + thanh thời gian (nhúc nhích theo nhạc cho clip đỡ tĩnh)
+    const fs = Math.max(12, bh * 0.075);
+    const g = cx.createLinearGradient(0, y1 - fs * 3, 0, y1); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.75)');
+    cx.fillStyle = g; cx.fillRect(x0, y1 - fs * 3, bw, fs * 3);
+    cx.font = `700 ${fs}px "Segoe UI",system-ui,sans-serif`; cx.fillStyle = '#fff'; cx.textBaseline = 'middle';
+    let tt = '▶ ' + (curTitle || 'YouTube'); while (cx.measureText(tt).width > bw * 0.9 && tt.length > 4) tt = tt.slice(0, -2) + '…';
+    cx.fillText(tt, x0 + bw * 0.04, y1 - fs * 1.6);
+    try { const d = player.getDuration(), t = player.getCurrentTime(); if (d > 0) { cx.fillStyle = 'rgba(255,255,255,0.3)'; cx.fillRect(x0 + bw * 0.04, y1 - fs * 0.6, bw * 0.92, fs * 0.18); cx.fillStyle = '#ff2d55'; cx.fillRect(x0 + bw * 0.04, y1 - fs * 0.6, bw * 0.92 * Math.min(1, t / d), fs * 0.18); } } catch (e) {}
+    cx.restore();
+  }
+
   let lastSync = 0;
   return {
+    drawBehind,
     holePass,
     get state() { return S; },
     get hole() { return holeOn; },

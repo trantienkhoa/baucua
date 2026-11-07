@@ -29,16 +29,16 @@ Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dù
   - Nút điều khiển: phát / tạm dừng, bài trước / bài sau, phát lại, tua (bấm vào thanh thời gian), âm lượng, tắt tiếng, lặp lại, ngẫu nhiên.
   - Sắp xếp và xoá từng bài trong danh sách. Video không cho nhúng sẽ tự được bỏ qua.
   - Video hiện ngay trên màn 3D. DJ và người nhảy đứng trước vẫn che màn như thật.
-- **Video / ảnh trên máy:** tải file MP4/WebM/JPG/PNG lên rồi bấm **Chiếu**. Cách này không cần mạng và được ghi vào clip khoảnh khắc. Clip không ghi được hình YouTube: phần màn hình sẽ ra màu đen.
+- **Video / ảnh trên máy:** tải file MP4/WebM/JPG/PNG lên rồi bấm **Chiếu**. Cách này không cần mạng và được ghi vào clip khoảnh khắc. Với YouTube, clip ghi ảnh bìa của bài đang phát kèm tên bài và thanh thời gian ở đúng vị trí màn hình (trình duyệt không cho ghi hình bên trong khung YouTube).
 - **Người tặng quà lớn** (từ số 💎 bạn đặt) vẫn được quay trực tiếp lên màn: video tự tạm dừng, chiếu xong thì phát tiếp. Có thể tắt cả hai việc này trong ⚙️ Tuỳ chọn.
 - **Tuỳ chọn khác:** lấp đầy màn hoặc vừa khung, độ sáng, tự giảm nhạc game khi video có tiếng, hiện biển “VŨ TRƯỜNG NEON” đè lên video.
-- **Âm thanh:** chỉ một màn hình game phát tiếng video (ưu tiên OBS) để không bị vọng tiếng. Mở màn hình game bằng trình duyệt thì bấm vào màn hình một lần để bật tiếng; OBS không cần.
+- **Âm thanh:** chỉ một màn hình game phát tiếng video (ưu tiên OBS) để không bị vọng tiếng. OBS tự có tiếng. Muốn mở màn hình game bằng trình duyệt mà không phải bấm vào trang, dùng nút **🖥️ Mở màn hình game (tự có tiếng)**: nút này mở Chrome/Edge với quyền tự phát tiếng. Nếu trình duyệt vẫn chặn tiếng, bảng điều khiển màn hình sẽ báo.
 - **Bản quyền nhạc:** phát MV/nhạc có bản quyền từ YouTube lên TikTok LIVE có thể bị TikTok tắt tiếng hoặc cảnh cáo. Nên dùng nhạc/video bạn có quyền phát.
 
 **DJ riêng:**
-- `public/models/dj.glb` là DJ 3D dựng theo ảnh bạn gửi: nam, râu quai nón + ria mép, áo thun navy in chữ “DJ Neon”, quần short túi hộp xanh xám, giày trắng, hình xăm kín cẳng tay trái và đồng hồ bạc.
+- `public/models/dj.glb` là DJ 3D dựng theo ảnh bạn gửi. **Gương mặt** (nụ cười, râu, ria) và **hình xăm** được lấy thẳng từ ảnh chụp rồi trải lên người 3D. Kèm áo thun navy in chữ “DJ Neon”, quần short túi hộp xanh xám, giày trắng, đồng hồ bạc.
 - Muốn đổi DJ, tải lên mục 🧍 Nhân vật một file tên `dj.glb` hoặc `dj.vrm`.
-- Dựng lại từ đầu: `tools/makehuman/dj_spec.json` (chạy giống phần 100 nhân vật bên dưới).
+- Dựng lại từ đầu: `tools/makehuman/dj_spec.json` (chạy giống phần 100 nhân vật bên dưới). Đặt ảnh của bạn tên `anh-cua-ban.jpg` ở thư mục chạy lệnh. Toạ độ mắt, miệng và hình xăm trong file là toạ độ trên ảnh gốc; đổi ảnh khác thì phải đo lại.
 
 ## 100 nhân vật 3D dựng sẵn (bản 1.7)
 

@@ -75,6 +75,8 @@
       <span id="volTxt" class="muted"></span>
     </div>
     <div class="warn" id="noScreen" style="display:none">Chưa có màn hình game nào đang mở — hãy mở <a href="/game.html" target="_blank">màn hình game</a> hoặc OBS.</div>
+    <div class="row"><button id="bOpenGame">🖥️ Mở màn hình game (tự có tiếng)</button><span class="muted" id="openMsg">Mở bằng Chrome/Edge với quyền tự phát tiếng — không phải bấm vào màn hình.</span></div>
+    <div class="warn" id="autoMuted" style="display:none">Trình duyệt đang chặn tiếng video (chưa ai bấm vào màn hình game). Bấm vào màn hình game một lần, hoặc dùng nút “Mở màn hình game (tự có tiếng)”.</div>
   </div>
 
   <div class="card">
@@ -171,6 +173,7 @@ function renderNow() {
   $('nowImg').style.visibility = img ? 'visible' : 'hidden'; if (img && $('nowImg').getAttribute('src') !== img) $('nowImg').src = img;
   $('barFill').style.width = (Math.min(1, frac) * 100) + '%';
   $('noScreen').style.display = ST.screens === 0 ? 'block' : 'none';
+  $('autoMuted').style.display = ST.autoMuted && (S.mode === 'youtube' || S.mode === 'video') ? 'block' : 'none';
 }
 socket.on('screen', s => { S = s; render(); });
 socket.on('screenMedia', m => { MEDIA = m || []; render(); });
@@ -199,6 +202,7 @@ $('fit').onchange = () => set({ fit: $('fit').value });
 $('bright').onchange = () => set({ brightness: +$('bright').value / 100 });
 $('ledCoins').onchange = () => socket.emit('saveSettings', { ledCoins: Math.max(1, +$('ledCoins').value || 99) });
 $('ledSeconds').onchange = () => socket.emit('saveSettings', { ledSeconds: Math.max(4, Math.min(60, +$('ledSeconds').value || 12)) });
+$('bOpenGame').onclick = async () => { $('openMsg').textContent = 'Đang mở…'; try { const r = await (await fetch('/api/open-game', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).json(); $('openMsg').textContent = r.ok ? '✓ Đã mở bằng ' + r.browser : '⚠ ' + r.error; } catch (e) { $('openMsg').textContent = '⚠ Không mở được'; } };
 $('bTestGift').onclick = () => socket.emit('test', { kind: 'biggift', value: Math.max(500, +$('ledCoins').value || 99) });
 $('list').onclick = e => {
   const b = e.target.closest('button'); if (!b) return; const i = +b.dataset.i, items = S.items.slice();
