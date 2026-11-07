@@ -247,7 +247,7 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
     let tt = '▶ ' + (curTitle || 'YouTube'); while (cx.measureText(tt).width > bw * 0.9 && tt.length > 4) tt = tt.slice(0, -2) + '…';
     cx.fillText(tt, x0 + bw * 0.04, y1 - fs * 1.6);
     try { const d = player.getDuration(), t = player.getCurrentTime(); if (d > 0) { cx.fillStyle = 'rgba(255,255,255,0.3)'; cx.fillRect(x0 + bw * 0.04, y1 - fs * 0.6, bw * 0.92, fs * 0.18); cx.fillStyle = '#ff2d55'; cx.fillRect(x0 + bw * 0.04, y1 - fs * 0.6, bw * 0.92 * Math.min(1, t / d), fs * 0.18); } } catch (e) {}
-    if (tCur || evCur) cx.drawImage(tCan, x0, y0, bw, bh);   // lời nhắn, sự kiện cũng vào clip
+    if (tCur || evCur || cd) cx.drawImage(tCan, x0, y0, bw, bh);   // lời nhắn, sự kiện cũng vào clip
     cx.restore();
   }
 
@@ -400,6 +400,28 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
   // bo góc (không dùng ctx.roundRect: OBS bản cũ chưa có)
   function rrect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
   let giftHoldNow = false;
+  // ---------- đếm ngược sự kiện lớn (phút cuối: dải trên cùng; 10 giây cuối: số to phủ màn) ----------
+  let cd = null;
+  function drawCountdown(t) {
+    const X0 = vis0 * TW, X1 = vis1 * TW, VW = X1 - X0, CX = (X0 + X1) / 2, g = tg;
+    if (cd.secs > 10.5 || tCur) {
+      const txt = `⏳ ${Math.floor(Math.ceil(cd.secs) / 60)}:${String(Math.ceil(cd.secs) % 60).padStart(2, '0')} nữa tới ${cd.icon} ${cd.label}`;
+      g.font = `900 46px ${FONT}`; const w = Math.min(VW - 30, g.measureText(txt).width + 60), h = 76, y = 26;
+      rrect(g, CX - w / 2, y, w, h, 38); g.fillStyle = `rgba(${cd.secs <= 30 ? '160,10,60' : '20,4,44'},0.9)`; g.fill();
+      g.lineWidth = 5; g.strokeStyle = `hsl(${(t * 90) % 360},100%,65%)`; g.stroke();
+      g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, CX, y + h / 2 + 2);
+      return;
+    }
+    const n = Math.max(1, Math.ceil(cd.secs)), f = cd.secs - Math.floor(cd.secs);
+    g.fillStyle = 'rgba(4,0,14,0.72)'; g.fillRect(0, 0, TW, TH);
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = `900 52px ${FONT}`; g.fillStyle = '#ffe08a'; g.fillText(`${cd.icon} ${cd.label}`, CX, 70);
+    const sc = 1 + 0.6 * f;   // số nảy to rồi thu lại mỗi giây
+    g.save(); g.translate(CX, TH / 2 + 40); g.scale(sc, sc);
+    g.font = `900 260px ${FONT}`; g.lineWidth = 16; g.strokeStyle = 'rgba(10,0,25,0.9)'; g.strokeText(String(n), 0, 0);
+    g.fillStyle = `hsl(${(n * 40) % 360},100%,62%)`; g.shadowColor = g.fillStyle; g.shadowBlur = 30; g.fillText(String(n), 0, 0);
+    g.restore(); g.shadowBlur = 0;
+  }
   function pushEvent(e) {
     if (!e || !e.text || settings().lcdEvents === false) return;
     const it = Object.assign({ color: '#ffd84d' }, e);
@@ -411,6 +433,7 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
     tg.clearRect(0, 0, TW, TH);
     visibleRange();
     if (tCur) drawText(t);
+    if (cd) drawCountdown(t);
     if (evCur) drawEvent(t);
     tTex.needsUpdate = true;
   }
@@ -426,7 +449,7 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
       const dur = e.big && !tCur ? 4 : Math.max(1.8, 3.6 - busy * 0.35);
       evCur = Object.assign(e, { start: t, until: t + dur });
     }
-    const on = !!tCur || !!evCur;
+    const on = !!tCur || !!evCur || !!cd;
     if (on && t - tDrawAt > 1 / 20) { tDrawAt = t; drawOverlay(t); if (holeOn) { tdg.clearRect(0, 0, TW, TH); tdg.drawImage(tCan, 0, 0); } }
     tMesh.visible = on && !holeOn;
     tDom.style.display = on && holeOn ? 'block' : 'none';
@@ -443,7 +466,8 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
     get hole() { return holeOn; },
     /** người tặng quà lớn có được chen lên màn không */
     giftAllowed() { return S.mode === 'eq' || S.giftOverlay !== false; },
-    signVisible() { return !tCur && !evCur && (S.mode === 'eq' || !!S.showSign); },
+    signVisible() { return !tCur && !evCur && !cd && (S.mode === 'eq' || !!S.showSign); },
+    setCountdown(c) { cd = c; },
     /** vật liệu của màn khi không chiếu người tặng quà */
     idleMaterial(eqMat) {
       if (S.mode === 'youtube') return blackMat;

@@ -52,6 +52,11 @@ const DEFAULT_SETTINGS = {
   partyMix: 25,             // % người mặc đồ dạ hội (còn lại đồ đi bar hot trend)
   costumeRate: 15,          // % người lên sàn được hoá trang sẵn (còn lại mặc đồ dạ hội)
   djName: 'DJ Tiến Khoa',   // tên DJ trên bàn DJ
+  eventsEnabled: true,      // đếm ngược sự kiện lớn theo lịch (flash mob → giờ vàng → cặp đôi)
+  eventEvery: 6,            // phút giữa hai sự kiện
+  goldenEnabled: true, goldenMinutes: 3,   // giờ vàng: quà nâng hạng hiệu ứng, nhiệt ×2
+  coupleEnabled: true,      // cặp đôi của đêm (2 người ở lại lâu nhất)
+  likeGoalEnabled: true, likeGoal: 5000, likeGoalStep: 1.5,   // đủ tim → bao cả sàn; mục tiêu sau ×1.5
   staffEnabled: true,       // nhân viên phục vụ bưng khay rượu đi quanh sàn
   mcEnabled: true,          // MC cầm micro đứng cạnh DJ (mấp máy miệng khi MC giọng nói đọc)
   barEnabled: true,         // bàn ghế quán bar (salon + bàn tròn đứng), sàn nhảy thu hẹp lại
@@ -719,7 +724,7 @@ io.on('connection', socket => {
   });
   socket.on('status', s => { if (screens.has(socket.id)) screens.set(socket.id, Object.assign(screens.get(socket.id) || {}, s || {})); });
   socket.on('disconnect', () => { if (screens.delete(socket.id)) pickPrimary(); });
-  socket.on('goalState', gs => { if (gs && typeof gs === 'object' && socket.id === primaryId) goalState = { likes: +gs.likes || 0, coins: +gs.coins || 0, idx: +gs.idx || 0, theme: String(gs.theme || 'club') }; });
+  socket.on('goalState', gs => { if (gs && typeof gs === 'object' && socket.id === primaryId) goalState = { likes: +gs.likes || 0, coins: +gs.coins || 0, idx: +gs.idx || 0, theme: String(gs.theme || 'club'), partyLikes: +gs.partyLikes || 0, partyTarget: +gs.partyTarget || 0 }; });
   socket.on('screen:set', patch => {
     if (!patch || typeof patch !== 'object') return;
     for (const k of Object.keys(SCREEN_DEFAULT)) if (k in patch && k !== 'seq') screenState[k] = patch[k];

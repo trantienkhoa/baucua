@@ -20,6 +20,29 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## Giữ khách ở lại (bản 2.0.0)
+
+- **⏳ Đếm ngược sự kiện lớn:** cứ 6 phút (đổi được) có một sự kiện, lần lượt **Flash mob → Giờ vàng → Cặp đôi của đêm**.
+  - Góc trái luôn hiện “⏳ 4:12 nữa tới …”.
+  - Phút cuối: dải đếm ngược lên màn LCD.
+  - 10 giây cuối: số to nảy giữa màn LCD.
+  - MC nhắc ở mốc còn 5 phút, còn 1 phút và còn 10 giây.
+  - Lịch chạy theo giờ đồng hồ, nên màn OBS và màn xem trước luôn khớp nhau.
+- **⭐ Giờ vàng (3 phút):**
+  - Quà được nâng hạng hiệu ứng: tính như gấp đôi số xu, ví dụ quà 99 xu ra hiệu ứng của mức 199.
+  - Nhiệt sàn tăng gấp đôi.
+  - Cả sàn ánh vàng, khói dày hơn, pháo sáng định kỳ, pháo giấy mỗi lần có quà.
+- **💞 Cặp đôi của đêm:**
+  - Chọn 2 người đang nhảy và ở lại lâu nhất, ưu tiên một nam một nữ; không chọn lại cặp vừa rồi.
+  - Hai người nhảy cặp giữa sàn dưới đèn rọi hồng, tim bay quanh. Máy quay zoom vào và tự quay clip.
+  - Khán giả gõ **1** (hoặc “chúc mừng”) để thả tim chúc mừng, tăng nhiệt sàn.
+- **❤️ Mục tiêu tim → Bao cả sàn:**
+  - Thanh tiến độ “❤️ 3.2K/5K tim → 🥂 BAO CẢ SÀN”.
+  - Đủ tim thì cả sàn được bao: khói, pháo sáng, pháo giấy, bong bóng, băng rôn trên màn LCD, tự quay clip.
+  - Mục tiêu sau cao hơn ×1.5. Tiến độ được giữ khi tải lại màn hình.
+- Nút thử ở trang chính: ⭐ Giờ vàng ngay, 💞 Cặp đôi ngay, ❤️ +1000 tim. Mọi thông số chỉnh trong Cài đặt.
+- Tất cả là phần thưởng ảo trong game, không có giải thưởng thật.
+
 ## Điệu nhảy hot trend (bản 1.9.8)
 
 Thêm 9 điệu mới, tổng cộng **26 điệu**, tất cả nhảy theo nhịp nhạc. Người xem gõ tên điệu hoặc số **1–26** để đổi điệu:

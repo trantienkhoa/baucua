@@ -619,7 +619,7 @@ function randomBody(female) {
 let nextZ = 0;
 class Dancer {
   constructor(user, opts = {}) {
-    this.id = user.id; this.name = user.name; this.avatar = user.avatar;
+    this.id = user.id; this.name = user.name; this.avatar = user.avatar; this.joinT = now();
     const female = Math.random() < 0.5;
     this.body = randomBody(female); this.look = randomLook(female);
     this.x = rand(-0.9, 0.9); this.z = rand(0.05, 0.95); this.tx = this.x; this.tz = this.z;
@@ -747,8 +747,10 @@ function handleGift(ev) {
   if (!d) return;
   d.dropH = Math.min(d.dropH, 2.5);
   d.coins = ev.total || (d.coins + ev.value);
-  const id = actionFor(ev), m = actionMeta(id);
-  const v = Math.max(1, ev.value || 1);
+  const gold = goldenOn();
+  const id = actionFor(gold && !ev.forceAction ? Object.assign({}, ev, { value: (ev.value || 1) * 2 }) : ev), m = actionMeta(id);   // giờ vàng: quà được nâng hạng hiệu ứng
+  const v = Math.max(1, ev.value || 1) * (gold ? 2 : 1);
+  if (gold) { confetti(40); if (d._sp) hearts(d._sp.hx, d._sp.hy - 30, 6); }
   const dur = clamp(Number(S.zoomMin) + (Number(S.zoomMax) - Number(S.zoomMin)) * Math.min(1, Math.log10(v) / 3), 1, 30);
   zoomQueue.push({ d, id, label: m.label, icon: m.icon, gift: ev.gift, count: ev.count, dur });
   if (zoomQueue.length > 60) zoomQueue.splice(0, zoomQueue.length - 60);
@@ -944,6 +946,12 @@ function toVip(d, t) {
 // bao cả sàn: sâm panh cho cả sàn — khói, pháo sáng, pháo giấy, bong bóng, ai cũng nhảy lên
 function partyAll(d, t) {
   for (const n of dancers.values()) if (!n.leaving && n.mode === 'dance') n.jumpStart = t + rand(0, 1.2);
+  if (!d) {   // cả phòng thả tim đủ mục tiêu
+    confetti(300); balloons(100); fx.smokeBurst(1.5); fx.sparkle(10); flash = Math.max(flash, 0.45);
+    pushTicker('🥂 CẢ PHÒNG ĐỦ TIM — BAO CẢ SÀN! 🥂', '#ffd84d', { big: true });
+    say('Cả phòng đã thả đủ tim! Bao cả sàn! Cảm ơn mọi người!', 'party', 0, true);
+    startClip('bao-san-tim', 15); return;
+  }
   confetti(260); balloons(80); fx.smokeBurst(1.5); fx.sparkle(9); flash = Math.max(flash, 0.4);
   d.bottleUntil = t + 10; fx.sparkleAt(() => d.bottleUntil > now() && d._head ? [d._head.x, d._head.y + 0.42, d._head.z] : null, 10);
   pushTicker(`🥂 ${d.name} BAO CẢ SÀN! 🥂`, '#ffd84d', { big: true });
@@ -1371,7 +1379,7 @@ function updateStage(t, bi) {
   // đèn di động
   movers.forEach((l, j) => { const a = t * (0.5 + j * 0.17) + j * 2; l.position.set(Math.sin(a) * 4, 3.5 + Math.sin(a * 1.7) * 0.8, Math.cos(a * 0.8) * 3); l.intensity = (bi.fire ? 15 : 11) * (0.35 + 0.85 * Math.max(kick, bass * 0.7)); if (Music.kick > 0.95) l.color.setHSL(Math.random(), 1, 0.55); });
   neonStrips.forEach((m, j) => m.material.color.setHSL(((j * 40 + t * 50) % 360) / 360, 1, 0.3 + 0.35 * Math.max(kick, bass * 0.6)));
-  stageMood.hue = ((t * 0.05 + bi.b * 0.02) % 1);
+  stageMood.hue = goldenOn() ? 0.1 + 0.03 * Math.sin(t * 2) : ((t * 0.05 + bi.b * 0.02) % 1);   // giờ vàng: cả sàn ánh vàng
   booth.children.forEach(o => { if (o.geometry && o.geometry.type === 'CylinderGeometry') o.rotation.y = t * 4; });
 }
 
@@ -1668,7 +1676,7 @@ function frame() {
 
   costumeTime.value = t; outfitTime.value = t;
   fx.enabled.smoke = S.smokeEnabled !== false && S.quality !== 'low'; fx.enabled.spark = S.sparkEnabled !== false;
-  fx.density = Math.max(0, Math.min(1, Number(S.smokeDensity ?? 55) / 100));
+  fx.density = Math.max(0, Math.min(1, Number(S.smokeDensity ?? 55) / 100 + (goldenOn() ? 0.25 : 0)));
   fx.update(t, dt, { hue: stageMood.hue, kick: stageMood.kick, level: stageMood.bass });
   bar.visible = S.barEnabled !== false; bar.update(t, stageMood);
   updateLedShow(t, dt);
@@ -1849,6 +1857,143 @@ function spotOn(d, secs, label) {
   }
 }
 
+// ======================================================================
+// GIỮ KHÁCH Ở LẠI: đếm ngược sự kiện, giờ vàng, cặp đôi của đêm, mục tiêu tim → bao cả sàn
+// ======================================================================
+const golden = { until: 0, nextSpark: 0 };
+const goldenOn = () => now() < golden.until;
+const couple = { a: null, b: null, until: 0, last: [], nextHeart: 0, cheers: new Map() };
+const party = { likes: 0, target: 0 };
+const EVENT_KINDS = [
+  { id: 'flashmob', icon: '🕺', label: 'FLASH MOB' },
+  { id: 'golden', icon: '⭐', label: 'GIỜ VÀNG' },
+  { id: 'couple', icon: '💞', label: 'CẶP ĐÔI CỦA ĐÊM' },
+];
+const sched = { slot: -1, said: {} };
+function schedInfo() {
+  // lịch theo giờ đồng hồ: mọi màn hình (OBS, xem trước) khớp nhau; mỗi mốc là một sự kiện lần lượt
+  const per = Math.max(2, Number(S.eventEvery) || 6) * 60000, ms = Date.now(), slot = Math.floor(ms / per);
+  const kinds = EVENT_KINDS.filter(k => (k.id !== 'couple' || S.coupleEnabled !== false) && (k.id !== 'golden' || S.goldenEnabled !== false));
+  return { slot, left: ((slot + 1) * per - ms) / 1000, next: kinds.length ? kinds[(slot + 1) % kinds.length] : null };
+}
+function startGolden() {
+  const mins = Math.max(1, Number(S.goldenMinutes) || 3);
+  golden.until = now() + mins * 60; golden.nextSpark = now() + 3;
+  pushTicker(`⭐ GIỜ VÀNG ${mins} PHÚT! Quà được nâng hạng hiệu ứng, sàn nhân đôi nhiệt!`, '#ffd84d', { big: true });
+  say(`Giờ vàng bắt đầu! Trong ${mins} phút, mọi món quà đều được nâng hạng hiệu ứng!`, 'golden', 0, true);
+  fx.smokeBurst(1.2); fx.sparkle(6); confetti(150);
+}
+function startCouple() {
+  const list = [...dancers.values()].filter(d => !d.leaving && !d.clone && d.mode === 'dance' && !d.pairWith && !couple.last.includes(d.id)).sort((a, b) => a.joinT - b.joinT);
+  if (list.length < 2) return false;
+  const a = list[0], b = list.find(x => x !== a && x.body.female !== a.body.female) || list[1];   // ưu tiên một nam một nữ, ở lại lâu nhất
+  const t = now(), dur = 28;
+  couple.a = a; couple.b = b; couple.until = t + dur; couple.last = [a.id, b.id]; couple.cheers.clear();
+  for (const [d, side] of [[a, -1], [b, 1]]) {
+    d.mode = 'couple'; d.modeStart = t; d.modeUntil = t + dur; d.tx = side * 0.13; d.tz = 0.74;
+    d.pairWith = side < 0 ? b : a; d.pairUntil = t + dur; d.dance = 16;
+  }
+  pushTicker(`💞 CẶP ĐÔI CỦA ĐÊM: ${a.name} ❤ ${b.name}`, '#ff7ab8', { big: true });
+  say(`Cặp đôi của đêm nay là ${nm(a.name)} và ${nm(b.name)}! Cả phòng gõ số 1 để chúc mừng nào!`, 'couple', 0, true);
+  if (!zoom && !zoomQueue.length) zoomQueue.push({ d: a, id: 'camera', label: 'Cặp đôi của đêm', icon: '💞', dur: 6 });
+  fx.sparkle(4, 'center'); startClip('cap-doi', 15);
+  return true;
+}
+function cheerCouple(d) {
+  const t = now(), last = couple.cheers.get(d.id) || 0;
+  if (t - last < 3) return; couple.cheers.set(d.id, t);
+  heat += 5;
+  for (const x of [couple.a, couple.b]) if (x && x._sp) hearts(x._sp.hx, x._sp.hy - 40, 4);
+  if (d._sp) hearts(d._sp.hx, d._sp.hy - 30, 2);
+}
+function retention(t, dt) {
+  // --- đếm ngược + kích hoạt sự kiện theo lịch ---
+  if (S.eventsEnabled !== false) {
+    const si = schedInfo();
+    if (sched.slot !== -1 && si.slot !== sched.slot) {   // vừa tới mốc
+      const k = EVENT_KINDS.filter(k => (k.id !== 'couple' || S.coupleEnabled !== false) && (k.id !== 'golden' || S.goldenEnabled !== false));
+      const ev = k.length ? k[si.slot % k.length] : null;
+      if (ev && ev.id === 'flashmob') startFlashmob();
+      if (ev && ev.id === 'golden') startGolden();
+      if (ev && ev.id === 'couple' && !startCouple()) pushTicker('💞 Cần ít nhất 2 người trên sàn để chọn cặp đôi của đêm', '#ff7ab8', { lcd: false });
+      sched.said = {};
+    }
+    sched.slot = si.slot;
+    if (si.next) {
+      const L = Math.ceil(si.left);
+      for (const [mark, txt] of [[300, `Còn 5 phút nữa tới ${si.next.label.toLowerCase()}! Ở lại nhé!`], [60, `Còn 1 phút nữa tới ${si.next.label.toLowerCase()}!`], [10, 'Mười giây!']]) {
+        if (L === mark && !sched.said[mark]) { sched.said[mark] = 1; say(txt, 'cd' + mark, 0, true); if (mark >= 60) pushTicker(`⏳ ${mark >= 300 ? '5 phút' : '1 phút'} nữa tới ${si.next.icon} ${si.next.label}!`, '#ffd84d', { lcd: false }); }
+      }
+      if (lcd && lcd.setCountdown) lcd.setCountdown(si.left <= 60 ? { secs: si.left, icon: si.next.icon, label: si.next.label } : null);
+    } else if (lcd && lcd.setCountdown) lcd.setCountdown(null);
+  } else if (lcd && lcd.setCountdown) lcd.setCountdown(null);
+  // --- giờ vàng: pháo sáng định kỳ ---
+  if (goldenOn() && t > golden.nextSpark) { golden.nextSpark = t + 18; fx.sparkle(3, Math.random() < 0.5 ? 'side' : 'center'); }
+  // --- cặp đôi: đèn rọi + tim bay ---
+  if (couple.a) {
+    if (t > couple.until || !dancers.has(couple.a.id) || !dancers.has(couple.b.id)) {
+      for (const x of [couple.a, couple.b]) if (x) { x.pairWith = null; if (x.mode === 'couple') x.modeUntil = 0; }
+      couple.a = couple.b = null; coupleBeam.visible = false;
+    } else {
+      const A = couple.a._feet, B = couple.b._feet;
+      coupleBeam.visible = S.quality !== 'low' && !!A && !!B;
+      if (A && B) { coupleBeam.position.set((A.x + B.x) / 2, 10.6, (A.z + B.z) / 2); coupleBeam.material.opacity = 0.28 + 0.08 * Math.sin(t * 5); }
+      if (t > couple.nextHeart) { couple.nextHeart = t + 0.6; for (const x of [couple.a, couple.b]) if (x._sp) hearts(x._sp.hx, x._sp.hy - 40, 1); }
+      // dọn chỗ quanh cặp đôi
+      for (const d of dancers.values()) if (d.mode === 'dance' && d.z > 0.6 && Math.abs(d.x) < 0.45) { d.tz = rand(0.05, 0.5); d.wanderAt = t + 8; }
+    }
+  }
+  // --- mục tiêu tim → bao cả sàn ---
+  if (S.likeGoalEnabled !== false) {
+    if (!party.target) party.target = Math.max(100, Number(S.likeGoal) || 5000);
+    if (party.likes >= party.target) {
+      partyAll(null, t);
+      party.likes -= party.target; party.target = Math.round(party.target * Math.max(1, Number(S.likeGoalStep) || 1.5) / 100) * 100;   // mục tiêu sau cao hơn
+      saveGoals();
+    }
+  }
+}
+const coupleBeam = new THREE.Mesh(new THREE.ConeGeometry(1.4, 11, 24, 1, true).translate(0, -5.5, 0), new THREE.MeshBasicMaterial({ color: 0xff8fd0, map: beamTex, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+coupleBeam.visible = false; scene.add(coupleBeam);
+const fmtMS = s => { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+function retentionHUDHeight() {
+  return (goldenOn() ? 48 : 0) + (S.likeGoalEnabled !== false ? 48 : 0) + (S.eventsEnabled !== false && schedInfo().next ? 44 : 0);
+}
+function drawRetentionHUD(t, y) {
+  const x = 20, w = 690;
+  ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  if (goldenOn()) {
+    const h = 40, left = golden.until - t;
+    const gg = ctx.createLinearGradient(x, 0, x + w, 0); gg.addColorStop(0, '#ffb300'); gg.addColorStop(0.5, '#fff1a8'); gg.addColorStop(1, '#ffb300');
+    ctx.fillStyle = gg; roundRect(x, y, w, h, 20); ctx.fill();
+    ctx.font = `900 22px ${FONT}`; ctx.fillStyle = '#3a2200';
+    ctx.fillText(`⭐ GIỜ VÀNG còn ${fmtMS(left)} · quà nâng hạng hiệu ứng, nhiệt ×2`, x + 16, y + h / 2 + 1);
+    y += h + 8;
+  }
+  if (S.likeGoalEnabled !== false && party.target) {
+    const h = 40, fr = clamp(party.likes / party.target, 0, 1);
+    ctx.fillStyle = 'rgba(15,4,30,0.8)'; roundRect(x, y, w, h, 20); ctx.fill();
+    const pg = ctx.createLinearGradient(x, 0, x + w, 0); pg.addColorStop(0, '#ff3d7f'); pg.addColorStop(1, '#ffd84d');
+    ctx.fillStyle = pg; roundRect(x, y, Math.max(h, w * fr), h, 20); ctx.fill();
+    const f = n => n >= 1000 ? (n / 1000).toFixed(n % 1000 ? 1 : 0) + 'K' : String(Math.floor(n));
+    ctx.font = `800 21px ${FONT}`; ctx.fillStyle = '#fff';
+    ctx.fillText(`❤️ ${f(party.likes)}/${f(party.target)} tim → 🥂 BAO CẢ SÀN`, x + 16, y + h / 2 + 1);
+    y += h + 8;
+  }
+  if (S.eventsEnabled !== false) {
+    const si = schedInfo();
+    if (si.next) {
+      const h = 36, txt = `⏳ ${fmtMS(si.left)} nữa tới ${si.next.icon} ${si.next.label}`;
+      ctx.font = `800 20px ${FONT}`; const tw = ctx.measureText(txt).width + 32;
+      const urgent = si.left <= 60;
+      ctx.fillStyle = urgent ? `rgba(255,60,120,${0.75 + 0.2 * Math.sin(t * 8)})` : 'rgba(15,4,30,0.8)'; roundRect(x, y, tw, h, 18); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.fillText(txt, x + 16, y + h / 2 + 1);
+      y += h + 8;
+    }
+  }
+  return y;
+}
+
 // ---------- flash mob ----------
 const flashmob = { until: 0 };
 function startFlashmob() {
@@ -1901,7 +2046,7 @@ function checkGoal() {
   saveGoals();
 }
 let themeBanner = null;
-function saveGoals() { socket.emit('goalState', { likes: goals.likes, coins: goals.coins, idx: goals.idx, theme: themes.current }); }
+function saveGoals() { socket.emit('goalState', { likes: goals.likes, coins: goals.coins, idx: goals.idx, theme: themes.current, partyLikes: party.likes, partyTarget: party.target }); }
 setInterval(() => { if (isPrimary) saveGoals(); }, 5000);
 
 // ---------- quay clip khoảnh khắc ----------
@@ -1946,6 +2091,7 @@ function featureCommand(d, t) {
   d.lastComment = now();
   const n = t.match(/^(?:so\s*)?([12])$/);
   if (n && solo.on) { voteSolo(d, +n[1]); return true; }
+  if (couple.a && !battle.on && (n && n[1] === '1' || /^(chuc mung|<3|tim)$/.test(t))) { cheerCouple(d); return true; }
   if (battle.on) {
     if (n) { joinTeam(d, n[1] === '1' ? 'r' : 'b'); return true; }
     if (/^(doi\s*)?do$/.test(t)) { joinTeam(d, 'r'); return true; }
@@ -1985,6 +2131,7 @@ function updateFeatures(t, dt) {
   if (spot.d) { spotBeam.position.set(spot.d._feet.x, 10.6, spot.d._feet.z); spotBeam.material.opacity = 0.26 + 0.08 * Math.sin(t * 6); }
   // mục tiêu
   checkGoal();
+  retention(t, dt);
   themes.update(t, dt);
   // bình chọn nhạc
   if (S.songVote && Music.mode === 'track' && !songVote.cands.length && (Music.playlist || []).length > 1) refreshSongVote();
@@ -2024,6 +2171,8 @@ function drawFeatureHUD(t) {
     ctx.fillText(`🎯 ${fmt(v)}/${fmt(g.n)} ${g.kind === 'likes' ? '❤️ tim' : '💎 xu'} → mở sân khấu ${THEME_NAMES[g.theme] || g.theme}`, x + 16, y + h / 2 + 1);
     y += h + 8;
   }
+  // giờ vàng / mục tiêu tim bao sàn / đếm ngược sự kiện
+  y = drawRetentionHUD(t, y);
   const tn = Music.trackName();
   if (tn) { ctx.font = `600 20px ${FONT}`; ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.fillText('♫ ' + fit(tn, 640), 30, y + 14); }
   // solo
@@ -2066,7 +2215,7 @@ function drawFeatureHUD(t) {
     ctx.restore();
   }
 }
-const hudTopOffset = () => (battle.on || inResult(battle) ? 74 : 0) + (goalNow() ? 48 : 0);
+const hudTopOffset = () => (battle.on || inResult(battle) ? 74 : 0) + (goalNow() ? 48 : 0) + retentionHUDHeight();
 
 // ---------- sự kiện từ máy chủ ----------
 function featureEvent(ev) {
@@ -2075,7 +2224,7 @@ function featureEvent(ev) {
     case 'chat': case 'like': case 'gift': {
       const d = dancers.get(ev.user.id);
       if (d && ev.user.lv) d.lv = ev.user.lv;
-      if (ev.type === 'like') { goals.likes += ev.count; if (d) addScore(d, ev.count); }
+      if (ev.type === 'like') { goals.likes += ev.count; party.likes += ev.count; if (d) addScore(d, ev.count); }
       if (ev.type === 'chat' && d) { const k = 'cs' + d.id; if (!sayRate.get(k) || T - sayRate.get(k) > 5) { sayRate.set(k, T); addScore(d, 2); } }
       if (ev.type === 'gift') {
         goals.coins += ev.value || 0;
@@ -2104,6 +2253,10 @@ function featureEvent(ev) {
   }
 }
 function featureCmd(c) {
+  if (c.type === 'golden') startGolden();
+  if (c.type === 'couple') startCouple();
+  if (c.type === 'likeparty') { party.likes = party.target; }
+  if (c.type === 'likes1000') party.likes += 1000;
   if (c.type === 'smoke') fx.smokeBurst(1);
   if (c.type === 'sparkle') fx.sparkle(Math.min(60, Number(c.sec) || 5));
   if (c.type === 'battleStart') startBattle();
@@ -2130,7 +2283,7 @@ socket.on('screenText', it => {
 });
 // nhắc người xem cách gửi lời nhắn lên màn hình
 setInterval(() => { if (S.textEnabled !== false && onFloorCount() > 0) pushTicker(`💌 Bình luận “mh: lời nhắn” + tặng quà từ ${S.textCoins || 30}💎 → chữ của bạn lên màn hình lớn!`, '#7cf7ff', { lcd: false }); }, 120000);
-socket.on('goalState', gs => { if (!gs || goals.loaded) return; goals.loaded = true; goals.likes = gs.likes || 0; goals.coins = gs.coins || 0; goals.idx = gs.idx || 0; if (gs.theme) themes.apply(gs.theme); });
+socket.on('goalState', gs => { if (!gs || goals.loaded) return; goals.loaded = true; goals.likes = gs.likes || 0; goals.coins = gs.coins || 0; goals.idx = gs.idx || 0; if (gs.theme) themes.apply(gs.theme); if (gs.partyTarget) { party.likes = gs.partyLikes || 0; party.target = gs.partyTarget; } });
 socket.on('settings', s => {
   const oldQ = S.quality;
   const first = !S._got; S = Object.assign(S, s); S._got = true;
@@ -2195,5 +2348,5 @@ window.addEventListener('pointerdown', unlock);
 window.addEventListener('keydown', unlock);
 setInterval(checkAudio, 1500);
 Music.resume();
-window._dbg = { setChar: (d, id) => assignChar(d, ROSTER.find(c => c.id === id)), setOutfitT: (d, o) => { if (d.av) { setCostume(d.av, null); window._applyOutfit(d.av, o); window._restyle(d.av); } }, get flashInfo() { return [...dancers.values()].slice(0, 8).map(d => [d.mode, d.x.toFixed(2), d.z.toFixed(2), d.tx.toFixed(2), d.tz.toFixed(2)].join(' ')); }, ledCam, ledRT, renderer, get ledShow() { return ledShow; }, get ledQueue() { return ledQueue; }, get lcd() { return lcd; }, get resident() { return resident; }, get mc() { return mc; }, staff, mic, mcArm(ru, rf, sx, ex) { MC_RU = ru; MC_RF = rf; MC_RSX = sx; MC_REX = ex; }, dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
+window._dbg = { setChar: (d, id) => assignChar(d, ROSTER.find(c => c.id === id)), setOutfitT: (d, o) => { if (d.av) { setCostume(d.av, null); window._applyOutfit(d.av, o); window._restyle(d.av); } }, get flashInfo() { return [...dancers.values()].slice(0, 8).map(d => [d.mode, d.x.toFixed(2), d.z.toFixed(2), d.tx.toFixed(2), d.tz.toFixed(2)].join(' ')); }, ledCam, ledRT, renderer, get ledShow() { return ledShow; }, get ledQueue() { return ledQueue; }, get lcd() { return lcd; }, get resident() { return resident; }, get mc() { return mc; }, staff, schedInfo, party, couple, goldenOn, mic, mcArm(ru, rf, sx, ex) { MC_RU = ru; MC_RF = rf; MC_RSX = sx; MC_REX = ex; }, dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
 requestAnimationFrame(frame);

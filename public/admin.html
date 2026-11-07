@@ -222,6 +222,9 @@ document.getElementById('openGame').onclick = async () => {
       <button id="tLike">❤️ Thả 50 tim</button>
       <button id="tBig">📺 Quà lớn (500 xu)</button>
       <button id="tText">💌 Lời nhắn + quà</button>
+      <button id="tGolden">⭐ Giờ vàng ngay</button>
+      <button id="tCouple">💞 Cặp đôi ngay</button>
+      <button id="tLikes">❤️ +1000 tim</button>
       <button id="tSmoke">🌫️ Phun khói</button>
       <button id="tSpark">✨ Pháo sáng</button>
       <button id="tTeam">⚔️ 20 khách gõ 1/2</button>
@@ -245,6 +248,14 @@ const FIELDS = [
   ['barEnabled', '🛋️ Bàn ghế quán bar (salon + bàn tròn đứng)', 'check'],
   ['mcEnabled', '🎤 MC cầm micro cạnh DJ', 'check'],
   ['staffEnabled', '🍾 Nhân viên phục vụ bưng rượu đi quanh sàn', 'check'],
+  ['eventsEnabled', '⏳ Đếm ngược sự kiện lớn (flash mob → giờ vàng → cặp đôi)', 'check'],
+  ['eventEvery', '⏳ Mỗi sự kiện cách nhau (phút)', 'num', 1],
+  ['goldenEnabled', '⭐ Giờ vàng', 'check'],
+  ['goldenMinutes', '⭐ Giờ vàng kéo dài (phút)', 'num', 1],
+  ['coupleEnabled', '💞 Cặp đôi của đêm', 'check'],
+  ['likeGoalEnabled', '❤️ Mục tiêu tim → bao cả sàn', 'check'],
+  ['likeGoal', '❤️ Số tim mục tiêu đầu tiên', 'num', 100],
+  ['likeGoalStep', '❤️ Mục tiêu sau gấp (lần)', 'num', 0.1],
   ['lcdEvents', '📺 Sự kiện LIVE hiện trên màn LCD', 'check'],
   ['lcdJoin', '📺 Cả người vào xem cũng lên màn LCD', 'check'],
   ['quality', '✨ Mức hiệu ứng', 'select', [['high', 'Mạnh (máy mạnh)'], ['medium', 'Vừa'], ['low', 'Nhẹ (máy yếu)']]],
@@ -490,6 +501,9 @@ $('tLike').onclick = () => socket.emit('test', { kind: 'like', n: 50 });
 $('tBig').onclick = () => socket.emit('test', { kind: 'biggift', value: 500 });
 $('tText').onclick = () => socket.emit('test', { kind: 'textmsg', text: 'mh: Chúc cả nhà một buổi tối thật vui!' });
 $('tSmoke').onclick = () => socket.emit('cmd', { type: 'smoke' });
+$('tGolden').onclick = () => socket.emit('cmd', { type: 'golden' });
+$('tCouple').onclick = () => socket.emit('cmd', { type: 'couple' });
+$('tLikes').onclick = () => socket.emit('cmd', { type: 'likes1000' });
 $('tSpark').onclick = () => socket.emit('cmd', { type: 'sparkle' });
 $('tTeam').onclick = () => socket.emit('test', { kind: 'chat', text: ['1', '2', '1', '1', '2'], repeat: 20 });
 $('tVote').onclick = () => socket.emit('test', { kind: 'chat', text: ['1', '2', '1'], repeat: 20 });
