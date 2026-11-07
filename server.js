@@ -601,32 +601,12 @@ const SCREEN_DEFAULT = {
   bpm: 0,                // nhịp cho đèn khi phát YouTube (0 = theo nhạc game)
 };
 let screenState = Object.assign({}, SCREEN_DEFAULT, readJSON('screen.json', {}));
+if (screenState.mode === 'youtube') screenState.mode = 'eq';   // bản 2.3: đã bỏ YouTube
 let screenStatus = {};
 const saveScreen = () => { screenState.seq = (screenState.seq || 0) + 1; writeJSON('screen.json', screenState); io.emit('screen', screenState); };
 const MEDIA_RE = /\.(mp4|webm|mov|m4v|ogv|jpg|jpeg|png|gif|webp)$/i;
 function screenMedia() {
   return fs.readdirSync(SCREEN_MEDIA).filter(f => MEDIA_RE.test(f)).sort().map(f => ({ file: f, url: '/screen-media/' + encodeURIComponent(f), kind: /\.(jpg|jpeg|png|gif|webp)$/i.test(f) ? 'image' : 'video', size: fs.statSync(path.join(SCREEN_MEDIA, f)).size }));
-}
-// nhận link YouTube (video, playlist, shorts, youtu.be, live) hoặc mã video
-function parseYouTube(text) {
-  const out = [];
-  for (let line of String(text || '').split(/[\s,]+/)) {
-    line = line.trim(); if (!line) continue;
-    let id = null, list = null;
-    try {
-      const u = new URL(/^https?:/i.test(line) ? line : 'https://' + line);
-      if (/youtu\.be$/i.test(u.hostname)) id = u.pathname.slice(1).split('/')[0];
-      else if (/youtube(-nocookie)?\.com$/i.test(u.hostname.replace(/^(www|m|music)\./, ''))) {
-        id = u.searchParams.get('v');
-        const m = u.pathname.match(/^\/(shorts|embed|live|v)\/([\w-]{6,})/); if (m) id = m[2];
-        list = u.searchParams.get('list');
-      }
-    } catch {}
-    if (!id && !list && /^[\w-]{11}$/.test(line)) id = line;
-    if (list && !id) out.push({ type: 'list', id: list, title: 'Danh sách phát' });
-    else if (id && /^[\w-]{6,20}$/.test(id)) out.push({ type: 'video', id, list: list || undefined, title: '' });
-  }
-  return out;
 }
 app.use('/screen-media', express.static(SCREEN_MEDIA));
 app.get('/api/screen', (req, res) => res.json({ state: screenState, media: screenMedia(), status: screenStatus }));
@@ -664,25 +644,6 @@ app.get('/api/img', async (req, res) => {
     } catch { return res.status(502).end(); }
   }
   res.set('Content-Type', hit.type).set('Cache-Control', 'max-age=3600').send(hit.buf);
-});
-
-// ảnh bìa YouTube (tải qua máy chủ để vẽ được vào clip khoảnh khắc)
-const THUMBS = path.join(SCREEN_MEDIA, '.thumbs');
-fs.mkdirSync(THUMBS, { recursive: true });
-app.get('/api/yt-thumb/:id', async (req, res) => {
-  const id = String(req.params.id || '');
-  if (!/^[\w-]{6,20}$/.test(id)) return res.status(400).end();
-  const f = path.join(THUMBS, id + '.jpg');
-  if (!fs.existsSync(f)) {
-    for (const q of ['maxresdefault', 'hqdefault', 'mqdefault']) {
-      try {
-        const r = await fetch(`https://i.ytimg.com/vi/${id}/${q}.jpg`);
-        if (r.ok) { fs.writeFileSync(f, Buffer.from(await r.arrayBuffer())); break; }
-      } catch {}
-    }
-  }
-  if (!fs.existsSync(f)) return res.status(404).end();
-  res.set('Cache-Control', 'max-age=86400').sendFile(f, { dotfiles: 'allow' });
 });
 
 // mở màn hình game bằng Chrome/Edge với quyền tự phát tiếng (không cần bấm vào trang)
@@ -751,11 +712,7 @@ io.on('connection', socket => {
   socket.on('screen:set', patch => {
     if (!patch || typeof patch !== 'object') return;
     for (const k of Object.keys(SCREEN_DEFAULT)) if (k in patch && k !== 'seq') screenState[k] = patch[k];
-    if (typeof patch.addText === 'string') {
-      const found = parseYouTube(patch.addText);
-      if (found.length) { if (patch.replace) { screenState.items = found; screenState.idx = 0; } else screenState.items = screenState.items.concat(found); screenState.mode = 'youtube'; screenState.playing = true; if (patch.replace || screenState.items.length === found.length) screenState.idx = 0; }
-      socket.emit('screen:added', found.length);
-    }
+    if (!['eq', 'video', 'image'].includes(screenState.mode)) screenState.mode = 'eq';
     if (!Array.isArray(screenState.items)) screenState.items = [];
     screenState.items = screenState.items.slice(0, 500);
     screenState.idx = Math.max(0, Math.min(screenState.items.length - 1, Number(screenState.idx) || 0));

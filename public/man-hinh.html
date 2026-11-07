@@ -19,7 +19,7 @@
   button:hover{background:#f6f3ff}
   button.pri{background:var(--pri);border-color:var(--pri);color:#fff;font-weight:600}
   button.big{font-size:20px;padding:6px 16px}
-  .modes{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .modes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
   .modes button{padding:12px 6px;font-weight:600}
   .modes button.on{background:var(--pri);border-color:var(--pri);color:#fff}
   .now{display:flex;gap:12px;align-items:center;margin-top:12px;padding:10px;border:1px solid var(--line);border-radius:10px;background:#faf9fd}
@@ -52,7 +52,6 @@
     <h2>Đang chiếu</h2>
     <div class="modes" id="modes">
       <button data-m="eq">🎶 Sóng nhạc</button>
-      <button data-m="youtube">▶️ YouTube</button>
       <button data-m="video">🎞️ Video trên máy</button>
       <button data-m="image">🖼️ Ảnh</button>
     </div>
@@ -79,26 +78,6 @@
     <div class="warn" id="autoMuted" style="display:none">Trình duyệt đang chặn tiếng video (chưa ai bấm vào màn hình game). Bấm vào màn hình game một lần, hoặc dùng nút “Mở màn hình game (tự có tiếng)”.</div>
   </div>
 
-  <div class="card">
-    <h2>▶️ YouTube</h2>
-    <textarea id="ytText" placeholder="Dán link YouTube vào đây (mỗi dòng một link): video, Shorts, playlist, youtu.be…"></textarea>
-    <div class="row">
-      <button class="pri" id="bAdd">➕ Thêm vào danh sách</button>
-      <button id="bReplace">Thay cả danh sách &amp; phát</button>
-      <span class="muted" id="addMsg"></span>
-      <span style="flex:1"></span>
-      <label><input type="checkbox" id="loop"> Lặp lại danh sách</label>
-      <label><input type="checkbox" id="shuffle"> Phát ngẫu nhiên</label>
-    </div>
-    <table id="list"></table>
-    <div class="row"><button id="bClear">🗑 Xoá hết danh sách</button>
-      <span style="flex:1"></span>
-      <span title="Trình duyệt không cho đọc tiếng trong khung YouTube, nên đèn sẽ nháy theo nhịp này">💡 Nhịp đèn khi phát YouTube</span>
-      <input type="number" id="bpm" min="0" max="220" placeholder="BPM" style="width:80px">
-      <button id="bTap" title="Gõ theo nhịp bài hát 4–8 lần">👆 Gõ nhịp</button>
-      <span class="muted" id="tapMsg">0 = theo nhạc game</span></div>
-    <div class="muted">Video bị chủ kênh tắt “cho phép nhúng” sẽ được tự bỏ qua. Lần đầu mở màn hình game trong trình duyệt, hãy bấm vào màn hình một lần để trình duyệt cho phát tiếng (OBS không cần).</div>
-  </div>
 
   <div class="card">
     <h2>🎞️ Video &amp; ảnh trên máy</h2>
@@ -108,7 +87,7 @@
       <span class="muted" id="upMsg"></span>
     </div>
     <table id="media"></table>
-    <div class="muted">Video trên máy chạy mượt hơn YouTube, không cần mạng, và được ghi vào clip khoảnh khắc. Nên dùng MP4 (H.264) hoặc WebM.</div>
+    <div class="muted">Video trên máy chạy mượt, không cần mạng, và được ghi vào clip khoảnh khắc. Nên dùng MP4 (H.264) hoặc WebM.</div>
   </div>
 
   <div class="card">
@@ -166,7 +145,6 @@ socket.on('connect', () => socket.emit('hello', 'screen'));
 const set = p => socket.emit('screen:set', p);
 const cmd = c => socket.emit('screen:cmd', c);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const thumb = it => it.type === 'video' ? `https://i.ytimg.com/vi/${it.id}/mqdefault.jpg` : '';
 const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 
 function render() {
@@ -174,16 +152,8 @@ function render() {
   for (const b of $('modes').children) b.classList.toggle('on', b.dataset.m === S.mode);
   $('vol').value = S.volume; $('volTxt').textContent = S.volume + '%';
   $('bMute').textContent = S.muted ? '🔇' : '🔊';
-  $('loop').checked = !!S.loop; $('shuffle').checked = !!S.shuffle;
-  if (document.activeElement !== $('bpm')) $('bpm').value = S.bpm || 0;
   $('fit').value = S.fit; $('bright').value = Math.round((S.brightness || 1) * 100);
   for (const k of ['duck', 'showSign', 'giftOverlay', 'giftPause']) $(k).checked = !!S[k];
-  $('list').innerHTML = S.items.map((it, i) => `<tr class="${i === S.idx ? 'cur' : ''}">
-    <td>${i + 1}</td><td>${it.type === 'video' ? `<img src="${thumb(it)}" alt="">` : '📃'}</td>
-    <td class="t">${esc(it.title || (it.type === 'list' ? 'Danh sách phát ' + it.id : it.id))}${i === S.idx && S.mode === 'youtube' ? ' <b style="color:var(--pri)">● đang chiếu</b>' : ''}</td>
-    <td><button data-a="play" data-i="${i}" title="Phát">▶</button></td><td><button data-a="up" data-i="${i}" title="Lên">↑</button></td>
-    <td><button data-a="down" data-i="${i}" title="Xuống">↓</button></td><td><button data-a="del" data-i="${i}" title="Xoá">✕</button></td></tr>`).join('')
-    || '<tr><td class="muted">Chưa có video nào. Dán link YouTube ở trên rồi bấm “Thêm”.</td></tr>';
   $('media').innerHTML = MEDIA.map(m => {
     const on = (m.kind === 'video' && S.mode === 'video' && S.file === m.url) || (m.kind === 'image' && S.mode === 'image' && S.image === m.url);
     return `<tr class="${on ? 'cur' : ''}"><td>${m.kind === 'image' ? `<img src="${m.url}" alt="">` : '🎞️'}</td><td class="t">${esc(m.file)} <span class="muted">${(m.size / 1048576).toFixed(1)} MB</span>${on ? ' <b style="color:var(--pri)">● đang chiếu</b>' : ''}</td>
@@ -195,22 +165,13 @@ function renderNow() {
   if (!S) return;
   let title = '—', sub = '', img = '', frac = 0;
   if (S.mode === 'eq') { title = '🎶 Sóng nhạc theo điệu nhạc'; sub = 'Chế độ mặc định'; }
-  else if (S.mode === 'youtube') {
-    const it = S.items[S.idx];
-    if (!it) { title = 'Danh sách YouTube trống'; }
-    else {
-      title = ST.title || it.title || it.id; img = thumb(it);
-      const state = { playing: '▶ Đang phát', paused: '⏸ Tạm dừng', buffering: '⏳ Đang tải', ended: '⏹ Hết', error: '⚠ Không phát được – đang chuyển bài', gift: '🎁 Đang chiếu người tặng quà' }[ST.state] || (S.playing ? '⏳ Đang mở' : '⏸ Tạm dừng');
-      sub = `${state} · bài ${S.idx + 1}/${S.items.length}` + (ST.duration ? ` · ${fmt(ST.time)} / ${fmt(ST.duration)}` : '');
-      if (ST.duration) frac = ST.time / ST.duration;
-    }
-  } else if (S.mode === 'video') { title = S.file ? decodeURIComponent(S.file.split('/').pop()) : 'Chưa chọn video'; sub = (S.playing ? '▶ Đang phát' : '⏸ Tạm dừng') + (ST.duration ? ` · ${fmt(ST.time)} / ${fmt(ST.duration)}` : ''); if (ST.duration) frac = ST.time / ST.duration; }
+ else if (S.mode === 'video') { title = S.file ? decodeURIComponent(S.file.split('/').pop()) : 'Chưa chọn video'; sub = (S.playing ? '▶ Đang phát' : '⏸ Tạm dừng') + (ST.duration ? ` · ${fmt(ST.time)} / ${fmt(ST.duration)}` : ''); if (ST.duration) frac = ST.time / ST.duration; }
   else if (S.mode === 'image') { title = S.image ? decodeURIComponent(S.image.split('/').pop()) : 'Chưa chọn ảnh'; img = S.image; }
   $('nowTitle').textContent = title; $('nowSub').textContent = sub;
   $('nowImg').style.visibility = img ? 'visible' : 'hidden'; if (img && $('nowImg').getAttribute('src') !== img) $('nowImg').src = img;
   $('barFill').style.width = (Math.min(1, frac) * 100) + '%';
   $('noScreen').style.display = ST.screens === 0 ? 'block' : 'none';
-  $('autoMuted').style.display = ST.autoMuted && (S.mode === 'youtube' || S.mode === 'video') ? 'block' : 'none';
+  $('autoMuted').style.display = ST.autoMuted && S.mode === 'video' ? 'block' : 'none';
 }
 socket.on('screen', s => { S = s; render(); });
 socket.on('screenMedia', m => { MEDIA = m || []; render(); });
@@ -236,12 +197,6 @@ $('bTextClear').onclick = () => socket.emit('text:clear');
 $('bTestText').onclick = () => socket.emit('test', { kind: 'textmsg', text: 'mh: Chúc cả nhà một buổi tối thật vui!' });
 $('bSmoke').onclick = () => socket.emit('cmd', { type: 'smoke' });
 $('bSpark').onclick = () => socket.emit('cmd', { type: 'sparkle' });
-// nhịp đèn khi phát YouTube
-let taps = [];
-$('bTap').onclick = () => { const n = performance.now(); taps = taps.filter(x => n - x < 3000); taps.push(n);
-  if (taps.length >= 4) { const d = (taps[taps.length - 1] - taps[0]) / (taps.length - 1); const bpm = Math.round(60000 / d); $('bpm').value = bpm; set({ bpm }); $('tapMsg').textContent = '✓ ' + bpm + ' BPM'; } else $('tapMsg').textContent = 'gõ tiếp… (' + taps.length + ')'; };
-$('bpm').onchange = () => set({ bpm: Math.max(0, Math.min(220, +$('bpm').value || 0)) });
-socket.on('screen:added', n => { $('addMsg').textContent = n ? `Đã thêm ${n} mục` : 'Không nhận ra link YouTube nào'; if (n) $('ytText').value = ''; });
 
 $('modes').onclick = e => { const m = e.target.closest('button')?.dataset.m; if (!m) return;
   const p = { mode: m, playing: true };
@@ -256,25 +211,13 @@ $('bar').onclick = e => { if (!ST.duration) return; const r = $('bar').getBoundi
 $('bMute').onclick = () => set({ muted: !S.muted });
 $('vol').oninput = () => { $('volTxt').textContent = $('vol').value + '%'; };
 $('vol').onchange = () => set({ volume: +$('vol').value, muted: false });
-$('bAdd').onclick = () => set({ addText: $('ytText').value });
-$('bReplace').onclick = () => set({ addText: $('ytText').value, replace: true });
-$('bClear').onclick = () => { if (confirm('Xoá hết danh sách YouTube?')) set({ items: [], idx: 0 }); };
-for (const k of ['loop', 'shuffle', 'duck', 'showSign', 'giftOverlay', 'giftPause']) $(k).onchange = () => set({ [k]: $(k).checked });
+for (const k of ['duck', 'showSign', 'giftOverlay', 'giftPause']) $(k).onchange = () => set({ [k]: $(k).checked });
 $('fit').onchange = () => set({ fit: $('fit').value });
 $('bright').onchange = () => set({ brightness: +$('bright').value / 100 });
 $('ledCoins').onchange = () => socket.emit('saveSettings', { ledCoins: Math.max(1, +$('ledCoins').value || 99) });
 $('ledSeconds').onchange = () => socket.emit('saveSettings', { ledSeconds: Math.max(4, Math.min(60, +$('ledSeconds').value || 12)) });
 $('bOpenGame').onclick = async () => { $('openMsg').textContent = 'Đang mở…'; try { const r = await (await fetch('/api/open-game', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).json(); $('openMsg').textContent = r.ok ? '✓ Đã mở bằng ' + r.browser : '⚠ ' + r.error; } catch (e) { $('openMsg').textContent = '⚠ Không mở được'; } };
 $('bTestGift').onclick = () => socket.emit('test', { kind: 'biggift', value: Math.max(500, +$('ledCoins').value || 99) });
-$('list').onclick = e => {
-  const b = e.target.closest('button'); if (!b) return; const i = +b.dataset.i, items = S.items.slice();
-  if (b.dataset.a === 'play') return cmd({ type: 'play', idx: i });
-  let idx = S.idx;
-  if (b.dataset.a === 'del') { items.splice(i, 1); if (i < idx) idx--; }
-  if (b.dataset.a === 'up' && i > 0) { [items[i - 1], items[i]] = [items[i], items[i - 1]]; if (idx === i) idx--; else if (idx === i - 1) idx++; }
-  if (b.dataset.a === 'down' && i < items.length - 1) { [items[i + 1], items[i]] = [items[i], items[i + 1]]; if (idx === i) idx++; else if (idx === i + 1) idx--; }
-  set({ items, idx: Math.max(0, idx) });
-};
 $('media').onclick = async e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.show) return set(b.dataset.k === 'image' ? { mode: 'image', image: b.dataset.show } : { mode: 'video', file: b.dataset.show, playing: true });

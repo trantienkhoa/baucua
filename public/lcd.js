@@ -1,4 +1,4 @@
-// Màn hình LCD sau lưng DJ: sóng nhạc / YouTube / video trên máy / ảnh.
+// Màn hình LCD sau lưng DJ: sóng nhạc / video trên máy / ảnh (phần YouTube đã tắt từ bản 2.3).
 // YouTube không vẽ được vào WebGL (khác nguồn), nên khung YouTube được đặt bằng CSS3D NẰM SAU canvas 3D,
 // rồi canvas "đục lỗ" (alpha = 0) đúng chỗ màn hình — người, bàn DJ đứng trước vẫn che màn bình thường.
 import * as THREE from 'three';
@@ -184,6 +184,7 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
 
   socket.on('screen', s => {
     const old = S; S = Object.assign({}, S, s);
+    if (S.mode === 'youtube') S.mode = 'eq';   // bản 2.3: đã bỏ YouTube
     if (old.fit !== S.fit) { ytLayout(); if (S.mode === 'video' && video.videoWidth) fitScale(video.videoWidth / video.videoHeight); if (S.mode === 'image' && imgTex) fitScale(imgTex.image.width / imgTex.image.height); }
   });
   socket.on('screen:cmd', c => {

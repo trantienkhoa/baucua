@@ -20,6 +20,12 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## Bỏ YouTube khỏi màn LCD (bản 2.3.0)
+
+- Màn LCD không còn phát YouTube. Còn 3 chế độ: 🎶 sóng nhạc (kèm tranh chủ đề mùa / lễ), 🎞️ video trên máy, 🖼️ ảnh.
+- Lời nhắn theo quà, sự kiện LIVE, đếm ngược, chiếu người tặng quà lớn vẫn hiện trên màn như cũ.
+- Nếu trước đó màn đang ở chế độ YouTube, game tự chuyển về sóng nhạc.
+
 ## Hạn chế bị TikTok bắt captcha (bản 2.2.1)
 
 Game không vượt captcha (đó là cơ chế chống bot của TikTok). Thay vào đó, game kết nối nhẹ nhàng để ít bị bắt hơn:
