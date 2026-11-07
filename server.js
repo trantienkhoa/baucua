@@ -29,7 +29,9 @@ const ACTIONS = [
   { id: 'fireworks', label: 'Pháo hoa', icon: '🎆', min: 5 },
   { id: 'balloons', label: 'Mưa bong bóng', icon: '🎈', min: 10 },
   { id: 'giant', label: 'Khổng lồ', icon: '🦖', min: 20 },
+  { id: 'smoke', label: 'Phun khói', icon: '🌫️', min: 15 },
   { id: 'pair', label: 'Ghép đôi', icon: '💞', min: 30 },
+  { id: 'sparkle', label: 'Pháo sáng', icon: '✨', min: 40 },
   { id: 'clone', label: 'Phân thân', icon: '👯', min: 50 },
   { id: 'wings', label: 'Mọc cánh', icon: '🪽', min: 70 },
   { id: 'dj', label: 'Lên DJ', icon: '🎧', min: 99 },
@@ -50,6 +52,16 @@ const DEFAULT_SETTINGS = {
   rosterEnabled: true,      // người xem nhập vai nhân vật trong roster.csv
   partyMix: 25,             // % người mặc đồ dạ hội (còn lại đồ đi bar hot trend)
   costumeRate: 15,          // % người lên sàn được hoá trang sẵn (còn lại mặc đồ dạ hội)
+  djName: 'DJ Tiến Khoa',   // tên DJ trên bàn DJ
+  textEnabled: true,        // tặng quà kèm lời nhắn → chữ lên màn LCD
+  textCoins: 30,            // tổng quà (💎) tối thiểu để được chiếu lời nhắn
+  textSeconds: 10,          // mỗi lời nhắn hiện bao lâu
+  textApprove: false,       // chủ phòng duyệt trước khi chiếu
+  smokeEnabled: true,       // khói sàn
+  smokeDensity: 55,         // độ dày khói nền (0–100)
+  sparkEnabled: true,       // pháo sáng (vòi tia lửa lạnh) trên sân khấu
+  fxCoins: 99,              // quà từ bao nhiêu 💎 thì tự phun khói + pháo sáng
+  fxOnFire: true,           // sàn cháy → phun khói + pháo sáng
   ledShow: true,            // người tặng quà lớn được chiếu lên màn LED
   ledCoins: 99,             // từ bao nhiêu xu thì lên màn LED
   ledSeconds: 12,           // thời gian chiếu mỗi người
@@ -359,7 +371,62 @@ function setState(status, text) {
   console.log('[TikTok]', text);
 }
 
-function broadcast(ev) { session.lastEvent = Date.now(); io.to('game').emit('ev', ev); }
+function broadcast(ev) { session.lastEvent = Date.now(); io.to('game').emit('ev', ev); try { textHook(ev); } catch (e) { console.error('text', e); } }
+
+// ---------- lời nhắn lên màn hình LCD: bình luận "mh: …" + tặng quà ----------
+const TEXT_PREFIX = /^\s*(mh|màn hình|man hinh|manhinh|lcd|chữ|chu|text|tn|lời nhắn|loi nhan)\s*[:：\-–>]\s*/i;
+// so khớp CÓ DẤU (tránh chặn nhầm "ngủ", "lớn", "các", "buổi") và BỎ DẤU cho kiểu viết tắt
+const BAD_ACC = ['ngu', 'lồn', 'cặc', 'buồi', 'địt', 'đĩ', 'đụ', 'đù má', 'đụ má', 'súc vật', 'óc chó', 'thằng chó', 'con chó', 'mẹ mày', 'má mày', 'cave'];
+const BAD_FLAT = ['dm', 'dmm', 'dcm', 'dkm', 'vcl', 'vkl', 'vl', 'vcc', 'clm', 'cmm', 'cc', 'loz', 'lol', 'fuck', 'fck', 'fucking', 'shit', 'bitch', 'dit me', 'dit cu', 'du ma', 'deo', 'dek'];
+const deacc = t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+const esc = w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+');
+const mkRe = list => new RegExp('(^|[^\\p{L}\\p{N}])(' + list.map(esc).join('|') + ')(?=$|[^\\p{L}\\p{N}])', 'giu');
+const RE_ACC = mkRe(BAD_ACC.map(w => w.normalize('NFC'))), RE_FLAT = mkRe(BAD_FLAT);
+function cleanBad(text) {
+  const src = [...text.normalize('NFC')];
+  const low = src.map(ch => ch.toLowerCase()).map(c => [...c][0] || ' ').join('');
+  const flat = src.map(ch => deacc(ch)[0] || ' ').join('');
+  let hit = false; const out = src.slice();
+  for (const [str, re] of [[low, RE_ACC], [flat, RE_FLAT]]) {
+    re.lastIndex = 0;
+    str.replace(re, (m, pre, w, off) => {
+      hit = true; const a = [...str.slice(0, off + pre.length)].length, n = [...w].length;
+      for (let k = a; k < a + n; k++) if (out[k] !== ' ') out[k] = '*';
+      return m;
+    });
+  }
+  return { text: out.join(''), hit };
+}
+const textWant = new Map();   // user.id -> { text, t }
+const textPaid = new Map();   // user.id -> { value, gift, t }
+let textPending = [];         // chờ chủ phòng duyệt
+let textHistory = [];
+let textSeq = 0;
+function textHook(ev) {
+  if (!settings.textEnabled || !ev || !ev.user) return;
+  const id = ev.user.id, now = Date.now();
+  for (const m of [textWant, textPaid]) for (const [k, v] of m) if (now - v.t > 180000) m.delete(k);
+  if (ev.type === 'chat' && typeof ev.text === 'string' && TEXT_PREFIX.test(ev.text)) {
+    const t = ev.text.replace(TEXT_PREFIX, '').trim().slice(0, 80);
+    if (t) textWant.set(id, { text: t, t: now });
+  } else if (ev.type === 'gift') {
+    const p = textPaid.get(id) || { value: 0, t: now };
+    p.value += Number(ev.value) || 0; p.gift = ev.gift; p.t = now; textPaid.set(id, p);
+  } else return;
+  const w = textWant.get(id), p = textPaid.get(id);
+  if (!w || !p || p.value < (Number(settings.textCoins) || 30)) return;
+  textWant.delete(id); textPaid.delete(id);
+  const c = cleanBad(w.text);
+  const item = { id: ++textSeq, user: { id, name: ev.user.name, avatar: ev.user.avatar }, text: c.text, flagged: c.hit, gift: p.gift ? p.gift.name : '', value: p.value, at: now };
+  if (settings.textApprove) { textPending.push(item); textPending = textPending.slice(-50); io.to('screenctl').emit('textQueue', textPending); }
+  else showText(item);
+}
+function showText(item) {
+  io.to('game').emit('screenText', item);
+  textHistory.unshift(item); textHistory = textHistory.slice(0, 30);
+  io.to('screenctl').emit('textHistory', textHistory);
+}
+
 
 const pendingStreaks = new Map();
 function handleGift(d) {
@@ -490,6 +557,7 @@ const SCREEN_DEFAULT = {
   giftPause: true,       // tạm dừng video trong lúc chiếu người tặng quà
   showSign: false,       // hiện biển VŨ TRƯỜNG NEON đè lên màn
   file: '', image: '', brightness: 1, seq: 0,
+  bpm: 0,                // nhịp cho đèn khi phát YouTube (0 = theo nhạc game)
 };
 let screenState = Object.assign({}, SCREEN_DEFAULT, readJSON('screen.json', {}));
 let screenStatus = {};
@@ -534,6 +602,27 @@ app.delete('/api/screen-media/:file', (req, res) => {
   const f = path.join(SCREEN_MEDIA, path.basename(req.params.file));
   if (fs.existsSync(f)) fs.unlinkSync(f);
   io.emit('screenMedia', screenMedia()); res.json(screenMedia());
+});
+
+// ảnh đại diện / ảnh quà TikTok tải qua máy chủ: ảnh khác nguồn làm "bẩn" canvas → không vẽ được lên màn LED 3D và clip
+const IMG_HOSTS = /(^|\.)(tiktokcdn\.com|tiktokcdn-us\.com|tiktokcdn-eu\.com|tiktokv\.com|tiktokv\.us|ibyteimg\.com|byteimg\.com|muscdn\.com|tiktok\.com|ytimg\.com|ggpht\.com|googleusercontent\.com)$/i;
+const imgCache = new Map();   // url -> { buf, type, t }
+app.get('/api/img', async (req, res) => {
+  let u; try { u = new URL(String(req.query.u || '')); } catch { return res.status(400).end(); }
+  if (!/^https?:$/.test(u.protocol) || !IMG_HOSTS.test(u.hostname)) return res.status(403).end();
+  const key = u.href; let hit = imgCache.get(key);
+  if (!hit) {
+    try {
+      const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 8000);
+      const r = await fetch(key, { signal: ctl.signal, headers: { 'User-Agent': 'Mozilla/5.0' } }); clearTimeout(to);
+      const type = r.headers.get('content-type') || '';
+      if (!r.ok || !/^image\//.test(type)) return res.status(502).end();
+      const buf = Buffer.from(await r.arrayBuffer()); if (buf.length > 3e6) return res.status(413).end();
+      hit = { buf, type, t: Date.now() }; imgCache.set(key, hit);
+      if (imgCache.size > 800) imgCache.delete(imgCache.keys().next().value);
+    } catch { return res.status(502).end(); }
+  }
+  res.set('Content-Type', hit.type).set('Cache-Control', 'max-age=3600').send(hit.buf);
 });
 
 // ảnh bìa YouTube (tải qua máy chủ để vẽ được vào clip khoảnh khắc)
@@ -605,7 +694,7 @@ function testUser(i) {
 io.on('connection', socket => {
   socket.on('hello', (role, info) => {
     if (role === 'game') { socket.join('game'); screens.set(socket.id, { obs: !!(info && info.obs) }); pickPrimary(); socket.emit('goalState', goalState); }
-    else if (role === 'screen') { socket.join('screenctl'); socket.emit('screenMedia', screenMedia()); socket.emit('screenStatus', screenStatus); }
+    else if (role === 'screen') { socket.join('screenctl'); socket.emit('screenMedia', screenMedia()); socket.emit('screenStatus', screenStatus); socket.emit('textQueue', textPending); socket.emit('textHistory', textHistory); }
     else { socket.join('admin'); socket.emit('clips', clipList()); }
     socket.emit('screen', screenState);
     socket.emit('settings', settings);
@@ -645,6 +734,14 @@ io.on('connection', socket => {
     if (c.type === 'play' && n) { screenState.idx = Math.max(0, Math.min(n - 1, Number(c.idx) || 0)); screenState.playing = true; screenState.mode = 'youtube'; return saveScreen(); }
     io.to('game').emit('screen:cmd', c);   // seek, restart…
   });
+  socket.on('text:approve', id => { const i = textPending.findIndex(x => x.id === id); if (i < 0) return; const [it] = textPending.splice(i, 1); showText(it); io.to('screenctl').emit('textQueue', textPending); });
+  socket.on('text:reject', id => { textPending = textPending.filter(x => x.id !== id); io.to('screenctl').emit('textQueue', textPending); });
+  socket.on('text:replay', id => { const it = textHistory.find(x => x.id === id); if (it) io.to('game').emit('screenText', it); });
+  socket.on('text:clear', () => io.to('game').emit('screenText:clear'));
+  socket.on('text:host', t => {   // chủ phòng tự gõ chữ lên màn
+    if (typeof t !== 'string' || !t.trim()) return;
+    showText({ id: ++textSeq, user: { id: 'host', name: settings.djName || 'Chủ phòng', avatar: '' }, text: t.trim().slice(0, 120), gift: '', value: 0, host: true, at: Date.now() });
+  });
   socket.on('screen:status', st => {
     if (socket.id !== primaryId || !st || typeof st !== 'object') return;
     screenStatus = st; st.screens = screens.size;
@@ -681,6 +778,11 @@ io.on('connection', socket => {
       const n = Math.max(1, Number(t.repeat) || 1); for (let i = 0; i < n; i++) setTimeout(() => broadcast({ type: 'chat', user: fanTouch(testUser(Math.max(1, Math.floor(Math.random() * Math.max(1, testN)))), 2), text: String(typeof t.text === 'function' ? '' : (Array.isArray(t.text) ? t.text[i % t.text.length] : t.text) || '').slice(0, 80) }), i * 80);
     } else if (t.kind === 'like') {
       const n = Number(t.n) || 30; for (let i = 0; i < 10; i++) setTimeout(() => broadcast({ type: 'like', user: fanTouch(testUser(Math.max(1, Math.floor(Math.random() * Math.max(1, testN)))), 0.5), count: Math.ceil(n / 10) }), i * 100);
+    } else if (t.kind === 'textmsg') {
+      const user = fanTouch(testUser(Math.max(1, Math.floor(Math.random() * Math.max(1, testN))) || 1), 2);
+      broadcast({ type: 'chat', user, text: String(t.text || 'mh: Xin chào!').slice(0, 90) });
+      const g = { name: 'Hoa hồng thử', diamonds: Math.max(1, Number(settings.textCoins) || 30), img: '' };
+      setTimeout(() => { const total = addCoins(user, g.diamonds); broadcast({ type: 'gift', user, gift: g, count: 1, value: g.diamonds, total }); io.emit('top', topList()); }, 600);
     } else if (t.kind === 'biggift') {
       const user = testUser(Math.max(1, Math.floor(Math.random() * Math.max(1, testN))) || 1);
       const g = { name: 'Quà lớn thử', diamonds: Number(t.value) || 500, img: '' };

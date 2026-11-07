@@ -7,7 +7,7 @@ import { Pass } from 'three/addons/postprocessing/Pass.js';
 
 const PX = 1280;   // bề rộng khung YouTube (điểm ảnh CSS) ứng với bề rộng màn 3D
 
-export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrimary }) {
+export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrimary, settings = () => ({}) }) {
   const SW = led.geometry.parameters.width, SH = led.geometry.parameters.height, ASPECT = SW / SH;
   const PH = Math.round(PX / ASPECT);
   let S = { mode: 'eq', items: [], idx: 0, playing: true, volume: 70, muted: false, fit: 'fill', duck: true, giftOverlay: true, giftPause: true, showSign: false, brightness: 1 };
@@ -202,6 +202,10 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
       if (S.mode === 'youtube' && player && ytReady && ytState === 1 && !S.muted && !ytMutedAuto && S.volume > 0) talking = true;
       if (S.mode === 'video' && !video.paused && !video.muted && S.volume > 0) talking = true;
     }
+    // đèn theo nhạc: video trên máy → đưa tiếng vào bộ phân tích; YouTube → dùng nhịp BPM chủ phòng đặt
+    if (S.mode === 'video' && Music.ctx && Music.ctx.state === 'running' && Music.attachMedia) Music.attachMedia(video);
+    const ytSound = S.mode === 'youtube' && player && ytReady && ytState === 1 && !S.muted && S.volume > 0 && !giftHold;
+    if (Music.setExternalBpm) Music.setExternalBpm(ytSound && Number(S.bpm) > 0 ? S.bpm : 0);
     const k = talking ? 0.15 : 1;
     if (k !== duckK) { duckK = k; if (Music.setDuck) Music.setDuck(k); }
   }
@@ -243,18 +247,124 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
     let tt = '▶ ' + (curTitle || 'YouTube'); while (cx.measureText(tt).width > bw * 0.9 && tt.length > 4) tt = tt.slice(0, -2) + '…';
     cx.fillText(tt, x0 + bw * 0.04, y1 - fs * 1.6);
     try { const d = player.getDuration(), t = player.getCurrentTime(); if (d > 0) { cx.fillStyle = 'rgba(255,255,255,0.3)'; cx.fillRect(x0 + bw * 0.04, y1 - fs * 0.6, bw * 0.92, fs * 0.18); cx.fillStyle = '#ff2d55'; cx.fillRect(x0 + bw * 0.04, y1 - fs * 0.6, bw * 0.92 * Math.min(1, t / d), fs * 0.18); } } catch (e) {}
+    if (tCur) cx.drawImage(tCan, x0, y0, bw, bh);   // lời nhắn cũng vào clip
     cx.restore();
+  }
+
+  // ---------- lời nhắn của người tặng quà ----------
+  const TW = PX, TH = PH;
+  const tCan = document.createElement('canvas'); tCan.width = TW; tCan.height = TH;
+  const tg = tCan.getContext('2d');
+  const tTex = new THREE.CanvasTexture(tCan); tTex.colorSpace = THREE.SRGBColorSpace;
+  const tMesh = new THREE.Mesh(led.geometry, new THREE.MeshBasicMaterial({ map: tTex, transparent: true, depthWrite: false, toneMapped: false }));
+  tMesh.position.copy(led.position); tMesh.position.z += 0.05; tMesh.quaternion.copy(led.quaternion); tMesh.visible = false; tMesh.renderOrder = 5;
+  scene.add(tMesh);
+  const tDom = document.createElement('canvas'); tDom.width = TW; tDom.height = TH;
+  Object.assign(tDom.style, { position: 'absolute', left: 0, top: 0, width: PX + 'px', height: PH + 'px', display: 'none', transform: 'none' });   // game.html căn giữa mọi canvas bằng transform → bỏ
+  box.appendChild(tDom);
+  const tdg = tDom.getContext('2d');
+  const FONT = '"Segoe UI","Be Vietnam Pro",system-ui,Arial,sans-serif';
+  const textQ = []; let tCur = null, tDrawAt = 0;
+  const avCache = new Map();
+  function avatarImg(url) {
+    if (!url) return null; let im = avCache.get(url);
+    if (!im) { im = new Image(); im.src = /^https?:/i.test(url) ? '/api/img?u=' + encodeURIComponent(url) : url; avCache.set(url, im); if (avCache.size > 100) avCache.delete(avCache.keys().next().value); }
+    return im.complete && im.naturalWidth ? im : null;
+  }
+  function wrap(text, maxW) {
+    const words = text.split(/\s+/); const lines = []; let cur = '';
+    for (const w of words) {
+      const t = cur ? cur + ' ' + w : w;
+      if (tg.measureText(t).width <= maxW || !cur) cur = t; else { lines.push(cur); cur = w; }
+      while (tg.measureText(cur).width > maxW && cur.length > 1) {   // từ quá dài: cắt
+        let k = cur.length; while (k > 1 && tg.measureText(cur.slice(0, k)).width > maxW) k--;
+        lines.push(cur.slice(0, k)); cur = cur.slice(k);
+      }
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  }
+  // phần màn LCD đang lọt vào khung hình (khung dọc 9:16 cắt bớt hai bên màn)
+  let vis0 = 0.15, vis1 = 0.85;
+  const _a = new THREE.Vector3(), _b = new THREE.Vector3();
+  function visibleRange() {
+    led.updateMatrixWorld();
+    _a.set(-SW / 2, 0, 0); led.localToWorld(_a); _a.project(camera);
+    _b.set(SW / 2, 0, 0); led.localToWorld(_b); _b.project(camera);
+    const d = _b.x - _a.x; if (Math.abs(d) < 1e-4) return;
+    const u0 = Math.max(0, Math.min(1, (-0.97 - _a.x) / d)), u1 = Math.max(0, Math.min(1, (0.97 - _a.x) / d));
+    if (u1 - u0 < 0.15) return;
+    vis0 += (u0 - vis0) * 0.25; vis1 += (u1 - vis1) * 0.25;
+  }
+  function drawText(t) {
+    visibleRange();
+    const X0 = vis0 * TW, X1 = vis1 * TW, VW = X1 - X0, CX = (X0 + X1) / 2;
+    const it = tCur.item, age = t - tCur.start, left = tCur.until - t;
+    const a = Math.min(1, age / 0.35, Math.max(0, left) / 0.5);
+    const g = tg; g.clearRect(0, 0, TW, TH); g.globalAlpha = a;
+    g.fillStyle = 'rgba(6,0,18,0.78)'; g.fillRect(0, 0, TW, TH);
+    const hue = (t * 60) % 360;
+    const bg = g.createLinearGradient(0, 0, TW, 0);
+    bg.addColorStop(0, `hsl(${hue},100%,60%)`); bg.addColorStop(0.5, `hsl(${(hue + 120) % 360},100%,62%)`); bg.addColorStop(1, `hsl(${(hue + 240) % 360},100%,60%)`);
+    g.lineWidth = 12; g.strokeStyle = bg; g.strokeRect(10, 10, TW - 20, TH - 20);
+    // người gửi
+    const r = 40, ay = 78;
+    g.font = `800 38px ${FONT}`;
+    let nm = it.user.name || ''; while (g.measureText(nm).width > VW - 160 && nm.length > 2) nm = nm.slice(0, -2) + '…';
+    const headW = Math.max(g.measureText(nm).width, 200) + r * 2 + 24, ax = Math.max(X0 + r + 16, CX - headW / 2 + r);
+    g.save(); g.beginPath(); g.arc(ax, ay, r + 5, 0, Math.PI * 2); g.fillStyle = '#ffcf33'; g.fill();
+    g.beginPath(); g.arc(ax, ay, r, 0, Math.PI * 2); g.clip();
+    const im = it.host ? null : avatarImg(it.user.avatar);
+    if (im) g.drawImage(im, ax - r, ay - r, r * 2, r * 2); else { g.fillStyle = '#5b3bb0'; g.fillRect(ax - r, ay - r, r * 2, r * 2); g.fillStyle = '#fff'; g.font = `900 46px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(it.host ? '🎧' : ((it.user.name || '?').trim()[0] || '?').toUpperCase(), ax, ay + 3); }
+    g.restore();
+    g.textAlign = 'left'; g.textBaseline = 'middle';
+    g.font = `800 38px ${FONT}`; g.fillStyle = '#fff';
+    g.fillText(nm, ax + r + 20, ay - 15);
+    g.font = `700 26px ${FONT}`; g.fillStyle = '#ffe08a';
+    g.fillText(it.host ? '📢 Thông báo' : `💌 lời nhắn${it.gift ? ' · ' + it.gift : ''}${it.value ? ' · ' + it.value + '💎' : ''}`, ax + r + 20, ay + 22);
+    // lời nhắn: tự chọn cỡ chữ vừa tối đa 3 dòng
+    let size = 132, lines;
+    for (; size >= 44; size -= 4) { g.font = `900 ${size}px ${FONT}`; lines = wrap(it.text, VW - 60); if (lines.length <= 3 && lines.length * size * 1.12 <= TH - 210) break; }
+    lines = lines.slice(0, 3);
+    const lh = size * 1.12, cy = 150 + (TH - 150 - 50) / 2, y0 = cy - (lines.length - 1) * lh / 2;
+    const kick = Music && Music.kick ? Music.kick : 0;
+    const sc = 1 + 0.035 * kick + 0.04 * Math.max(0, 1 - age / 0.35);
+    g.save(); g.translate(CX, cy); g.scale(sc, sc); g.translate(-CX, -cy);
+    const tgd = g.createLinearGradient(0, y0 - size / 2, 0, y0 + (lines.length - 1) * lh + size / 2);
+    tgd.addColorStop(0, `hsl(${(hue + 300) % 360},100%,82%)`); tgd.addColorStop(1, `hsl(${(hue + 30) % 360},100%,68%)`);
+    g.textAlign = 'center'; g.font = `900 ${size}px ${FONT}`;
+    g.shadowColor = `hsl(${(hue + 300) % 360},100%,55%)`; g.shadowBlur = 28 + 30 * kick;
+    lines.forEach((ln, i) => { g.fillStyle = tgd; g.fillText(ln, CX, y0 + i * lh); });
+    g.shadowBlur = 0; g.restore();
+    // hướng dẫn
+    const st = settings();
+    g.font = `600 22px ${FONT}`; g.fillStyle = 'rgba(255,255,255,0.6)'; g.textAlign = 'center';
+    let hint = `Bình luận “mh: lời nhắn” + tặng quà từ ${st.textCoins || 30}💎 để lên màn hình`; while (g.measureText(hint).width > VW - 30 && hint.length > 10) hint = hint.slice(0, -2);
+    g.fillText(hint, CX, TH - 34);
+    g.globalAlpha = 1;
+    tTex.needsUpdate = true;
+  }
+  socket.on('screenText', it => { if (it && it.text) { textQ.push(it); if (textQ.length > 30) textQ.shift(); } });
+  socket.on('screenText:clear', () => { textQ.length = 0; if (tCur) tCur.until = Math.min(tCur.until, performance.now() / 1000 + 0.4); });
+  function updateText(t, giftActive) {
+    if (tCur && t > tCur.until) tCur = null;
+    if (!tCur && textQ.length && !giftActive) { const dur = Math.max(4, Number(settings().textSeconds) || 10); tCur = { item: textQ.shift(), start: t, until: t + dur }; }
+    const on = !!tCur;
+    if (on && t - tDrawAt > 1 / 20) { tDrawAt = t; drawText(t); if (holeOn) { tdg.clearRect(0, 0, TW, TH); tdg.drawImage(tCan, 0, 0); } }
+    tMesh.visible = on && !holeOn;
+    tDom.style.display = on && holeOn ? 'block' : 'none';
   }
 
   let lastSync = 0;
   return {
+    get textActive() { return !!tCur; },
     drawBehind,
     holePass,
     get state() { return S; },
     get hole() { return holeOn; },
     /** người tặng quà lớn có được chen lên màn không */
     giftAllowed() { return S.mode === 'eq' || S.giftOverlay !== false; },
-    signVisible() { return S.mode === 'eq' || !!S.showSign; },
+    signVisible() { return !tCur && (S.mode === 'eq' || !!S.showSign); },
     /** vật liệu của màn khi không chiếu người tặng quà */
     idleMaterial(eqMat) {
       if (S.mode === 'youtube') return blackMat;
@@ -262,11 +372,12 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
       if (S.mode === 'image' && imgTex) { if (mediaMat.uniforms.map.value !== imgTex) { mediaMat.uniforms.map.value = imgTex; fitScale(imgTex.image.width / imgTex.image.height); } mediaMat.uniforms.bright.value = S.brightness || 1; return mediaMat; }
       return eqMat;
     },
-    update(t, giftActive) {
+    update(t, giftActive, textBusy) {
       giftHold = !!giftActive;
       holeOn = S.mode === 'youtube' && !giftHold && led.visible;
       if (t - lastSync > 0.25) { lastSync = t; sync(giftHold); duck(); }
       box.style.visibility = holeOn ? 'visible' : 'hidden';
+      updateText(performance.now() / 1000, giftHold || !!textBusy);
       const b = S.brightness || 1; const f = b === 1 ? '' : `brightness(${b})`; if (box.style.filter !== f) box.style.filter = f;
     },
     /** gọi sau khi vẽ cảnh 3D thẳng ra canvas (không dùng hậu kỳ) */

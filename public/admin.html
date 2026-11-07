@@ -221,6 +221,9 @@ document.getElementById('openGame').onclick = async () => {
       <button id="tJoin50">+50 khách thử</button>
       <button id="tLike">❤️ Thả 50 tim</button>
       <button id="tBig">📺 Quà lớn (500 xu)</button>
+      <button id="tText">💌 Lời nhắn + quà</button>
+      <button id="tSmoke">🌫️ Phun khói</button>
+      <button id="tSpark">✨ Pháo sáng</button>
       <button id="tTeam">⚔️ 20 khách gõ 1/2</button>
       <button id="tVote">🗳 20 phiếu solo</button>
       <input id="tText" type="text" placeholder="bình luận thử, vd: disco" style="width:220px">
@@ -238,6 +241,7 @@ let S = {}, GIFTS = {}, ACTIONS = [], INFO = {};
 socket.on('connect', () => socket.emit('hello', 'admin'));
 
 const FIELDS = [
+  ['djName', '🎧 Tên DJ trên bàn DJ', 'text'],
   ['quality', '✨ Mức hiệu ứng', 'select', [['high', 'Mạnh (máy mạnh)'], ['medium', 'Vừa'], ['low', 'Nhẹ (máy yếu)']]],
   ['charStyle', '🧍 Kiểu nhân vật', 'select', [['real', 'Người thật 3D'], ['toon', 'Hoạt hình (nhẹ máy)']]],
   ['costumeRate', '🦸 % người hoá trang sẵn (0–100)', 'num', 5],
@@ -246,6 +250,15 @@ const FIELDS = [
   ['ledShow', '📺 Người tặng quà lớn lên màn LED', 'check'],
   ['ledCoins', '📺 Lên màn LED từ (xu)', 'num', 1],
   ['ledSeconds', '📺 Thời gian trên màn LED (giây)', 'num', 1],
+  ['textEnabled', '💌 Tặng quà kèm lời nhắn → chữ lên màn', 'check'],
+  ['textCoins', '💌 Lời nhắn: tổng quà tối thiểu (xu)', 'num', 1],
+  ['textSeconds', '💌 Mỗi lời nhắn hiện (giây)', 'num', 1],
+  ['textApprove', '💌 Duyệt tay trước khi chiếu', 'check'],
+  ['smokeEnabled', '🌫️ Khói sàn', 'check'],
+  ['smokeDensity', '🌫️ Độ dày khói nền (0–100)', 'num', 5],
+  ['sparkEnabled', '✨ Pháo sáng trên sân khấu', 'check'],
+  ['fxCoins', '✨ Quà từ bao nhiêu xu thì phun khói + pháo sáng', 'num', 1],
+  ['fxOnFire', '✨ Tự phun khi sàn cháy / nhạc “drop”', 'check'],
   ['musicEnabled', 'Phát nhạc đã tải lên', 'check'],
   ['synthMusic', 'Chưa có bài → máy tự đánh nhạc', 'check'],
   ['volume', 'Âm lượng nhạc (0–1)', 'num', 0.05],
@@ -275,6 +288,7 @@ function renderSettings() {
     let input;
     if (type === 'check') { input = document.createElement('input'); input.type = 'checkbox'; input.checked = !!S[k]; }
     else if (type === 'num') { input = document.createElement('input'); input.type = 'number'; input.step = opt; input.value = S[k]; }
+    else if (type === 'text') { input = document.createElement('input'); input.type = 'text'; input.value = S[k] || ''; input.maxLength = 40; }
     else { input = document.createElement('select'); for (const [v, t] of opt) { const o = document.createElement('option'); o.value = v; o.textContent = t; input.appendChild(o); } input.value = S[k]; }
     input.dataset.key = k; input.dataset.type = type;
     div.append(document.createTextNode(label), input);
@@ -469,6 +483,9 @@ $('tJoin').onclick = () => socket.emit('test', { kind: 'join', n: 10 });
 $('tJoin50').onclick = () => socket.emit('test', { kind: 'join', n: 50 });
 $('tLike').onclick = () => socket.emit('test', { kind: 'like', n: 50 });
 $('tBig').onclick = () => socket.emit('test', { kind: 'biggift', value: 500 });
+$('tText').onclick = () => socket.emit('test', { kind: 'textmsg', text: 'mh: Chúc cả nhà một buổi tối thật vui!' });
+$('tSmoke').onclick = () => socket.emit('cmd', { type: 'smoke' });
+$('tSpark').onclick = () => socket.emit('cmd', { type: 'sparkle' });
 $('tTeam').onclick = () => socket.emit('test', { kind: 'chat', text: ['1', '2', '1', '1', '2'], repeat: 20 });
 $('tVote').onclick = () => socket.emit('test', { kind: 'chat', text: ['1', '2', '1'], repeat: 20 });
 $('tChat').onclick = () => socket.emit('test', { kind: 'chat', text: $('tText').value });

@@ -8,6 +8,8 @@
     mode: 'none',          // track | synth | none
     bpm: 124, interval: 60 / 124,
     beat: 0, nextBeat: 0, phase: 0, energy: 0, onset: false,
+    bass: 0, mid: 0, high: 0, kick: 0, hat: 0, drop: 0, level: 0, extBpm: 0,
+    _mx: [0.2, 0.2, 0.2], _bh: [], _hh: [], _lastKick: 0, _lastHat: 0, _slow: 0,
     hist: [], lastOnset: 0, iois: [],
     settings: { musicEnabled: true, synthMusic: true, volume: 0.35 },
     nextNoteTime: 0, step: 0, startAt: 0,
@@ -71,6 +73,13 @@
     A.iois = []; A.hist = [];
     A.el.play().catch(() => {});
   };
+  // đưa tiếng một video (cùng nguồn) vào bộ phân tích để đèn nhảy theo video
+  A.attachMedia = function (el) {
+    if (!A.ctx || !el || el._acSrc) return !!(el && el._acSrc);
+    try { const src = A.ctx.createMediaElementSource(el); src.connect(A.analyser); if (A.streamDest) src.connect(A.streamDest); el._acSrc = src; return true; } catch (e) { return false; }
+  };
+  // video YouTube không đọc được âm thanh → dùng nhịp BPM chủ phòng đặt
+  A.setExternalBpm = function (bpm) { A.extBpm = Math.max(0, Math.min(220, Number(bpm) || 0)); };
   A.trackName = () => A.mode === 'track' && A.current ? A.current.replace(/\.[^.]+$/, '') : '';
   A.audioStream = () => A.streamDest ? A.streamDest.stream : null;
   A.timeLeft = () => (A.mode === 'track' && A.el && A.el.duration) ? A.el.duration - A.el.currentTime : Infinity;
@@ -132,9 +141,50 @@
   }
 
   // ---------- đồng hồ nhịp ----------
+  // tách dải trầm / trung / cao, bắt nhịp trống (kick) và hi-hat, phát hiện đoạn "drop"
+  function analyse(t, dt) {
+    if (!A.ctx || !A.analyser) return;
+    A.analyser.getByteFrequencyData(A.freq);
+    const f = A.freq, n = f.length, hz = A.ctx.sampleRate / 2 / n;
+    const band = (lo, hi) => { let s = 0, c = 0; for (let i = Math.max(1, Math.floor(lo / hz)); i <= Math.min(n - 1, Math.ceil(hi / hz)); i++) { s += f[i]; c++; } return c ? s / c / 255 : 0; };
+    const raw = [band(30, 150), band(300, 2000), band(5000, 12000)];
+    for (let i = 0; i < 3; i++) { A._mx[i] = Math.max(raw[i], A._mx[i] * (1 - dt * 0.15), 0.08); raw[i] = Math.min(1, raw[i] / A._mx[i]); }
+    const k = 1 - Math.exp(-dt * 18);
+    A.bass += (raw[0] - A.bass) * k; A.mid += (raw[1] - A.mid) * k; A.high += (raw[2] - A.high) * k;
+    // kick: bass vượt trung bình gần đây
+    A._bh.push(raw[0]); if (A._bh.length > 43) A._bh.shift();
+    const avgB = A._bh.reduce((a, b) => a + b, 0) / A._bh.length;
+    if (raw[0] > avgB * 1.25 && raw[0] > 0.45 && t - A._lastKick > 0.22) { A._lastKick = t; A.kick = 1; }
+    A._hh.push(raw[2]); if (A._hh.length > 30) A._hh.shift();
+    const avgH = A._hh.reduce((a, b) => a + b, 0) / A._hh.length;
+    if (raw[2] > avgH * 1.3 && raw[2] > 0.35 && t - A._lastHat > 0.1) { A._lastHat = t; A.hat = 1; }
+    A.kick *= Math.exp(-dt * 7); A.hat *= Math.exp(-dt * 12);
+    const lvl = (raw[0] + raw[1] + raw[2]) / 3; A.level += (lvl - A.level) * k;
+    // drop: mức nhạc chậm tăng vọt sau đoạn lặng
+    const prevSlow = A._slow; A._slow += (lvl - A._slow) * (1 - Math.exp(-dt * 0.8));
+    if (lvl > 0.55 && prevSlow < 0.3 && t - (A._lastDrop || 0) > 20) { A._lastDrop = t; A.drop = 1; }
+    A.drop *= Math.exp(-dt * 0.7);
+  }
+  // không có tiếng để phân tích (video YouTube): giả lập theo nhịp BPM
+  function fakeBands(t) {
+    const p = A.phase; const env = Math.exp(-p * 6);
+    A.bass = 0.35 + 0.6 * env; A.mid = 0.45 + 0.2 * Math.sin(t * 3); A.high = 0.4 + 0.4 * Math.exp(-((p * 2) % 1) * 8);
+    if (p < 0.08 && t - A._lastKick > A.interval * 0.6) { A._lastKick = t; A.kick = 1; }
+    A.kick *= 0.88; A.hat = Math.exp(-((p * 2) % 1) * 10); A.level = 0.6;
+  }
+  let _lastT = 0;
   A.update = function () {
     const t = now();
+    const dt = Math.min(0.1, Math.max(0.001, t - _lastT || 0.016)); _lastT = t;
     A.onset = false;
+    if (A.extBpm) {   // nhịp do chủ phòng đặt (video YouTube đang phát tiếng)
+      A.interval = 60 / A.extBpm; A.bpm = A.extBpm;
+      while (t >= A.nextBeat) { A.nextBeat += A.interval; A.beat++; }
+      if (A.nextBeat - t > A.interval * 1.5) A.nextBeat = t + A.interval;
+      A.phase = Math.max(0, Math.min(0.999, 1 - (A.nextBeat - t) / A.interval));
+      fakeBands(t); return;
+    }
+    analyse(t, dt);
     if (A.ctx && A.mode === 'synth') {
       scheduleSynth();
       const el = t - A.startAt;

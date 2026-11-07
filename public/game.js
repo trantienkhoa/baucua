@@ -10,6 +10,7 @@ import { createThemes, THEME_NAMES } from './themes.js';
 import { rosterOutfit, danceFor, tempoFor, hyperFor, shapeFor } from './roster.js';
 import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates, setCostume, randomCostumeId, COSTUMES, costumeTime, setExtra, outfitTime, setOutfitMix, templateForChar, hasCharModel } from './avatars.js';
 import { createLCD } from './lcd.js';
+import { createFX } from './fx.js';
 
 const W = 1080, H = 1920;
 const PI = Math.PI, TAU = PI * 2;
@@ -51,7 +52,7 @@ function img(url) {
     e = { img: new Image(), ok: false };
     e.img.referrerPolicy = 'no-referrer';
     e.img.onload = () => e.ok = true;
-    e.img.src = url;
+    e.img.src = /^https?:\/\//i.test(url) ? '/api/img?u=' + encodeURIComponent(url) : url;   // qua máy chủ: giữ canvas “sạch” cho màn LED 3D và clip
     imgCache.set(url, e);
     if (imgCache.size > 1500) imgCache.delete(imgCache.keys().next().value);
   }
@@ -158,6 +159,8 @@ const STAGE_Y = 0.75;
 const bulbs = new THREE.InstancedMesh(new THREE.SphereGeometry(0.09, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }), 40);
 for (let i = 0; i < 40; i++) { bulbs.setMatrixAt(i, new THREE.Matrix4().makeTranslation(-9.75 + i * 0.5, STAGE_Y * 0.5, -5.47)); bulbs.setColorAt(i, new THREE.Color(0xffffff)); }
 scene.add(bulbs);
+// khói sàn + pháo sáng (fx.js)
+const fx = createFX(scene, { floor: { x0: -9, x1: 9, z0: -5.2, z1: 5.5 }, stageY: STAGE_Y, stageFrontZ: -5.5 });
 
 // màn LED
 const ledTex = canvasTex(512, 224, () => {});
@@ -740,6 +743,7 @@ function handleGift(ev) {
   if (zoomQueue.length > 60) zoomQueue.splice(0, zoomQueue.length - 60);
   pushTicker(`${d.name} tặng ${ev.count > 1 ? ev.count + '× ' : ''}${ev.gift.name} → ${m.label}`, '#ffd84d');
   heat += v;
+  if (v >= (Number(S.fxCoins) || 99)) { fx.smokeBurst(Math.min(1.5, 0.6 + v / 1000)); fx.sparkle(Math.min(8, 3 + v / 200)); }
   if (S.ledShow !== false && v >= (Number(S.ledCoins) || 99) && (!lcd || lcd.giftAllowed())) {
     const same = ledQueue.find(x => x.d === d);
     if (same) { same.count += ev.count; same.value += v; }
@@ -757,6 +761,8 @@ function startAction(z) {
     case 'catwalk': d.mode = 'catwalk'; d.modeStart = t; d.modeUntil = t + Math.max(z.dur, 7); d.tx = 0; d.tz = 1; break;
     case 'jump': d.jumpStart = t; break;
     case 'fireworks': for (let i = 0; i < 6; i++) setTimeout(launchRocket, i * 300); break;
+    case 'smoke': fx.smokeBurst(1); break;
+    case 'sparkle': fx.sparkle(5); break;
     case 'balloons': balloons(70); break;
     case 'giant': d.giantUntil = t + 25; break;
     case 'pair': makePair(d); break;
@@ -1090,6 +1096,7 @@ function update(t, dt) {
   flash = Math.max(0, flash - dt * 1.5);
 }
 
+const stageMood = { hue: 0.75, kick: 0, bass: 0 };
 function beatInfo(t) {
   const fire = t < fireUntil;
   let p = Music.phase, b = Music.beat;
@@ -1099,7 +1106,13 @@ function beatInfo(t) {
 
 // ---------- cập nhật cảnh 3D ----------
 function updateStage(t, bi) {
-  const pulse = 1 - bi.p;
+  // đèn khớp nhạc: phân tích tiếng (trầm/trung/cao, nhịp trống) — không có tiếng thì theo đồng hồ nhịp
+  const live = Music.mode !== 'none' && !Music.suspended();
+  const kick = live ? Math.max(Music.kick || 0, Math.exp(-bi.p * 7) * 0.35) : Math.exp(-bi.p * 6);
+  const bass = live ? (Music.bass || 0) : 0.5 + 0.5 * kick, hat = live ? (Music.hat || 0) : 0, mid = live ? (Music.mid || 0) : 0.5;
+  const pulse = Math.max(1 - bi.p, kick);
+  stageMood.kick = kick; stageMood.bass = bass;
+  if (Music.drop > 0.97 && S.fxOnFire !== false) { Music.drop = 0.96; fx.smokeBurst(1); fx.sparkle(5); flash = Math.max(flash, 0.35); }
   // sàn
   const pat = Math.floor(bi.b / 8) % 4;
   let i = 0;
@@ -1107,13 +1120,13 @@ function updateStage(t, bi) {
     const c = ix - TX / 2, r = iz;
     const k = pat === 0 ? ((ix + iz + bi.b) % 4 + 4) % 4 : pat === 1 ? (Math.abs(Math.round(c)) + bi.b) % 4 : pat === 2 ? (TZ - r + bi.b) % 4 : ((r * 3 + ix * 7) + bi.b) % 4;
     const hue = ((themes.hue(k, ix, iz, t, bi.fire) % 1) + 1) % 1;
-    const l = k === 0 ? 0.32 + 0.14 * pulse : 0.06 + (bi.fire ? 0.06 : 0.015);
+    const l = k === 0 ? 0.22 + 0.3 * kick : 0.05 + 0.05 * bass + (bi.fire ? 0.06 : 0.015);
     tileColor.setHSL(hue, themes.sat(k), l);
     tileMesh.setColorAt(i++, tileColor);
   }
   tileMesh.instanceColor.needsUpdate = true;
   // bóng đèn sân khấu
-  for (let j = 0; j < 40; j++) { tileColor.setHSL(((j * 25 + t * 60) % 360) / 360, 1, (j + bi.b) % 3 === 0 ? 0.6 : 0.12); bulbs.setColorAt(j, tileColor); }
+  for (let j = 0; j < 40; j++) { tileColor.setHSL(((j * 25 + t * 60) % 360) / 360, 1, (j + bi.b) % 3 === 0 ? 0.25 + 0.45 * kick : 0.08 + 0.3 * hat * ((j + bi.b) % 2)); bulbs.setColorAt(j, tileColor); }
   bulbs.instanceColor.needsUpdate = true;
   // màn LED
   if (S.quality === 'high' || Math.floor(t * 30) % 2 === 0) {
@@ -1135,25 +1148,27 @@ function updateStage(t, bi) {
   // loa nhún
   for (const sp of speakers) sp.scale.setScalar(1 + 0.03 * pulse * pulse);
   // cầu disco
-  disco.rotation.y = t * 0.6;
+  disco.rotation.y = t * (0.4 + 0.8 * bass);
   // đèn quét
   const showBeams = S.quality !== 'low';
   beams.forEach((m, j) => {
     m.visible = showBeams;
     m.rotation.z = Math.sin(t * (bi.fire ? 1.6 : 0.7) + j * 1.3) * 0.55;
     m.rotation.x = 0.35 + Math.sin(t * 0.5 + j) * 0.25;
-    m.material.opacity = (bi.fire ? 0.22 : 0.13) * (0.75 + 0.25 * pulse);
+    m.material.opacity = (bi.fire ? 0.22 : 0.13) * (0.45 + 0.55 * Math.max(kick, mid * 0.8));
+    m.material.color.setHSL(((stageMood.hue + j * 0.13) % 1 + 1) % 1, 1, 0.6);
   });
   const nL = S.quality === 'low' ? 0 : bi.fire ? Math.min(12, 4 + fireLevel * 2) : 4;
   lasers.forEach((m, j) => {
-    m.visible = j < nL;
+    m.visible = j < nL && (hat > 0.25 || kick > 0.3 || !live || j < 2);   // tia laser nháy theo hi-hat / trống
     const sd = j % 2 ? -1 : 1;
     m.rotation.y = sd * (0.25 + 0.35 * (0.5 + 0.5 * Math.sin(t * (bi.fire ? 2.2 : 0.9) + j)));
     m.rotation.x = -0.05 - 0.08 * Math.sin(t * 1.3 + j * 0.7);
   });
   // đèn di động
-  movers.forEach((l, j) => { const a = t * (0.5 + j * 0.17) + j * 2; l.position.set(Math.sin(a) * 4, 3.5 + Math.sin(a * 1.7) * 0.8, Math.cos(a * 0.8) * 3); l.intensity = (bi.fire ? 13 : 10) * (0.7 + 0.3 * pulse); });
-  neonStrips.forEach((m, j) => m.material.color.setHSL(((j * 40 + t * 50) % 360) / 360, 1, 0.55));
+  movers.forEach((l, j) => { const a = t * (0.5 + j * 0.17) + j * 2; l.position.set(Math.sin(a) * 4, 3.5 + Math.sin(a * 1.7) * 0.8, Math.cos(a * 0.8) * 3); l.intensity = (bi.fire ? 15 : 11) * (0.35 + 0.85 * Math.max(kick, bass * 0.7)); if (Music.kick > 0.95) l.color.setHSL(Math.random(), 1, 0.55); });
+  neonStrips.forEach((m, j) => m.material.color.setHSL(((j * 40 + t * 50) % 360) / 360, 1, 0.3 + 0.35 * Math.max(kick, bass * 0.6)));
+  stageMood.hue = ((t * 0.05 + bi.b * 0.02) % 1);
   booth.children.forEach(o => { if (o.geometry && o.geometry.type === 'CylinderGeometry') o.rotation.y = t * 4; });
 }
 
@@ -1376,6 +1391,7 @@ function frame() {
   for (const p of PARTS) p.mesh.count = 0;
   wingMesh.count = 0; shadowMesh.count = 0; teamRing.count = 0;
   // DJ: dùng mô hình riêng public/models/dj.glb nếu có (tải khi cần)
+  if (resident) resident.name = S.djName || 'DJ Tiến Khoa';
   if (resident && !resident.avT && t > (resident._charPoll || 0)) {
     resident._charPoll = t + 0.5;
     const tp = hasCharModel('dj') ? templateForChar('dj') : null;
@@ -1418,11 +1434,14 @@ function frame() {
   propsFrame(clouds, 'cloud', makeCloud);
   propsFrame(thrones, 'throne', makeThrone);
   propsFrame(rocketsP, 'rocket', makeRocket);
-  updateBooth(dj && dj !== resident ? '👑 ' + dj.name : '🎧 DJ NEON', S.showTop && TOP.length > 1 ? TOP.slice(1, 3).map(u => u.name).join(' · ') : '');
+  updateBooth(dj && dj !== resident ? '👑 ' + dj.name : '🎧 ' + (S.djName || 'DJ Tiến Khoa'), S.showTop && TOP.length > 1 ? TOP.slice(1, 3).map(u => u.name).join(' · ') : '');
 
   costumeTime.value = t; outfitTime.value = t;
+  fx.enabled.smoke = S.smokeEnabled !== false && S.quality !== 'low'; fx.enabled.spark = S.sparkEnabled !== false;
+  fx.density = Math.max(0, Math.min(1, Number(S.smokeDensity ?? 55) / 100));
+  fx.update(t, dt, { hue: stageMood.hue, kick: stageMood.kick, level: stageMood.bass });
   updateLedShow(t, dt);
-  if (lcd) lcd.update(t, !!ledShow);
+  if (lcd) lcd.update(t, !!ledShow, !!zoom && !lcd.textActive);   // lời nhắn đợi máy quay zoom xong rồi mới hiện
   updateCam(dt, t);
   if (bloom) bloom.strength = bi.fire ? 0.6 + fireLevel * 0.04 : 0.55;
   renderLed();
@@ -1572,6 +1591,7 @@ function fireUp(t, secs) {
   if (t >= fireUntil) fireLevel = 1; else fireLevel = Math.min(5, fireLevel + 1);
   fireUntil = t + secs; fireStart = t; heat = 0;
   confetti(120 + fireLevel * 30); flash = 0.3;
+  if (S.fxOnFire !== false) { fx.smokeBurst(0.8 + fireLevel * 0.15); fx.sparkle(4 + fireLevel); }
   pushTicker(`🔥 SÀN CHÁY CẤP ${fireLevel}! 🔥`, '#ff7a3d');
   say(fireLevel === 1 ? 'Sàn cháy rồi!' : `Sàn cháy cấp ${fireLevel}!`, 'fire', 3, true);
   if (fireLevel >= 2) startClip('san-chay', 12);
@@ -1848,6 +1868,8 @@ function featureEvent(ev) {
   }
 }
 function featureCmd(c) {
+  if (c.type === 'smoke') fx.smokeBurst(1);
+  if (c.type === 'sparkle') fx.sparkle(Math.min(60, Number(c.sec) || 5));
   if (c.type === 'battleStart') startBattle();
   if (c.type === 'battleStop') endBattle(true);
   if (c.type === 'flashmob') startFlashmob();
@@ -1863,7 +1885,15 @@ function featureCmd(c) {
 const socket = io();
 socket.on('connect', () => socket.emit('hello', 'game', { obs: OBS }));
 socket.on('primary', v => { isPrimary = !!v; });
-lcd = createLCD({ scene, camera, led, glCanvas, socket, Music, isPrimary: () => isPrimary });
+lcd = createLCD({ scene, camera, led, glCanvas, socket, Music, isPrimary: () => isPrimary, settings: () => S });
+socket.on('screenText', it => {
+  if (!it || !it.text) return;
+  pushTicker(`💌 ${it.user.name}: ${it.text}`, '#ff9de2');
+  if (!it.host) say(`Cảm ơn ${nm(it.user.name)}! Lời nhắn của bạn đã lên màn hình lớn.`, 'text', 4, true);
+  if (!it.host) fx.sparkle(3, 'center');
+});
+// nhắc người xem cách gửi lời nhắn lên màn hình
+setInterval(() => { if (S.textEnabled !== false && onFloorCount() > 0) pushTicker(`💌 Bình luận “mh: lời nhắn” + tặng quà từ ${S.textCoins || 30}💎 → chữ của bạn lên màn hình lớn!`, '#7cf7ff'); }, 120000);
 socket.on('goalState', gs => { if (!gs || goals.loaded) return; goals.loaded = true; goals.likes = gs.likes || 0; goals.coins = gs.coins || 0; goals.idx = gs.idx || 0; if (gs.theme) themes.apply(gs.theme); });
 socket.on('settings', s => {
   const oldQ = S.quality;
@@ -1905,7 +1935,7 @@ let fps = 60, lastF = now();
 setInterval(() => socket.emit('status', { onFloor: onFloorCount(), zooming: zoom ? zoom.d.name : '—', queue: zoomQueue.length, fps: Math.round(fps) }), 2000);
 
 // ---------- khởi động ----------
-resident = new Dancer({ id: '__dj', name: 'DJ NEON', avatar: '' }, { noDrop: true });
+resident = new Dancer({ id: '__dj', name: 'DJ Tiến Khoa', avatar: '' }, { noDrop: true });
 resident.body = randomBody(false);
 resident.look = randomLook(false); resident.look.top = 'bomber'; resident.look.hat = 'capBack'; resident.look.neck = 'headphones'; resident.look.hs = 0; resident.look.glasses = true;
 resident.look.c.jacket = resident.look.c.uarm = resident.look.c.farm = col('#1b1b1f'); resident.look.c.shirt = resident.look.c.torso = col('#ff3d8b');

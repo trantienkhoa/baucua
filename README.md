@@ -20,6 +20,25 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## Lời nhắn lên màn hình, đèn theo nhạc, khói & pháo sáng (bản 1.9)
+
+- **Lời nhắn theo quà:** người xem bình luận `mh: lời nhắn` (hoặc `màn hình: …`, `chữ: …`) rồi tặng quà có tổng từ **30💎** (đổi được).
+  - Bình luận trước hay tặng quà trước đều được, chỉ cần trong vòng 3 phút.
+  - Chữ hiện lên màn LCD bằng chữ neon lớn, kèm ảnh đại diện và tên người tặng, rồi có pháo sáng và MC cảm ơn.
+  - Áp dụng ở mọi chế độ chiếu, kể cả khi đang phát YouTube. Clip khoảnh khắc cũng ghi được.
+  - Từ tục tự che thành `***`; link và số điện thoại bị chặn như bình luận thường.
+  - Có thể bật **duyệt tay**. Trong bảng điều khiển màn hình: chiếu lại, gỡ chữ đang chiếu, chủ phòng tự gõ chữ lên màn.
+- **Đèn khớp nhạc:** game phân tích tiếng nhạc thành dải trầm, trung, cao, bắt nhịp trống và hi-hat.
+  - Đèn di động, sàn LED, đèn quét, laser, dải neon, bóng đèn sân khấu và cầu disco nháy theo nhịp thật.
+  - Nhạc "drop" (đang nhẹ bỗng dồn mạnh) sẽ tự phun khói và bắn pháo sáng.
+  - Video trên máy cũng được phân tích. Riêng YouTube không đọc được tiếng: đặt **BPM** hoặc bấm **👆 Gõ nhịp** theo bài trong bảng điều khiển màn hình.
+- **Khói & pháo sáng:** khói nền phủ sàn đổi màu theo đèn; máy phun khói CO2 ở mép sân khấu; 6 vòi pháo sáng tia lửa.
+  - **Tự kích hoạt** khi: có quà từ 99💎, sàn cháy, nhạc drop.
+  - **Gán quà riêng:** hai hành động mới 🌫️ Phun khói và ✨ Pháo sáng trong mục Quà → hành động.
+  - **Bấm tay:** nút ở trang chính và bảng điều khiển màn hình.
+- **DJ Tiến Khoa:** tên hiện trên bàn DJ (đổi được trong Cài đặt) và in trên áo DJ.
+- Ảnh đại diện TikTok giờ được tải qua máy chủ, để vẽ được lên màn LED 3D và clip mà trình duyệt không chặn.
+
 ## Màn hình LCD sau lưng DJ + DJ riêng (bản 1.8)
 
 **Bảng điều khiển riêng:** `http://localhost:3300/man-hinh.html` (hoặc nút “📺 Mở bảng điều khiển màn hình” ở trang chính).
@@ -36,7 +55,7 @@ Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dù
 - **Bản quyền nhạc:** phát MV/nhạc có bản quyền từ YouTube lên TikTok LIVE có thể bị TikTok tắt tiếng hoặc cảnh cáo. Nên dùng nhạc/video bạn có quyền phát.
 
 **DJ riêng:**
-- `public/models/dj.glb` là DJ 3D dựng theo ảnh bạn gửi. **Gương mặt** (nụ cười, râu, ria) và **hình xăm** được lấy thẳng từ ảnh chụp rồi trải lên người 3D. Kèm áo thun navy in chữ “DJ Neon”, quần short túi hộp xanh xám, giày trắng, đồng hồ bạc.
+- `public/models/dj.glb` là DJ 3D dựng theo ảnh bạn gửi. **Gương mặt** (nụ cười, râu, ria) và **hình xăm** được lấy thẳng từ ảnh chụp rồi trải lên người 3D. Kèm áo thun navy in chữ “DJ Tiến Khoa”, quần short túi hộp xanh xám, giày trắng, đồng hồ bạc.
 - Muốn đổi DJ, tải lên mục 🧍 Nhân vật một file tên `dj.glb` hoặc `dj.vrm`.
 - Dựng lại từ đầu: `tools/makehuman/dj_spec.json` (chạy giống phần 100 nhân vật bên dưới). Đặt ảnh của bạn tên `anh-cua-ban.jpg` ở thư mục chạy lệnh. Toạ độ mắt, miệng và hình xăm trong file là toạ độ trên ảnh gốc; đổi ảnh khác thì phải đo lại.
 

@@ -91,7 +91,12 @@
       <label><input type="checkbox" id="shuffle"> Phát ngẫu nhiên</label>
     </div>
     <table id="list"></table>
-    <div class="row"><button id="bClear">🗑 Xoá hết danh sách</button></div>
+    <div class="row"><button id="bClear">🗑 Xoá hết danh sách</button>
+      <span style="flex:1"></span>
+      <span title="Trình duyệt không cho đọc tiếng trong khung YouTube, nên đèn sẽ nháy theo nhịp này">💡 Nhịp đèn khi phát YouTube</span>
+      <input type="number" id="bpm" min="0" max="220" placeholder="BPM" style="width:80px">
+      <button id="bTap" title="Gõ theo nhịp bài hát 4–8 lần">👆 Gõ nhịp</button>
+      <span class="muted" id="tapMsg">0 = theo nhạc game</span></div>
     <div class="muted">Video bị chủ kênh tắt “cho phép nhúng” sẽ được tự bỏ qua. Lần đầu mở màn hình game trong trình duyệt, hãy bấm vào màn hình một lần để trình duyệt cho phát tiếng (OBS không cần).</div>
   </div>
 
@@ -104,6 +109,35 @@
     </div>
     <table id="media"></table>
     <div class="muted">Video trên máy chạy mượt hơn YouTube, không cần mạng, và được ghi vào clip khoảnh khắc. Nên dùng MP4 (H.264) hoặc WebM.</div>
+  </div>
+
+  <div class="card">
+    <h2>💌 Lời nhắn lên màn hình</h2>
+    <div class="muted" style="margin-bottom:6px">Người xem bình luận <code>mh: lời nhắn</code> (hoặc <code>màn hình: …</code>) rồi tặng quà đủ số 💎 — trong vòng 3 phút, trước hay sau đều được — chữ sẽ hiện lên màn LCD. Từ tục được tự che bằng ***.</div>
+    <div class="grid">
+      <label class="field"><span>Bật lời nhắn theo quà</span><input type="checkbox" id="textEnabled"></label>
+      <label class="field"><span>Duyệt tay trước khi chiếu</span><input type="checkbox" id="textApprove"></label>
+      <div class="field"><span>Tổng quà tối thiểu (💎)</span><input type="number" id="textCoins" min="1"></div>
+      <div class="field"><span>Mỗi lời nhắn hiện (giây)</span><input type="number" id="textSeconds" min="4" max="60"></div>
+    </div>
+    <div class="row"><input type="text" id="hostText" maxlength="120" placeholder="Chủ phòng tự gõ chữ lên màn (ví dụ: Chúc cả nhà cuối tuần vui vẻ!)" style="flex:1;min-width:220px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font:inherit">
+      <button class="pri" id="bHost">📢 Chiếu chữ</button><button id="bTextClear">⏹ Gỡ chữ đang chiếu</button></div>
+    <div id="pendWrap" style="display:none"><b>Chờ duyệt</b><table id="pend"></table></div>
+    <b>Đã chiếu gần đây</b><table id="hist"></table>
+    <div class="row"><button id="bTestText">🧪 Thử: khách gửi lời nhắn + tặng quà</button></div>
+  </div>
+
+  <div class="card">
+    <h2>🌫️ Khói &amp; pháo sáng</h2>
+    <div class="row"><button class="big" id="bSmoke">🌫️ Phun khói</button><button class="big" id="bSpark">✨ Pháo sáng</button></div>
+    <div class="grid">
+      <label class="field"><span>Khói sàn</span><input type="checkbox" id="smokeEnabled"></label>
+      <div class="field"><span>Độ dày khói nền</span><input type="range" id="smokeDensity" min="0" max="100"></div>
+      <label class="field"><span>Pháo sáng</span><input type="checkbox" id="sparkEnabled"></label>
+      <label class="field"><span>Tự phun khi sàn cháy / nhạc “drop”</span><input type="checkbox" id="fxOnFire"></label>
+      <div class="field"><span>Quà từ bao nhiêu 💎 thì tự phun</span><input type="number" id="fxCoins" min="1"></div>
+    </div>
+    <div class="muted">Có thể gán quà riêng cho “🌫️ Phun khói” và “✨ Pháo sáng” ở mục Quà → hành động trong trang chính.</div>
   </div>
 
   <div class="card">
@@ -139,6 +173,7 @@ function render() {
   $('vol').value = S.volume; $('volTxt').textContent = S.volume + '%';
   $('bMute').textContent = S.muted ? '🔇' : '🔊';
   $('loop').checked = !!S.loop; $('shuffle').checked = !!S.shuffle;
+  if (document.activeElement !== $('bpm')) $('bpm').value = S.bpm || 0;
   $('fit').value = S.fit; $('bright').value = Math.round((S.brightness || 1) * 100);
   for (const k of ['duck', 'showSign', 'giftOverlay', 'giftPause']) $(k).checked = !!S[k];
   $('list').innerHTML = S.items.map((it, i) => `<tr class="${i === S.idx ? 'cur' : ''}">
@@ -178,7 +213,31 @@ function renderNow() {
 socket.on('screen', s => { S = s; render(); });
 socket.on('screenMedia', m => { MEDIA = m || []; render(); });
 socket.on('screenStatus', st => { ST = st || {}; renderNow(); });
-socket.on('settings', s => { SET = s; $('ledCoins').value = s.ledCoins ?? 99; $('ledSeconds').value = s.ledSeconds ?? 12; });
+socket.on('settings', s => { SET = s; $('ledCoins').value = s.ledCoins ?? 99; $('ledSeconds').value = s.ledSeconds ?? 12;
+  for (const k of ['textEnabled', 'textApprove', 'smokeEnabled', 'sparkEnabled', 'fxOnFire']) $(k).checked = s[k] !== false && !!(s[k] ?? true);
+  $('textApprove').checked = !!s.textApprove;
+  for (const k of ['textCoins', 'textSeconds', 'fxCoins', 'smokeDensity']) if (document.activeElement !== $(k)) $(k).value = s[k] ?? '';
+});
+const saveSet = p => socket.emit('saveSettings', p);
+for (const k of ['textEnabled', 'textApprove', 'smokeEnabled', 'sparkEnabled', 'fxOnFire']) $(k).onchange = () => saveSet({ [k]: $(k).checked });
+for (const k of ['textCoins', 'textSeconds', 'fxCoins', 'smokeDensity']) $(k).onchange = () => saveSet({ [k]: Math.max(0, +$(k).value || 0) });
+const fmtT = ts => new Date(ts).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+const textRow = (it, btns) => `<tr><td class="muted">${fmtT(it.at)}</td><td><b>${esc(it.user.name)}</b>${it.value ? ' · ' + it.value + '💎' : ''}${it.flagged ? ' <span class="warn">đã che từ tục</span>' : ''}</td><td class="t">${esc(it.text)}</td>${btns}</tr>`;
+socket.on('textQueue', q => { $('pendWrap').style.display = q.length ? 'block' : 'none'; $('pend').innerHTML = q.map(it => textRow(it, `<td><button data-ok="${it.id}">✔ Chiếu</button></td><td><button data-no="${it.id}">✕</button></td>`)).join(''); });
+socket.on('textHistory', h => { $('hist').innerHTML = h.map(it => textRow(it, `<td><button data-re="${it.id}">↻ Chiếu lại</button></td>`)).join('') || '<tr><td class="muted">Chưa có lời nhắn nào.</td></tr>'; });
+$('pend').onclick = e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.ok) socket.emit('text:approve', +b.dataset.ok); if (b.dataset.no) socket.emit('text:reject', +b.dataset.no); };
+$('hist').onclick = e => { const b = e.target.closest('button'); if (b && b.dataset.re) socket.emit('text:replay', +b.dataset.re); };
+$('bHost').onclick = () => { if ($('hostText').value.trim()) { socket.emit('text:host', $('hostText').value); $('hostText').value = ''; } };
+$('hostText').onkeydown = e => { if (e.key === 'Enter') $('bHost').click(); };
+$('bTextClear').onclick = () => socket.emit('text:clear');
+$('bTestText').onclick = () => socket.emit('test', { kind: 'textmsg', text: 'mh: Chúc cả nhà một buổi tối thật vui!' });
+$('bSmoke').onclick = () => socket.emit('cmd', { type: 'smoke' });
+$('bSpark').onclick = () => socket.emit('cmd', { type: 'sparkle' });
+// nhịp đèn khi phát YouTube
+let taps = [];
+$('bTap').onclick = () => { const n = performance.now(); taps = taps.filter(x => n - x < 3000); taps.push(n);
+  if (taps.length >= 4) { const d = (taps[taps.length - 1] - taps[0]) / (taps.length - 1); const bpm = Math.round(60000 / d); $('bpm').value = bpm; set({ bpm }); $('tapMsg').textContent = '✓ ' + bpm + ' BPM'; } else $('tapMsg').textContent = 'gõ tiếp… (' + taps.length + ')'; };
+$('bpm').onchange = () => set({ bpm: Math.max(0, Math.min(220, +$('bpm').value || 0)) });
 socket.on('screen:added', n => { $('addMsg').textContent = n ? `Đã thêm ${n} mục` : 'Không nhận ra link YouTube nào'; if (n) $('ytText').value = ''; });
 
 $('modes').onclick = e => { const m = e.target.closest('button')?.dataset.m; if (!m) return;
