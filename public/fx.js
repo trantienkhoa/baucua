@@ -51,6 +51,13 @@ export function createFX(scene, { floor, stageY, stageFrontZ }) {
   const FOUNTAINS = [-8.6, -5.2, -1.8, 1.8, 5.2, 8.6].map(x => ({ x, y: stageY + 0.02, z: stageFrontZ + 0.05, until: 0, rate: 0 }));
   const glow = FOUNTAINS.map(() => { const l = new THREE.PointLight(0xffb347, 0, 6, 2); scene.add(l); return l; });
   let spawnAcc = 0, spCursor = 0;
+  const movers = [];   // vòi pháo sáng di động (chai sâm panh cắm pháo sáng trên tay khách)
+  function emit(x, y, z, vyMin, vyRnd, spreadK) {
+    const q = sp[spCursor]; spCursor = (spCursor + 1) % N_SP;
+    const ang = Math.random() * Math.PI * 2, spread = (0.35 + Math.random() * 0.5) * spreadK;
+    q.x = x; q.y = y; q.z = z; q.vx = Math.cos(ang) * spread; q.vz = Math.sin(ang) * spread * 0.6;
+    q.vy = vyMin + Math.random() * vyRnd; q.life = 0.6 + Math.random() * 0.6; q.age = 0;
+  }
 
   const _e = new THREE.Euler(), _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _c = new THREE.Color();
   const api = {
@@ -69,6 +76,11 @@ export function createFX(scene, { floor, stageY, stageFrontZ }) {
       if (!api.enabled.spark) return;
       const now = performance.now() / 1000;
       FOUNTAINS.forEach((f, i) => { if (which === 'all' || (which === 'side' ? (i === 0 || i === 5) : (i === 2 || i === 3))) f.until = Math.max(f.until, now + sec); });
+    },
+    /** pháo sáng gắn theo một vị trí di động: getPos() trả [x,y,z] hoặc null để dừng */
+    sparkleAt(getPos, sec = 8) {
+      if (!api.enabled.spark) return;
+      movers.push({ getPos, until: performance.now() / 1000 + sec, acc: 0 });
     },
     update(t, dt, mood) {
       // mood: { hue (0..1), kick (0..1), level (0..1) }
@@ -120,6 +132,12 @@ export function createFX(scene, { floor, stageY, stageFrontZ }) {
           q.vy = 6.5 + Math.random() * 3; q.life = 0.9 + Math.random() * 0.9; q.age = 0;
         }
       });
+      for (let i = movers.length - 1; i >= 0; i--) {
+        const m = movers[i]; const p = now < m.until ? m.getPos() : null;
+        if (!p) { movers.splice(i, 1); continue; }
+        m.acc += 140 * dt;
+        while (m.acc >= 1) { m.acc--; emit(p[0], p[1], p[2], 2.2, 1.6, 0.5); }
+      }
       let alive = 0;
       for (let i = 0; i < N_SP; i++) {
         const q = sp[i];

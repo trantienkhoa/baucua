@@ -11,7 +11,7 @@ import { rosterOutfit, danceFor, tempoFor, hyperFor, shapeFor } from './roster.j
 import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates, setCostume, randomCostumeId, COSTUMES, costumeTime, setExtra, outfitTime, setOutfitMix, templateForChar, hasCharModel } from './avatars.js';
 import { createLCD } from './lcd.js';
 import { createFX } from './fx.js';
-import { createBar } from './bar.js';
+import { createBar, SALONS } from './bar.js';
 
 const W = 1080, H = 1920;
 const PI = Math.PI, TAU = PI * 2;
@@ -762,32 +762,73 @@ function startAction(z) {
   const d = z.d, t = now();
   d.lastActive = t;
   switch (z.id) {
-    case 'outfit': if (d.char && Math.random() < 0.6) { assignChar(d, pickChar(d.body.female)); } else { d.look = randomLook(d.body.female, d.look); wear(d, randomAllowedCostume(d)); } sparkle(d, 30); break;
+    case 'outfit': { const ch = S.rosterEnabled && ROSTER.length ? pickChar(d.body.female) : null; if (ch) assignChar(d, ch); else { d.look = randomLook(d.body.female, d.look); wear(d, null); } sparkle(d, 30); break; }   // đồ thật (không hoá trang)
     case 'solo': requestSolo(d); break;
     case 'flashmob': startFlashmob(); break;
     case 'catwalk': d.mode = 'catwalk'; d.modeStart = t; d.modeUntil = t + Math.max(z.dur, 7); d.tx = 0; d.tz = 1; break;
-    case 'jump': d.jumpStart = t; break;
-    case 'fireworks': for (let i = 0; i < 6; i++) setTimeout(launchRocket, i * 300); break;
     case 'smoke': fx.smokeBurst(1); break;
     case 'sparkle': fx.sparkle(5); break;
     case 'balloons': balloons(70); break;
-    case 'giant': d.giantUntil = t + 25; break;
     case 'pair': makePair(d); break;
-    case 'clone':
-      for (let i = 0; i < 3; i++) {
-        const c = new Dancer({ id: d.id + '#c' + Math.random(), name: d.name, avatar: d.avatar }, { clone: true, cloneUntil: t + 25 });
-        c.body = d.body; c.look = d.look; c.dance = d.dance; c.avT = d.av && d.av.t; c.avCostume = d.av && d.av.costume ? d.av.costume.id : null;
-        c.x = clamp(d.x + (i - 1) * 0.3, -0.9, 0.9); c.tx = c.x; c.z = clamp(d.z + rand(-0.12, 0.12), 0, 1); c.tz = c.z;
-        clones.push(c);
-      }
-      break;
-    case 'wings': d.wingsUntil = t + 30; break;
     case 'dj': djOverride = { id: d.id, until: t + 30 }; break;
-    case 'rocket': d.mode = 'rocket'; d.modeStart = t; d.modeUntil = t + 4.5; break;
-    case 'cloud': d.mode = 'cloud'; d.modeStart = t; d.modeUntil = t + 20; break;
-    case 'throne': d.mode = 'throne'; d.modeStart = t; d.modeUntil = t + 25; break;
-    case 'king': d.crownUntil = t + 60; d.wingsUntil = t + 30; for (let i = 0; i < 4; i++) setTimeout(launchRocket, i * 250); confetti(120); break;
+    // --- hành động quán bar ---
+    case 'cheer': cheerFor(d, t); break;
+    case 'confetti': confetti(180); flash = Math.max(flash, 0.2); for (const n of nearest(d, 6)) n.jumpStart = t + rand(0, 0.5); break;
+    case 'spotlight': spotOn(d, 15, '🔦 Đèn rọi theo'); break;
+    case 'champagne': champagne(d, t); break;
+    case 'stage': toStage(d, t); break;
+    case 'vip': toVip(d, t); break;
+    case 'party': partyAll(d, t); break;
   }
+}
+
+// ---------- hành động quán bar ----------
+function nearest(d, n) {
+  return [...dancers.values()].filter(x => x !== d && !x.leaving && x.mode === 'dance').sort((a, b) => Math.hypot(a.x - d.x, a.z - d.z) - Math.hypot(b.x - d.x, b.z - d.z)).slice(0, n);
+}
+// mọi người quanh đó quay về phía người tặng, nhảy lên vỗ tay
+function cheerFor(d, t) {
+  for (const n of nearest(d, 10)) { n.jumpStart = t + rand(0, 0.6); n.yaw = Math.atan2(worldX(d.x, d.z) - worldX(n.x, n.z), worldZ(d.z) - worldZ(n.z)); n.lastActive = t; }
+  if (d._sp) hearts(d._sp.hx, d._sp.hy - 30, 12);
+  sparkle(d, 20);
+}
+// khui sâm panh: chai cắm pháo sáng giơ cao trên đầu, bạn bè quanh đó nhảy lên
+function champagne(d, t) {
+  d.bottleUntil = t + 9;
+  fx.sparkleAt(() => d.bottleUntil > now() && !d.leaving && d._head ? [d._head.x, d._head.y + 0.42 * (d.body.h * d.sc), d._head.z] : null, 8);
+  for (const n of nearest(d, 5)) n.jumpStart = t + rand(0, 0.8);
+  confetti(60);
+  say(`${nm(d.name)} khui sâm panh! Cạn ly nào!`, 'champ', 4, true);
+}
+// lên sân khấu nhảy cạnh DJ (2 chỗ hai bên bàn DJ)
+const STAGE_SLOTS = [new THREE.Vector3(-3.0, STAGE_Y, -6.35), new THREE.Vector3(3.0, STAGE_Y, -6.35)];
+function toStage(d, t) {
+  const used = new Set([...dancers.values()].filter(x => x.mode === 'stage' && t < x.modeUntil).map(x => x.stageSlot));
+  let slot = [0, 1].find(i => !used.has(i)); if (slot === undefined) slot = Math.random() < 0.5 ? 0 : 1;
+  d.mode = 'stage'; d.stageSlot = slot; d.modeStart = t; d.modeUntil = t + 30; d.dance = pick([4, 5, 13, 1, 6]);
+  sparkle(d, 30); fx.sparkle(3, slot === 0 ? 'side' : 'side');
+}
+// ngồi bàn VIP: ngồi sofa ở bộ salon
+function vipSeat(i) {
+  const [x, z, ry] = SALONS[i >> 1], sx = (i & 1) ? 0.5 : -0.5;
+  const c = Math.cos(ry), s = Math.sin(ry), lx = sx, lz = -0.56;
+  return { pos: new THREE.Vector3(x + lx * c + lz * s, 0, z - lx * s + lz * c), yaw: ry };
+}
+function toVip(d, t) {
+  const used = new Set([...dancers.values()].filter(x => x.mode === 'vip' && t < x.modeUntil).map(x => x.vipSeat));
+  let seat = [0, 1, 2, 3].find(i => !used.has(i)); if (seat === undefined) seat = Math.floor(Math.random() * 4);
+  d.mode = 'vip'; d.vipSeat = seat; d.modeStart = t; d.modeUntil = t + 35; d.bottleUntil = t + 8;
+  fx.sparkleAt(() => d.bottleUntil > now() && d._head ? [d._head.x, d._head.y + 0.4, d._head.z] : null, 7);
+  say(`Mời ${nm(d.name)} vào bàn VIP!`, 'vip', 4, true);
+}
+// bao cả sàn: sâm panh cho cả sàn — khói, pháo sáng, pháo giấy, bong bóng, ai cũng nhảy lên
+function partyAll(d, t) {
+  for (const n of dancers.values()) if (!n.leaving && n.mode === 'dance') n.jumpStart = t + rand(0, 1.2);
+  confetti(260); balloons(80); fx.smokeBurst(1.5); fx.sparkle(9); flash = Math.max(flash, 0.4);
+  d.bottleUntil = t + 10; fx.sparkleAt(() => d.bottleUntil > now() && d._head ? [d._head.x, d._head.y + 0.42, d._head.z] : null, 10);
+  pushTicker(`🥂 ${d.name} BAO CẢ SÀN! 🥂`, '#ffd84d', { big: true });
+  say(`${nm(d.name)} bao cả sàn! Cảm ơn đại gia!`, 'party', 0, true);
+  startClip('bao-san', 15);
 }
 
 // ---------- hạt hiệu ứng (lớp 2D phía trên) ----------
@@ -837,6 +878,8 @@ function basePos(d, t, dj) {
     return _base.set(bx + (cx - bx) * e, 2.4 * e, bz + (cz - bz) * e);
   }
   if (d.mode === 'throne') return _base.copy(THRONE_POS);
+  if (d.mode === 'stage') { d.yaw = 0; return _base.copy(STAGE_SLOTS[d.stageSlot || 0]); }
+  if (d.mode === 'vip') { const v = vipSeat(d.vipSeat || 0); d.yaw = v.yaw; return _base.copy(v.pos); }
   if (d.mode === 'solo') return _base.set(d.soloSide * 1.25, STAGE_Y, -5.95);
   return _base.set(bx, 0, bz);
 }
@@ -847,7 +890,7 @@ function poseFor(d, bi, t, dj) {
   if (d.dropH > 0) return P.fall();
   if (d === dj) return P.dj(bi.p, bi.b);
   if (d.mode === 'rocket') return P.fly();
-  if (d.mode === 'throne') return P.sit(bi.p);
+  if (d.mode === 'throne' || d.mode === 'vip') return P.sit(bi.p);
   if (d.jumpStart && t - d.jumpStart < 0.8) return P.jump((t - d.jumpStart) / 0.8);
   if (d.mode === 'catwalk') return d.moving ? P.catwalk((t * 1.4) % 1) : P.pose();
   if (d.moving || d.mode === 'circle') return P.walk((t * 1.7 + d.zi * 0.37) % 1);
@@ -895,7 +938,7 @@ function poseRig(d, p, base, t, grounded) {
   if (p.sit) {
     // ngồi trên ngai: đặt hông ở độ cao ghế
     rig.hips.getWorldPosition(_v1);
-    rig.root.position.y += 0.62 - (_v1.y - base.y);
+    rig.root.position.y += (d.mode === 'vip' ? 0.5 : 0.62) - (_v1.y - base.y);   // ngai cao 0.62 m, sofa 0.5 m
   } else if (grounded) {
     // chạm đất: điểm thấp nhất (chân / đầu / tay) nằm trên mặt sàn
     let minY = Infinity;
@@ -992,7 +1035,7 @@ function updateCam(dt, t) {
     const d = zoom.d, z = Number(S.camZoom) || 2.4;
     _tl.copy(d._head); _tl.y -= 0.45 * d.body.h * d.sc;
     let dist = 9.5 / z * Math.max(1, d.sc * 0.9);
-    if (zoom.id === 'fireworks' || zoom.id === 'balloons') dist = Math.max(dist, 10);
+    if (zoom.id === 'balloons' || zoom.id === 'confetti' || zoom.id === 'party' || zoom.id === 'cheer') dist = Math.max(dist, 10);
     if (d.mode === 'rocket') dist = Math.max(dist, 9);
     const elev = d === currentDJ() ? 1.0 : 0.45 + (1 - clamp(d.z, 0, 1)) * 0.75;
     _tp.copy(_tl).add(_v2.set(0, elev, 1).normalize().multiplyScalar(dist));
@@ -1049,7 +1092,7 @@ function update(t, dt) {
     if (d.mode === 'circle') { d.circleA += dt * 1.0; d.tx = clamp(Math.cos(d.circleA) * 0.6, -0.9, 0.9); d.tz = 0.5 + Math.sin(d.circleA) * 0.35; }
     const dx = d.tx - d.x, dz = d.tz - d.z, dist = Math.hypot(dx, dz);
     const speed = d.mode === 'catwalk' ? 0.13 : (d.mode === 'solo' || d.mode === 'spot') ? 0.7 : d.mode === 'flash' ? 0.9 : 0.16;
-    d.moving = dist > 0.015 && d.dropH <= 0 && d.mode !== 'throne' && d.mode !== 'cloud' && d.mode !== 'rocket' && d.mode !== 'solo';
+    d.moving = dist > 0.015 && d.dropH <= 0 && d.mode !== 'throne' && d.mode !== 'cloud' && d.mode !== 'rocket' && d.mode !== 'solo' && d.mode !== 'stage' && d.mode !== 'vip';
     let targetYaw = 0;
     if (d.moving) {
       const st = Math.min(dist, speed * dt); d.x += dx / dist * st; d.z += dz / dist * st;
@@ -1326,7 +1369,7 @@ function drawHUD(t, bi) {
     });
   }
   if (S.showGiftMenu) {
-    const list = (S.actions || []).map(a => ({ a, m: actionMeta(a.id) }));
+    const list = (S.actions || []).filter(a => ACTIONS.some(x => x.id === a.id)).slice().sort((p, q) => (p.min || 0) - (q.min || 0)).map(a => ({ a, m: actionMeta(a.id) }));   // xu thấp → cao
     const x = W - 220, y0 = 1650 - list.length * 42 - 10;
     list.forEach(({ a, m }, i) => {
       const y = y0 + i * 42;
@@ -1614,12 +1657,16 @@ function runSpotlight() {
   let cands = [...dancers.values()].filter(d => !d.leaving && !d.clone && d.mode === 'dance' && now() - (d.lastComment || 0) < 90);
   if (!cands.length) cands = [...dancers.values()].filter(d => !d.leaving && !d.clone && d.mode === 'dance');
   if (!cands.length) return;
-  const d = pick(cands);
-  spot.d = d; spot.until = now() + 10;
-  d.mode = 'spot'; d.modeStart = now(); d.modeUntil = now() + 10; d.tx = 0; d.tz = 0.78; d.dance = pick([4, 5, 13, 1]);
-  pushTicker(`🔦 Đèn chiếu gọi tên ${d.name}!`, '#fff3a0', { user: d });
-  say(`Đèn chiếu gọi tên ${nm(d.name)}!`, 'spot', 5);
-  if (!zoom && !zoomQueue.length) zoomQueue.push({ d, id: 'camera', label: 'Đèn chiếu', icon: '🔦', dur: 5 });
+  spotOn(pick(cands), 10);
+}
+function spotOn(d, secs, label) {
+  spot.d = d; spot.until = now() + secs;
+  d.mode = 'spot'; d.modeStart = now(); d.modeUntil = now() + secs; d.tx = 0; d.tz = 0.78; d.dance = pick([4, 5, 13, 1]);
+  if (!label) {
+    pushTicker(`🔦 Đèn chiếu gọi tên ${d.name}!`, '#fff3a0', { user: d });
+    say(`Đèn chiếu gọi tên ${nm(d.name)}!`, 'spot', 5);
+    if (!zoom && !zoomQueue.length) zoomQueue.push({ d, id: 'camera', label: 'Đèn chiếu', icon: '🔦', dur: 5 });
+  }
 }
 
 // ---------- flash mob ----------

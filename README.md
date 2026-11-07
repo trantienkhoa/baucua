@@ -20,6 +20,34 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## Hành động khi tặng quà — như quán bar thật (bản 1.9.3)
+
+Đã bỏ các hiệu ứng không có thật (mọc cánh, cưỡi mây, tên lửa, khổng lồ, phân thân, ngai vàng, đăng quang, pháo hoa trong nhà) và thay bằng việc có thật ở quán bar. Mỗi mức xu một hành động, **từ thấp lên cao**:
+
+| Xu | Hành động | Diễn ra |
+|---|---|---|
+| 1 | 🎥 Lên hình | máy quay zoom vào người tặng |
+| 5 | 👏 Cả sàn cổ vũ | mọi người quanh đó quay lại, nhảy lên vỗ tay, thả tim |
+| 10 | 👕 Đổi đồ | thay bộ đồ thật (theo danh sách nhân vật), không hoá trang |
+| 15 | 🚶 Catwalk | sải bước giữa sàn |
+| 20 | 🎈 Thả bong bóng | bong bóng bay khắp màn |
+| 30 | 🎊 Bắn pháo giấy | pháo giấy phủ sàn, bạn bè quanh đó nhảy lên |
+| 50 | 🌫️ Phun khói CO2 | 4 cột khói trắng ở mép sân khấu |
+| 70 | 🔦 Đèn rọi theo | ra giữa sàn, đèn rọi chiếu theo 15 giây |
+| 99 | ✨ Pháo sáng | 6 vòi pháo sáng trên sân khấu |
+| 150 | 🍾 Khui sâm panh | giơ chai cắm pháo sáng trên đầu, bạn bè nhảy lên, MC mời cạn ly |
+| 199 | 💞 Ghép đôi | nhảy cặp với một người trên sàn |
+| 299 | 🎤 Lên sân khấu | lên nhảy cạnh bàn DJ 30 giây |
+| 399 | 🎧 Lên DJ | đứng vào bàn DJ 30 giây |
+| 499 | ⚔️ Thách đấu solo | đấu nhảy, khán giả bình chọn |
+| 599 | 🛋️ Ngồi bàn VIP | vào ngồi sofa bộ salon, có chai sâm panh pháo sáng |
+| 799 | 🕺 Flash mob | cả sàn xếp hàng nhảy đồng loạt |
+| 999 | 🥂 Bao cả sàn | khói + pháo sáng + pháo giấy + bong bóng, cả sàn nhảy lên, băng rôn trên màn LCD, tự quay clip |
+
+- Danh sách quà ở góc phải màn hình cũng xếp theo xu từ thấp lên cao.
+- Quà bạn đã gán riêng cho những hành động còn giữ (Đổi đồ, Catwalk, Ghép đôi, Lên DJ…) vẫn giữ nguyên; mức xu được đặt lại theo bảng trên. Bạn vẫn chỉnh được trong mục **Quà → hành động**.
+- Quà lớn vẫn được chiếu lên màn LCD, tự phun khói và bắn pháo sáng như trước.
+
 ## Bàn ghế quán bar (bản 1.9.2)
 
 - **2 bộ salon** ở hai góc trước sân khấu. Mỗi bộ gồm sofa nhung dài, ghế bành, bàn nước mặt đá viền vàng, chai rượu, xô đá, ly cocktail và thảm tròn. Bên trái màu đỏ rượu vang, bên phải màu tím.
@@ -127,7 +155,7 @@ Mặc định mỗi người lên sàn mặc một bộ dạ hội ngẫu nhiên
 
 - **Bình luận là lên sàn**; sàn đầy thì người im lặng lâu nhất nhường chỗ, im lặng quá lâu thì tự rời sàn.
 - **14 điệu nhảy**: gõ `nhún`, `lắc`, `xoay`, `robot`, `disco`, `hiphop`, `vỗ tay`, `sóng`, `lộn`, `xoay đầu`, `gà`, `máy bay`, `đá chân`, `moonwalk` hoặc số `1–14`. Ngoài ra: `nhảy`, `đi vòng`, `ghép đôi`, `đổi đồ`.
-- **Quà → hành động** (tuỳ chọn quà cho từng hành động hoặc theo số xu): Camera, Đổi đồ, Catwalk, Nhảy cao, Pháo hoa, Mưa bong bóng, Khổng lồ, Ghép đôi, Phân thân, Mọc cánh, Lên DJ, Tên lửa, Cưỡi mây, Ngai vàng, Đăng quang. Máy quay zoom cận người tặng, có hàng chờ zoom.
+- **Quà → hành động** (tuỳ chọn quà cho từng hành động hoặc theo số xu): xem bảng “Hành động khi tặng quà” ở bản 1.9.3.
 - **Lên màn LED**: ai tặng quà từ mức xu cài đặt (mặc định 99) được chiếu trực tiếp lên màn LED sân khấu — máy quay riêng quay cận nhân vật đang nhảy solo, kèm ảnh đại diện, tên, quà và chữ cảm ơn. Nhiều người tặng thì xếp hàng lần lượt; tặng thêm khi đang chiếu được cộng giờ.
 - **Nhiệt sàn**: thả tim / quà / follow / share làm đầy thanh → **SÀN CHÁY**: nhảy nhanh gấp đôi, laser, pháo giấy.
 - **Bảng top đại gia**, danh hiệu Quý Tộc / Vua / Hoàng Đế, người tặng nhiều nhất lên đứng bàn DJ.

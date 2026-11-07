@@ -21,26 +21,25 @@ function writeJSON(file, obj) {
   fs.writeFileSync(path.join(DATA, file), JSON.stringify(obj, null, 2));
 }
 
+// hành động khi tặng quà — chỉ những việc có thật ở quán bar, xếp theo xu từ thấp lên cao
 const ACTIONS = [
-  { id: 'camera', label: 'Camera', icon: '🎥', min: 1 },
-  { id: 'outfit', label: 'Đổi đồ', icon: '👕', min: 1 },
-  { id: 'catwalk', label: 'Catwalk', icon: '🚶', min: 1 },
-  { id: 'jump', label: 'Nhảy cao', icon: '🦘', min: 1 },
-  { id: 'fireworks', label: 'Pháo hoa', icon: '🎆', min: 5 },
-  { id: 'balloons', label: 'Mưa bong bóng', icon: '🎈', min: 10 },
-  { id: 'giant', label: 'Khổng lồ', icon: '🦖', min: 20 },
-  { id: 'smoke', label: 'Phun khói', icon: '🌫️', min: 15 },
-  { id: 'pair', label: 'Ghép đôi', icon: '💞', min: 30 },
-  { id: 'sparkle', label: 'Pháo sáng', icon: '✨', min: 40 },
-  { id: 'clone', label: 'Phân thân', icon: '👯', min: 50 },
-  { id: 'wings', label: 'Mọc cánh', icon: '🪽', min: 70 },
-  { id: 'dj', label: 'Lên DJ', icon: '🎧', min: 99 },
-  { id: 'solo', label: 'Thách đấu solo', icon: '⚔️', min: 150 },
-  { id: 'rocket', label: 'Tên lửa', icon: '🚀', min: 199 },
-  { id: 'cloud', label: 'Cưỡi mây', icon: '☁️', min: 299 },
-  { id: 'flashmob', label: 'Flash mob', icon: '🕺', min: 399 },
-  { id: 'throne', label: 'Ngai vàng', icon: '🪑', min: 499 },
-  { id: 'king', label: 'Đăng quang', icon: '👑', min: 999 },
+  { id: 'camera', label: 'Lên hình', icon: '🎥', min: 1 },
+  { id: 'cheer', label: 'Cả sàn cổ vũ', icon: '👏', min: 5 },
+  { id: 'outfit', label: 'Đổi đồ', icon: '👕', min: 10 },
+  { id: 'catwalk', label: 'Catwalk', icon: '🚶', min: 15 },
+  { id: 'balloons', label: 'Thả bong bóng', icon: '🎈', min: 20 },
+  { id: 'confetti', label: 'Bắn pháo giấy', icon: '🎊', min: 30 },
+  { id: 'smoke', label: 'Phun khói CO2', icon: '🌫️', min: 50 },
+  { id: 'spotlight', label: 'Đèn rọi theo', icon: '🔦', min: 70 },
+  { id: 'sparkle', label: 'Pháo sáng', icon: '✨', min: 99 },
+  { id: 'champagne', label: 'Khui sâm panh', icon: '🍾', min: 150 },
+  { id: 'pair', label: 'Ghép đôi', icon: '💞', min: 199 },
+  { id: 'stage', label: 'Lên sân khấu', icon: '🎤', min: 299 },
+  { id: 'dj', label: 'Lên DJ', icon: '🎧', min: 399 },
+  { id: 'solo', label: 'Thách đấu solo', icon: '⚔️', min: 499 },
+  { id: 'vip', label: 'Ngồi bàn VIP', icon: '🛋️', min: 599 },
+  { id: 'flashmob', label: 'Flash mob', icon: '🕺', min: 799 },
+  { id: 'party', label: 'Bao cả sàn', icon: '🥂', min: 999 },
 ];
 
 const DEFAULT_SETTINGS = {
@@ -109,10 +108,19 @@ const DEFAULT_SETTINGS = {
   // cấp độ fan: hoá trang cần cấp
   costumeLevels: { wukong: 5, angel: 8, king: 10 },
   actions: ACTIONS.map(a => ({ id: a.id, gift: '', min: a.min })),
+  actionsVersion: 2,
 };
 
-let settings = Object.assign({}, DEFAULT_SETTINGS, readJSON('settings.json', {}));
+const savedSettings = readJSON('settings.json', {});
+let settings = Object.assign({}, DEFAULT_SETTINGS, savedSettings);
 // bổ sung hành động mới nếu file cũ thiếu
+// bản 1.9.3: bỏ hành động không có thật (mọc cánh, cưỡi mây…), xếp lại mức xu; giữ quà đã gán cho hành động còn lại
+if ((savedSettings.actionsVersion || 1) < 2) {
+  const old = new Map((settings.actions || []).map(x => [x.id, x]));
+  settings.actions = ACTIONS.map(a => ({ id: a.id, gift: (old.get(a.id) || {}).gift || '', min: a.min }));
+  settings.actionsVersion = 2; writeJSON('settings.json', settings);
+}
+settings.actions = settings.actions.filter(x => ACTIONS.some(a => a.id === x.id));
 for (const a of ACTIONS) if (!settings.actions.find(x => x.id === a.id)) settings.actions.push({ id: a.id, gift: '', min: a.min });
 
 // danh mục quà (tự học khi có người tặng)
