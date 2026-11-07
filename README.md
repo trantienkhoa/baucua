@@ -20,6 +20,18 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## Bàn VIP đầy đủ, MC cầm micro, đi bộ lên/xuống (bản 1.9.4)
+
+- **Bàn VIP:** bàn chữ nhật mặt đá viền vàng trước sofa, bày:
+  - dĩa trái cây hai tầng: dưa hấu, nho, cam, thanh long, dâu tây, dứa nguyên trái có ngọn;
+  - xô đá cắm chai sâm panh;
+  - dĩa mực khô (mực nướng và mực xé) kèm chén tương ớt và mayonnaise;
+  - gói thuốc 555 kèm bật lửa;
+  - gạt tàn pha lê với điếu thuốc đang cháy, khói bay lên;
+  - ly rượu.
+- **MC cầm micro** đứng cạnh bàn DJ, mặc vest xanh navy (nhân vật char66). Khi MC giọng nói đọc, MC trên sân khấu mấp máy miệng và khua tay. Tắt được ở Cài đặt → “🎤 MC cầm micro cạnh DJ”.
+- **Đi bộ chuyển chỗ:** người tặng “Lên sân khấu” hay “Ngồi bàn VIP” đi bộ tới chỗ và hết giờ đi bộ về sàn, không còn nhảy cóc.
+
 ## Hành động khi tặng quà — như quán bar thật (bản 1.9.3)
 
 Đã bỏ các hiệu ứng không có thật (mọc cánh, cưỡi mây, tên lửa, khổng lồ, phân thân, ngai vàng, đăng quang, pháo hoa trong nhà) và thay bằng việc có thật ở quán bar. Mỗi mức xu một hành động, **từ thấp lên cao**:
@@ -40,7 +52,7 @@ Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dù
 | 299 | 🎤 Lên sân khấu | lên nhảy cạnh bàn DJ 30 giây |
 | 399 | 🎧 Lên DJ | đứng vào bàn DJ 30 giây |
 | 499 | ⚔️ Thách đấu solo | đấu nhảy, khán giả bình chọn |
-| 599 | 🛋️ Ngồi bàn VIP | vào ngồi sofa bộ salon, có chai sâm panh pháo sáng |
+| 599 | 🛋️ Ngồi bàn VIP | đi tới ngồi sofa bộ salon: trái cây, mực khô, thuốc 555, sâm panh pháo sáng |
 | 799 | 🕺 Flash mob | cả sàn xếp hàng nhảy đồng loạt |
 | 999 | 🥂 Bao cả sàn | khói + pháo sáng + pháo giấy + bong bóng, cả sàn nhảy lên, băng rôn trên màn LCD, tự quay clip |
 

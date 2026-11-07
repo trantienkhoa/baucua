@@ -801,11 +801,30 @@ function champagne(d, t) {
   say(`${nm(d.name)} khui sâm panh! Cạn ly nào!`, 'champ', 4, true);
 }
 // lên sân khấu nhảy cạnh DJ (2 chỗ hai bên bàn DJ)
-const STAGE_SLOTS = [new THREE.Vector3(-3.0, STAGE_Y, -6.35), new THREE.Vector3(3.0, STAGE_Y, -6.35)];
+const STAGE_SLOTS = [new THREE.Vector3(-3.6, STAGE_Y, -6.3), new THREE.Vector3(4.1, STAGE_Y, -6.3)];
+// ---------- MC cầm micro đứng cạnh DJ ----------
+const MC_POS = new THREE.Vector3(2.55, STAGE_Y, -6.85), MC_YAW = -0.32, MC_CHAR = 'char66';   // vest navy, cà vạt
+let mc = null, mcTalkUntil = 0;
+const mic = new THREE.Group();
+{
+  const h = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.012, 0.17, 12), new THREE.MeshStandardMaterial({ color: 0x111114, metalness: 0.6, roughness: 0.35 }));
+  h.position.y = -0.02; mic.add(h);
+  const g = new THREE.Mesh(new THREE.SphereGeometry(0.03, 14, 10), new THREE.MeshStandardMaterial({ color: 0xc9ccd4, metalness: 0.9, roughness: 0.4 }));
+  g.position.y = 0.075; mic.add(g);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.018, 0.004, 6, 16).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x3dd9ff, toneMapped: false }));
+  ring.position.y = 0.045; mic.add(ring);
+  mic.visible = false; scene.add(mic);
+}
+function mcPose(bi, t) {
+  const talk = t < mcTalkUntil, k = Math.exp(-bi.p * 5);
+  const wave = talk ? 0.5 + 0.5 * Math.sin(t * 5) : k;
+  return { yaw: 0, walk: -1, bob: 0.02 * k, lean: 0.03 * Math.sin(t * 0.7), lu: -0.35 - 0.9 * wave * (talk ? 1 : 0.6), lf: -0.4 - 0.5 * wave, ru: MC_RU, rf: MC_RF, lt: -0.07, ls: 0.02, rt: 0.07, rs: -0.02, head: 0.15 * Math.sin(t * (talk ? 3 : 1.2)), spin: 1, rot: 0, lift: 0, dx: 0, sit: 0 };
+}
+let MC_RU = 0.85, MC_RF = 3.0;   // tay phải co lên, micro sát miệng
 function toStage(d, t) {
   const used = new Set([...dancers.values()].filter(x => x.mode === 'stage' && t < x.modeUntil).map(x => x.stageSlot));
   let slot = [0, 1].find(i => !used.has(i)); if (slot === undefined) slot = Math.random() < 0.5 ? 0 : 1;
-  d.mode = 'stage'; d.stageSlot = slot; d.modeStart = t; d.modeUntil = t + 30; d.dance = pick([4, 5, 13, 1, 6]);
+  startTravel(d, t); d.mode = 'stage'; d.stageSlot = slot; d.modeStart = t; d.modeUntil = t + 30; d.dance = pick([4, 5, 13, 1, 6]);
   sparkle(d, 30); fx.sparkle(3, slot === 0 ? 'side' : 'side');
 }
 // ngồi bàn VIP: ngồi sofa ở bộ salon
@@ -817,7 +836,7 @@ function vipSeat(i) {
 function toVip(d, t) {
   const used = new Set([...dancers.values()].filter(x => x.mode === 'vip' && t < x.modeUntil).map(x => x.vipSeat));
   let seat = [0, 1, 2, 3].find(i => !used.has(i)); if (seat === undefined) seat = Math.floor(Math.random() * 4);
-  d.mode = 'vip'; d.vipSeat = seat; d.modeStart = t; d.modeUntil = t + 35; d.bottleUntil = t + 8;
+  startTravel(d, t); d.mode = 'vip'; d.vipSeat = seat; d.modeStart = t; d.modeUntil = t + 38; d.bottleUntil = t + 11;
   fx.sparkleAt(() => d.bottleUntil > now() && d._head ? [d._head.x, d._head.y + 0.4, d._head.z] : null, 7);
   say(`Mời ${nm(d.name)} vào bàn VIP!`, 'vip', 4, true);
 }
@@ -863,8 +882,31 @@ function currentDJ() {
 }
 // vị trí gốc (chân) trong thế giới 3D
 const _base = new THREE.Vector3();
+// đi bộ chuyển chỗ (lên sân khấu, vào bàn VIP, quay về sàn) thay vì nhảy cóc
+const _trTo = new THREE.Vector3();
+function startTravel(d, t) {
+  const from = d._last ? d._last.clone() : new THREE.Vector3(worldX(d.x, d.z), 0, worldZ(d.z));
+  d.trFrom = from; d.trT0 = t; d.trDur = 0;   // độ dài tính ở khung hình đầu (khi biết điểm đến)
+}
 function basePos(d, t, dj) {
-  if (d === dj) { d.yaw = 0; return _base.copy(DJ_POS); }   // DJ quay mặt ra khán giả
+  const p = rawBasePos(d, t, dj);
+  if (d.trT0 && d !== dj) {
+    if (!d.trDur) d.trDur = clamp(d.trFrom.distanceTo(p) / 1.4, 0.8, 4);
+    const k = (t - d.trT0) / d.trDur;
+    if (k < 1) {
+      _trTo.copy(p); const e = k * k * (3 - 2 * k);
+      p.set(d.trFrom.x + (_trTo.x - d.trFrom.x) * e, d.trFrom.y + (_trTo.y - d.trFrom.y) * Math.min(1, e * 1.4), d.trFrom.z + (_trTo.z - d.trFrom.z) * e);
+      const dx = _trTo.x - d.trFrom.x, dz = _trTo.z - d.trFrom.z;
+      if (dx * dx + dz * dz > 0.01) d.yaw = Math.atan2(dx, dz);
+      d.travelling = true;
+    } else { d.trT0 = 0; d.travelling = false; }
+  }
+  (d._last || (d._last = new THREE.Vector3())).copy(p);
+  return p;
+}
+function rawBasePos(d, t, dj) {
+  if (d === dj) { d.yaw = 0; return _base.copy(DJ_POS); }
+  if (d === mc) { d.yaw = MC_YAW; return _base.copy(MC_POS); }   // DJ quay mặt ra khán giả
   const bx = worldX(d.x, d.z), bz = worldZ(d.z);
   if (d.mode === 'rocket') {
     const k = (t - d.modeStart) / 4.5;
@@ -889,6 +931,8 @@ function poseFor(d, bi, t, dj) {
   const P = SPECIAL_POSES;
   if (d.dropH > 0) return P.fall();
   if (d === dj) return P.dj(bi.p, bi.b);
+  if (d === mc) return mcPose(bi, t);
+  if (d.travelling) return P.walk((t * 1.7 + d.zi * 0.37) % 1);
   if (d.mode === 'rocket') return P.fly();
   if (d.mode === 'throne' || d.mode === 'vip') return P.sit(bi.p);
   if (d.jumpStart && t - d.jumpStart < 0.8) return P.jump((t - d.jumpStart) / 0.8);
@@ -1086,7 +1130,7 @@ function update(t, dt) {
     if (d.dropH > 0) { d.vy += 22 * dt; d.dropH -= d.vy * dt; if (d.dropH <= 0) { d.dropH = 0; d.land = t; d.vy = 0; } }
     if (!d.clone && !d.leaving && t - d.lastActive > Number(S.idleSeconds || 420) && d.mode === 'dance' && !(zoom && zoom.d === d)) d.leaving = t;
     if (d.clone && t > d.cloneUntil && !d.leaving) d.leaving = t;
-    if (d.mode !== 'dance' && t > d.modeUntil) { if (d.mode === 'solo') { d.dropH = 3; d.vy = 0; } d.mode = 'dance'; if (d.tz > 0.85) d.tz = rand(0.2, 0.8); }
+    if (d.mode !== 'dance' && t > d.modeUntil) { if (d.mode === 'solo') { d.dropH = 3; d.vy = 0; } if (d.mode === 'stage' || d.mode === 'vip') startTravel(d, t); d.mode = 'dance'; if (d.tz > 0.85) d.tz = rand(0.2, 0.8); }
     if (d.pairWith && t > d.pairUntil) d.pairWith = null;
     if (d.mode === 'dance' && t > d.wanderAt && !d.pairWith) { d.tx = clamp(d.x + rand(-0.3, 0.3), -0.9, 0.9); d.tz = clamp(d.z + rand(-0.2, 0.2), 0, 1); d.wanderAt = t + rand(6, 16); }
     if (d.mode === 'circle') { d.circleA += dt * 1.0; d.tx = clamp(Math.cos(d.circleA) * 0.6, -0.9, 0.9); d.tz = 0.5 + Math.sin(d.circleA) * 0.35; }
@@ -1442,6 +1486,7 @@ function frame() {
   for (const p of PARTS) p.mesh.count = 0;
   wingMesh.count = 0; shadowMesh.count = 0; teamRing.count = 0;
   // DJ: dùng mô hình riêng public/models/dj.glb nếu có (tải khi cần)
+  if (mc && !mc.avT && t > (mc._charPoll || 0)) { mc._charPoll = t + 0.5; const tp = templateForChar(MC_CHAR); if (tp) { mc.avT = tp; if (mc.av) { disposeAvatar(mc.av); mc.av = null; } } }
   if (resident) resident.name = S.djName || 'DJ Tiến Khoa';
   if (resident && !resident.avT && t > (resident._charPoll || 0)) {
     resident._charPoll = t + 0.5;
@@ -1451,6 +1496,8 @@ function frame() {
   const dj = currentDJ();
   visible.length = 0;
   if (dj) visible.push(dj);
+  if (mc && S.mcEnabled !== false) visible.push(mc);
+  mic.visible = !!(mc && S.mcEnabled !== false && S.quality !== 'low');
   for (const d of dancers.values()) if (d !== dj) visible.push(d);
   for (const d of clones) visible.push(d);
   const clouds = [], thrones = [], rocketsP = [];
@@ -1461,6 +1508,14 @@ function frame() {
     const airborne = d.mode === 'rocket' || d.mode === 'cloud' || d.dropH > 0;
     const b = base.clone(); if (d.dropH > 0) b.y += d.dropH;
     poseRig(d, pose, b, t, !airborne || d.mode === 'cloud');
+    if (d === mc) {
+      // micro nằm giữa bàn tay và miệng (tay chỉ co được trong mặt phẳng ngang người)
+      rig.haR.getWorldPosition(_v2); rig.head.getWorldPosition(_v1);
+      const sc = d.body.h * d.sc;
+      _v1.x += Math.sin(MC_YAW) * 0.24 * sc; _v1.z += Math.cos(MC_YAW) * 0.24 * sc; _v1.y -= 0.09 * sc;   // trước miệng (rig to hơn người thật một chút)
+      mic.position.copy(_v2).lerp(_v1, 0.85);
+      mic.lookAt(_v1.x, _v1.y + 0.1, _v1.z); mic.rotateX(Math.PI / 2); mic.scale.setScalar(1.5 * sc);
+    }
     if (d.mode === 'rocket' || (d.dropH > 0)) { rig.root.position.y = b.y; rig.root.updateMatrixWorld(true); d._head.set(0, HEAD_Y + HEAD_R + 0.06, 0).applyMatrix4(rig.head.matrixWorld); }
     const alpha = d.leaving ? clamp(1 - (t - d.leaving) / 1.2, 0.001, 1) : 1;
     const real = avatarTemplates.length > 0 && S.charStyle !== 'toon' && S.quality !== 'low';
@@ -1469,7 +1524,7 @@ function frame() {
     if (d.av) {
       _hp.set(0, HEAD_Y, 0).applyMatrix4(rig.head.matrixWorld);
       _ht.set(0, HEAD_Y + 0.3, 0).applyMatrix4(rig.head.matrixWorld);
-      driveAvatar(d.av, rig, { yaw: rig.root.rotation.y, scale: d.body.h * d.sc, hipH0: 0.88, flat: !pose.rot && !pose.sit, alpha, floorY: b.y, headPt: _hp, headTop: _ht, beat: 1 - bi.p, sing: (d.zi % 3 === 0) ? Math.max(0, Math.sin(t * 9 + d.zi)) * 0.35 : 0 });
+      driveAvatar(d.av, rig, { yaw: rig.root.rotation.y, scale: d.body.h * d.sc, hipH0: 0.88, flat: !pose.rot && !pose.sit, alpha, floorY: b.y, headPt: _hp, headTop: _ht, beat: 1 - bi.p, sing: d === mc ? (t < mcTalkUntil ? Math.abs(Math.sin(t * 13)) * 0.6 : 0) : (d.zi % 3 === 0) ? Math.max(0, Math.sin(t * 9 + d.zi)) * 0.35 : 0 });
     }
     writeInstances(d, t, alpha);
     writeTeamRing(d);
@@ -1505,7 +1560,7 @@ function frame() {
   ctx.clearRect(0, 0, hud.width, hud.height);
   ctx.setTransform(pxScale, 0, 0, pxScale, 0, 0);
   // nhãn: xa trước, gần sau
-  const tags = visible.filter(d => d !== resident && d._sp).sort((a, b) => a._sp.y - b._sp.y);
+  const tags = visible.filter(d => d !== resident && d !== mc && d._sp).sort((a, b) => a._sp.y - b._sp.y);
   for (const d of tags) drawTag(d, t);
   drawParticles();
   if (flash > 0) { ctx.fillStyle = `rgba(255,255,255,${flash * 0.35})`; ctx.fillRect(0, 0, W, H); }
@@ -1528,6 +1583,7 @@ const sayRate = new Map();
 function say(text, key, gap = 0, prio = false) {
   if (!S.ttsEnabled || !isPrimary || !text) return;
   if (key) { const last = sayRate.get(key) || -1e9; if (now() - last < gap) return; sayRate.set(key, now()); }
+  mcTalkUntil = Math.max(mcTalkUntil, now()) + Math.min(8, 0.8 + String(text).length * 0.065);   // MC trên sân khấu mấp máy miệng, khua tay
   if (S.ttsWhere === 'admin') socket.emit('say', text);
   else if (window.MC) { MC.enabled = true; MC.volume = Number(S.ttsVolume) || 1; MC.rate = Number(S.ttsRate) || 1.05; MC.say(text, prio); }
 }
@@ -1995,11 +2051,13 @@ resident = new Dancer({ id: '__dj', name: 'DJ Tiến Khoa', avatar: '' }, { noDr
 resident.body = randomBody(false);
 resident.look = randomLook(false); resident.look.top = 'bomber'; resident.look.hat = 'capBack'; resident.look.neck = 'headphones'; resident.look.hs = 0; resident.look.glasses = true;
 resident.look.c.jacket = resident.look.c.uarm = resident.look.c.farm = col('#1b1b1f'); resident.look.c.shirt = resident.look.c.torso = col('#ff3d8b');
+mc = new Dancer({ id: '__mc', name: 'MC', avatar: '' }, { noDrop: true });
+mc.body = randomBody(false); mc.look = randomLook(false);
 window.addEventListener('resize', resize);
 resize();
 async function applyModels(list) {
   await loadAvatars((list || []).filter(m => m.enabled).map(m => ({ url: m.url, female: m.female })));
-  for (const d of [...dancers.values(), ...clones, resident]) { if (d && d.av) { disposeAvatar(d.av); d.av = null; d.avT = null; } }
+  for (const d of [...dancers.values(), ...clones, resident, mc]) { if (d && d.av) { disposeAvatar(d.av); d.av = null; d.avT = null; } }
   console.log('Đã nạp', avatarTemplates.length, 'mô hình người');
 }
 fetch('/api/models').then(r => r.json()).then(applyModels).catch(e => console.warn(e));
@@ -2012,5 +2070,5 @@ window.addEventListener('pointerdown', unlock);
 window.addEventListener('keydown', unlock);
 setInterval(checkAudio, 1500);
 Music.resume();
-window._dbg = { setChar: (d, id) => assignChar(d, ROSTER.find(c => c.id === id)), setOutfitT: (d, o) => { if (d.av) { setCostume(d.av, null); window._applyOutfit(d.av, o); window._restyle(d.av); } }, get flashInfo() { return [...dancers.values()].slice(0, 8).map(d => [d.mode, d.x.toFixed(2), d.z.toFixed(2), d.tx.toFixed(2), d.tz.toFixed(2)].join(' ')); }, ledCam, ledRT, renderer, get ledShow() { return ledShow; }, get ledQueue() { return ledQueue; }, get lcd() { return lcd; }, get resident() { return resident; }, dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
+window._dbg = { setChar: (d, id) => assignChar(d, ROSTER.find(c => c.id === id)), setOutfitT: (d, o) => { if (d.av) { setCostume(d.av, null); window._applyOutfit(d.av, o); window._restyle(d.av); } }, get flashInfo() { return [...dancers.values()].slice(0, 8).map(d => [d.mode, d.x.toFixed(2), d.z.toFixed(2), d.tx.toFixed(2), d.tz.toFixed(2)].join(' ')); }, ledCam, ledRT, renderer, get ledShow() { return ledShow; }, get ledQueue() { return ledQueue; }, get lcd() { return lcd; }, get resident() { return resident; }, get mc() { return mc; }, mic, mcArm(ru, rf) { MC_RU = ru; MC_RF = rf; }, dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
 requestAnimationFrame(frame);
