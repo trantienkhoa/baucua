@@ -241,8 +241,8 @@ let S = {}, GIFTS = {}, ACTIONS = [], INFO = {};
 socket.on('connect', () => socket.emit('hello', 'admin'));
 
 const FIELDS = [
-  ['djName', '🎧 Tên DJ (bàn DJ + trên đầu DJ)', 'text'],
-  ['djTag', '🎧 Hiện tên trên đầu DJ', 'check'],
+  ['djName', '🎧 Tên DJ trên bàn DJ', 'text'],
+  ['barEnabled', '🛋️ Bàn ghế quán bar (salon + bàn tròn đứng)', 'check'],
   ['lcdEvents', '📺 Sự kiện LIVE hiện trên màn LCD', 'check'],
   ['lcdJoin', '📺 Cả người vào xem cũng lên màn LCD', 'check'],
   ['quality', '✨ Mức hiệu ứng', 'select', [['high', 'Mạnh (máy mạnh)'], ['medium', 'Vừa'], ['low', 'Nhẹ (máy yếu)']]],

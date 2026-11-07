@@ -11,6 +11,7 @@ import { rosterOutfit, danceFor, tempoFor, hyperFor, shapeFor } from './roster.j
 import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates, setCostume, randomCostumeId, COSTUMES, costumeTime, setExtra, outfitTime, setOutfitMix, templateForChar, hasCharModel } from './avatars.js';
 import { createLCD } from './lcd.js';
 import { createFX } from './fx.js';
+import { createBar } from './bar.js';
 
 const W = 1080, H = 1920;
 const PI = Math.PI, TAU = PI * 2;
@@ -160,6 +161,8 @@ const bulbs = new THREE.InstancedMesh(new THREE.SphereGeometry(0.09, 10, 8), new
 for (let i = 0; i < 40; i++) { bulbs.setMatrixAt(i, new THREE.Matrix4().makeTranslation(-9.75 + i * 0.5, STAGE_Y * 0.5, -5.47)); bulbs.setColorAt(i, new THREE.Color(0xffffff)); }
 scene.add(bulbs);
 // khói sàn + pháo sáng (fx.js)
+// nội thất quán bar: bộ salon + bàn tròn đứng (bar.js)
+const bar = createBar(scene);
 const fx = createFX(scene, { floor: { x0: -9, x1: 9, z0: -5.2, z1: 5.5 }, stageY: STAGE_Y, stageFrontZ: -5.5 });
 
 // màn LED
@@ -804,7 +807,8 @@ function confetti(n) { n = Math.round(n * qMul()); for (let i = 0; i < n; i++) p
 function hearts(x, y, n) { for (let i = 0; i < n; i++) particles.push({ x: x + rand(-30, 30), y, vx: rand(-30, 30), vy: rand(-140, -80), g: 0, life: 1.8, max: 1.8, color: pick(['#ff3d7f', '#ff7ab8', '#ff4d6d']), size: rand(14, 24), type: 'heart' }); }
 
 // ---------- vị trí ----------
-const halfW = z => 4.2 - z * 1.9;           // sàn hẹp dần về phía máy quay
+// sàn hẹp dần về phía máy quay; có bàn ghế quán bar thì chừa hai bên + hai góc trước sân khấu cho bộ salon
+const halfW = z => S.barEnabled === false ? 4.2 - z * 1.9 : Math.min(3.1 - z * 1.75, z < 0.2 ? 2.7 : 9);
 const worldX = (x, z) => x * halfW(z);
 const worldZ = z => -4.6 + z * 9.0;
 const DJ_POS = new THREE.Vector3(0, STAGE_Y, -7.45);
@@ -1193,26 +1197,6 @@ function avatarCircle(u, x, y, r) {
   else { ctx.fillStyle = '#5b3bb0'; ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.fillStyle = '#fff'; ctx.font = `800 ${Math.round(r)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(((u.name || '?').trim()[0] || '?').toUpperCase(), x, y + 1); }
   ctx.restore();
 }
-// bảng tên DJ: chữ neon phát sáng trên đầu, nhún theo nhịp
-function drawDJTag(d, t) {
-  const sp = d._sp; if (!sp || sp.behind) return;
-  const name = S.djName || 'DJ Tiến Khoa';
-  const sc = clamp(sp.s * 1.25, 1.05, 2.4), k = stageMood.kick || 0;
-  const x = sp.hx, y = sp.hy - 30 * sc - 6 * k * sc;
-  ctx.save();
-  ctx.font = `900 ${Math.round(26 * sc)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  const label = '🎧 ' + name;
-  const w = ctx.measureText(label).width + 34 * sc, h = 44 * sc;
-  const hue = (t * 50) % 360;
-  const g = ctx.createLinearGradient(x - w / 2, 0, x + w / 2, 0);
-  g.addColorStop(0, `hsl(${hue},100%,60%)`); g.addColorStop(0.5, `hsl(${(hue + 120) % 360},100%,60%)`); g.addColorStop(1, `hsl(${(hue + 240) % 360},100%,60%)`);
-  ctx.shadowColor = `hsl(${hue},100%,60%)`; ctx.shadowBlur = (14 + 16 * k) * sc;
-  ctx.fillStyle = 'rgba(14,4,34,0.9)'; roundRect(x - w / 2, y - h / 2, w, h, h / 2); ctx.fill();
-  ctx.lineWidth = 3 * sc; ctx.strokeStyle = g; roundRect(x - w / 2, y - h / 2, w, h, h / 2); ctx.stroke();
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = '#fff3c4'; ctx.fillText(label, x, y + 1 * sc);
-  ctx.restore();
-}
 function drawTag(d, t) {
   const sp = d._sp; if (!sp || sp.behind) return;
   const fade = d.leaving ? clamp(1 - (t - d.leaving) / 1.2, 0, 1) : 1;
@@ -1464,6 +1448,7 @@ function frame() {
   fx.enabled.smoke = S.smokeEnabled !== false && S.quality !== 'low'; fx.enabled.spark = S.sparkEnabled !== false;
   fx.density = Math.max(0, Math.min(1, Number(S.smokeDensity ?? 55) / 100));
   fx.update(t, dt, { hue: stageMood.hue, kick: stageMood.kick, level: stageMood.bass });
+  bar.visible = S.barEnabled !== false; bar.update(t, stageMood);
   updateLedShow(t, dt);
   if (lcd) lcd.update(t, !!ledShow, !!zoom && !lcd.textActive);   // lời nhắn đợi máy quay zoom xong rồi mới hiện
   updateCam(dt, t);
@@ -1479,7 +1464,6 @@ function frame() {
   // nhãn: xa trước, gần sau
   const tags = visible.filter(d => d !== resident && d._sp).sort((a, b) => a._sp.y - b._sp.y);
   for (const d of tags) drawTag(d, t);
-  if (dj === resident && resident._sp && S.djTag !== false) drawDJTag(resident, t);
   drawParticles();
   if (flash > 0) { ctx.fillStyle = `rgba(255,255,255,${flash * 0.35})`; ctx.fillRect(0, 0, W, H); }
   if (bi.fire) { ctx.fillStyle = `rgba(255,60,180,${0.06 * (1 - bi.p)})`; ctx.fillRect(0, 0, W, H); }

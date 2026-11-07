@@ -20,14 +20,21 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
-## Sự kiện trên màn LCD + tên trên đầu DJ (bản 1.9.1)
+## Bàn ghế quán bar (bản 1.9.2)
+
+- **2 bộ salon** ở hai góc trước sân khấu. Mỗi bộ gồm sofa nhung dài, ghế bành, bàn nước mặt đá viền vàng, chai rượu, xô đá, ly cocktail và thảm tròn. Bên trái màu đỏ rượu vang, bên phải màu tím.
+- **6 bàn tròn đứng** (không ghế) dọc hai bên sàn nhảy. Mỗi bàn có ly cocktail và chai, viền LED dưới mặt bàn và dưới chân hắt sáng xuống sàn, đổi màu theo nhạc.
+- Sàn nhảy thu hẹp khoảng 25% để chừa chỗ cho bàn ghế. Người nhảy không đi xuyên qua bàn ghế.
+- Tắt được ở Cài đặt → “🛋️ Bàn ghế quán bar”. Khi tắt, sàn nhảy rộng như cũ.
+- Đã bỏ bảng tên trên đầu DJ; tên DJ vẫn hiện trên bàn DJ.
+
+## Sự kiện trên màn LCD (bản 1.9.1)
 
 - **Sự kiện LIVE hiện trên màn LCD**, ở mọi chế độ chiếu (sóng nhạc, YouTube, video, ảnh) và cả trong clip:
   - Thẻ có ảnh đại diện ở nửa trên màn: quà tặng (tên quà và hiệu ứng), follow, chia sẻ, lên cấp, quay lại, mở khoá hoá trang, đèn chiếu gọi tên.
   - Băng rôn phủ cả màn cho sự kiện lớn: sàn cháy, đấu đội bắt đầu/kết thúc, thách đấu solo, thắng solo, flash mob, hoàn thành mục tiêu phòng.
   - Sự kiện dồn nhiều thì hiện nhanh hơn và bỏ bớt cái cũ; sự kiện lớn luôn được ưu tiên.
   - Bật/tắt trong Cài đặt (trang chính) hoặc Tuỳ chọn (bảng điều khiển màn hình). Mặc định người vào xem không lên màn (bật được).
-- **Tên “🎧 DJ Tiến Khoa” trên đầu nhân vật DJ**: bảng tên neon đổi màu, nhún theo nhịp. Đổi tên ở ô “Tên DJ” trong Cài đặt; có thể tắt bảng tên.
 
 ## Lời nhắn lên màn hình, đèn theo nhạc, khói & pháo sáng (bản 1.9)
 

@@ -53,7 +53,7 @@ const DEFAULT_SETTINGS = {
   partyMix: 25,             // % người mặc đồ dạ hội (còn lại đồ đi bar hot trend)
   costumeRate: 15,          // % người lên sàn được hoá trang sẵn (còn lại mặc đồ dạ hội)
   djName: 'DJ Tiến Khoa',   // tên DJ trên bàn DJ
-  djTag: true,              // bảng tên phát sáng trên đầu DJ
+  barEnabled: true,         // bàn ghế quán bar (salon + bàn tròn đứng), sàn nhảy thu hẹp lại
   lcdEvents: true,          // sự kiện LIVE (quà, follow, sàn cháy…) hiện trên màn LCD
   lcdJoin: false,           // cả người vào xem cũng hiện trên màn LCD
   textEnabled: true,        // tặng quà kèm lời nhắn → chữ lên màn LCD
