@@ -27,6 +27,11 @@ function renderNav(active) {
 
 export function go(hash) { location.hash = hash; }
 
+// Chế độ miễn phí 100%: chỉ đưa ra lựa chọn không tốn tiền
+export const freeOnly = () => state.settings?.free_only !== false;
+export const voices = () => state.meta.voices.filter(v => !freeOnly() || v.free);
+export const providers = () => Object.entries(state.meta.providers).filter(([, v]) => !freeOnly() || v.free);
+
 async function route() {
   const [, name = 'create', ...rest] = location.hash.split('/');
   const entry = NAV.find(n => n.id === name) || NAV[0];

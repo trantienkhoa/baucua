@@ -21,25 +21,27 @@ for _d in (DATA_DIR, PROJECTS_DIR, CACHE_DIR, EXPORTS_DIR):
     _d.mkdir(parents=True, exist_ok=True)
 
 PROVIDERS = {
-    "claude": {"label": "Claude", "desc": "Dịch tự nhiên nhất, hiểu ngữ cảnh", "key": True,
+    "claude": {"label": "Claude", "free": False, "desc": "Dịch tự nhiên nhất, hiểu ngữ cảnh", "key": True,
                "model": "claude-opus-5-5", "key_url": "https://console.anthropic.com"},
-    "gemini": {"label": "Gemini", "desc": "Google, có gói miễn phí", "key": True,
+    "gemini": {"label": "Gemini", "free": True, "desc": "Gói miễn phí, không cần thẻ (có giới hạn lượt/ngày)", "key": True,
                "model": "gemini-2.5-flash", "key_url": "https://aistudio.google.com/apikey"},
-    "deepseek": {"label": "DeepSeek", "desc": "Rẻ, giỏi tiếng Trung", "key": True,
+    "deepseek": {"label": "DeepSeek", "free": False, "desc": "Rẻ, giỏi tiếng Trung", "key": True,
                  "model": "deepseek-chat", "key_url": "https://platform.deepseek.com"},
-    "openai": {"label": "OpenAI", "desc": "GPT, ổn định", "key": True,
+    "openai": {"label": "OpenAI", "free": False, "desc": "GPT, ổn định", "key": True,
                "model": "gpt-4o-mini", "key_url": "https://platform.openai.com/api-keys"},
-    "ollama": {"label": "Ollama", "desc": "Model AI chạy trên máy", "key": False,
+    "ollama": {"label": "Ollama", "free": True, "desc": "AI chạy trên máy, miễn phí, không giới hạn", "key": False,
                "model": "qwen2.5:7b", "key_url": "https://ollama.com"},
-    "google": {"label": "Google dịch", "desc": "Miễn phí, kém tự nhiên, dễ bị chặn", "key": False,
+    "google": {"label": "Google dịch", "free": True, "desc": "Miễn phí, không cần key, kém tự nhiên hơn", "key": False,
                "model": "", "key_url": ""},
-    "offline": {"label": "Dịch offline", "desc": "Argos Translate, không cần key", "key": False,
+    "offline": {"label": "Dịch offline", "free": True, "desc": "Miễn phí, chạy trên máy, không cần mạng", "key": False,
                 "model": "", "key_url": ""},
 }
 
 VOICES = [
     {"id": "vi-VN-HoaiMyNeural", "label": "Hoài My (Nữ) · Edge miễn phí", "gender": "female", "provider": "edge"},
     {"id": "vi-VN-NamMinhNeural", "label": "Nam Minh (Nam) · Edge miễn phí", "gender": "male", "provider": "edge"},
+    {"id": "piper:vi_VN-vais1000-medium", "label": "VAIS (Nữ) · Offline miễn phí", "gender": "female", "provider": "piper"},
+    {"id": "piper:vi_VN-25hours_single-low", "label": "25hours (Nữ) · Offline miễn phí", "gender": "female", "provider": "piper"},
     {"id": "fpt:banmai", "label": "Ban Mai (Nữ Bắc) · FPT.AI", "gender": "female", "provider": "fpt"},
     {"id": "fpt:thuminh", "label": "Thu Minh (Nữ Bắc) · FPT.AI", "gender": "female", "provider": "fpt"},
     {"id": "fpt:leminh", "label": "Lê Minh (Nam Bắc) · FPT.AI", "gender": "male", "provider": "fpt"},
@@ -53,6 +55,37 @@ VOICES = [
     {"id": "openai:onyx", "label": "Onyx (Nam) · OpenAI", "gender": "male", "provider": "openai"},
     {"id": "openai:ash", "label": "Ash (Nam) · OpenAI", "gender": "male", "provider": "openai"},
 ]
+
+FREE_TTS = {"edge", "piper"}
+PIPER_DEFAULT = "vi_VN-vais1000-medium"
+VOICES_DIR = DATA_DIR / "voices"
+
+
+def voice_provider(voice: str) -> str:
+    return voice.split(":", 1)[0] if ":" in voice else "edge"
+
+
+def is_free_voice(voice: str) -> bool:
+    return voice_provider(voice) in FREE_TTS
+
+
+def is_free_provider(provider: str) -> bool:
+    return bool(PROVIDERS.get(provider, {}).get("free"))
+
+
+def free_voice_for(voice: str, gender: str = "") -> str:
+    """Thay giọng trả phí bằng giọng Edge miễn phí cùng giới tính."""
+    if not gender:
+        gender = next((v["gender"] for v in VOICES if v["id"] == voice), "female")
+    return "vi-VN-NamMinhNeural" if gender == "male" else "vi-VN-HoaiMyNeural"
+
+
+def guard_translator(provider: str, settings: dict) -> str:
+    """Chế độ miễn phí 100%: không bao giờ gọi dịch vụ trả phí."""
+    if settings.get("free_only", True) and not is_free_provider(provider):
+        return "google"
+    return provider
+
 
 # nhà cung cấp giọng cần API key (key lưu chung trong keys.json)
 TTS_PROVIDERS = {
@@ -71,6 +104,8 @@ def all_voices(settings: dict | None = None) -> list[dict]:
             if name and vid:
                 g = "male" if "nam" in name.lower() and "nữ" not in name.lower() else "female"
                 out.append({"id": f"eleven:{vid}", "label": f"{name} · ElevenLabs", "gender": g, "provider": "eleven"})
+    for v in out:
+        v["free"] = v["provider"] in FREE_TTS
     return out
 
 
@@ -92,6 +127,8 @@ DEFAULT_STYLE = {
 }
 
 DEFAULT_SETTINGS = {
+    "free_only": True,         # chế độ miễn phí 100%: ẩn và chặn mọi dịch vụ trả phí
+    "tts_offline_fallback": True,  # Edge lỗi/mất mạng → tự đọc bằng giọng offline Piper
     "translator": "google",
     "models": {k: v["model"] for k, v in PROVIDERS.items()},
     "ollama_url": "http://127.0.0.1:11434",

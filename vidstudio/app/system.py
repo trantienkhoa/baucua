@@ -30,6 +30,8 @@ def check() -> list[dict]:
         {"name": "Nhận dạng bằng GPU (CUDA)", "ok": asr.available() and asr.cuda_available(), "optional": True,
          "hint": "Cần GPU NVIDIA + CUDA/cuDNN"},
         {"name": "Lồng tiếng (Edge TTS)", "ok": tts.available(), "hint": "pip install edge-tts"},
+        {"name": "Giọng đọc offline (Piper)", "ok": tts.piper_available(), "optional": True,
+         "hint": "pip install piper-tts — đọc được cả khi mất mạng"},
         {"name": "Tải video (yt-dlp)", "ok": _has("yt_dlp"), "hint": "pip install yt-dlp"},
         {"name": "Đọc và xoá sub gốc (OCR)", "ok": ocr.available(), "optional": True,
          "hint": 'pip install rapidocr-onnxruntime'},

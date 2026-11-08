@@ -37,6 +37,8 @@ def _extract_json(text: str):
 # ---------------- gọi LLM thô ----------------
 
 def llm_complete(provider: str, system: str, user: str, settings: dict, schema: dict | None = None) -> str:
+    if settings.get("free_only", True) and not config.is_free_provider(provider):
+        raise TranslateError("Đang bật chế độ miễn phí 100% — không gọi dịch vụ trả phí. Tắt trong Cài đặt nếu muốn dùng.")
     keys = config.load_keys()
     model = settings["models"].get(provider) or config.PROVIDERS[provider]["model"]
     if config.PROVIDERS.get(provider, {}).get("key") and not keys.get(provider):
@@ -197,7 +199,7 @@ def _sub_system(settings: dict, src: str, tgt: str, highlight: bool) -> str:
 def translate_segments(segments: list[dict], settings: dict, provider: str | None = None,
                        progress: Optional[Callable[[float], None]] = None, highlight: bool = False,
                        context_title: str = "") -> list[str]:
-    provider = provider or settings.get("translator", "google")
+    provider = config.guard_translator(provider or settings.get("translator", "google"), settings)
     src, tgt = settings.get("source_lang", "zh"), settings.get("target_lang", "vi")
     texts = [s.get("src", "") for s in segments]
     if provider == "google":
@@ -280,7 +282,7 @@ def translate_texts(texts: list[str], settings: dict, src: str = "zh", tgt: str 
     """Dịch nhanh danh sách câu ngắn (tiêu đề video, từ khoá tìm kiếm)."""
     if not texts:
         return []
-    provider = provider or settings.get("translator", "google")
+    provider = config.guard_translator(provider or settings.get("translator", "google"), settings)
     if provider in ("google", "offline"):
         fn = google_translate if provider == "google" else offline_translate
         return fn(texts, src, tgt)
@@ -304,14 +306,47 @@ SHORT_SCHEMA = {
 }
 
 
+# từ đệm / từ thừa có thể bỏ mà câu vẫn đủ nghĩa khi lồng tiếng
+_FILLERS = [
+    "thật ra thì", "thật ra", "thực ra", "nói chung là", "nói chung", "thế là", "vậy thì", "thế thì", "kiểu như",
+    "thực sự là", "thực sự", "một cách", "đúng là", "chắc chắn là", "có lẽ là", "rồi thì", "cơ mà",
+    "nhé", "nha", "đấy", "đó nha", "ạ", "à nha", "cơ", "chứ nhỉ", "nhỉ", "luôn đó", "luôn",
+]
+_SOFT = ["những", "các", "cái", "rất", "lắm", "thì", "mà", "đã", "sẽ", "đang"]  # bỏ đi không đổi nghĩa
+
+
+def _drop(text: str, words: list[str]) -> str:
+    for w in sorted(words, key=len, reverse=True):
+        text = re.sub(rf"(?<![\wÀ-ỹ*]){re.escape(w)}(?![\wÀ-ỹ*])", " ", text, flags=re.I)
+    text = re.sub(r"\s+([,.!?…])", r"\1", text)
+    text = re.sub(r"([,.!?])\1+", r"\1", text)
+    return re.sub(r"\s{2,}", " ", text).strip(" ,")
+
+
+def shorten_rule(text: str, max_chars: int) -> str:
+    """Rút gọn câu không cần AI: bỏ từ đệm trước, sau đó bỏ hư từ cho tới khi đủ ngắn."""
+    from .subtitles import plain
+    out = _drop(text, _FILLERS)
+    if len(plain(out)) > max_chars:
+        for w in _SOFT:
+            if len(plain(out)) <= max_chars:
+                break
+            out = _drop(out, [w])
+    if not plain(out):
+        return text
+    return out[0].upper() + out[1:]
+
+
 def shorten_lines(items: list[dict], settings: dict) -> dict[int, str]:
     """Viết lại câu dịch ngắn hơn để giọng đọc kịp thời lượng.
 
     items: {id, text, src, max_chars, seconds}. Trả về {id: câu mới}.
     """
-    provider = settings.get("translator", "google")
-    if provider in ("google", "offline") or not items:
+    provider = config.guard_translator(settings.get("translator", "google"), settings)
+    if not items:
         return {}
+    if provider in ("google", "offline"):  # không có AI → rút gọn theo luật, miễn phí, chạy tức thì
+        return {it["id"]: shorten_rule(it["text"], it["max_chars"]) for it in items}
     system = (
         "Bạn biên tập phụ đề lồng tiếng tiếng Việt. Mỗi câu dưới đây đọc không kịp trong thời lượng cho phép. "
         "Viết lại NGẮN HƠN, không vượt max_chars ký tự, giữ ý chính, cảm xúc và cách xưng hô; "
@@ -350,12 +385,12 @@ CAPTION_SCHEMA = {
 
 
 def generate_caption(title: str, transcript: str, settings: dict, platform: str = "TikTok") -> dict:
-    provider = settings.get("translator", "google")
+    provider = config.guard_translator(settings.get("translator", "google"), settings)
     if provider in ("google", "offline"):
         words = [w for w in re.findall(r"\w+", title.lower()) if len(w) > 3][:3]
         return {"titles": [title], "description": title,
                 "hashtags": ["#xuhuong", "#fyp", "#viral"] + [f"#{w}" for w in words], "hook": "",
-                "note": "Chọn Claude/Gemini/DeepSeek trong Cài đặt để AI viết caption hay hơn."}
+                "note": "Chọn Gemini (gói miễn phí) hoặc Ollama (chạy trên máy) trong Cài đặt để AI viết caption hay hơn."}
     system = ("Bạn là chuyên gia viết nội dung mạng xã hội Việt Nam. Viết bằng tiếng Việt, tự nhiên, "
               "gây tò mò nhưng không giật tít sai sự thật. Trả JSON đúng schema.")
     user = (f"Nền tảng: {platform}\nTiêu đề hiện tại: {title}\nNội dung lời thoại (đã dịch):\n{transcript[:4000]}\n\n"

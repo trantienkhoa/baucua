@@ -97,6 +97,25 @@ def test_translate(data: dict = Body(...)):
         return {"ok": False, "error": str(e)}
 
 
+@app.post("/api/voices/download")
+def download_voice(data: dict = Body(default={})):
+    model = data.get("model") or config.PIPER_DEFAULT
+    if not tts.piper_available():
+        raise HTTPException(400, "Chưa cài giọng offline: pip install piper-tts")
+    try:
+        tts.piper_download(model)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, str(e))
+    return {"ok": True}
+
+
+@app.get("/api/voices/status")
+def voice_status():
+    return {"piper": tts.piper_available(),
+            "downloaded": [v["id"].split(":", 1)[1] for v in config.VOICES if v["provider"] == "piper"
+                           and tts.piper_model(v["id"].split(":", 1)[1]).exists()]}
+
+
 @app.post("/api/recipes")
 def save_recipe(data: dict = Body(...)):
     name = (data.get("name") or "").strip()

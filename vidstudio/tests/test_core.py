@@ -64,3 +64,23 @@ def test_align_words_and_karaoke():
 def test_draft_size():
     assert media.render_size({"width": 1080, "height": 1920}, {"_draft": True}) == (540, 960)
     assert media.render_size({"width": 1080, "height": 1920}, {}) == (1080, 1920)
+
+
+def test_free_mode_never_calls_paid():
+    from app import config, translate, pipeline
+    s = {**config.DEFAULT_SETTINGS, "translator": "claude", "free_only": True}
+    assert config.guard_translator("claude", s) == "google"
+    assert config.guard_translator("gemini", s) == "gemini"
+    try:
+        translate.llm_complete("openai", "x", "y", s)
+        assert False, "phải chặn"
+    except translate.TranslateError:
+        pass
+    assert pipeline.voice_for({"voice": "fpt:leminh"}, {"free_only": True}) == "vi-VN-NamMinhNeural"
+    assert pipeline.voice_for({"voice": "piper:vi_VN-vais1000-medium"}, {"free_only": True}).startswith("piper:")
+
+
+def test_rule_shorten():
+    from app.translate import shorten_rule
+    out = shorten_rule("Thật ra thì tôi đã rất muốn đi cùng các bạn nhé.", 30)
+    assert len(out) <= 30 and "nhé" not in out and out[0].isupper()

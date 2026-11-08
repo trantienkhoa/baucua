@@ -1,6 +1,6 @@
 // Studio: sửa phụ đề, xem trước, timeline, giọng đọc, xoá sub gốc, xuất & đăng.
 import { api, icon, esc, $, $$, toast, modal, confirmBox, fmtTime, parseTime, fmtDur, debounce, copyText, statusPill, store } from '../ui.js';
-import { state, go } from '../main.js';
+import { state, go, voices as voiceList, providers } from '../main.js';
 import { Timeline } from './timeline.js';
 
 const S = {};               // trạng thái studio hiện tại
@@ -338,7 +338,7 @@ function renderLines() {
 }
 
 function lineHtml(s, i) {
-  const voices = state.meta.voices;
+  const voices = voiceList();
   const t = plain(s.text); const dur = Math.max(0.01, s.end - s.start);
   const maxChars = Math.round(dur * 17);
   const over = t.length > maxChars;
@@ -811,7 +811,7 @@ function renderTab() {
       ${toggle('dub', cfg.dub, 'Lồng tiếng Việt', 'Tắt: chỉ làm phụ đề, giữ tiếng gốc')}
       <label class="field"><span>Giọng chung</span><select id="voice_default">
         <option value="auto" ${cfg.voice_default === 'auto' ? 'selected' : ''}>Tự theo người nói (Nam/Nữ)</option>
-        ${state.meta.voices.map(v => `<option value="${v.id}" ${cfg.voice_default === v.id ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select></label>
+        ${voiceList().map(v => `<option value="${v.id}" ${cfg.voice_default === v.id ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select></label>
       ${slider('tts_rate', 'Tốc độ đọc gốc', cfg.tts_rate || 0, -30, 40, 5, v => (v > 0 ? '+' : '') + v + '%')}
       ${slider('max_speed', 'Tự tăng tốc tối đa khi câu dài', cfg.max_speed || 1.4, 1, 2, 0.05, v => (+v).toFixed(2) + 'x')}
       ${slider('orig_volume', 'Tiếng gốc lúc có giọng Việt', cfg.orig_volume ?? 0.12, 0, 1, 0.01, v => Math.round(v * 100) + '%')}
@@ -840,7 +840,7 @@ function renderTab() {
         <button class="btn sm" id="region-default">Đặt làm mặc định</button></div>`;
     },
     translate: () => `
-      <label class="field"><span>Dịch bằng</span><select id="translator">${Object.entries(state.meta.providers).map(([k, v]) => `<option value="${k}" ${cfg.translator === k ? 'selected' : ''}>${esc(v.label)} — ${esc(v.desc)}</option>`).join('')}</select></label>
+      <label class="field"><span>Dịch bằng</span><select id="translator">${providers().map(([k, v]) => `<option value="${k}" ${cfg.translator === k ? 'selected' : ''}>${esc(v.label)} — ${esc(v.desc)}</option>`).join('')}</select></label>
       <div class="row" style="margin-bottom:16px">
         <button class="btn sm" id="tr-empty">Dịch các câu còn trống</button>
         <button class="btn sm" id="tr-flag">Dịch lại câu bị cảnh báo</button>
@@ -901,7 +901,7 @@ function speakerVoices(cfg) {
   const sv = cfg.speaker_voices || {};
   return `<div class="sep"></div><h3>Giọng theo người nói</h3>
     ${ids.map(id => { const n = S.proj.segments.filter(s => s.speaker_id === id).length; return `<div class="row" style="margin-bottom:8px"><span class="pill blue">${esc(id)}</span><span class="small dim">${n} câu</span>
-      <select class="grow" data-spk="${esc(id)}" style="width:auto"><option value="">Theo giọng chung</option>${state.meta.voices.map(v => `<option value="${v.id}" ${sv[id] === v.id ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select></div>`; }).join('')}`;
+      <select class="grow" data-spk="${esc(id)}" style="width:auto"><option value="">Theo giọng chung</option>${voiceList().map(v => `<option value="${v.id}" ${sv[id] === v.id ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select></div>`; }).join('')}`;
 }
 
 function presetPreview(k) {

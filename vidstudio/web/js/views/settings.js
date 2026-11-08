@@ -1,6 +1,6 @@
 // Trang "Cài đặt": AI dịch & API key, dịch, giọng đọc, xoá sub, xuất video, công thức, kiểm tra máy.
 import { api, icon, esc, $, $$, toast, confirmBox, promptBox } from '../ui.js';
-import { state } from '../main.js';
+import { state, voices as voiceList } from '../main.js';
 
 let root, s, keys, isDefault;
 
@@ -23,7 +23,10 @@ function sw(id, on) { return `<label class="switch"><input type="checkbox" data-
 function trow(id, title, desc) { return `<div class="toggle-row"><div class="grow"><b>${title}</b>${desc ? `<span>${desc}</span>` : ''}</div>${sw(id, s[id])}</div>`; }
 
 function render() {
-  const P = state.meta.providers; const cur = s.translator; const pv = P[cur];
+  const free = s.free_only !== false;
+  const P = Object.fromEntries(Object.entries(state.meta.providers).filter(([, v]) => !free || v.free));
+  if (!P[s.translator]) s.translator = 'google'; // chế độ miễn phí: bỏ lựa chọn trả phí
+  const cur = s.translator; const pv = P[cur];
   const usingKey = pv.key ? (keys[cur] ? `Đang dùng ${pv.label}` : `Chưa có key ${pv.label}`) : `Đang dùng ${pv.label}`;
   root.innerHTML = `
   <div class="page page-narrow">
@@ -31,8 +34,11 @@ function render() {
     <p class="lead">Áp dụng cho mọi video mới. Từng video vẫn có thể chỉnh riêng trong Studio.</p>
 
     <div class="card">
+      <div class="toggle-row" style="margin:-4px 0 14px;padding:12px 14px;border-radius:12px;background:${free ? 'rgba(76,195,138,.1)' : 'var(--bg2)'}">
+        <div class="grow"><b>Chế độ miễn phí 100%</b><span>${free ? 'Chỉ dùng dịch vụ không tốn tiền: Google dịch, Gemini gói miễn phí, Ollama, dịch offline, giọng Edge và giọng offline. App không bao giờ gọi dịch vụ trả phí.' : 'Đang hiện cả dịch vụ trả phí (Claude, OpenAI, DeepSeek, FPT.AI, ElevenLabs) — có thể phát sinh chi phí theo tài khoản của bạn.'}</span></div>
+        <label class="switch"><input type="checkbox" id="free-only" ${free ? 'checked' : ''}><i></i></label></div>
       <div class="card-head">${icon('key')}<h2>Kết nối AI dịch</h2><span class="pill ${pv.key && !keys[cur] ? 'red' : 'green'} right">${usingKey}</span></div>
-      <div class="option-grid">${Object.entries(P).map(([k, v]) => `<button class="option ${k === cur ? 'active' : ''}" data-prov="${k}"><b>${esc(v.label)} ${keys[k] ? '<span class="pill green" style="font-size:10px">có key</span>' : ''}</b><span>${esc(v.desc)}</span></button>`).join('')}</div>
+      <div class="option-grid">${Object.entries(P).map(([k, v]) => `<button class="option ${k === cur ? 'active' : ''}" data-prov="${k}"><b>${esc(v.label)} ${v.free ? '<span class="pill green" style="font-size:10px">miễn phí</span>' : '<span class="pill red" style="font-size:10px">trả phí</span>'} ${keys[k] ? '<span class="pill blue" style="font-size:10px">có key</span>' : ''}</b><span>${esc(v.desc)}</span></button>`).join('')}</div>
       ${pv.key ? `<div class="row" style="margin-top:14px"><input type="password" id="key" class="grow" style="width:auto" placeholder="${keys[cur] ? 'Đã lưu: ' + esc(keys[cur]) + ' — dán key mới để thay' : 'Dán API key vào đây'}">
         <button class="btn primary" id="save-key">${icon('key', 16)} Lưu key</button><button class="btn" id="test">${icon('send', 16)} Dịch thử</button>
         ${keys[cur] ? `<button class="btn ghost danger" id="del-key">Xoá key</button>` : ''}</div>
@@ -59,7 +65,7 @@ function render() {
         <div class="card">
           <div class="card-head">${icon('mic')}<h2>Giọng đọc</h2></div>
           ${trow('dub', 'Lồng tiếng Việt', 'Tắt: chỉ làm phụ đề, giữ tiếng gốc')}
-          <label class="field"><span>Giọng mặc định</span><select data-k="voice_default"><option value="auto" ${s.voice_default === 'auto' ? 'selected' : ''}>Tự theo người nói (Nam/Nữ)</option>${state.meta.voices.map(v => `<option value="${v.id}" ${s.voice_default === v.id ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select></label>
+          <label class="field"><span>Giọng mặc định</span><select data-k="voice_default"><option value="auto" ${s.voice_default === 'auto' ? 'selected' : ''}>Tự theo người nói (Nam/Nữ)</option>${voiceList().map(v => `<option value="${v.id}" ${s.voice_default === v.id ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select></label>
           <div class="kv"><span>Tiếng gốc lúc có giọng Việt</span><b class="mono">${Math.round(s.orig_volume * 100)}%</b></div>
           <input type="range" data-k="orig_volume" min="0" max="1" step="0.01" value="${s.orig_volume}">
           <div class="kv" style="margin-top:10px"><span>Tự tăng tốc tối đa</span><b class="mono">${(+s.max_speed).toFixed(2)}x</b></div>
@@ -67,13 +73,18 @@ function render() {
           ${trow('separate_music', 'Tách nhạc nền', 'Giữ nhạc, bỏ giọng gốc (cài audio-separator)')}
           ${trow('ducking', 'Tiếng gốc to lại lúc không có lời', 'Thanh phía trên là âm lượng lúc đang có giọng Việt')}
           ${trow('loudnorm', 'Chuẩn âm lượng mạng xã hội (-14 LUFS)')}
-          ${trow('auto_shorten', 'AI tự rút gọn câu đọc không kịp', 'Cần AI dịch (không áp dụng với Google dịch)')}
+          ${trow('auto_shorten', 'Tự rút gọn câu đọc không kịp', 'Gemini/Ollama: AI viết lại câu. Google dịch/offline: bỏ từ đệm theo luật (miễn phí)')}
           <div class="sep"></div>
+          <h3>Giọng offline (miễn phí, không cần mạng)</h3>
+          ${trow('tts_offline_fallback', 'Tự đọc bằng giọng offline khi Edge lỗi / mất mạng')}
+          <div class="row" style="margin-bottom:8px"><span class="grow small muted" id="piper-status">Đang kiểm tra…</span>
+            <button class="btn sm" id="dl-voice">${icon('download', 14)} Tải giọng offline (~60 MB)</button></div>
+          ${free ? '' : `<div class="sep"></div>
           <h3>Giọng trả phí (tuỳ chọn)</h3>
           ${keyRow('fpt', 'FPT.AI — 9 giọng Việt ba miền')}
           ${keyRow('eleven', 'ElevenLabs — giọng clone của bạn')}
           <label class="field"><span>Giọng ElevenLabs (mỗi dòng: Tên = voice_id)</span><textarea data-k="eleven_voices" rows="2" placeholder="Giọng tôi = 21m00Tcm4TlvDq8ikWAM">${esc(s.eleven_voices)}</textarea></label>
-          <p class="small dim">Giọng OpenAI dùng chung key OpenAI ở phần AI dịch. Sau khi thêm giọng, tải lại trang để thấy trong danh sách.</p>
+          <p class="small dim">Giọng OpenAI dùng chung key OpenAI ở phần AI dịch. Sau khi thêm giọng, tải lại trang để thấy trong danh sách.</p>`}
           <div class="sep"></div>
           ${trow('diarize', 'Phân biệt người nói (pyannote)', 'Mỗi người một nhãn A, B… để gán giọng riêng. Cần pip install pyannote.audio')}
           ${keyRow('huggingface', 'Token Hugging Face cho pyannote', 'https://huggingface.co/pyannote/speaker-diarization-3.1')}
@@ -125,7 +136,13 @@ function bind() {
     if (e.target.type === 'range') { const b = e.target.previousElementSibling?.querySelector('b'); if (b) b.textContent = k === 'orig_volume' ? Math.round(s[k] * 100) + '%' : s[k].toFixed(2) + 'x'; }
     $('#state', root).innerHTML = '<span style="color:var(--yellow)">● Chưa lưu</span>';
   };
-  root.onchange = e => {
+  root.onchange = async e => {
+    if (e.target.id === 'free-only') {
+      s.free_only = e.target.checked;
+      await saveAll(true); render(); loadSystem();
+      toast(s.free_only ? 'Đã bật chế độ miễn phí 100%' : 'Đã hiện cả dịch vụ trả phí', 'ok');
+      return;
+    }
     if (e.target.id === 'timing') { s.hardsub_timing = e.target.checked ? 'auto' : 'always'; $('#state', root).innerHTML = '<span style="color:var(--yellow)">● Chưa lưu</span>'; return; }
     root.oninput(e);
   };
@@ -139,6 +156,11 @@ function bind() {
       toast(v ? 'Đã lưu key' : 'Đã xoá key', 'ok'); render(); loadSystem(); return;
     }
     switch (b.id) {
+      case 'dl-voice': {
+        b.disabled = true; b.innerHTML = '<span class="spinner"></span> Đang tải…';
+        try { await api('/api/voices/download', { method: 'POST', body: {} }); toast('Đã tải giọng offline', 'ok'); } catch (err) { toast(err.message, 'error'); }
+        loadVoices(); break;
+      }
       case 'save-key': {
         const v = $('#key', root).value.trim(); if (!v) return toast('Dán key trước đã', 'error');
         keys = (await api('/api/keys', { method: 'POST', body: { provider: s.translator, key: v } })).keys;
@@ -170,7 +192,19 @@ async function saveAll(quiet) {
   if (!quiet) toast('Đã lưu cài đặt', 'ok');
 }
 
+async function loadVoices() {
+  const el = $('#piper-status', root); if (!el) return;
+  try {
+    const r = await api('/api/voices/status');
+    const btn = $('#dl-voice', root);
+    if (!r.piper) { el.textContent = 'Chưa cài: pip install piper-tts'; if (btn) btn.hidden = true; return; }
+    el.textContent = r.downloaded.length ? `Đã có giọng: ${r.downloaded.join(', ')}` : 'Chưa tải giọng nào (app sẽ tự tải khi cần lần đầu)';
+    if (btn) { btn.hidden = r.downloaded.length > 0; btn.disabled = false; }
+  } catch { el.textContent = ''; }
+}
+
 async function loadSystem() {
+  loadVoices();
   const box = $('#sys', root); if (!box) return;
   box.innerHTML = '<span class="spinner"></span>';
   const items = await api('/api/system');

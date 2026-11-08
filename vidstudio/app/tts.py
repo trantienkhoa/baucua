@@ -111,7 +111,71 @@ def _openai(text: str, vid: str, rate: int, out: Path, key: str) -> None:
     out.write_bytes(r.content)
 
 
-async def _speak(text: str, voice: str, rate: int, out: Path) -> None:
+# ---------------------------------------------------------------- Piper: giọng offline, miễn phí
+
+PIPER_URL = "https://huggingface.co/rhasspy/piper-voices/resolve/main/vi/vi_VN/{name}/{quality}/vi_VN-{name}-{quality}{ext}?download=true"
+_piper_voices: dict = {}
+
+
+def piper_available() -> bool:
+    try:
+        import piper  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def piper_model(model: str) -> Path:
+    return config.VOICES_DIR / f"{model}.onnx"
+
+
+def piper_download(model: str, progress: Optional[Callable[[float], None]] = None) -> Path:
+    """Tải giọng Piper (~60 MB, một lần) từ kho rhasspy/piper-voices."""
+    dst = piper_model(model)
+    if dst.exists() and dst.with_suffix(".onnx.json").exists():
+        return dst
+    config.VOICES_DIR.mkdir(parents=True, exist_ok=True)
+    _, name, quality = model.split("-", 2)
+    for ext in (".onnx.json", ".onnx"):
+        url = PIPER_URL.format(name=name, quality=quality, ext=ext)
+        target = config.VOICES_DIR / f"{model}{ext}"
+        tmp = target.with_suffix(target.suffix + ".part")
+        try:
+            with httpx.stream("GET", url, follow_redirects=True, timeout=120) as r:
+                if r.status_code != 200:
+                    raise TtsError(f"Không tải được giọng offline {model} (HTTP {r.status_code})")
+                total = int(r.headers.get("content-length") or 0)
+                got = 0
+                with tmp.open("wb") as f:
+                    for chunk in r.iter_bytes(1 << 16):
+                        f.write(chunk)
+                        got += len(chunk)
+                        if progress and total and ext == ".onnx":
+                            progress(got / total)
+        except httpx.HTTPError as e:
+            raise TtsError(f"Không tải được giọng offline (cần mạng tới huggingface.co lần đầu): {e}")
+        tmp.replace(target)
+    return dst
+
+
+def _piper(text: str, model: str, rate: int, out: Path) -> None:
+    import wave
+    from piper import PiperVoice, SynthesisConfig
+    path = piper_download(model)
+    if model not in _piper_voices:
+        _piper_voices[model] = PiperVoice.load(str(path))
+    wav = out.with_suffix(".wav")
+    with wave.open(str(wav), "wb") as wf:
+        _piper_voices[model].synthesize_wav(text, wf, syn_config=SynthesisConfig(length_scale=1 / max(0.5, 1 + rate / 100)))
+    media.run_ffmpeg(["-i", str(wav), "-c:a", "libmp3lame", "-q:a", "3", str(out)])
+    wav.unlink(missing_ok=True)
+
+
+async def _speak(text: str, voice: str, rate: int, out: Path) -> bool:
+    """Tạo giọng. Trả về True nếu đã phải đọc bằng giọng offline thay thế (không lưu cache chung)."""
+    settings = config.load_settings()
+    if settings.get("free_only", True) and not config.is_free_voice(voice):
+        voice = config.free_voice_for(voice)  # chốt chặn cuối: không gọi dịch vụ trả phí
     prov, vid = split_voice(voice)
     text = plain(text)
     keys = config.load_keys()
@@ -121,6 +185,11 @@ async def _speak(text: str, voice: str, rate: int, out: Path) -> None:
             words: list = []
             if prov == "edge":
                 words = await _edge(text, vid, rate, out)
+            elif prov == "piper":
+                if not piper_available():
+                    raise TtsError("Chưa cài giọng offline: pip install piper-tts")
+                async with _piper_lock():
+                    await asyncio.to_thread(_piper, text, vid, rate, out)
             elif prov == "fpt":
                 if not keys.get("fpt"):
                     raise TtsError("Chưa có API key FPT.AI — dán trong Cài đặt › Giọng đọc")
@@ -139,14 +208,33 @@ async def _speak(text: str, voice: str, rate: int, out: Path) -> None:
             if out.exists() and out.stat().st_size > 0:
                 if words:
                     words_file(out).write_text(json.dumps(words, ensure_ascii=False))
-                return
+                return False
         except TtsError:
             raise
         except Exception as e:  # noqa: BLE001
             last = e
             await asyncio.sleep(1.0 + attempt)
+    if prov == "edge" and settings.get("tts_offline_fallback", True) and piper_available():
+        # Edge lỗi / mất mạng → đọc bằng giọng offline miễn phí
+        try:
+            async with _piper_lock():
+                await asyncio.to_thread(_piper, text, config.PIPER_DEFAULT, rate, out)
+            return True
+        except Exception as e:  # noqa: BLE001
+            last = f"{last}; giọng offline cũng lỗi: {e}"
     hint = " — kiểm tra mạng (cần truy cập speech.platform.bing.com)" if prov == "edge" else ""
     raise TtsError(f"Không tạo được giọng đọc ({voice}){hint}: {last}")
+
+
+_plock_obj: asyncio.Lock | None = None
+
+
+def _piper_lock() -> asyncio.Lock:
+    """Piper chạy trên CPU: đọc lần lượt từng câu cho đỡ nặng máy."""
+    global _plock_obj
+    if _plock_obj is None:
+        _plock_obj = asyncio.Lock()
+    return _plock_obj
 
 
 def _link(src: Path, dst: Path) -> None:
@@ -178,26 +266,31 @@ def _to_cache(out: Path) -> None:
 
 
 def synthesize(jobs: list[tuple[str, str, int, Path]], progress: Optional[Callable[[float], None]] = None,
-               concurrency: int = 6) -> None:
+               concurrency: int = 6) -> int:
     """jobs: (text, voice, rate%, out_path). Bỏ qua file đã có hoặc có trong cache chung."""
     todo = [j for j in jobs if plain(j[0]) and not j[3].exists() and not _from_cache(j[3])]
     if not todo:
         if progress:
             progress(1.0)
-        return
+        return 0
     if any(split_voice(j[1])[0] == "edge" for j in todo) and not available():
         raise TtsError("Chưa cài edge-tts (pip install edge-tts)")
     done = 0
+    fallbacks = 0
 
     async def runner():
-        nonlocal done
+        nonlocal done, fallbacks
+        global _plock_obj
+        _plock_obj = None  # khoá gắn với vòng lặp sự kiện mới
         sem = asyncio.Semaphore(concurrency)
 
         async def one(job):
-            nonlocal done
+            nonlocal done, fallbacks
             async with sem:
-                await _speak(*job)
-                _to_cache(job[3])
+                if await _speak(*job):
+                    fallbacks += 1  # giọng thay thế: không lưu cache chung
+                else:
+                    _to_cache(job[3])
                 done += 1
                 if progress:
                     progress(done / len(todo))
@@ -205,6 +298,7 @@ def synthesize(jobs: list[tuple[str, str, int, Path]], progress: Optional[Callab
         await asyncio.gather(*(one(j) for j in todo))
 
     asyncio.run(runner())
+    return fallbacks
 
 
 def _lead(pcm: np.ndarray) -> int:

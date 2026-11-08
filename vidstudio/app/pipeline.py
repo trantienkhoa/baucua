@@ -380,6 +380,14 @@ def do_translate(job: Job, proj: dict, only_ids: set | None = None) -> dict:
 
 
 def voice_for(seg: dict, s: dict) -> str:
+    v = _pick_voice(seg, s)
+    free_only = config.load_settings().get("free_only", True) if "free_only" not in s else s["free_only"]
+    if free_only and not config.is_free_voice(v):  # chế độ miễn phí: đổi sang giọng Edge cùng giới tính
+        return config.free_voice_for(v, seg.get("speaker", ""))
+    return v
+
+
+def _pick_voice(seg: dict, s: dict) -> str:
     if seg.get("voice"):
         return seg["voice"]
     spk = (s.get("speaker_voices") or {}).get(seg.get("speaker_id") or "")
@@ -407,8 +415,8 @@ def _assign_keys(proj: dict, s: dict) -> list[tuple]:
 
 def _auto_shorten(job: Job, proj: dict, s: dict) -> int:
     """Câu đọc không kịp → nhờ AI dịch ngắn lại rồi tạo giọng lại. Trả về số câu đã rút gọn."""
-    if not s.get("auto_shorten", True) or s.get("translator") in ("google", "offline"):
-        return 0
+    if not s.get("auto_shorten", True):
+        return 0  # Google dịch / offline: rút gọn theo luật (miễn phí); AI: nhờ AI viết lại
     d = store.pdir(proj["id"])
     max_speed = float(s.get("max_speed", 1.4))
     total = 0
@@ -460,7 +468,9 @@ def make_voice(job: Job, proj: dict) -> dict:
     if not s.get("dub"):
         (d / "dub.wav").unlink(missing_ok=True)
         return proj
-    tts.synthesize(_assign_keys(proj, s), progress=_prog(pid, "voice", "Đang lồng tiếng"))
+    fb = tts.synthesize(_assign_keys(proj, s), progress=_prog(pid, "voice", "Đang lồng tiếng"))
+    if fb:
+        _event(pid, "warn", f"Không kết nối được Edge TTS — {fb} câu đã đọc bằng giọng offline miễn phí")
     n = _auto_shorten(job, proj, s)
     if n:
         proj = store.load(pid)

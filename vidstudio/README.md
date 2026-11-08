@@ -3,6 +3,21 @@
 App chạy trên máy tính để biến video nước ngoài (Bilibili, Douyin, YouTube, TikTok…) thành video tiếng Việt:
 **tải về → chép lời → dịch bằng AI → lồng tiếng Việt → xoá sub gốc → chèn phụ đề → xuất video**, kèm một Studio để sửa từng câu.
 
+## Miễn phí 100%
+
+**Chế độ miễn phí 100%** được bật sẵn (Cài đặt › Kết nối AI dịch). Khi bật, app chỉ hiện và chỉ gọi những thứ không tốn tiền; kể cả khi cấu hình cũ có chọn dịch vụ trả phí, app tự chuyển sang lựa chọn miễn phí:
+
+| Việc | Miễn phí dùng gì |
+|---|---|
+| Tải video | yt-dlp |
+| Chép lời | Whisper chạy trên máy |
+| Dịch | Google dịch (mặc định), Gemini gói miễn phí, Ollama (AI chạy trên máy), Argos (offline) |
+| Lồng tiếng | Edge TTS (mặc định); tự chuyển sang **Piper** chạy offline khi Edge lỗi hoặc mất mạng |
+| Rút gọn câu đọc không kịp | Gemini/Ollama viết lại; với Google dịch thì bỏ từ đệm theo luật |
+| Xoá sub, nhận diện người nói, dựng video | OCR, OpenCV/LaMa, pyannote, FFmpeg — đều chạy trên máy |
+
+Lưu ý: Google dịch và Edge TTS là dịch vụ web miễn phí không chính thức, có thể bị giới hạn khi dùng nhiều. Khi đó dùng Argos + Piper để chạy hoàn toàn offline. Gemini gói miễn phí giới hạn số lượt mỗi ngày. Pyannote cần token Hugging Face (miễn phí). Tắt chế độ này mới thấy Claude, OpenAI, DeepSeek, FPT.AI, ElevenLabs (trả phí theo tài khoản của bạn).
+
 ## Cài đặt
 
 Cần **Python 3.10+** và **FFmpeg** (có libass, các bản build phổ biến đều có).
