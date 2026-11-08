@@ -125,13 +125,38 @@ cz = np.array([[z, sd, c] for z, sd, c in cuts])
 def cutAt(z, sd):
     sel = cz[cz[:, 1] == sd]; return np.interp(z, sel[:, 0], sel[:, 2])
 side = np.where(co[:, 0] >= 0, 1, -1)
-cutv = np.array([cutAt(z, sd) for z, sd in zip(co[:, 2], side)])
-isArm = (co[:, 2] < armTop) & (co[:, 2] > armBot) & (np.abs(co[:, 0]) > cutv)
+# đường tâm cánh tay ở từng độ cao: mép ngoài cùng − bán kính tay; tâm trước/sau = trung vị của dải ngoài cùng
+rA = 0.028 * H
+isArm = np.zeros(N, bool); CL = {}
+for sd in (1, -1):
+    pts = []
+    for z in np.linspace(armBot, shZ, 36):
+        s_ = co[(np.abs(co[:, 2] - z) < 0.01 * H) & (side == sd)]
+        if len(s_) < 15: continue
+        outer = np.percentile(s_[:, 0] * sd, 99.5)
+        cand = s_[s_[:, 0] * sd > outer - 2 * rA]
+        pts.append((z, outer - rA, np.median(cand[:, 1])))
+    P = np.array(pts)
+    fx = np.polyfit(P[:, 0], P[:, 1], 2); fy = np.polyfit(P[:, 0], P[:, 2], 2)   # làm mượt đường tâm
+    CL[sd] = (fx, fy)
+    m = (side == sd) & (co[:, 2] > armBot) & (co[:, 2] < armTop)
+    cxz = np.polyval(fx, np.minimum(co[m, 2], shZ)); cyz = np.polyval(fy, np.minimum(co[m, 2], shZ))
+    d = np.hypot(co[m, 0] * sd - cxz, co[m, 1] - cyz)
+    isArm[np.nonzero(m)[0][d < 1.45 * rA]] = True
 isArm &= ~((co[:, 2] > shZ - 0.06 * H) & (np.abs(co[:, 0]) < shX * 0.9))   # vùng vai trên: tránh tóc dài, cổ
-# tay phải nằm trong khoảng cách hợp lý tới xương tay (loại váy loe rộng)
+# đặt lại xương tay theo đường tâm đo được (khớp xoay đúng giữa ống tay)
+bpy.context.view_layer.objects.active = rig; bpy.ops.object.mode_set(mode='EDIT')
 for sd, S in ((1, 'Left'), (-1, 'Right')):
-    dmin = np.min([segdist(co, *SEG[S + n]) for n in ('Arm', 'ForeArm', 'Hand')], axis=0)
-    isArm &= ~((side == sd) & (dmin > 0.05 * H))
+    fx, fy = CL[sd]
+    at = lambda z: Vector((sd * float(np.polyval(fx, z)), float(np.polyval(fy, z)), float(z)))
+    zEl = shZ - (shZ - 0.40 * H) * 0.5; zWr = 0.475 * H; zTip = 0.40 * H
+    E['mixamorig:' + S + 'Shoulder'].tail = at(shZ)
+    E['mixamorig:' + S + 'Arm'].head = at(shZ); E['mixamorig:' + S + 'Arm'].tail = at(zEl)
+    E['mixamorig:' + S + 'ForeArm'].head = at(zEl); E['mixamorig:' + S + 'ForeArm'].tail = at(zWr)
+    E['mixamorig:' + S + 'Hand'].head = at(zWr); E['mixamorig:' + S + 'Hand'].tail = at(zTip)
+for b in E: b.roll = 0
+SEG = {b.name.split(':')[1]: (np.array(b.head[:]), np.array(b.tail[:])) for b in E}
+bpy.ops.object.mode_set(mode='OBJECT')
 # làm sạch ranh giới: lọc đa số theo đỉnh kề (bỏ đốm lẻ, mép đỡ răng cưa)
 ed = np.array([e.vertices[:] for e in me.edges], np.int64)
 nb = [[] for _ in range(N)]
@@ -181,6 +206,29 @@ idx = np.argsort(-W, 1)[:, 3:]; np.put_along_axis(W, idx, 0, 1)
 W /= np.maximum(W.sum(1, keepdims=True), 1e-12)
 lone = W.sum(1) < 0.5
 W[lone, np.argmin(D[lone], 1)] = 1
+# váy / đầm / áo dài: vải phủ kín giữa hai chân (lát cắt dưới háng không có khe giữa)
+# → bám chủ yếu vào hông, chuyển mềm sang đùi cùng bên theo độ sâu; không bị xé đôi khi hai chân bước ra
+skirtZ = []
+for z in np.linspace(crotch, 0.12 * H, 40):
+    s_ = co[(np.abs(co[:, 2] - z) < 0.008 * H) & ~isArm]
+    if len(s_) < 15: continue
+    mid = s_[np.abs(s_[:, 0]) < 0.012 * H]; lg = s_[np.abs(np.abs(s_[:, 0]) - legX) < 0.015 * H]
+    # váy: lát cắt là một khối liền (giữa dày gần bằng chỗ chân); hai chân khép: thắt lại ở giữa như số 8
+    if len(mid) > 4 and len(lg) > 4 and np.ptp(mid[:, 1]) > 0.75 * np.ptp(lg[:, 1]) and np.ptp(s_[:, 0]) > 2.2 * legX: skirtZ.append(z)
+    elif skirtZ: break   # váy liền từ háng xuống, gặp lát không phải váy thì dừng
+if skirtZ and max(skirtZ) > crotch - 0.05 * H:   # phải bắt đầu ngay dưới háng
+    hem = min(skirtZ)
+    iHip = names.index('Hips')
+    for sd, S in ((1, 'Left'), (-1, 'Right')):
+        iUp, iLeg = names.index(S + 'UpLeg'), names.index(S + 'Leg')
+        legR = segdist(co, *SEG[S + 'UpLeg'])
+        # vải: dưới háng, trên gấu váy, nằm ngoài ống chân (xa xương đùi hơn bán kính đùi)
+        cloth = (side == sd) & ~isArm & (co[:, 2] < crotch + 0.04 * H) & (co[:, 2] >= hem - 0.01 * H) & (legR > 0.055 * H)
+        depth = np.clip((crotch + 0.04 * H - co[cloth, 2]) / max(1e-6, crotch + 0.04 * H - hem), 0, 1)
+        Wc = np.zeros((cloth.sum(), len(names)))
+        Wc[:, iHip] = 1 - 0.55 * depth; Wc[:, iUp] = 0.55 * depth * 0.8; Wc[:, iLeg] = 0.55 * depth * 0.2
+        W[cloth] = Wc
+    print('VAY gau', round(hem / H, 3), 'dinh vai', int(((co[:, 2] < crotch) & (co[:, 2] >= hem)).sum()))
 ob.vertex_groups.clear()
 for k, n in enumerate(names):
     vg = ob.vertex_groups.new(name='mixamorig:' + n)
@@ -217,7 +265,10 @@ s_ = co[np.abs(co[:, 2] - eyeZ) < 0.01 * H]
 front = float(-np.percentile(s_[:, 1], 1)) if len(s_) else 0.1
 rr = float(np.percentile(np.abs(s_[:, 0]), 97)) if len(s_) else 0.08
 ear = co[np.abs(co[:, 2] - (eyeZ - 0.02 * H)) < 0.012 * H]
-rig['vtn_head'] = {k_: float(v_) for k_, v_ in {'eye': eyeZ - hj, 'front': front, 'r': rr, 'crown': top - hj, 'earY': eyeZ - hj - 0.012 * H, 'earX': float(np.percentile(np.abs(ear[:, 0]), 97)) if len(ear) else rr}.items()}
+hb = co[np.abs(co[:, 2] - (top - 0.045 * H)) < 0.012 * H]   # vành mũ: đo cả tóc
+cx_, cy_ = (np.median(hb[:, 0]), np.median(hb[:, 1])) if len(hb) else (0, 0)
+hatR = float(np.percentile(np.hypot(hb[:, 0] - cx_, hb[:, 1] - cy_), 96)) if len(hb) else rr * 1.15
+rig['vtn_head'] = {k_: float(v_) for k_, v_ in {'eye': eyeZ - hj, 'front': front, 'r': rr, 'crown': top - hj, 'hatR': hatR, 'hatX': cx_, 'hatZ': -cy_, 'earY': eyeZ - hj - 0.012 * H, 'earX': float(np.percentile(np.abs(ear[:, 0]), 97)) if len(ear) else rr}.items()}
 print('DAU', {k: round(v, 3) for k, v in rig['vtn_head'].items()})
 rig['vtn_fused'] = 1   # đánh dấu: tay dính thân → game giảm biên độ giơ tay
 bpy.ops.export_scene.gltf(filepath=OUT, export_format='GLB', use_selection=True, export_animations=False, export_morph=False, export_extras=True)

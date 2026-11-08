@@ -228,7 +228,7 @@ function updateLedShow(t, dt) {
   const h = d._head, sc = d.body.h * d.sc;
   let yaw = d.av ? d.av.holder.rotation.y : 0;
   let tx = h.x, ty = h.y - 0.45 * sc, tz = h.z;
-  let dist = 2.3 * sc;
+  let dist = (d.avT && d.avT.fused ? 3.4 : 2.3) * sc;   // màn LED: nhân vật màu tô trên lưới lùi ra cho đỡ mờ mặt
   if (ledShow.vip && d.vipTable && d.mode === 'vip') {   // khung hình bàn VIP: khách + bàn đầy đồ
     // nhắm vào bàn (hơi lệch về phía khách), máy quay cao nhìn xuống: bàn nằm nửa trên màn (nửa dưới bị bàn DJ che)
     const v = d.vipTable; tx = v.x + (h.x - v.x) * 0.3; ty = 0.3; tz = v.z + (h.z - v.z) * 0.3; dist = 2.2; yaw = vipSeat(d.vipSeat || 0).yaw;
@@ -1205,6 +1205,7 @@ function updateCam(dt, t) {
     let dist = 9.5 / z * Math.max(1, d.sc * 0.9);
     if (zoom.id === 'balloons' || zoom.id === 'confetti' || zoom.id === 'party' || zoom.id === 'cheer') dist = Math.max(dist, 10);
     if (d.mode === 'rocket') dist = Math.max(dist, 9);
+    if (d.avT && d.avT.fused) { dist = Math.max(dist, 5.2); _tl.y -= 0.15 * d.body.h * d.sc; }   // nhân vật màu tô trên lưới: mặt nhìn sát bị mờ → khung nửa người
     const elev = d === currentDJ() ? 1.0 : 0.45 + (1 - clamp(d.z, 0, 1)) * 0.75;
     _tp.copy(_tl).add(_v2.set(0, elev, 1).normalize().multiplyScalar(dist));
     _tp.x += Math.sin(t * 0.4) * 0.6;
@@ -1659,7 +1660,7 @@ function frame() {
     const base = basePos(d, t, dj);
     let pose = poseFor(d, bi, t, dj);
     if (d.avT && d.avT.fused) {   // tay dính liền thân trên lưới: giơ tay vừa phải để không lộ chỗ cắt / căng lưới
-      const k = 0.55; pose = Object.assign({}, pose);
+      const k = Number(S.fusedArm ?? 80) / 100; pose = Object.assign({}, pose);
       pose.lu = -0.18 + (pose.lu + 0.18) * k; pose.ru = 0.18 + (pose.ru - 0.18) * k;
       if (pose.lsx !== undefined) pose.lsx *= k; if (pose.rsx !== undefined) pose.rsx *= k;
     }

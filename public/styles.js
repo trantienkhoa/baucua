@@ -19,7 +19,7 @@ const mesh = (g, m, x = 0, y = 0, z = 0) => { const o = new THREE.Mesh(g, m); o.
 
 // ---------- đầu ----------
 // số đo đầu thật của mô hình (khớp đầu nằm ngang hàm): mắt ~10 cm, đỉnh đầu ~23 cm phía trên khớp đầu
-const H0 = { r: 0.1, hatR: 0.122, eye: 0.098, front: 0.122, crown: 0.285, earY: 0.072, earX: 0.085 };
+const H0 = { hx: 0, hz: 0, r: 0.1, hatR: 0.122, eye: 0.098, front: 0.122, crown: 0.285, earY: 0.072, earX: 0.085 };
 const H = Object.assign({}, H0);   // mũ to hơn đầu: trùm được cả tóc phồng
 function glasses(L, kind) {
   const g = new THREE.Group(), y = H.eye, z = H.front, dx = 0.033, R = H.r;
@@ -45,7 +45,8 @@ function glasses(L, kind) {
   g.add(mesh(new THREE.BoxGeometry(0.018, 0.004, 0.004), frame, 0, y + 0.006, z + 0.009));   // cầu mũi
   return g;
 }
-function cap(L, c, back) {
+function cap(...a) { const g = _cap(...a); g.position.x += H.hx; g.position.z += H.hz; return g; }
+function _cap(L, c, back) {
   const g = new THREE.Group(), R = H.hatR, y0 = H.crown - R * 0.8;
   g.add(mesh(new THREE.SphereGeometry(R, 24, 12, 0, TAU, 0, PI * 0.5).scale(1, 0.82, 1.05), col(c), 0, y0, -0.005));
   g.add(mesh(new THREE.TorusGeometry(R, 0.006, 6, 28).rotateX(PI / 2), col(c), 0, y0, -0.005));
@@ -55,19 +56,26 @@ function cap(L, c, back) {
   if (back) g.add(mesh(new THREE.TorusGeometry(R * 0.3, 0.005, 6, 16, PI).rotateZ(PI), col(0xffffff), 0, y0 + 0.03, R * 0.97));
   return g;
 }
-function bucket(L, c) { const g = new THREE.Group(), R = H.hatR; g.add(mesh(new THREE.CylinderGeometry(R * 0.85, R * 1.02, 0.09, 22), col(c), 0, H.crown - 0.04, -0.005)); g.add(mesh(new THREE.CylinderGeometry(R * 1.02, R * 1.55, 0.035, 26, 1, true), col(c), 0, H.crown - 0.1, -0.005)); return g; }
-function beanie(L, c) { const g = new THREE.Group(), R = H.hatR, y0 = H.crown - R * 0.95; g.add(mesh(new THREE.SphereGeometry(R, 22, 12, 0, TAU, 0, PI * 0.55).scale(1, 1.08, 1.05), col(c), 0, y0, -0.005)); g.add(mesh(new THREE.CylinderGeometry(R * 1.02, R * 1.04, 0.035, 22, 1, true), col(c), 0, y0 + 0.005, -0.005)); return g; }
-function beret(L, c) { const g = new THREE.Group(), R = H.hatR * 1.15; const b = mesh(new THREE.SphereGeometry(R, 22, 10).scale(1, 0.3, 1), col(c), -0.015, H.crown - 0.025, -0.01); b.rotation.z = 0.22; g.add(b); return g; }
-function cowboy(L, c) {
+function bucket(...a) { const g = _bucket(...a); g.position.x += H.hx; g.position.z += H.hz; return g; }
+function _bucket(L, c) { const g = new THREE.Group(), R = H.hatR; g.add(mesh(new THREE.CylinderGeometry(R * 0.85, R * 1.02, 0.09, 22), col(c), 0, H.crown - 0.04, -0.005)); g.add(mesh(new THREE.CylinderGeometry(R * 1.02, R * 1.55, 0.035, 26, 1, true), col(c), 0, H.crown - 0.1, -0.005)); return g; }
+function beanie(...a) { const g = _beanie(...a); g.position.x += H.hx; g.position.z += H.hz; return g; }
+function _beanie(L, c) { const g = new THREE.Group(), R = H.hatR, y0 = H.crown - R * 0.95; g.add(mesh(new THREE.SphereGeometry(R, 22, 12, 0, TAU, 0, PI * 0.55).scale(1, 1.08, 1.05), col(c), 0, y0, -0.005)); g.add(mesh(new THREE.CylinderGeometry(R * 1.02, R * 1.04, 0.035, 22, 1, true), col(c), 0, y0 + 0.005, -0.005)); return g; }
+function beret(...a) { const g = _beret(...a); g.position.x += H.hx; g.position.z += H.hz; return g; }
+function _beret(L, c) { const g = new THREE.Group(), R = H.hatR * 1.15; const b = mesh(new THREE.SphereGeometry(R, 22, 10).scale(1, 0.3, 1), col(c), -0.015, H.crown - 0.025, -0.01); b.rotation.z = 0.22; g.add(b); return g; }
+function cowboy(...a) { const g = _cowboy(...a); g.position.x += H.hx; g.position.z += H.hz; return g; }
+function _cowboy(L, c) {
   const g = new THREE.Group(), R = H.hatR * 0.95, y0 = H.crown - 0.06;
   g.add(mesh(new THREE.CylinderGeometry(R * 0.78, R * 0.98, 0.11, 20).scale(1, 1, 1.15), col(c), 0, y0 + 0.045, -0.005));
   g.add(mesh(new THREE.TorusGeometry(R * 1.45, R * 0.45, 4, 28).rotateX(PI / 2).scale(1, 0.1, 1.1), col(c), 0, y0 - 0.01, -0.005));
   g.add(mesh(new THREE.TorusGeometry(R * 0.98, 0.006, 6, 24).rotateX(PI / 2), gold(), 0, y0 + 0.002, -0.005));
   return g;
 }
-function headband(L, c) { const R = H.hatR * 0.95; return mesh(new THREE.CylinderGeometry(R, R, 0.028, 26, 1, true), col(c), 0, H.crown - 0.07, -0.004); }
-function bandana(L, c) { const g = new THREE.Group(), R = H.hatR, y0 = H.crown - R * 0.82; g.add(mesh(new THREE.SphereGeometry(R, 22, 10, 0, TAU, 0, PI * 0.5).scale(1, 0.82, 1.05), col(c), 0, y0, -0.005)); g.add(mesh(new THREE.ConeGeometry(0.02, 0.07, 4).rotateX(PI / 2 + 0.6), col(c), 0, y0 - 0.01, -R * 1.02)); return g; }
-function headphones(L, c) {
+function headband(...a) { const g = _headband(...a); g.position.x += H.hx; g.position.z += H.hz; return g; }
+function _headband(L, c) { const R = H.hatR * 0.95; return mesh(new THREE.CylinderGeometry(R, R, 0.028, 26, 1, true), col(c), 0, H.crown - 0.07, -0.004); }
+function bandana(...a) { const g = _bandana(...a); g.position.x += H.hx; g.position.z += H.hz; return g; }
+function _bandana(L, c) { const g = new THREE.Group(), R = H.hatR, y0 = H.crown - R * 0.82; g.add(mesh(new THREE.SphereGeometry(R, 22, 10, 0, TAU, 0, PI * 0.5).scale(1, 0.82, 1.05), col(c), 0, y0, -0.005)); g.add(mesh(new THREE.ConeGeometry(0.02, 0.07, 4).rotateX(PI / 2 + 0.6), col(c), 0, y0 - 0.01, -R * 1.02)); return g; }
+function headphones(...a) { const g = _headphones(...a); g.position.x += H.hx; g.position.z += H.hz; return g; }
+function _headphones(L, c) {
   const g = new THREE.Group(), R = H.hatR * 0.98;
   g.add(mesh(new THREE.TorusGeometry(R, 0.008, 8, 28, PI).rotateY(PI / 2), col(c), 0, H.earY + 0.005, 0));
   for (const sd of [-1, 1]) { g.add(mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.022, 18).rotateZ(PI / 2), col(c), sd * R, H.earY, 0)); g.add(mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.003, 18).rotateZ(PI / 2), glow(0x3dd9ff), sd * (R + 0.012), H.earY, 0)); }
@@ -139,7 +147,7 @@ export function applyStyle(av, id) {
   // số đo đầu: nhân vật gắn xương tự động có số đo riêng; còn lại dùng số đo nhân vật MakeHuman
   Object.assign(H, H0);
   const hm = av.t.headM;
-  if (hm) { const k = av.t.norm || 1; Object.assign(H, { eye: hm.eye * k, front: hm.front * k + 0.006, r: hm.r * k * 1.02, crown: hm.crown * k + 0.012, earY: hm.earY * k, earX: hm.earX * k + 0.004, hatR: Math.max(hm.r * k * 1.18, 0.1) }); }   // đổi sang đơn vị đã chuẩn hoá của game
+  if (hm) { const k = av.t.norm || 1; Object.assign(H, { eye: hm.eye * k, front: hm.front * k + 0.006, r: hm.r * k * 1.02, crown: hm.crown * k + 0.012, earY: hm.earY * k, earX: hm.earX * k + 0.004, hatR: hm.hatR ? hm.hatR * k + 0.006 : Math.max(hm.r * k * 1.18, 0.1), hx: (hm.hatX || 0) * k, hz: (hm.hatZ || 0) * k }); }   // đổi đơn vị chuẩn hoá của game; mũ đo theo đầu + tóc thật của từng người
   if (window._styleH) Object.assign(H, window._styleH);   // chỉ dùng khi thử nghiệm
   const a = (bone, obj) => { const h = attachProp(av, bone, obj); if (h) av.styleObjs.push(h); };
   s.build(a, av.t.headLen);

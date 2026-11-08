@@ -20,6 +20,19 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## Khắc phục hạn chế nhân vật của bạn (bản 2.6.0)
+
+- **Tay giơ cao gần hết cỡ (mặc định 80%, chỉnh 50–100% trong Cài đặt → “🙌 Biên độ giơ tay”):**
+  - Công cụ đo đường tâm cánh tay ở từng độ cao và lấy cả ống tay (kể cả tay áo) làm tay, không còn chỉ nửa ngoài.
+  - Xương tay đặt đúng giữa ống tay.
+  - Chỗ cắt giữa tay và thân được vẽ cả mặt trong, nên không lộ khe sáng.
+  - Kết quả: giơ tay không còn kéo thân áo, không còn “màng” hay dải mỏng.
+- **Váy, đầm, áo dài không bị xé đôi:**
+  - Phần vải phủ kín giữa hai chân (nhận ra nhờ mặt cắt liền khối, khác với hai chân khép sát) bám chủ yếu vào hông, chuyển mềm sang đùi theo độ sâu.
+  - Chân bước ra thì gấu váy loe nhẹ chứ không tách đôi.
+- **Mũ vừa đầu từng người:** đo bề ngang đầu cả tóc và tâm khối tóc của từng nhân vật, nên mũ không quá to với tóc ngắn, không bị tóc phồng nuốt mất, không lệch.
+- **Mặt nhìn gần:** file gốc tô màu trên lưới nên không thể có nét mặt sắc. Khi zoom và khi chiếu lên màn LED, máy quay lùi ra khung nửa người để mặt không bị dí sát.
+
 ## 100 nhân vật mới của bạn, gắn xương tự động (bản 2.5.0)
 
 - `public/models/charXX.glb` giờ là bộ nhân vật bạn gửi (kiểu người thật, màu tô trên lưới). Mỗi nhân vật đã được gắn bộ xương chuẩn Mixamo nên nhảy được mọi điệu, đội được mũ, đeo được kính và dây chuyền.
@@ -28,7 +41,6 @@ Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dù
   - đo cổ, vai, chân, đầu để đặt xương;
   - tách tay khỏi thân rồi tự tính độ bám của lưới vào xương;
   - ghi số đo đầu vào file để kính và mũ đặt đúng chỗ.
-- **Giới hạn:** trên lưới gốc, tay dính liền vào thân. Công cụ phải cắt chỗ dính, và nhóm nhân vật này chỉ giơ tay khoảng 55% biên độ để không lộ chỗ cắt. Áo rộng và váy xoè có thể hơi méo khi nhảy mạnh.
 - **Thiếu 2 nhân vật:** file zip tải lên bị đứt ở cuối, nên `char98` bị hỏng và `char99` không có trong zip. Hai vai này tạm dùng nhân vật cũ (MakeHuman). Gửi lại 2 file này thì chạy cùng công cụ trên.
 
 ## Phong cách trẻ trung: kính, mũ, vàng… (bản 2.4.0)
