@@ -221,7 +221,12 @@ function loadGltfScene(gltf, url) {
 // Mô hình xuất từ Blender/MakeHuman hay để mọi vật liệu ở chế độ trong suốt → phần trong miệng lộ ra.
 // Chỉ tóc, lông mày, mi được cắt alpha; còn lại vẽ đặc.
 function fixOpaque(root) {
+  let fused = false; root.traverse(o => { if (o.userData && o.userData.vtn_fused) fused = true; });
   root.traverse(o => {
+    if (fused && o.isMesh) {   // nhân vật gắn xương tự động: chỗ cắt tay–thân để lộ mặt trong → vẽ hai mặt, khe hở hiện màu áo
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m) { m.side = THREE.DoubleSide; m.needsUpdate = true; }
+      return;
+    }
     if (!o.isMesh) return;
     for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
       if (!m) continue;
@@ -321,6 +326,8 @@ function prepare(scene, url) {
   const name = decodeURIComponent(url.split('/').pop());
   const female = false;
   return {
+    headM: (() => { let h = null; scene.traverse(o => { if (o.userData && o.userData.vtn_head) h = o.userData.vtn_head; }); return h; })(),   // số đo đầu do công cụ gắn xương ghi
+    fused: (() => { let f = false; scene.traverse(o => { if (o.userData && o.userData.vtn_fused) f = true; }); return f; })(),   // tay dính thân (nhân vật gắn xương tự động)
     url, name, charId: (name.match(/^(char\d+|dj)(?![a-z0-9])/i) || [])[1] ? name.match(/^(char\d+|dj)(?![a-z0-9])/i)[1].toLowerCase() : null, scene, female, norm, footY, flip,
     hipH: (hips.y - footY) * norm,
     restLocal, dirLocal, restWorld,

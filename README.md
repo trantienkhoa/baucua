@@ -20,6 +20,17 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 100 nhân vật mới của bạn, gắn xương tự động (bản 2.5.0)
+
+- `public/models/charXX.glb` giờ là bộ nhân vật bạn gửi (kiểu người thật, màu tô trên lưới). Mỗi nhân vật đã được gắn bộ xương chuẩn Mixamo nên nhảy được mọi điệu, đội được mũ, đeo được kính và dây chuyền.
+- **Công cụ gắn xương:** `tools/autorig/autorig.py` (chạy bằng Blender, xem đầu file). Công cụ:
+  - xoay nhân vật về đúng chiều, co chiều cao theo giới tính trong `roster.csv` (nữ 1,62 m, nam 1,72 m);
+  - đo cổ, vai, chân, đầu để đặt xương;
+  - tách tay khỏi thân rồi tự tính độ bám của lưới vào xương;
+  - ghi số đo đầu vào file để kính và mũ đặt đúng chỗ.
+- **Giới hạn:** trên lưới gốc, tay dính liền vào thân. Công cụ phải cắt chỗ dính, và nhóm nhân vật này chỉ giơ tay khoảng 55% biên độ để không lộ chỗ cắt. Áo rộng và váy xoè có thể hơi méo khi nhảy mạnh.
+- **Thiếu 2 nhân vật:** file zip tải lên bị đứt ở cuối, nên `char98` bị hỏng và `char99` không có trong zip. Hai vai này tạm dùng nhân vật cũ (MakeHuman). Gửi lại 2 file này thì chạy cùng công cụ trên.
+
 ## Phong cách trẻ trung: kính, mũ, vàng… (bản 2.4.0)
 
 Khoảng 85% người lên sàn (chỉnh được) được gắn sẵn một phong cách. Phụ kiện 3D gắn vào xương nên đi theo người khi nhảy, áp được cho mọi nhân vật, kể cả 100 nhân vật dựng sẵn:
@@ -258,7 +269,7 @@ Thêm 9 điệu mới, tổng cộng **26 điệu**, tất cả nhảy theo nh�
 
 ## 100 nhân vật 3D dựng sẵn (bản 1.7)
 
-Bản phát hành có sẵn `public/models/char01.glb` … `char100.glb`: 100 người 3D (MakeHuman, giấy phép CC0) dựng theo `roster.csv` — giới tính, tuổi, dáng người, kiểu tóc/màu tóc, quần áo, giày theo mô tả. Mỗi file ~3 MB, **chỉ tải khi có người xem nhận vai đó** nên game vẫn mở nhanh.
+Bản 1.7–2.4 có sẵn `public/models/char01.glb` … `char100.glb`: 100 người 3D (MakeHuman, giấy phép CC0) dựng theo `roster.csv` (từ bản 2.5 thay bằng nhân vật của bạn, xem ở trên) — giới tính, tuổi, dáng người, kiểu tóc/màu tóc, quần áo, giày theo mô tả. Mỗi file ~3 MB, **chỉ tải khi có người xem nhận vai đó** nên game vẫn mở nhanh.
 
 - Tự dựng lại / dựng thêm (cần Blender 4.2+ có add-on MPFB 2 và bộ asset MakeHuman):
   1. `python3 tools/makehuman/roster_to_specs.py roster.csv specs.json`

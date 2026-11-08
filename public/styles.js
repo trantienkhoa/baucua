@@ -19,7 +19,8 @@ const mesh = (g, m, x = 0, y = 0, z = 0) => { const o = new THREE.Mesh(g, m); o.
 
 // ---------- đầu ----------
 // số đo đầu thật của mô hình (khớp đầu nằm ngang hàm): mắt ~10 cm, đỉnh đầu ~23 cm phía trên khớp đầu
-const H = { r: 0.1, hatR: 0.122, eye: 0.098, front: 0.122, crown: 0.285, earY: 0.072, earX: 0.085 };   // mũ to hơn đầu: trùm được cả tóc phồng
+const H0 = { r: 0.1, hatR: 0.122, eye: 0.098, front: 0.122, crown: 0.285, earY: 0.072, earX: 0.085 };
+const H = Object.assign({}, H0);   // mũ to hơn đầu: trùm được cả tóc phồng
 function glasses(L, kind) {
   const g = new THREE.Group(), y = H.eye, z = H.front, dx = 0.033, R = H.r;
   const frame = kind === 'aviator' || kind === 'round' ? gold() : kind === 'heart' ? glow(0xff3d9a) : col(0x0d0d10);
@@ -135,6 +136,10 @@ export function applyStyle(av, id) {
   av.styleObjs = []; av.styleId = null;
   const s = id && STYLES.find(x => x.id === id); if (!s) return;
   av.styleId = id;
+  // số đo đầu: nhân vật gắn xương tự động có số đo riêng; còn lại dùng số đo nhân vật MakeHuman
+  Object.assign(H, H0);
+  const hm = av.t.headM;
+  if (hm) { const k = av.t.norm || 1; Object.assign(H, { eye: hm.eye * k, front: hm.front * k + 0.006, r: hm.r * k * 1.02, crown: hm.crown * k + 0.012, earY: hm.earY * k, earX: hm.earX * k + 0.004, hatR: Math.max(hm.r * k * 1.18, 0.1) }); }   // đổi sang đơn vị đã chuẩn hoá của game
   if (window._styleH) Object.assign(H, window._styleH);   // chỉ dùng khi thử nghiệm
   const a = (bone, obj) => { const h = attachProp(av, bone, obj); if (h) av.styleObjs.push(h); };
   s.build(a, av.t.headLen);

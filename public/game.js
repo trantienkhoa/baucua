@@ -1657,7 +1657,12 @@ function frame() {
   for (const d of visible) {
     if (PARTS[0].mesh.count >= CAP - 1) break;
     const base = basePos(d, t, dj);
-    const pose = poseFor(d, bi, t, dj);
+    let pose = poseFor(d, bi, t, dj);
+    if (d.avT && d.avT.fused) {   // tay dính liền thân trên lưới: giơ tay vừa phải để không lộ chỗ cắt / căng lưới
+      const k = 0.55; pose = Object.assign({}, pose);
+      pose.lu = -0.18 + (pose.lu + 0.18) * k; pose.ru = 0.18 + (pose.ru - 0.18) * k;
+      if (pose.lsx !== undefined) pose.lsx *= k; if (pose.rsx !== undefined) pose.rsx *= k;
+    }
     const airborne = d.mode === 'rocket' || d.mode === 'cloud' || d.dropH > 0;
     const b = base.clone(); if (d.dropH > 0) b.y += d.dropH;
     poseRig(d, pose, b, t, !airborne || d.mode === 'cloud');
