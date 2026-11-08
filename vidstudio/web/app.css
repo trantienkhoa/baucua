@@ -310,3 +310,14 @@ input[type=color] { width: 40px; height: 32px; border: 1px solid var(--line); bo
 .lines.locked .txt, .lines.locked .src { opacity: .7; cursor: not-allowed; }
 .lines.locked::before { content: "Đang xử lý nền — tạm khoá sửa câu"; display: block; position: sticky; top: 0; z-index: 2;
   background: var(--accent-soft); color: var(--accent); font-size: 12px; padding: 6px 10px; border-radius: 8px; margin: 0 4px 6px; backdrop-filter: blur(6px); }
+
+/* tên tác giả */
+.author { display: block; text-align: center; font-size: 10px; line-height: 1.3; color: var(--dim); text-decoration: none; padding: 8px 2px 2px; border-top: 1px solid var(--line); margin-top: 4px; }
+.author b { color: var(--accent); font-size: 11px; font-weight: 600; }
+.author:hover b { color: var(--accent2); }
+.about { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); margin-bottom: 12px; }
+.about .ico { color: var(--accent); }
+.about b { display: block; }
+.about span { font-size: 13px; color: var(--muted); }
+.page-footer { text-align: center; color: var(--dim); font-size: 12px; margin-top: 28px; }
+.page-footer b { color: var(--accent); font-weight: 600; }

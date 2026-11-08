@@ -1,6 +1,6 @@
 // Trang "Tạo mới": dán link hoặc tải file lên, chọn công thức.
 import { api, icon, esc, $, $$, toast, statusPill, fmtAgo, fmtDur, store } from '../ui.js';
-import { state, go } from '../main.js';
+import { state, go, freeOnly } from '../main.js';
 
 let root;
 
@@ -44,7 +44,7 @@ export async function mount(el) {
         </div>
       </div>
       <div class="row" style="margin-top:8px">
-        <span class="small dim">Dịch bằng: <b>${esc(state.meta.providers[s.translator]?.label || s.translator)}</b> · <a href="#/settings">đổi</a></span>
+        <span class="small dim">Dịch bằng: <b>${esc(state.meta.providers[freeOnly() && !state.meta.providers[s.translator]?.free ? 'google' : s.translator]?.label || s.translator)}</b>${freeOnly() ? ' · <span class="pill green">miễn phí</span>' : ''} · <a href="#/settings">đổi</a></span>
         <button class="btn primary lg right" id="go">${icon('sparkle')} Bắt đầu làm video</button>
       </div>
     </div>
@@ -52,6 +52,7 @@ export async function mount(el) {
       <div class="card-head">${icon('clock')}<h2>Gần đây</h2><a class="btn sm ghost right" href="#/library">Xem tất cả</a></div>
       <div id="recent" class="recent-grid"></div>
     </div>
+    <p class="page-footer">VieDub Studio ${esc(state.meta.version)} · Phát triển bởi <b>${esc(state.meta.author)}</b></p>
   </div>`;
 
   const fileInput = $('#file', el);

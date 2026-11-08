@@ -112,6 +112,7 @@ function render() {
         </div>
         <div class="card">
           <div class="card-head">${icon('sliders')}<h2>Khác</h2></div>
+          <div class="about">${icon('sparkle', 16)}<div><b>VieDub Studio ${esc(state.meta.version)}</b><span>Tác giả: <b>${esc(state.meta.author)}</b></span></div></div>
           ${trow('notify', 'Chuông báo khi video xong')}
           <p class="small dim">Dữ liệu: <span class="mono">${esc(state.meta.data_dir)}</span><br>Video đã xuất: <span class="mono">${esc(state.meta.exports_dir)}</span><br>File cấu hình: <span class="mono">${esc(state.meta.config_file)}</span></p>
           <button class="btn sm" id="open-exports">${icon('folder', 14)} Mở thư mục video</button>

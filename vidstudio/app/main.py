@@ -14,10 +14,10 @@ from fastapi import Body, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, config, discover, media, ocr, pipeline, store, system, translate, tts
+from . import __author__, __version__, config, discover, media, ocr, pipeline, store, system, translate, tts
 from .subtitles import PRESETS, parse_srt, plain, quality_check, to_srt
 
-app = FastAPI(title="VieDub Studio", version=__version__)
+app = FastAPI(title="VieDub Studio", version=__version__, description=f"Tác giả: {__author__}")
 
 PLATFORMS = [("bilibili", "Bilibili"), ("douyin", "Douyin"), ("ixigua", "Xigua"), ("kuaishou", "Kuaishou"),
              ("xiaohongshu", "Xiaohongshu"), ("xhslink", "Xiaohongshu"), ("youtube", "YouTube"),
@@ -48,7 +48,7 @@ def _platform(url: str) -> str:
 
 @app.get("/api/meta")
 def meta():
-    return {"version": __version__, "providers": config.PROVIDERS, "voices": config.all_voices(),
+    return {"version": __version__, "author": __author__, "providers": config.PROVIDERS, "voices": config.all_voices(),
             "tts_providers": config.TTS_PROVIDERS,
             "presets": {k: v["label"] for k, v in PRESETS.items()}, "categories": discover.CATEGORIES,
             "stages": pipeline.STAGES, "ratios": ["source", "9:16", "1:1", "16:9", "4:5"],

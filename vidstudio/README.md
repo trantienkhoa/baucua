@@ -1,5 +1,7 @@
 # VieDub Studio
 
+**Tác giả: Tiến Khoa**
+
 App chạy trên máy tính để biến video nước ngoài (Bilibili, Douyin, YouTube, TikTok…) thành video tiếng Việt:
 **tải về → chép lời → dịch bằng AI → lồng tiếng Việt → xoá sub gốc → chèn phụ đề → xuất video**, kèm một Studio để sửa từng câu.
 

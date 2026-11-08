@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="author" content="Tiến Khoa">
   <title>VieDub Studio</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23f5a623'/%3E%3Cpath d='M9 10v12M13 7v18M17 11v10M21 8v16M25 13v6' stroke='%23181208' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/static/app.css">
@@ -10,13 +11,14 @@
 <body>
   <div id="app">
     <nav id="sidebar">
-      <a class="logo" href="#/create" title="VieDub Studio">
+      <a class="logo" href="#/create" title="VieDub Studio — tác giả Tiến Khoa">
         <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M9 10v12M13 7v18M17 11v10M21 8v16M25 13v6" stroke="#181208" stroke-width="2.6" stroke-linecap="round"/></svg>
       </a>
       <div class="nav-items" id="nav"></div>
       <div class="nav-bottom">
         <button class="nav-item" id="btn-queue" title="Hàng đợi xử lý"><span class="ico" data-i="queue"></span><span>Hàng đợi</span><b class="badge" id="queue-badge" hidden>0</b></button>
         <button class="nav-item" id="btn-palette" title="Tìm lệnh (Ctrl+K)"><span class="ico" data-i="search"></span><span>Tìm lệnh</span></button>
+        <a class="author" href="#/settings" title="VieDub Studio được làm bởi Tiến Khoa">by<br><b>Tiến Khoa</b></a>
       </div>
     </nav>
     <main id="view"></main>

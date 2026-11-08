@@ -32,7 +32,8 @@ def main():
     url = f"http://{args.host if args.host != '0.0.0.0' else '127.0.0.1'}:{port}"
     config = uvicorn.Config("app.main:app", host=args.host, port=port, log_level="warning")
     server = uvicorn.Server(config)
-    print(f"\n  VieDub Studio đang chạy tại {url}\n  Nhấn Ctrl+C để tắt.\n")
+    from app import __author__, __version__
+    print(f"\n  VieDub Studio {__version__} — tác giả {__author__}\n  Đang chạy tại {url}\n  Nhấn Ctrl+C để tắt.\n")
 
     if args.window:
         try:
