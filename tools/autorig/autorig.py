@@ -108,7 +108,7 @@ def segdist(P, a, b):
     return np.linalg.norm(P - (a + t[:, None] * ab), axis=1)
 N = len(co)
 # ranh giới tay/thân theo từng lát: khe hở trong phân bố |x|
-armTop, armBot = shZ + 0.03 * H, 0.405 * H
+armTop, armBot = shZ + 0.03 * H, 0.38 * H
 cut = np.full(N, 9.0)
 zb = np.linspace(armBot, armTop, 40)
 cuts = []
@@ -126,7 +126,7 @@ def cutAt(z, sd):
     sel = cz[cz[:, 1] == sd]; return np.interp(z, sel[:, 0], sel[:, 2])
 side = np.where(co[:, 0] >= 0, 1, -1)
 # đường tâm cánh tay ở từng độ cao: mép ngoài cùng − bán kính tay; tâm trước/sau = trung vị của dải ngoài cùng
-rA = 0.028 * H
+rA0 = 0.028 * H
 isArm = np.zeros(N, bool); CL = {}
 for sd in (1, -1):
     pts = []
@@ -134,15 +134,21 @@ for sd in (1, -1):
         s_ = co[(np.abs(co[:, 2] - z) < 0.01 * H) & (side == sd)]
         if len(s_) < 15: continue
         outer = np.percentile(s_[:, 0] * sd, 99.5)
-        cand = s_[s_[:, 0] * sd > outer - 2 * rA]
-        pts.append((z, outer - rA, np.median(cand[:, 1])))
+        # bề dày tay (áo) đo ở dải sát mép ngoài: tay tròn → đường kính ≈ bề dày trước–sau
+        dd = 0.012 * H; band_ = s_[s_[:, 0] * sd > outer - dd]
+        hh = np.ptp(band_[:, 1]) / 2 if len(band_) > 3 else 0
+        r = np.clip((hh * hh + dd * dd) / (2 * dd), rA0, 0.06 * H)   # bán kính từ dây cung ở độ sâu dd (không nhỏ hơn mức chuẩn)
+        cand = s_[s_[:, 0] * sd > outer - 2 * r]
+        pts.append((z, outer - r, np.median(cand[:, 1]), r))
     P = np.array(pts)
-    fx = np.polyfit(P[:, 0], P[:, 1], 2); fy = np.polyfit(P[:, 0], P[:, 2], 2)   # làm mượt đường tâm
+    fx = np.polyfit(P[:, 0], P[:, 1], 2); fy = np.polyfit(P[:, 0], P[:, 2], 2); fr = np.polyfit(P[:, 0], P[:, 3], 2)
     CL[sd] = (fx, fy)
     m = (side == sd) & (co[:, 2] > armBot) & (co[:, 2] < armTop)
-    cxz = np.polyval(fx, np.minimum(co[m, 2], shZ)); cyz = np.polyval(fy, np.minimum(co[m, 2], shZ))
+    zc = np.minimum(co[m, 2], shZ)
+    cxz = np.polyval(fx, zc); cyz = np.polyval(fy, zc); rz = np.clip(np.polyval(fr, zc), rA0, 0.06 * H)
     d = np.hypot(co[m, 0] * sd - cxz, co[m, 1] - cyz)
-    isArm[np.nonzero(m)[0][d < 1.45 * rA]] = True
+    isArm[np.nonzero(m)[0][d < 1.45 * rz]] = True
+    print('TAY', sd, 'ban kinh', [round(float(np.polyval(fr, z)) / H, 3) for z in (shZ, (shZ + armBot) / 2, armBot)])
 isArm &= ~((co[:, 2] > shZ - 0.06 * H) & (np.abs(co[:, 0]) < shX * 0.9))   # vùng vai trên: tránh tóc dài, cổ
 # đặt lại xương tay theo đường tâm đo được (khớp xoay đúng giữa ống tay)
 bpy.context.view_layer.objects.active = rig; bpy.ops.object.mode_set(mode='EDIT')
@@ -157,6 +163,9 @@ for sd, S in ((1, 'Left'), (-1, 'Right')):
 for b in E: b.roll = 0
 SEG = {b.name.split(':')[1]: (np.array(b.head[:]), np.array(b.tail[:])) for b in E}
 bpy.ops.object.mode_set(mode='OBJECT')
+for sd, S in ((1, 'Left'), (-1, 'Right')):   # điểm xa xương tay (quai túi, dây đeo dọc người) không phải tay
+    dmin = np.min([segdist(co, *SEG[S + n]) for n in ('Arm', 'ForeArm', 'Hand')], axis=0)
+    isArm &= ~((side == sd) & (dmin > 0.06 * H))
 # làm sạch ranh giới: lọc đa số theo đỉnh kề (bỏ đốm lẻ, mép đỡ răng cưa)
 ed = np.array([e.vertices[:] for e in me.edges], np.int64)
 nb = [[] for _ in range(N)]
@@ -180,7 +189,8 @@ if os.environ.get('S_MASK'):   # gỡ lỗi: tô đỏ vùng tay rồi xuất l�
 # cắt các mặt nối tay với thân (vừa có đỉnh tay vừa có đỉnh thân) → hết “màng” căng khi giơ tay
 if os.environ.get('S_NOCUT') != '1':
     bm = bmesh.new(); bm.from_mesh(me); bm.verts.ensure_lookup_table()
-    kill = [f for f in bm.faces if 0 < sum(isArm[v.index] for v in f.verts) < len(f.verts)]
+    longE = 0.1 * H   # mặt có cạnh dài bất thường = lỗi lưới (vệt nối hai tay…) → bỏ
+    kill = [f for f in bm.faces if 0 < sum(isArm[v.index] for v in f.verts) < len(f.verts) or max(e.calc_length() for e in f.edges) > longE]
     bmesh.ops.delete(bm, geom=kill, context='FACES_ONLY')
     bm.to_mesh(me); bm.free()
     print('CAT_MAT', len(kill))
@@ -192,7 +202,11 @@ skip = [k for k, n in enumerate(names) if n in ('HeadTop_End',)]
 INF = 1e3
 D[:, skip] = INF
 D[np.ix_(~isArm, armB)] = INF                      # thân không bám xương tay
-D[np.ix_(isArm, [k for k in range(len(names)) if k not in armB])] += 0.03 * H   # tay ưu tiên xương tay
+# điểm thuộc tay CHỈ bám xương tay (bám lẫn xương thân → giơ tay góc lớn bị dẹp thành dải mỏng)
+nearSh = isArm & (co[:, 2] > shZ - 0.05 * H)
+keep = [k for k, n in enumerate(names) if n.endswith('Shoulder') or n == 'Spine2']
+D[np.ix_(isArm & ~nearSh, [k for k in range(len(names)) if k not in armB])] = INF
+D[np.ix_(nearSh, [k for k in range(len(names)) if k not in armB and k not in keep])] = INF
 for sd, S in ((1, 'Left'), (-1, 'Right')):         # tay / chân chỉ bám xương cùng bên
     other = [k for k, n in enumerate(names) if n.startswith('Right' if sd > 0 else 'Left') and (k in armB or k in legB)]
     D[np.ix_(side == sd, other)] = INF
@@ -243,6 +257,21 @@ for _ in range(3):
         js = [j_ for j_ in nb[i_] if isArm[j_] == isArm[i_]]
         if js: W2[i_] = 0.5 * W[i_] + 0.5 * W[js].mean(0)
     W = W2
+# cắt thêm: mặt lưới nối hai nhóm xương khác nhau có dính tay (tay trái–tay phải, tay–chân: quai túi, dây đeo…)
+def chainOf(n):
+    if n.startswith('Left') and ('Arm' in n or 'Hand' in n): return 1
+    if n.startswith('Right') and ('Arm' in n or 'Hand' in n): return 2
+    if 'Leg' in n or 'Foot' in n or 'Toe' in n: return 3 if n.startswith('Left') else 4
+    return 0
+CH = np.array([chainOf(n) for n in names])
+dom = CH[np.argmax(W, 1)]
+bm = bmesh.new(); bm.from_mesh(me)
+kill = []
+for f in bm.faces:
+    cs = {int(dom[v.index]) for v in f.verts}
+    if ({1, 2} <= cs) or ((1 in cs or 2 in cs) and (3 in cs or 4 in cs)): kill.append(f)   # tay–tay, tay–chân
+bmesh.ops.delete(bm, geom=kill, context='FACES_ONLY'); bm.to_mesh(me); bm.free()
+print('CAT_THEM', len(kill))
 ob.vertex_groups.clear()
 for k, n in enumerate(names):
     vg = ob.vertex_groups.new(name='mixamorig:' + n)

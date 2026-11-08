@@ -20,6 +20,15 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## Chuẩn hoá 98 nhân vật (bản 2.7.0)
+
+- **Bỏ `char98`, `char99`:** danh sách còn 98 vai, khớp với 98 nhân vật của bạn.
+- **Gắn xương lại cho cả 98 người, kiểm tra từng người ở tư thế giơ hai tay hết cỡ (khoảng 120°) và đá chân:**
+  - Bề dày tay áo đo theo từng người (hoodie, áo khoác, tay bồng…), nên cả ống tay đi theo xương tay, không còn bị dẹp thành dải mỏng.
+  - Điểm thuộc tay chỉ bám xương tay, nên giơ tay góc lớn không bị “bóp dẹp”.
+  - Bàn tay đặt sát đùi cũng đi theo tay, không sót lại ở hông.
+  - Quai túi, dây đeo dọc người không bị kéo theo tay. Mặt lưới nối hai tay với nhau, nối tay với chân, hoặc có cạnh dài bất thường đều được cắt bỏ (hết các vệt dài).
+
 ## Khắc phục hạn chế nhân vật của bạn (bản 2.6.0)
 
 - **Tay giơ cao gần hết cỡ (mặc định 80%, chỉnh 50–100% trong Cài đặt → “🙌 Biên độ giơ tay”):**
@@ -33,7 +42,7 @@ Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dù
 - **Mũ vừa đầu từng người:** đo bề ngang đầu cả tóc và tâm khối tóc của từng nhân vật, nên mũ không quá to với tóc ngắn, không bị tóc phồng nuốt mất, không lệch.
 - **Mặt nhìn gần:** file gốc tô màu trên lưới nên không thể có nét mặt sắc. Khi zoom và khi chiếu lên màn LED, máy quay lùi ra khung nửa người để mặt không bị dí sát.
 
-## 100 nhân vật mới của bạn, gắn xương tự động (bản 2.5.0)
+## Nhân vật của bạn, gắn xương tự động (bản 2.5.0)
 
 - `public/models/charXX.glb` giờ là bộ nhân vật bạn gửi (kiểu người thật, màu tô trên lưới). Mỗi nhân vật đã được gắn bộ xương chuẩn Mixamo nên nhảy được mọi điệu, đội được mũ, đeo được kính và dây chuyền.
 - **Công cụ gắn xương:** `tools/autorig/autorig.py` (chạy bằng Blender, xem đầu file). Công cụ:
@@ -41,11 +50,10 @@ Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dù
   - đo cổ, vai, chân, đầu để đặt xương;
   - tách tay khỏi thân rồi tự tính độ bám của lưới vào xương;
   - ghi số đo đầu vào file để kính và mũ đặt đúng chỗ.
-- **Thiếu 2 nhân vật:** file zip tải lên bị đứt ở cuối, nên `char98` bị hỏng và `char99` không có trong zip. Hai vai này tạm dùng nhân vật cũ (MakeHuman). Gửi lại 2 file này thì chạy cùng công cụ trên.
 
 ## Phong cách trẻ trung: kính, mũ, vàng… (bản 2.4.0)
 
-Khoảng 85% người lên sàn (chỉnh được) được gắn sẵn một phong cách. Phụ kiện 3D gắn vào xương nên đi theo người khi nhảy, áp được cho mọi nhân vật, kể cả 100 nhân vật dựng sẵn:
+Khoảng 85% người lên sàn (chỉnh được) được gắn sẵn một phong cách. Phụ kiện 3D gắn vào xương nên đi theo người khi nhảy, áp được cho mọi nhân vật dựng sẵn:
 
 | Phong cách | Phụ kiện |
 |---|---|
