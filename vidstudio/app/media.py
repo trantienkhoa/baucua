@@ -210,11 +210,21 @@ def pick_encoder(pref: str) -> str:
     return "h264_nvenc" if nvenc_available() else "libx264"
 
 
-def encoder_args(encoder: str, crf: int) -> list[str]:
+def encoder_args(encoder: str, crf: int, draft: bool = False) -> list[str]:
     if encoder == "h264_nvenc":
-        return ["-c:v", "h264_nvenc", "-preset", "p5", "-rc", "vbr", "-cq", str(crf), "-b:v", "0",
+        return ["-c:v", "h264_nvenc", "-preset", "p1" if draft else "p5", "-rc", "vbr", "-cq", str(crf), "-b:v", "0",
                 "-pix_fmt", "yuv420p"]
-    return ["-c:v", "libx264", "-preset", "veryfast", "-crf", str(crf), "-pix_fmt", "yuv420p"]
+    return ["-c:v", "libx264", "-preset", "ultrafast" if draft else "veryfast", "-crf", str(crf), "-pix_fmt", "yuv420p"]
+
+
+def render_size(info: dict, settings: dict) -> tuple[int, int]:
+    """Cỡ khung thành phẩm; bản nháp lấy cạnh ngắn 540px cho nhanh."""
+    W, H = output_size(info["width"], info["height"], settings.get("output_ratio", "source"))
+    if settings.get("_draft"):
+        k = 540 / max(1, min(W, H))
+        if k < 1:
+            W, H = int(W * k) // 2 * 2, int(H * k) // 2 * 2
+    return W, H
 
 
 RATIOS = {"9:16": (1080, 1920), "1:1": (1080, 1080), "16:9": (1920, 1080), "4:5": (1080, 1350)}
@@ -265,7 +275,7 @@ def render_video(*, src: Path, out: Path, workdir: Path, info: dict, settings: d
                  region_times: list | None = None, speech: list | None = None,
                  progress: ProgressCb = None, cancel=None) -> None:
     """Dựng thành phẩm: cắt đoạn, xoá sub gốc, đổi khung, chèn phụ đề, trộn tiếng."""
-    W, H = output_size(info["width"], info["height"], settings.get("output_ratio", "source"))
+    W, H = render_size(info, settings)
     speed = float(settings.get("speed") or 1.0)
     inputs = ["-i", str(src)]
     idx_dub = idx_bg = None
@@ -371,9 +381,14 @@ def render_video(*, src: Path, out: Path, workdir: Path, info: dict, settings: d
     encoder = pick_encoder(settings.get("encoder", "auto"))
     graph = ";".join(f)
     (workdir / "filter.txt").write_text(graph, "utf-8")
+    draft = bool(settings.get("_draft"))
+    crf = 30 if draft else int(settings.get("crf", 21))
+
     def build(enc: str) -> list[str]:
-        return [*inputs, "-filter_complex_script", "filter.txt", "-map", v, "-map", "[aout]",
-                *encoder_args(enc, int(settings.get("crf", 21))),
+        # có GPU NVIDIA: giải mã luôn bằng GPU (nhanh hơn, CPU rảnh cho bộ lọc)
+        hw = ["-hwaccel", "cuda"] if enc == "h264_nvenc" and settings.get("hwdecode", True) else []
+        return [*hw, *inputs, "-filter_complex_script", "filter.txt", "-map", v, "-map", "[aout]",
+                *encoder_args(enc, crf, draft),
                 "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-movflags", "+faststart", str(out)]
 
     try:

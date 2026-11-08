@@ -12,6 +12,13 @@ export async function mount(el) {
   loadSystem();
 }
 
+function keyRow(prov, label, url) {
+  const href = url || state.meta.tts_providers?.[prov]?.key_url || '';
+  return `<div class="field"><span class="small muted">${esc(label)}${href ? ` · <a href="${href}" target="_blank" rel="noopener">lấy key</a>` : ''}</span>
+    <div class="row" style="margin-top:6px"><input type="password" id="key-${prov}" class="grow" style="width:auto" placeholder="${keys[prov] ? 'Đã lưu: ' + esc(keys[prov]) : 'Dán key'}">
+    <button class="btn sm" data-save-key="${prov}">${keys[prov] ? 'Đổi' : 'Lưu'}</button></div></div>`;
+}
+
 function sw(id, on) { return `<label class="switch"><input type="checkbox" data-k="${id}" ${on ? 'checked' : ''}><i></i></label>`; }
 function trow(id, title, desc) { return `<div class="toggle-row"><div class="grow"><b>${title}</b>${desc ? `<span>${desc}</span>` : ''}</div>${sw(id, s[id])}</div>`; }
 
@@ -44,6 +51,8 @@ function render() {
           <label class="field"><span>Bảng thuật ngữ (mỗi dòng: gốc = dịch)</span><textarea data-k="glossary" rows="4" placeholder="老板 = sếp&#10;卢比 = rupee">${esc(s.glossary)}</textarea></label>
           <div class="grid2" style="gap:10px">
             <label class="field"><span>Ngôn ngữ gốc</span><select data-k="source_lang">${[['zh', 'Tiếng Trung'], ['en', 'Tiếng Anh'], ['ja', 'Tiếng Nhật'], ['ko', 'Tiếng Hàn'], ['th', 'Tiếng Thái'], ['auto', 'Tự nhận']].map(([v, l]) => `<option value="${v}" ${s.source_lang === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+            <label class="field"><span>Nhận dạng theo lô (nhanh hơn trên GPU)</span><select data-k="asr_batched">${[['auto', 'Tự động (bật khi có GPU)'], ['on', 'Luôn bật'], ['off', 'Tắt']].map(([v, l]) => `<option value="${v}" ${s.asr_batched === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+            <label class="field"><span>Số lô dịch gửi cùng lúc</span><input type="number" data-k="parallel_translate" min="1" max="8" value="${s.parallel_translate}"></label>
             <label class="field"><span>Nhận dạng giọng (Whisper)</span><select data-k="asr_model">${[['tiny', 'tiny — rất nhanh'], ['base', 'base'], ['small', 'small — cân bằng'], ['medium', 'medium — chính xác'], ['large-v3-turbo', 'large-v3-turbo — tốt nhất (GPU)'], ['large-v3', 'large-v3']].map(([v, l]) => `<option value="${v}" ${s.asr_model === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
           </div>
         </div>
@@ -59,10 +68,19 @@ function render() {
           ${trow('ducking', 'Tiếng gốc to lại lúc không có lời', 'Thanh phía trên là âm lượng lúc đang có giọng Việt')}
           ${trow('loudnorm', 'Chuẩn âm lượng mạng xã hội (-14 LUFS)')}
           ${trow('auto_shorten', 'AI tự rút gọn câu đọc không kịp', 'Cần AI dịch (không áp dụng với Google dịch)')}
+          <div class="sep"></div>
+          <h3>Giọng trả phí (tuỳ chọn)</h3>
+          ${keyRow('fpt', 'FPT.AI — 9 giọng Việt ba miền')}
+          ${keyRow('eleven', 'ElevenLabs — giọng clone của bạn')}
+          <label class="field"><span>Giọng ElevenLabs (mỗi dòng: Tên = voice_id)</span><textarea data-k="eleven_voices" rows="2" placeholder="Giọng tôi = 21m00Tcm4TlvDq8ikWAM">${esc(s.eleven_voices)}</textarea></label>
+          <p class="small dim">Giọng OpenAI dùng chung key OpenAI ở phần AI dịch. Sau khi thêm giọng, tải lại trang để thấy trong danh sách.</p>
+          <div class="sep"></div>
+          ${trow('diarize', 'Phân biệt người nói (pyannote)', 'Mỗi người một nhãn A, B… để gán giọng riêng. Cần pip install pyannote.audio')}
+          ${keyRow('huggingface', 'Token Hugging Face cho pyannote', 'https://huggingface.co/pyannote/speaker-diarization-3.1')}
         </div>
         <div class="card">
           <div class="card-head">${icon('image')}<h2>Xoá sub gốc & xuất video</h2></div>
-          <label class="field"><span>Cách xoá sub gốc</span><select data-k="hardsub">${[['none', 'Giữ nguyên'], ['blur', 'Làm mờ'], ['box', 'Che hộp đen'], ['crop', 'Cắt bỏ phần dưới']].map(([v, l]) => `<option value="${v}" ${s.hardsub === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+          <label class="field"><span>Cách xoá sub gốc</span><select data-k="hardsub">${[['none', 'Giữ nguyên'], ['blur', 'Làm mờ'], ['inpaint', 'Vẽ lại nền (sạch nhất)'], ['box', 'Che hộp đen'], ['crop', 'Cắt bỏ phần dưới']].map(([v, l]) => `<option value="${v}" ${s.hardsub === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
           ${trow('auto_detect_region', 'Tự dò vùng sub bằng OCR', 'Cần rapidocr-onnxruntime')}
           <div class="toggle-row"><div class="grow"><b>Chỉ làm mờ lúc có sub gốc</b><span>Dò bằng OCR; tắt để làm mờ suốt video</span></div>
             <label class="switch"><input type="checkbox" id="timing" ${s.hardsub_timing !== 'always' ? 'checked' : ''}><i></i></label></div>
@@ -103,7 +121,7 @@ function bind() {
     const k = e.target.dataset.k; const m = e.target.dataset.model;
     if (m) s.models[m] = e.target.value;
     if (!k) return;
-    s[k] = e.target.type === 'checkbox' ? e.target.checked : e.target.type === 'range' ? +e.target.value : e.target.value;
+    s[k] = e.target.type === 'checkbox' ? e.target.checked : ['range', 'number'].includes(e.target.type) ? +e.target.value : e.target.value;
     if (e.target.type === 'range') { const b = e.target.previousElementSibling?.querySelector('b'); if (b) b.textContent = k === 'orig_volume' ? Math.round(s[k] * 100) + '%' : s[k].toFixed(2) + 'x'; }
     $('#state', root).innerHTML = '<span style="color:var(--yellow)">● Chưa lưu</span>';
   };
@@ -115,6 +133,11 @@ function bind() {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.prov) { s.translator = b.dataset.prov; render(); loadSystem(); $('#state', root).innerHTML = '<span style="color:var(--yellow)">● Chưa lưu</span>'; return; }
     if (b.dataset.delRecipe) { const r = await api('/api/recipes/' + encodeURIComponent(b.dataset.delRecipe), { method: 'DELETE' }); s.recipes = r.recipes; state.settings.recipes = r.recipes; render(); loadSystem(); return; }
+    if (b.dataset.saveKey) {
+      const prov = b.dataset.saveKey; const v = $(`#key-${prov}`, root).value.trim();
+      keys = (await api('/api/keys', { method: 'POST', body: { provider: prov, key: v } })).keys;
+      toast(v ? 'Đã lưu key' : 'Đã xoá key', 'ok'); render(); loadSystem(); return;
+    }
     switch (b.id) {
       case 'save-key': {
         const v = $('#key', root).value.trim(); if (!v) return toast('Dán key trước đã', 'error');

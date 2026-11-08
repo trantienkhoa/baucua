@@ -37,7 +37,7 @@ def new_project(*, title: str, source_url: str = "", platform: str = "", setting
         "settings": {k: s[k] for k in ("translator", "source_lang", "target_lang", "dub", "voice_default",
                                        "voice_male", "voice_female", "tts_rate", "max_speed", "orig_volume",
                                        "voice_volume", "separate_music", "ducking", "gap_volume", "loudnorm",
-                                       "auto_shorten", "hardsub_timing", "hardsub", "hardsub_region",
+                                       "auto_shorten", "hardsub_timing", "speaker_voices", "hardsub", "hardsub_region",
                                        "auto_detect_region", "burn_subs", "output_ratio", "flip", "speed",
                                        "encoder", "crf", "asr_model")},
         "source_mode": "asr", "trim": {"start": 0, "end": 0}, "cuts": [],
@@ -113,6 +113,15 @@ def cleanup(max_age_hours: float = 24) -> int:
     for f in files:
         try:
             if f.stat().st_mtime < cutoff:
+                f.unlink()
+                n += 1
+        except OSError:
+            pass
+    # cache giọng đọc dùng chung giữa các dự án: giữ 30 ngày
+    old = time.time() - 30 * 86400
+    for f in (config.CACHE_DIR / "tts").glob("*"):
+        try:
+            if f.stat().st_mtime < old:
                 f.unlink()
                 n += 1
         except OSError:

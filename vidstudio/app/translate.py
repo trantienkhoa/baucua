@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Callable, Optional
 
 import httpx
@@ -52,6 +54,7 @@ def llm_complete(provider: str, system: str, user: str, settings: dict, schema: 
                 messages=[{"role": "user", "content": user}],
                 output_config=output_config,
                 betas=["server-side-fallback-2026-07-01"], fallbacks="default",
+                cache_control={"type": "ephemeral"},  # các lô dùng chung system prompt → đọc từ cache
             )
         except anthropic.AuthenticationError:
             raise TranslateError("API key Claude không hợp lệ")
@@ -211,12 +214,18 @@ def translate_segments(segments: list[dict], settings: dict, provider: str | Non
     system = _sub_system(settings, src, tgt, highlight)
     results: list[str] = [""] * len(segments)
     batch = 40
-    for start in range(0, len(segments), batch):
+    starts = list(range(0, len(segments), batch))
+    done_lines = 0
+    plock = threading.Lock()
+
+    def run_batch(start: int) -> None:
+        nonlocal done_lines
         part = segments[start:start + batch]
-        prev = [{"src": segments[j].get("src"), "vi": results[j]} for j in range(max(0, start - 6), start)]
+        # các lô chạy song song nên ngữ cảnh là câu gốc phía trước (chưa có bản dịch)
+        prev = [segments[j].get("src") for j in range(max(0, start - 6), start)]
         payload = {
             "tieu_de_video": context_title,
-            "cau_truoc_da_dich": prev,
+            "cau_goc_phia_truoc": prev,
             "lines": [{"i": start + k, "d": round(float(s["end"]) - float(s["start"]), 1), "src": s.get("src", "")}
                       for k, s in enumerate(part)],
         }
@@ -230,7 +239,7 @@ def translate_segments(segments: list[dict], settings: dict, provider: str | Non
                 got = {int(r["i"]): str(r.get("t", "")).strip() for r in rows if "i" in r}
                 missing = [start + k for k in range(len(part)) if not got.get(start + k)]
                 for k in range(len(part)):
-                    results[start + k] = got.get(start + k, "")
+                    results[start + k] = got.get(start + k, "") or results[start + k]
                 if missing and attempt < 2:
                     last_err = TranslateError(f"Thiếu {len(missing)} dòng")
                     continue
@@ -243,8 +252,17 @@ def translate_segments(segments: list[dict], settings: dict, provider: str | Non
                 time.sleep(1.0)
         if last_err and not any(results[start:start + len(part)]):
             raise TranslateError(f"AI trả kết quả không hợp lệ: {last_err}")
-        if progress:
-            progress(min(1.0, (start + len(part)) / len(segments)))
+        with plock:
+            done_lines += len(part)
+            if progress:
+                progress(min(1.0, done_lines / len(segments)))
+
+    workers = max(1, min(int(settings.get("parallel_translate", 3) or 1), len(starts)))
+    if provider == "ollama":
+        workers = 1  # model chạy trên máy: gửi song song không nhanh hơn
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for fut in [ex.submit(run_batch, st) for st in starts]:
+            fut.result()
     # dòng nào AI bỏ sót thì dịch bằng Google cho đủ
     holes = [i for i, t in enumerate(results) if not t and texts[i].strip()]
     if holes:

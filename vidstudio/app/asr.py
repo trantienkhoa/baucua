@@ -73,16 +73,23 @@ def _split_words(words, max_dur: float = 5.0, max_chars: int = 22):
 
 
 def transcribe(wav: Path, language: str = "zh", model_name: str = "small", device: str = "auto",
-               progress: Optional[Callable[[float], None]] = None, cancel=None) -> list[dict]:
+               progress: Optional[Callable[[float], None]] = None, cancel=None, batched: bool | None = None) -> list[dict]:
     if not available():
         raise AsrError("Chưa cài faster-whisper (pip install faster-whisper) — hoặc nhập file SRT khi tạo video.")
     model = _load(model_name, device)
     lang = None if language == "auto" else language
-    segments, info = model.transcribe(
-        str(wav), language=lang, vad_filter=True, word_timestamps=True, beam_size=5,
-        initial_prompt=INITIAL_PROMPTS.get(language or "", None),
-        vad_parameters={"min_silence_duration_ms": 300},
-    )
+    opts = dict(language=lang, vad_filter=True, word_timestamps=True, beam_size=5,
+                initial_prompt=INITIAL_PROMPTS.get(language or "", None))
+    if batched is None:  # mặc định: chạy theo lô khi có GPU (nhanh hơn nhiều)
+        batched = (device == "cuda") or (device == "auto" and cuda_available())
+    try:
+        if batched:
+            from faster_whisper import BatchedInferencePipeline
+            segments, info = BatchedInferencePipeline(model=model).transcribe(str(wav), batch_size=8, **opts)
+        else:
+            raise ImportError
+    except ImportError:
+        segments, info = model.transcribe(str(wav), vad_parameters={"min_silence_duration_ms": 300}, **opts)
     total = info.duration or 1
     out: list[dict] = []
     for seg in segments:
@@ -145,3 +152,65 @@ def guess_genders(pcm16k: np.ndarray, segments: list[dict], sr: int = 16000) -> 
             out[i] = last
         last = out[i]
     return out
+
+
+# ---------------------------------------------------------------- nhận diện người nói
+
+def diarize_available() -> bool:
+    try:
+        import pyannote.audio  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+_diar = None
+
+
+def diarize(wav: Path, token: str) -> list[tuple[float, float, str]]:
+    """Chia đoạn theo người nói bằng pyannote. Trả về [(bắt đầu, kết thúc, nhãn)]."""
+    global _diar
+    if not diarize_available():
+        raise AsrError('Chưa cài pyannote: pip install pyannote.audio')
+    if not token:
+        raise AsrError("Cần token Hugging Face (và chấp nhận điều khoản model pyannote/speaker-diarization-3.1)")
+    if _diar is None:
+        from pyannote.audio import Pipeline
+        try:
+            _diar = Pipeline.from_pretrained("pyannote/speaker-diarization-3.1", token=token)
+        except TypeError:  # pyannote 3.x dùng tên tham số cũ
+            _diar = Pipeline.from_pretrained("pyannote/speaker-diarization-3.1", use_auth_token=token)
+        if _diar is None:
+            raise AsrError("Không tải được model pyannote — kiểm tra token và đã chấp nhận điều khoản trên Hugging Face chưa")
+        try:
+            import torch
+            if torch.cuda.is_available():
+                _diar.to(torch.device("cuda"))
+        except Exception:  # noqa: BLE001
+            pass
+    res = _diar(str(wav))
+    ann = getattr(res, "speaker_diarization", res)  # pyannote 4 bọc kết quả
+    return [(float(t.start), float(t.end), str(spk)) for t, _, spk in ann.itertracks(yield_label=True)]
+
+
+def assign_speakers(segments: list[dict], turns: list[tuple[float, float, str]], genders: list[str]) -> None:
+    """Gán người nói cho từng câu theo thời gian trùng nhiều nhất; đặt nhãn A, B, C… và giới tính theo đa số."""
+    names: dict[str, str] = {}
+    for seg in segments:
+        best, best_ov = None, 0.0
+        for a, b, spk in turns:
+            ov = min(b, seg["end"]) - max(a, seg["start"])
+            if ov > best_ov:
+                best, best_ov = spk, ov
+        if best is not None:
+            if best not in names:
+                names[best] = chr(ord("A") + len(names)) if len(names) < 26 else f"S{len(names)}"
+            seg["speaker_id"] = names[best]
+    votes: dict[str, list[str]] = {}
+    for seg, g in zip(segments, genders):
+        if seg.get("speaker_id") and g:
+            votes.setdefault(seg["speaker_id"], []).append(g)
+    for seg in segments:
+        v = votes.get(seg.get("speaker_id", ""), [])
+        if v:
+            seg["speaker"] = max(set(v), key=v.count)

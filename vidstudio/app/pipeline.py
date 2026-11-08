@@ -9,8 +9,8 @@ import time
 import traceback
 from pathlib import Path
 
-from . import asr, config, media, ocr, store, translate, tts
-from .subtitles import build_ass, parse_srt, plain, quality_check, to_srt
+from . import asr, config, inpaint, media, ocr, store, translate, tts
+from .subtitles import align_words, build_ass, parse_srt, plain, quality_check, to_srt
 
 STAGES = [
     ("download", "Tải video"),
@@ -305,7 +305,8 @@ def recognize(job: Job, proj: dict) -> dict:
         segs = asr.transcribe(d / "audio16k.wav", s.get("source_lang", "zh"), s.get("asr_model", "small"),
                               config.load_settings().get("asr_device", "auto"),
                               progress=_prog(pid, "recognize", "Đang nghe và chép lời"),
-                              cancel=lambda: job.cancelled)
+                              cancel=lambda: job.cancelled,
+                              batched={"on": True, "off": False}.get(config.load_settings().get("asr_batched", "auto")))
     if not segs:
         raise RuntimeError("Không nhận dạng được câu nào")
     if proj.get("source_mode") == "ocr" and region:
@@ -325,6 +326,14 @@ def recognize(job: Job, proj: dict) -> dict:
         out.append({"id": nid, "start": round(seg["start"], 2), "end": round(seg["end"], 2), "src": seg["src"],
                     "text": "", "speaker": g or "female", "voice": "", "speed": 1.0})
         nid += 1
+    # nhận diện người nói (pyannote) → mỗi người một giọng
+    if config.load_settings().get("diarize") and proj.get("has_audio") and asr.diarize_available():
+        _set(pid, "recognize", 0.97, "Đang phân biệt người nói")
+        try:
+            turns = asr.diarize(d / "audio16k.wav", config.load_keys().get("huggingface", ""))
+            asr.assign_speakers(out, turns, genders)
+        except Exception as e:  # noqa: BLE001
+            _event(pid, "warn", f"Không phân biệt được người nói: {e}")
     return store.update(pid, segments=out, next_id=nid)
 
 
@@ -373,6 +382,9 @@ def do_translate(job: Job, proj: dict, only_ids: set | None = None) -> dict:
 def voice_for(seg: dict, s: dict) -> str:
     if seg.get("voice"):
         return seg["voice"]
+    spk = (s.get("speaker_voices") or {}).get(seg.get("speaker_id") or "")
+    if spk:
+        return spk
     if s.get("voice_default") == "auto":
         return s["voice_male"] if seg.get("speaker") == "male" else s["voice_female"]
     return s.get("voice_default") or s["voice_female"]
@@ -461,13 +473,16 @@ def make_voice(job: Job, proj: dict) -> dict:
     for seg in proj["segments"]:
         st = by_id.get(seg["id"]) or {}
         seg["rate"], seg["tts_dur"] = st.get("rate"), st.get("tts_dur")
+        seg["kara"] = align_words(seg.get("text", ""), st.get("words"))  # karaoke khớp giọng
     (d / "peaks_dub.json").write_text(json.dumps(media.waveform_peaks(d / "dub.wav")))
     # dọn file TTS cũ không còn dùng
     used = {f"{x.get('tts_key')}.mp3" for x in proj["segments"]}
     for f in (d / "tts").glob("*.mp3"):
         if f.name not in used and not f.name.startswith("preview-"):
             f.unlink(missing_ok=True)
-    return _save_segment_fields(pid, proj["segments"], ("tts_key", "rate", "tts_dur"))
+            words_f = tts.words_file(f)
+            words_f.unlink(missing_ok=True)
+    return _save_segment_fields(pid, proj["segments"], ("tts_key", "rate", "tts_dur", "kara"))
 
 
 def _hardsub_times(job: Job, proj: dict, region: dict) -> list | None:
@@ -487,17 +502,17 @@ def _hardsub_times(job: Job, proj: dict, region: dict) -> list | None:
     return ranges
 
 
-def render(job: Job, proj: dict, clip: tuple[float, float] | None = None) -> dict:
+def render(job: Job, proj: dict, clip: tuple[float, float] | None = None, draft: bool = False) -> dict:
     pid = proj["id"]
     d = store.pdir(pid)
-    s = {**config.load_settings(), **proj["settings"]}
+    s = {**config.load_settings(), **proj["settings"], "_draft": draft}
     info = {"duration": proj["duration"], "width": proj["width"], "height": proj["height"],
             "has_audio": proj.get("has_audio", True)}
     if clip:
         ranges = media.keep_ranges(proj["duration"], {"start": clip[0], "end": clip[1]}, proj.get("cuts"))
     else:
         ranges = media.keep_ranges(proj["duration"], proj.get("trim"), proj.get("cuts"))
-    W, H = media.output_size(info["width"], info["height"], s.get("output_ratio", "source"))
+    W, H = media.render_size(info, s)
     ass_name = None
     if s.get("burn_subs", True):
         style = dict(proj["style"])
@@ -508,6 +523,7 @@ def render(job: Job, proj: dict, clip: tuple[float, float] | None = None) -> dic
         ass_name = "subs.ass"
     region = s.get("hardsub_region") if s.get("hardsub") != "none" else None
     region_times = None
+    raw = None
     if region:
         try:
             raw = _hardsub_times(job, proj, region)
@@ -518,6 +534,22 @@ def render(job: Job, proj: dict, clip: tuple[float, float] | None = None) -> dic
             raw = None
         if raw is not None:
             region_times = media.remap_ranges(raw, ranges)
+    video_src = d / "source.mp4"
+    if region and s.get("hardsub") == "inpaint":
+        if draft or not inpaint.available():
+            s["hardsub"] = "blur"  # bản nháp / thiếu OpenCV: làm mờ cho nhanh
+        else:
+            info_full = {**info, "fps": proj.get("fps") or media.probe(video_src)["fps"]}
+            try:
+                video_src = inpaint.ensure_clean(d, info_full, region, raw,
+                                                 progress=_prog(pid, "render", "Đang xoá sub gốc (vẽ lại nền)"),
+                                                 cancel=lambda: job.cancelled)
+                region = None  # đã xoá sạch trong bản clean.mp4
+            except media.Cancelled:
+                raise
+            except Exception as e:  # noqa: BLE001
+                _event(pid, "warn", f"Vẽ lại nền lỗi, chuyển sang làm mờ: {e}")
+                s["hardsub"] = "blur"
     # khoảng có giọng Việt → hạ tiếng gốc
     speech = None
     if s.get("dub") and s.get("ducking", True):
@@ -525,13 +557,20 @@ def render(job: Job, proj: dict, clip: tuple[float, float] | None = None) -> dic
                   if x.get("tts_key") and not x.get("mute")]
     bg = d / "instrumental.wav" if s.get("separate_music") and (d / "instrumental.wav").exists() else None
     stamp = time.strftime("%H%M%S")
-    name = f"output-clip-{stamp}.mp4" if clip else "output.mp4"
+    name = "draft.mp4" if draft else (f"output-clip-{stamp}.mp4" if clip else "output.mp4")
     tmp = d / ("_" + name)
-    media.render_video(src=d / "source.mp4", out=tmp, workdir=d, info=info, settings=s, ass_name=ass_name,
+    media.render_video(src=video_src, out=tmp, workdir=d, info=info, settings=s, ass_name=ass_name,
                        dub_wav=(d / "dub.wav") if s.get("dub") else None, bg_wav=bg, ranges=ranges,
                        region=region, region_times=region_times, speech=speech,
                        progress=_prog(pid, "render", "Đang xuất video"), cancel=lambda: job.cancelled)
     tmp.replace(d / name)
+    if draft:  # bản nháp: chỉ để xem nhanh, không chép ra thư mục exports
+        outputs = [o for o in proj.get("outputs", []) if not o.get("draft")]
+        outputs.insert(0, {"file": name, "time": time.time(), "clip": False, "draft": True, "export": ""})
+        proj = store.update(pid, outputs=outputs[:10], status="ready", progress=100,
+                            message="Đã có bản nháp — bấm Xuất & đăng để xuất bản nét")
+        _event(pid, "done", f"Bản nháp xong: {proj['title']}")
+        return proj
     # bản sao dễ tìm trong thư mục exports
     nice = media.safe_name(proj.get("title", "video"))
     export = config.EXPORTS_DIR / f"{nice}-{pid}{'-clip-' + stamp if clip else ''}.mp4"
@@ -546,7 +585,7 @@ def render(job: Job, proj: dict, clip: tuple[float, float] | None = None) -> dic
         if a is not None and b is not None and b > a and plain(x.get("text", "")):
             srt_rows.append((a / speed, b / speed, plain(x["text"])))
     (d / "output.srt").write_text(to_srt(srt_rows), "utf-8")
-    outputs = proj.get("outputs", [])
+    outputs = [o for o in proj.get("outputs", []) if not o.get("draft")]
     outputs.insert(0, {"file": name, "time": time.time(), "clip": bool(clip), "export": str(export)})
     qa = quality_check(proj["segments"], float(s.get("max_speed", 1.4)))
     proj = store.update(pid, outputs=outputs[:10], status="done", stage="render", progress=100,
@@ -596,7 +635,9 @@ def plan(job: Job) -> list[tuple[str, callable]]:
         steps.append(("net", done_voice))
         return steps
     clip = tuple(o["clip"]) if job.kind == "clip" and o.get("clip") else None
-    steps.append(("render", step("render", "Đang xuất video", lambda j, p: render(j, p, clip=clip))))
+    draft = bool(o.get("draft"))
+    steps.append(("render", step("render", "Đang xuất bản nháp" if draft else "Đang xuất video",
+                                 lambda j, p: render(j, p, clip=clip, draft=draft))))
     return steps
 
 

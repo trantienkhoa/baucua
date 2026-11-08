@@ -48,7 +48,8 @@ def _platform(url: str) -> str:
 
 @app.get("/api/meta")
 def meta():
-    return {"version": __version__, "providers": config.PROVIDERS, "voices": config.VOICES,
+    return {"version": __version__, "providers": config.PROVIDERS, "voices": config.all_voices(),
+            "tts_providers": config.TTS_PROVIDERS,
             "presets": {k: v["label"] for k, v in PRESETS.items()}, "categories": discover.CATEGORIES,
             "stages": pipeline.STAGES, "ratios": ["source", "9:16", "1:1", "16:9", "4:5"],
             "data_dir": str(config.DATA_DIR), "exports_dir": str(config.EXPORTS_DIR),
@@ -79,7 +80,7 @@ def reset_settings():
 @app.post("/api/keys")
 def save_key(data: dict = Body(...)):
     prov = data.get("provider")
-    if prov not in config.PROVIDERS:
+    if prov not in config.PROVIDERS and prov not in config.TTS_PROVIDERS and prov != "huggingface":
         raise HTTPException(400, "Nhà cung cấp không hợp lệ")
     config.save_key(prov, data.get("key", ""))
     return {"keys": config.masked_keys()}
@@ -273,7 +274,7 @@ def run_project(pid: str, data: dict = Body(default={})):
         raise HTTPException(400, "Kiểu xử lý không hợp lệ")
     if not proj["segments"] and proj.get("kind") != "merge":
         raise HTTPException(400, "Chưa có phụ đề")
-    _enqueue(pid, kind, {k: data[k] for k in ("clip", "retranslate_ids", "revoice", "no_render") if k in data})
+    _enqueue(pid, kind, {k: data[k] for k in ("clip", "retranslate_ids", "revoice", "no_render", "draft") if k in data})
     return {"ok": True}
 
 

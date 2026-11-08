@@ -28,6 +28,7 @@ export async function mount(el, [pid]) {
   }
   store.set('last-project', pid);
   Object.assign(S, {
+    alive: true,
     pid, proj: null, undo: [], redo: [], dirty: false, saving: false, active: null, mode: 'preview',
     tab: store.get('studio-tab', 'sub'), filterIssues: false, query: '', peaks: null, ver: Date.now(),
     qaIds: new Map(), selRange: null, pollTimer: null, video: null, video2: null, audio: null, tl: null, muted: false, stopAt: null,
@@ -37,7 +38,9 @@ export async function mount(el, [pid]) {
 }
 
 export async function unmount() {
+  S.alive = false;
   clearTimeout(S.pollTimer);
+  S.video?.pause(); S.video2?.pause(); // video đã gỡ khỏi trang vẫn có thể phát tiếp
   if (S.dirty) await save();
   S.audio?.pause();
   S.tl?.destroy();
@@ -46,6 +49,7 @@ export async function unmount() {
 
 async function loadProject() {
   const p = await api('/api/projects/' + S.pid);
+  if (!S.alive) return;
   S.proj = p;
   if (['queued', 'processing'].includes(p.status) && !S.proj.segments.length) return renderProcessing();
   renderStudio();
@@ -78,7 +82,7 @@ function renderProcessing() {
   </div>`;
   $('#cancel', root).onclick = async () => { await api(`/api/projects/${S.pid}/cancel`, { method: 'POST' }); toast('Đã gửi lệnh huỷ'); };
   S.pollTimer = setTimeout(async () => {
-    if (!root.isConnected) return;
+    if (!S.alive) return;
     try { await loadProject(); } catch { /* thử lại */ }
   }, 1500);
 }
@@ -102,6 +106,7 @@ function renderStudio() {
       <button class="icon-btn" id="undo" title="Hoàn tác (Ctrl+Z)">${icon('undo')}</button>
       <button class="icon-btn" id="redo" title="Làm lại (Ctrl+Y)">${icon('redo')}</button>
       <button class="btn" id="save">${icon('save')} <span>Lưu</span></button>
+      <button class="btn" id="draft" title="Xuất nhanh bản 540p để xem thử (vài giây)">${icon('eye')} Xem nháp</button>
       <button class="btn" id="update" title="Tạo lại giọng đọc cho câu đã sửa và xuất lại video">${icon('refresh')} Cập nhật video</button>
       <button class="btn primary" id="export">${icon('upload')} Xuất & đăng</button>
     </div>
@@ -139,6 +144,7 @@ function renderStudio() {
   $('#redo', root).onclick = redo;
   $('#save', root).onclick = () => save(true);
   $('#update', root).onclick = () => runJob('update');
+  $('#draft', root).onclick = () => { S.openOutput = true; runJob('update', { draft: true }); };
   $('#export', root).onclick = () => { setTab('publish'); runJob(S.proj.status === 'done' && !S.dirty ? null : 'update'); };
   $('#score', root).onclick = () => setTab('qa');
   $('#filter-issues', root).onclick = e => { S.filterIssues = !S.filterIssues; e.currentTarget.classList.toggle('primary', S.filterIssues); renderLines(); };
@@ -254,9 +260,11 @@ function setBusy(b) {
 
 function watchJob() {
   clearTimeout(S.pollTimer);
+  const pid = S.pid;
   S.pollTimer = setTimeout(async () => {
-    if (!root.isConnected) return;
+    if (!S.alive || S.pid !== pid) return;
     const p = await api('/api/projects/' + S.pid);
+    if (!S.alive || S.pid !== pid) return; // đã rời Studio trong lúc chờ
     const bar = $('#status-line', root);
     if (['queued', 'processing'].includes(p.status)) {
       if (bar) bar.innerHTML = `<span class="spinner" style="width:12px;height:12px;vertical-align:-2px"></span> ${esc(p.message)} <button class="btn sm ghost" id="cj">Huỷ</button>`;
@@ -271,6 +279,7 @@ function watchJob() {
     S.ver = Date.now();
     refreshStatus(); computeQa(); loadPeaks();
     if (S.audio) S.audio.src = `/media/${S.pid}/dub.wav?v=${S.ver}`;
+    if (S.openOutput && p.outputs?.length) { S.openOutput = false; setMode('output'); play(); }
     if (p.status === 'done') { toast('Video đã xuất xong', 'ok'); if (S.tab === 'publish') renderTab(); }
     else if (p.status === 'error') toast('Lỗi: ' + p.message, 'error');
   }, 1500);
@@ -340,6 +349,7 @@ function lineHtml(s, i) {
       <input class="t" data-f="start" value="${fmtTime(s.start)}"> → <input class="t" data-f="end" value="${fmtTime(s.end)}">
       <button class="btn sm ghost" data-a="speaker" title="Đổi giọng Nam/Nữ" style="padding:1px 6px">${speaker}</button>
       <span title="Tốc độ đọc thực tế">${(s.rate || s.speed || 1).toFixed(2).replace('.', ',')}x</span>
+      ${s.speaker_id ? `<span class="pill blue" title="Người nói">${esc(s.speaker_id)}</span>` : ''}
       ${s.mute ? '<span class="pill gray">Không đọc</span>' : ''}
       <button class="icon-btn right" data-a="play" title="Phát câu này">${icon('play', 14)}</button></div>
     <div class="src" contenteditable="true" spellcheck="false" data-f="src">${esc(s.src || '')}</div>
@@ -533,7 +543,7 @@ function setMode(m) {
   v.addEventListener('loadedmetadata', () => { if (t) v.currentTime = Math.min(t, v.duration || t); fitVideo(); renderOverlay(); renderRegion(); }, { once: true });
   v.ontimeupdate = onTime;
   v.onplay = () => { $('#play', root).innerHTML = icon('pause'); syncAudio(true); S.video2?.play(); tick(); };
-  v.onpause = () => { $('#play', root).innerHTML = icon('play'); S.audio?.pause(); S.video2?.pause(); };
+  v.onpause = () => { if (!S.alive) return; $('#play', root).innerHTML = icon('play'); S.audio?.pause(); S.video2?.pause(); };
   v.onclick = togglePlay;
   if (m === 'preview') {
     if (p.settings.dub) { S.audio = S.audio || new Audio(); const want = `/media/${S.pid}/dub.wav?v=${S.ver}`; if (!S.audio.src.endsWith(want)) S.audio.src = want; } else S.audio = null;
@@ -607,14 +617,14 @@ export function keepRanges() {
 }
 
 function tick() {
-  if (!S.video || S.video.paused) return;
+  if (!S.video || S.video.paused || !S.alive) return;
   onTime();
   requestAnimationFrame(tick);
 }
 
 let lastLineId = null;
 function onTime() {
-  if (!S.video) return;
+  if (!S.video || !S.alive) return;
   const t = S.video.currentTime;
   $('#clock', root).textContent = `${fmtTime(t)} / ${fmtTime(S.proj.duration)}`;
   if (S.stopAt && t >= S.stopAt) { S.stopAt = null; S.video.pause(); }
@@ -655,10 +665,15 @@ function renderOverlay(force) {
   if (st.uppercase || preset === 'pop') text = text.toUpperCase();
   let html;
   if (preset === 'karaoke') {
-    const words = plain(text).split(' ');
-    const frac = (t - cur.start) / Math.max(0.01, cur.end - cur.start);
-    const total = words.reduce((a, w) => a + w.length + 1, 0); let acc = 0;
-    html = words.map(w => { acc += w.length + 1; return `<span style="color:${acc / total <= frac ? st.highlight : st.color}">${esc(w)}</span>`; }).join(' ');
+    const words = text.replace(/\*/g, '').split(' ');
+    if (cur.kara && cur.tts_key) { // mốc từng chữ lấy từ giọng đọc
+      let k = 0;
+      html = words.map(w => { const on = /[\p{L}\p{N}]/u.test(w) ? t >= cur.kara[k++] : true; return `<span style="color:${on ? st.highlight : st.color}">${esc(w)}</span>`; }).join(' ');
+    } else {
+      const frac = (t - cur.start) / Math.max(0.01, cur.end - cur.start);
+      const total = words.reduce((a, w) => a + w.length + 1, 0); let acc = 0;
+      html = words.map(w => { acc += w.length + 1; return `<span style="color:${acc / total <= frac ? st.highlight : st.color}">${esc(w)}</span>`; }).join(' ');
+    }
   } else if (['tiktok', 'pop'].includes(preset)) {
     html = esc(text).replace(MARK, (_, w) => `<span style="color:${st.highlight}">${w}</span>`);
   } else html = esc(plain(text));
@@ -806,6 +821,7 @@ function renderTab() {
       ${toggle('separate_music', cfg.separate_music, 'Tách nhạc nền', 'Giữ nhạc, bỏ giọng gốc (cần audio-separator)')}
       ${toggle('loudnorm', cfg.loudnorm !== false, 'Chuẩn âm lượng mạng xã hội', 'Đưa về khoảng -14 LUFS như TikTok, YouTube')}
       ${toggle('auto_shorten', cfg.auto_shorten !== false, 'AI tự rút gọn câu đọc không kịp', 'Chỉ áp dụng cho câu chưa sửa tay, khi dịch bằng AI (không phải Google dịch)')}
+      ${speakerVoices(cfg)}
       <div class="sep"></div>
       <div class="row"><button class="btn sm" id="all-voice-reset">Bỏ giọng riêng của từng câu</button>
       <button class="btn sm" id="detect-gender">Đặt Nam/Nữ cho tất cả…</button></div>
@@ -817,7 +833,7 @@ function renderTab() {
       return `
       <div class="hint-box">${icon('image')}<div>Khung đỏ trên video là vùng sub gốc sẽ bị xoá. Kéo để di chuyển, kéo góc dưới để đổi cỡ.</div></div>
       <h3>Cách xoá sub gốc</h3>
-      <div class="option-grid" style="grid-template-columns:1fr 1fr;margin-bottom:16px">${[['none', 'Giữ nguyên', 'Không xoá'], ['blur', 'Làm mờ', 'Tự nhiên nhất'], ['box', 'Che hộp đen', 'Che kín hoàn toàn'], ['crop', 'Cắt bỏ', 'Cắt phần dưới, lấp nền mờ']].map(([k, l, d]) => `<button class="option ${cfg.hardsub === k ? 'active' : ''}" data-hardsub="${k}"><b>${l}</b><span>${d}</span></button>`).join('')}</div>
+      <div class="option-grid" style="grid-template-columns:1fr 1fr;margin-bottom:16px">${[['none', 'Giữ nguyên', 'Không xoá'], ['blur', 'Làm mờ', 'Nhanh, tự nhiên'], ['inpaint', 'Vẽ lại nền', 'Sạch nhất, chậm hơn'], ['box', 'Che hộp đen', 'Che kín hoàn toàn'], ['crop', 'Cắt bỏ', 'Cắt phần dưới, lấp nền mờ']].map(([k, l, d]) => `<button class="option ${cfg.hardsub === k ? 'active' : ''}" data-hardsub="${k}"><b>${l}</b><span>${d}</span></button>`).join('')}</div>
       <div class="grid2" style="gap:10px">${['x', 'y', 'w', 'h'].map(k => `<label class="field"><span>${{ x: 'Trái', y: 'Trên', w: 'Rộng', h: 'Cao' }[k]} (%)</span><input type="number" data-region="${k}" value="${Math.round(r[k] * 1000) / 10}" step="0.5" min="0" max="100"></label>`).join('')}</div>
       ${toggle('hardsub_timing', cfg.hardsub_timing !== 'always', 'Chỉ làm mờ lúc có sub gốc', 'Dùng OCR dò thời điểm có chữ — phần còn lại của hình giữ nét')}
       <div class="row"><button class="btn sm" id="detect">${icon('sparkle', 14)} Tự dò bằng OCR</button>
@@ -846,7 +862,7 @@ function renderTab() {
     publish: () => {
       const outs = p.outputs || []; const cap = p.caption;
       return `
-      ${outs.length ? `<h3>Thành phẩm</h3>${outs.map((o, i) => `<div class="row" style="margin-bottom:8px"><span class="grow small">${o.clip ? 'Clip' : 'Video đầy đủ'} · ${new Date(o.time * 1000).toLocaleString('vi-VN')}</span>
+      ${outs.length ? `<h3>Thành phẩm</h3>${outs.map((o, i) => `<div class="row" style="margin-bottom:8px"><span class="grow small">${o.draft ? 'Bản nháp 540p' : o.clip ? 'Clip' : 'Video đầy đủ'} · ${new Date(o.time * 1000).toLocaleString('vi-VN')}</span>
         <a class="btn sm ${i === 0 ? 'primary' : ''}" href="/media/${S.pid}/${o.file}?download=1">${icon('download', 14)} Tải</a></div>`).join('')}
         <div class="row" style="margin:6px 0 4px"><a class="btn sm" href="/media/${S.pid}/output.srt" download>${icon('sub', 14)} SRT thành phẩm</a><button class="btn sm" id="open-folder">${icon('folder', 14)} Mở thư mục</button></div>`
         : `<div class="hint-box">${icon('upload')}<div>Chưa xuất video. Bấm <b>Cập nhật video</b> để dựng thành phẩm.</div></div>`}
@@ -877,6 +893,15 @@ function renderTab() {
   };
   body.innerHTML = T[S.tab]();
   bindTab(body);
+}
+
+function speakerVoices(cfg) {
+  const ids = [...new Set(S.proj.segments.map(s => s.speaker_id).filter(Boolean))].sort();
+  if (!ids.length) return '';
+  const sv = cfg.speaker_voices || {};
+  return `<div class="sep"></div><h3>Giọng theo người nói</h3>
+    ${ids.map(id => { const n = S.proj.segments.filter(s => s.speaker_id === id).length; return `<div class="row" style="margin-bottom:8px"><span class="pill blue">${esc(id)}</span><span class="small dim">${n} câu</span>
+      <select class="grow" data-spk="${esc(id)}" style="width:auto"><option value="">Theo giọng chung</option>${state.meta.voices.map(v => `<option value="${v.id}" ${sv[id] === v.id ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select></div>`; }).join('')}`;
 }
 
 function presetPreview(k) {
@@ -918,6 +943,11 @@ function bindTab(body) {
     else if (id === 'hardsub_timing') { pushUndo(true); cfg.hardsub_timing = chk ? 'auto' : 'always'; markDirty(); }
     else if (['encoder', 'voice_default', 'translator', 'asr_model'].includes(id)) { pushUndo(true); cfg[id] = e.target.value; if (id === 'voice_default') p.segments.forEach(s => s.tts_key = ''); markDirty(); }
     else if (id === 'source_mode') { p.source_mode = e.target.value; markDirty(); }
+    else if (e.target.dataset.spk) {
+      pushUndo(true); cfg.speaker_voices = { ...(cfg.speaker_voices || {}), [e.target.dataset.spk]: e.target.value };
+      if (!e.target.value) delete cfg.speaker_voices[e.target.dataset.spk];
+      p.segments.forEach(s => { if (s.speaker_id === e.target.dataset.spk) s.tts_key = ''; }); markDirty();
+    }
     else if (id === 'srt-in') importSrt(e.target.files[0]);
   };
   body.onclick = async e => {

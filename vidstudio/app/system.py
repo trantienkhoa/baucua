@@ -5,7 +5,7 @@ import importlib.util
 import shutil
 import subprocess
 
-from . import asr, media, ocr, tts
+from . import asr, inpaint, media, ocr, tts
 
 
 def _has(mod: str) -> bool:
@@ -34,6 +34,11 @@ def check() -> list[dict]:
         {"name": "Đọc và xoá sub gốc (OCR)", "ok": ocr.available(), "optional": True,
          "hint": 'pip install rapidocr-onnxruntime'},
         {"name": "Nhận diện giọng Nam/Nữ", "ok": True, "hint": ""},
+        {"name": "Phân biệt người nói (pyannote)", "ok": asr.diarize_available(), "optional": True,
+         "hint": "pip install pyannote.audio + token Hugging Face"},
+        {"name": "Vẽ lại nền khi xoá sub" + (" (LaMa)" if inpaint.engine() == "lama" else " (OpenCV)" if inpaint.engine() else ""),
+         "ok": bool(inpaint.engine()), "optional": True,
+         "hint": "pip install opencv-python-headless (thêm simple-lama-inpainting để sạch hơn)"},
         {"name": "Dịch offline", "ok": _has("argostranslate"), "optional": True, "hint": "pip install argostranslate"},
         {"name": "Tách nhạc nền", "ok": _has("audio_separator"), "optional": True,
          "hint": 'pip install "audio-separator[gpu]"'},

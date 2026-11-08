@@ -49,3 +49,18 @@ def test_duck_envelope():
     sr = media.ENV_SR
     assert abs(env[int(1.5 * sr)] - 0.1) < 0.01   # giữa câu: nhỏ
     assert abs(env[int(3.5 * sr)] - 0.8) < 0.01   # lúc im: to lại
+
+
+def test_align_words_and_karaoke():
+    words = [[1.0, 1.2, "Mang"], [1.25, 1.45, "nhiều"], [1.5, 1.7, "tiền"], [1.8, 2.1, "thế"]]
+    kara = subtitles.align_words("Mang *nhiều tiền* thế!", words)
+    assert kara == [1.0, 1.25, 1.5, 1.8, 2.1]
+    assert subtitles.align_words("Câu khác hẳn", words) is None
+    seg = {"start": 0.8, "end": 2.5, "text": "Mang *nhiều tiền* thế!", "tts_key": "x", "kara": kara}
+    ass = subtitles.build_ass([seg], {"preset": "karaoke"}, 1080, 1920)
+    assert "{\\k20}{\\kf25}Mang" in ass
+
+
+def test_draft_size():
+    assert media.render_size({"width": 1080, "height": 1920}, {"_draft": True}) == (540, 960)
+    assert media.render_size({"width": 1080, "height": 1920}, {}) == (1080, 1920)

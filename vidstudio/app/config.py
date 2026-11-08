@@ -38,9 +38,41 @@ PROVIDERS = {
 }
 
 VOICES = [
-    {"id": "vi-VN-HoaiMyNeural", "label": "Hoài My (Nữ)", "gender": "female"},
-    {"id": "vi-VN-NamMinhNeural", "label": "Nam Minh (Nam)", "gender": "male"},
+    {"id": "vi-VN-HoaiMyNeural", "label": "Hoài My (Nữ) · Edge miễn phí", "gender": "female", "provider": "edge"},
+    {"id": "vi-VN-NamMinhNeural", "label": "Nam Minh (Nam) · Edge miễn phí", "gender": "male", "provider": "edge"},
+    {"id": "fpt:banmai", "label": "Ban Mai (Nữ Bắc) · FPT.AI", "gender": "female", "provider": "fpt"},
+    {"id": "fpt:thuminh", "label": "Thu Minh (Nữ Bắc) · FPT.AI", "gender": "female", "provider": "fpt"},
+    {"id": "fpt:leminh", "label": "Lê Minh (Nam Bắc) · FPT.AI", "gender": "male", "provider": "fpt"},
+    {"id": "fpt:myan", "label": "Mỹ An (Nữ Trung) · FPT.AI", "gender": "female", "provider": "fpt"},
+    {"id": "fpt:giahuy", "label": "Gia Huy (Nam Trung) · FPT.AI", "gender": "male", "provider": "fpt"},
+    {"id": "fpt:lannhi", "label": "Lan Nhi (Nữ Nam) · FPT.AI", "gender": "female", "provider": "fpt"},
+    {"id": "fpt:linhsan", "label": "Linh San (Nữ Nam) · FPT.AI", "gender": "female", "provider": "fpt"},
+    {"id": "fpt:minhquang", "label": "Minh Quang (Nam Nam) · FPT.AI", "gender": "male", "provider": "fpt"},
+    {"id": "openai:nova", "label": "Nova (Nữ) · OpenAI", "gender": "female", "provider": "openai"},
+    {"id": "openai:coral", "label": "Coral (Nữ) · OpenAI", "gender": "female", "provider": "openai"},
+    {"id": "openai:onyx", "label": "Onyx (Nam) · OpenAI", "gender": "male", "provider": "openai"},
+    {"id": "openai:ash", "label": "Ash (Nam) · OpenAI", "gender": "male", "provider": "openai"},
 ]
+
+# nhà cung cấp giọng cần API key (key lưu chung trong keys.json)
+TTS_PROVIDERS = {
+    "fpt": {"label": "FPT.AI", "key_url": "https://console.fpt.ai"},
+    "eleven": {"label": "ElevenLabs", "key_url": "https://elevenlabs.io/app/settings/api-keys"},
+}
+
+
+def all_voices(settings: dict | None = None) -> list[dict]:
+    """Giọng có sẵn + giọng ElevenLabs người dùng tự thêm (mỗi dòng: Tên = voice_id)."""
+    settings = settings or load_settings()
+    out = list(VOICES)
+    for line in (settings.get("eleven_voices") or "").splitlines():
+        if "=" in line:
+            name, vid = (x.strip() for x in line.split("=", 1))
+            if name and vid:
+                g = "male" if "nam" in name.lower() and "nữ" not in name.lower() else "female"
+                out.append({"id": f"eleven:{vid}", "label": f"{name} · ElevenLabs", "gender": g, "provider": "eleven"})
+    return out
+
 
 DEFAULT_STYLE = {
     "preset": "tiktok",
@@ -70,10 +102,16 @@ DEFAULT_SETTINGS = {
     "target_lang": "vi",
     "asr_model": "small",
     "asr_device": "auto",
+    "asr_batched": "auto",    # auto: chạy theo lô khi có GPU | on | off
+    "diarize": False,         # phân biệt người nói bằng pyannote (cần token Hugging Face)
+    "parallel_translate": 3,  # số lô dịch gửi cùng lúc
     "dub": True,
     "voice_default": "vi-VN-HoaiMyNeural",
     "voice_male": "vi-VN-NamMinhNeural",
     "voice_female": "vi-VN-HoaiMyNeural",
+    "speaker_voices": {},      # nhãn người nói (A, B…) → giọng
+    "eleven_voices": "",       # mỗi dòng: Tên = voice_id (giọng clone của bạn trên ElevenLabs)
+    "eleven_model": "eleven_flash_v2_5",
     "tts_rate": 0,            # % tốc độ đọc gốc của edge-tts (-50..+50)
     "max_speed": 1.4,         # tăng tốc tối đa để khớp thời lượng câu
     "orig_volume": 0.12,      # âm lượng tiếng gốc lúc đang có giọng Việt (0 = tắt)

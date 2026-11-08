@@ -114,16 +114,66 @@ def line_chars(style: dict, width: int, size: int) -> int:
     return max(8, min(int(style.get("max_chars", 32)), fit))
 
 
+_PUNCT = re.compile(r"[^\w]+", re.U)
+
+
+def _norm(w: str) -> str:
+    return _PUNCT.sub("", w.lower())
+
+
+def align_words(text: str, words: list | None) -> list[float] | None:
+    """Ghép mốc thời gian chữ của giọng đọc với từng từ hiển thị.
+
+    Trả về danh sách [bắt đầu, ...] + [kết thúc chữ cuối], hoặc None nếu không khớp.
+    """
+    if not words:
+        return None
+    disp = [w for w in plain(text).split() if _norm(w)]
+    toks = [(a, b, _norm(t)) for a, b, t in words if _norm(t)]
+    out, j = [], 0
+    for w in disp:
+        target, acc, first = _norm(w), "", None
+        while j < len(toks) and len(acc) < len(target):
+            if first is None:
+                first = toks[j][0]
+            acc += toks[j][2]
+            j += 1
+        if acc != target or first is None:
+            return None
+        out.append(first)
+    if not out:
+        return None
+    return out + [toks[j - 1][1]]
+
+
 def _escape(t: str) -> str:
     return t.replace("\\", "\\\\").replace("{", "(").replace("}", ")")
 
 
-def _styled_text(text: str, preset: str, st: dict, dur: float, max_chars: int) -> str:
+def _styled_text(text: str, preset: str, st: dict, dur: float, max_chars: int,
+                 kara: list[float] | None = None, seg_start: float = 0.0) -> str:
     hl = ass_color(st.get("highlight", "#FFD400"))
     base = ass_color(st.get("color", "#FFFFFF"))
     if st.get("uppercase") or preset == "pop":
         text = text.upper()
     lines = wrap(text, max_chars)
+    if preset == "karaoke" and kara:
+        # khớp đúng lúc giọng đọc nói tới từng chữ
+        idx, out = 0, []
+        first_delay = max(0, int(round((kara[0] - seg_start) * 100)))
+        for li, line in enumerate(lines):
+            parts = []
+            for w in line.split():
+                word = _escape(w.replace("*", ""))
+                if not _norm(w):
+                    parts.append(word)
+                    continue
+                k = max(1, int(round((kara[idx + 1] - kara[idx]) * 100))) if idx + 1 < len(kara) else 1
+                parts.append(f"{{\\kf{k}}}{word}")
+                idx += 1
+            prefix = f"{{\\k{first_delay}}}" if li == 0 and first_delay else ""
+            out.append(prefix + " ".join(parts))
+        return "\\N".join(out)
     if preset == "karaoke":
         words = " ".join(lines).split()
         total = sum(len(plain(w)) + 1 for w in words) or 1
@@ -133,7 +183,7 @@ def _styled_text(text: str, preset: str, st: dict, dur: float, max_chars: int) -
             parts = []
             for w in line.split():
                 k = max(1, int(cs_total * (len(plain(w)) + 1) / total))
-                parts.append(f"{{\\kf{k}}}{_escape(plain(w))}")
+                parts.append(f"{{\\kf{k}}}{_escape(w.replace('*', ''))}")
             out.append(" ".join(parts))
         return "\\N".join(out)
     rendered = []
@@ -222,7 +272,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             b = b2 if b2 is not None else a2
             if b - a < 0.05:
                 continue
-        body = _styled_text(text, preset, st, b - a, chars)
+        kara = seg.get("kara") if seg.get("tts_key") else None
+        body = _styled_text(text, preset, st, b - a, chars, kara, float(seg["start"]))
         anim = ""
         if preset == "pop":
             anim = "{\\fscx80\\fscy80\\t(0,120,\\fscx108\\fscy108)\\t(120,200,\\fscx100\\fscy100)}"

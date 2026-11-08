@@ -52,6 +52,12 @@ Bấm **Ctrl+K** ở bất cứ đâu để mở bảng lệnh.
 - **Tiếng gốc tự nhỏ khi có giọng Việt, to lại lúc im lặng**, kèm chuẩn âm lượng -14 LUFS.
 - **Chỉ làm mờ sub gốc lúc có chữ** (dò bằng OCR), phần còn lại của video giữ nét.
 - Đang xử lý nền thì Studio tạm khoá sửa câu để không ghi đè lẫn nhau; file tạm cũ được dọn tự động.
+- **Xem nháp:** xuất nhanh bản 540p để kiểm tra rồi mới xuất bản nét.
+- **Nhanh hơn:** Whisper chạy theo lô khi có GPU; dịch gửi nhiều lô cùng lúc (Claude dùng cache prompt); giải mã video bằng GPU khi xuất bằng NVENC; giọng đọc đã tạo được dùng lại giữa các dự án (cache 30 ngày).
+- **Karaoke khớp giọng:** với giọng Edge, chữ sáng lên đúng lúc giọng đọc nói tới.
+- **Nhiều giọng hơn:** Edge (miễn phí), FPT.AI (9 giọng ba miền), OpenAI, ElevenLabs (thêm giọng clone của bạn theo dạng `Tên = voice_id`). Key nhập trong Cài đặt › Giọng đọc.
+- **Phân biệt người nói:** bật trong Cài đặt (cần `pyannote.audio` và token Hugging Face). Mỗi người được gắn nhãn A, B… và chọn giọng riêng ở tab Giọng.
+- **Xoá sub bằng cách vẽ lại nền:** chọn *Vẽ lại nền* ở tab Hình. Dùng OpenCV (cài `opencv-python-headless`), hoặc LaMa nếu cài `simple-lama-inpainting` (sạch hơn, cần GPU). Chỉ xử lý những khung hình có chữ; bản nháp vẫn dùng làm mờ cho nhanh.
 
 ## AI dịch
 
