@@ -57,7 +57,7 @@ async function pollJobs() {
     badge.textContent = data.active.length;
     $('#queue-list').innerHTML = data.active.length ? data.active.map(p => `
       <div class="q-item"><div class="row"><b class="grow" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.title)}</b>
-      ${statusPill(p)}</div><div class="small muted" style="margin:4px 0 6px">${esc(p.message || '')}</div>
+      ${statusPill(p)}</div><div class="small muted" style="margin:4px 0 6px">${p.lane ? `<span class="pill gray">${esc(p.lane)}</span> ` : ''}${esc(p.message || '')}</div>
       <div class="progress"><i style="width:${p.progress || 0}%"></i></div>
       <div class="row" style="margin-top:6px"><a class="btn sm ghost" href="#/studio/${p.id}">Mở</a>
       <button class="btn sm ghost danger" data-cancel="${p.id}">Huỷ</button></div></div>`).join('')

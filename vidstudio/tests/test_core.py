@@ -35,3 +35,17 @@ def test_quality_check():
     qa = subtitles.quality_check([{"id": 1, "start": 0, "end": 1, "text": "这个没翻译"},
                                   {"id": 2, "start": 1, "end": 3, "text": "Ổn"}])
     assert qa["score"] < 100 and qa["issues"][0]["id"] == 1
+
+
+def test_merge_and_remap_ranges():
+    assert media.merge_ranges([(1, 2), (2.2, 3), (6, 7)], pad=0, gap=0.4) == [[1, 3], [6, 7]]
+    keep = media.keep_ranges(10, None, [{"start": 4, "end": 6}])
+    # khoảng 3–7 bị cắt mất 4–6 → còn 3–4 và 6–7, nối liền thành 3–5 trên thành phẩm
+    assert media.remap_ranges([(3, 7)], keep) == [[3, 5]]
+
+
+def test_duck_envelope():
+    env = media.duck_envelope([(1, 2)], 4, low=0.1, high=0.8)
+    sr = media.ENV_SR
+    assert abs(env[int(1.5 * sr)] - 0.1) < 0.01   # giữa câu: nhỏ
+    assert abs(env[int(3.5 * sr)] - 0.8) < 0.01   # lúc im: to lại

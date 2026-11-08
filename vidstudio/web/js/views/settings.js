@@ -51,16 +51,21 @@ function render() {
           <div class="card-head">${icon('mic')}<h2>Giọng đọc</h2></div>
           ${trow('dub', 'Lồng tiếng Việt', 'Tắt: chỉ làm phụ đề, giữ tiếng gốc')}
           <label class="field"><span>Giọng mặc định</span><select data-k="voice_default"><option value="auto" ${s.voice_default === 'auto' ? 'selected' : ''}>Tự theo người nói (Nam/Nữ)</option>${state.meta.voices.map(v => `<option value="${v.id}" ${s.voice_default === v.id ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select></label>
-          <div class="kv"><span>Âm lượng tiếng gốc khi lồng tiếng</span><b class="mono">${Math.round(s.orig_volume * 100)}%</b></div>
+          <div class="kv"><span>Tiếng gốc lúc có giọng Việt</span><b class="mono">${Math.round(s.orig_volume * 100)}%</b></div>
           <input type="range" data-k="orig_volume" min="0" max="1" step="0.01" value="${s.orig_volume}">
           <div class="kv" style="margin-top:10px"><span>Tự tăng tốc tối đa</span><b class="mono">${(+s.max_speed).toFixed(2)}x</b></div>
           <input type="range" data-k="max_speed" min="1" max="2" step="0.05" value="${s.max_speed}">
           ${trow('separate_music', 'Tách nhạc nền', 'Giữ nhạc, bỏ giọng gốc (cài audio-separator)')}
+          ${trow('ducking', 'Tiếng gốc to lại lúc không có lời', 'Thanh phía trên là âm lượng lúc đang có giọng Việt')}
+          ${trow('loudnorm', 'Chuẩn âm lượng mạng xã hội (-14 LUFS)')}
+          ${trow('auto_shorten', 'AI tự rút gọn câu đọc không kịp', 'Cần AI dịch (không áp dụng với Google dịch)')}
         </div>
         <div class="card">
           <div class="card-head">${icon('image')}<h2>Xoá sub gốc & xuất video</h2></div>
           <label class="field"><span>Cách xoá sub gốc</span><select data-k="hardsub">${[['none', 'Giữ nguyên'], ['blur', 'Làm mờ'], ['box', 'Che hộp đen'], ['crop', 'Cắt bỏ phần dưới']].map(([v, l]) => `<option value="${v}" ${s.hardsub === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
           ${trow('auto_detect_region', 'Tự dò vùng sub bằng OCR', 'Cần rapidocr-onnxruntime')}
+          <div class="toggle-row"><div class="grow"><b>Chỉ làm mờ lúc có sub gốc</b><span>Dò bằng OCR; tắt để làm mờ suốt video</span></div>
+            <label class="switch"><input type="checkbox" id="timing" ${s.hardsub_timing !== 'always' ? 'checked' : ''}><i></i></label></div>
           ${trow('burn_subs', 'Chèn phụ đề tiếng Việt')}
           <label class="field"><span>Khung hình</span><select data-k="output_ratio">${[['source', 'Như gốc'], ['9:16', '9:16'], ['1:1', '1:1'], ['16:9', '16:9'], ['4:5', '4:5']].map(([v, l]) => `<option value="${v}" ${s.output_ratio === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
           <label class="field"><span>Bộ mã hoá</span><select data-k="encoder"><option value="auto" ${s.encoder === 'auto' ? 'selected' : ''}>Tự chọn (GPU nếu có)</option><option value="h264_nvenc" ${s.encoder === 'h264_nvenc' ? 'selected' : ''}>GPU NVIDIA</option><option value="libx264" ${s.encoder === 'libx264' ? 'selected' : ''}>CPU</option></select></label>
@@ -102,7 +107,10 @@ function bind() {
     if (e.target.type === 'range') { const b = e.target.previousElementSibling?.querySelector('b'); if (b) b.textContent = k === 'orig_volume' ? Math.round(s[k] * 100) + '%' : s[k].toFixed(2) + 'x'; }
     $('#state', root).innerHTML = '<span style="color:var(--yellow)">● Chưa lưu</span>';
   };
-  root.onchange = root.oninput;
+  root.onchange = e => {
+    if (e.target.id === 'timing') { s.hardsub_timing = e.target.checked ? 'auto' : 'always'; $('#state', root).innerHTML = '<span style="color:var(--yellow)">● Chưa lưu</span>'; return; }
+    root.oninput(e);
+  };
   root.onclick = async e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.prov) { s.translator = b.dataset.prov; render(); loadSystem(); $('#state', root).innerHTML = '<span style="color:var(--yellow)">● Chưa lưu</span>'; return; }

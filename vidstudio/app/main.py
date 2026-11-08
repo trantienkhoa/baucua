@@ -148,7 +148,7 @@ def create_projects(data: dict = Body(...)):
             proj["title_src"] = data["title_src"]
         proj["source_mode"] = data.get("source_mode", "asr")
         store.save(proj)
-        pipeline.enqueue(proj["id"], "full", {"render": data.get("auto_render", True)})
+        _enqueue(proj["id"], "full", {"render": data.get("auto_render", True)})
         created.append(proj["id"])
     return {"ids": created}
 
@@ -180,7 +180,7 @@ async def upload_projects(files: list[UploadFile] = File(...), srt: UploadFile |
         if srt is not None and len(files) == 1:
             (d / "import.srt").write_bytes(await srt.read())
         store.save(proj)
-        pipeline.enqueue(proj["id"], "full", {"render": opts.get("auto_render", True)})
+        _enqueue(proj["id"], "full", {"render": opts.get("auto_render", True)})
         created.append(proj["id"])
     return {"ids": created}
 
@@ -189,12 +189,20 @@ async def upload_projects(files: list[UploadFile] = File(...), srt: UploadFile |
 
 @app.get("/api/projects")
 def list_projects():
-    return store.list_projects()
+    return [pipeline.overlay_live(p) for p in store.list_projects()]
+
+
+def _enqueue(pid: str, kind: str, opts: dict | None = None) -> None:
+    try:
+        pipeline.enqueue(pid, kind, opts)
+    except pipeline.Busy as e:
+        raise HTTPException(409, str(e))
 
 
 @app.get("/api/projects/{pid}")
 def get_project(pid: str):
-    proj = _proj(pid)
+    proj = pipeline.overlay_live(_proj(pid))
+    proj["busy"] = pipeline.is_busy(pid)
     proj["qa"] = quality_check(proj["segments"], float(proj["settings"].get("max_speed", 1.4))) \
         if proj["segments"] else proj.get("qa")
     return proj
@@ -205,19 +213,23 @@ EDITABLE = {"segments", "style", "settings", "trim", "cuts", "title", "source_mo
 
 @app.put("/api/projects/{pid}")
 def put_project(pid: str, data: dict = Body(...)):
+    busy = pipeline.is_busy(pid)
     with store.lock(pid):
         proj = _proj(pid)
         for k, v in data.items():
-            if k in EDITABLE:
+            # đang xử lý thì không nhận danh sách câu (tránh ghi đè lẫn nhau với tiến trình nền)
+            if k in EDITABLE and not (busy and k in ("segments", "next_id")):
                 proj[k] = v
-        if "segments" in data:
+        if "segments" in data and not busy:
             proj["segments"].sort(key=lambda s: float(s["start"]))
             proj["next_id"] = max([proj.get("next_id", 1)] + [int(s["id"]) + 1 for s in proj["segments"]])
-        if proj["status"] == "done" and data.keys() & {"segments", "style", "settings", "trim", "cuts"}:
+        if not busy and proj["status"] == "done" and data.keys() & {"segments", "style", "settings", "trim", "cuts"}:
             proj["status"] = "ready"
             proj["message"] = "Có thay đổi chưa xuất lại"
         store.save(proj)
-    return get_project(pid)
+    out = get_project(pid)
+    out["segments_locked"] = busy and "segments" in data
+    return out
 
 
 @app.delete("/api/projects/{pid}")
@@ -236,10 +248,13 @@ def duplicate_project(pid: str):
 @app.post("/api/projects/{pid}/retry")
 def retry_project(pid: str, data: dict = Body(default={})):
     proj = _proj(pid)
+    if pipeline.is_busy(pid):
+        raise HTTPException(409, "Video đang được xử lý")
     if data.get("from_scratch"):
         proj["segments"] = []
+        proj.pop("hardsub_times", None)
         store.save(proj)
-    pipeline.enqueue(pid, "full", {"render": True})
+    _enqueue(pid, "full", {"render": True})
     return {"ok": True}
 
 
@@ -258,7 +273,7 @@ def run_project(pid: str, data: dict = Body(default={})):
         raise HTTPException(400, "Kiểu xử lý không hợp lệ")
     if not proj["segments"] and proj.get("kind") != "merge":
         raise HTTPException(400, "Chưa có phụ đề")
-    pipeline.enqueue(pid, kind, {k: data[k] for k in ("clip", "retranslate_ids", "revoice", "no_render") if k in data})
+    _enqueue(pid, kind, {k: data[k] for k in ("clip", "retranslate_ids", "revoice", "no_render") if k in data})
     return {"ok": True}
 
 
@@ -438,7 +453,7 @@ def merge(data: dict = Body(...)):
     proj = store.new_project(title=data.get("title") or f"Ghép {len(files)} video", platform="Ghép")
     proj["kind"] = "merge"
     store.save(proj)
-    pipeline.enqueue(proj["id"], "merge", {"files": files, "ratio": data.get("ratio", "9:16")})
+    _enqueue(proj["id"], "merge", {"files": files, "ratio": data.get("ratio", "9:16")})
     return {"id": proj["id"]}
 
 
@@ -447,11 +462,14 @@ def merge(data: dict = Body(...)):
 @app.get("/api/jobs")
 def jobs(since: float = 0):
     state = pipeline.queue_state()
+    lanes = {"net": "Mạng", "asr": "Nhận dạng", "render": "Xuất video"}
     active = []
-    for pid in ([state["current"]] if state["current"] else []) + state["pending"]:
+    for pid in list(state["running"]) + state["pending"]:
         try:
-            p = store.load(pid)
-            active.append({k: p.get(k) for k in ("id", "title", "status", "stage", "progress", "message")})
+            p = pipeline.overlay_live(store.load(pid))
+            row = {k: p.get(k) for k in ("id", "title", "status", "stage", "progress", "message")}
+            row["lane"] = lanes.get(state["running"].get(pid, ""), "")
+            active.append(row)
         except KeyError:
             pass
     return {"active": active, "events": pipeline.pop_events(since), "now": time.time()}

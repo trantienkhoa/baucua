@@ -306,3 +306,7 @@ input[type=color] { width: 40px; height: 32px; border: 1px solid var(--line); bo
 .line.muted-line .txt { opacity: .5; text-decoration: line-through; }
 .seg button, .player-bar .mono, .tab span { white-space: nowrap; }
 .player-bar { flex-wrap: wrap; }
+
+.lines.locked .txt, .lines.locked .src { opacity: .7; cursor: not-allowed; }
+.lines.locked::before { content: "Đang xử lý nền — tạm khoá sửa câu"; display: block; position: sticky; top: 0; z-index: 2;
+  background: var(--accent-soft); color: var(--accent); font-size: 12px; padding: 6px 10px; border-radius: 8px; margin: 0 4px 6px; backdrop-filter: blur(6px); }

@@ -135,6 +135,44 @@ def waveform_peaks(src: Path, per_second: int = 40) -> list[int]:
     return [int(v) for v in np.clip(frames / top * 100, 0, 100)]
 
 
+ENV_SR = 8000
+
+
+def duck_envelope(speech: list, duration: float, low: float, high: float, ramp: float = 0.15) -> np.ndarray:
+    """Đường bao âm lượng mượt: `low` trong lúc có giọng lồng, `high` lúc im lặng."""
+    n = int((duration + 1) * ENV_SR)
+    mask = np.zeros(n, dtype=np.float32)
+    for a, b in merge_ranges(speech, pad=0.08, gap=0.6):
+        mask[int(a * ENV_SR):int(b * ENV_SR)] = 1.0
+    k = max(1, int(ramp * ENV_SR))
+    mask = np.convolve(mask, np.ones(k, dtype=np.float32) / k, mode="same")
+    return (high + (low - high) * mask).astype(np.float32)
+
+
+def merge_ranges(ranges, pad: float = 0.25, gap: float = 0.4) -> list[list[float]]:
+    """Nới mỗi khoảng `pad` giây và gộp các khoảng cách nhau dưới `gap` giây."""
+    out: list[list[float]] = []
+    for a, b in sorted((max(0.0, float(a) - pad), float(b) + pad) for a, b in ranges):
+        if out and a - out[-1][1] < gap:
+            out[-1][1] = max(out[-1][1], b)
+        else:
+            out.append([round(a, 2), round(b, 2)])
+    return out
+
+
+def remap_ranges(raw, keep: list[tuple[float, float]]) -> list[list[float]]:
+    """Đổi khoảng thời gian trên video gốc sang thời gian sau khi cắt đoạn."""
+    out = []
+    for a, b in raw:
+        for s, e in keep:
+            lo, hi = max(a, s), min(b, e)
+            if hi > lo:
+                ra, rb = remap_time(lo, keep), remap_time(hi, keep)
+                if ra is not None and rb is not None:
+                    out.append((ra, rb))
+    return merge_ranges(out, pad=0.0, gap=0.05)
+
+
 def atempo_chain(speed: float) -> str:
     parts = []
     s = speed
@@ -224,6 +262,7 @@ def remap_time(t: float, ranges: list[tuple[float, float]]) -> float | None:
 def render_video(*, src: Path, out: Path, workdir: Path, info: dict, settings: dict,
                  ass_name: str | None, dub_wav: Path | None, bg_wav: Path | None,
                  ranges: list[tuple[float, float]], region: dict | None,
+                 region_times: list | None = None, speech: list | None = None,
                  progress: ProgressCb = None, cancel=None) -> None:
     """Dựng thành phẩm: cắt đoạn, xoá sub gốc, đổi khung, chèn phụ đề, trộn tiếng."""
     W, H = output_size(info["width"], info["height"], settings.get("output_ratio", "source"))
@@ -235,15 +274,26 @@ def render_video(*, src: Path, out: Path, workdir: Path, info: dict, settings: d
         idx_dub = 1
     if bg_wav and bg_wav.exists():
         inputs += ["-i", str(bg_wav)]
-        idx_bg = 2 if idx_dub else 1
+        idx_bg = len(inputs) // 2 - 1
+    idx_env = None
+    orig_vol = float(settings.get("orig_volume", 0.12)) if idx_dub is not None else 1.0
+    gap_vol = float(settings.get("gap_volume", 0.8))
+    if idx_dub is not None and speech is not None and info.get("has_audio") and idx_bg is None:
+        # đường bao âm lượng: tiếng gốc nhỏ khi có giọng Việt, to lại lúc im lặng
+        write_wav(workdir / "duck.wav", duck_envelope(speech, info["duration"], orig_vol, gap_vol), ENV_SR)
+        inputs += ["-i", "duck.wav"]
+        idx_env = len(inputs) // 2 - 1
 
     f: list[str] = []
     # --- âm thanh ---
     a_parts = []
-    orig_vol = float(settings.get("orig_volume", 0.12)) if idx_dub is not None else 1.0
     if idx_bg is not None:
         f.append(f"[{idx_bg}:a]aresample=44100,volume=0.9[bg]")
         a_parts.append("[bg]")
+    elif idx_env is not None:
+        f.append(f"[0:a]aresample=44100,aformat=channel_layouts=stereo[o0];"
+                 f"[{idx_env}:a]aresample=44100,pan=stereo|c0=c0|c1=c0[env];[o0][env]amultiply[orig]")
+        a_parts.append("[orig]")
     elif info.get("has_audio") and orig_vol > 0:
         f.append(f"[0:a]aresample=44100,volume={orig_vol:.3f}[orig]")
         a_parts.append("[orig]")
@@ -271,11 +321,15 @@ def render_video(*, src: Path, out: Path, workdir: Path, info: dict, settings: d
     f.append("".join(f"[vt{i}][at{i}]" for i in range(n)) + f"concat=n={n}:v=1:a=1[vc][ac]")
 
     v = "[vc]"
-    if settings.get("flip"):
-        f.append(f"{v}hflip[vf]")
-        v = "[vf]"
     # --- xoá sub gốc ---
     mode = settings.get("hardsub", "none")
+    enable = ""
+    if region_times is not None and mode in ("blur", "box"):
+        if not region_times:
+            region = None  # không lúc nào có sub gốc → khỏi làm mờ
+        else:
+            expr = "+".join(f"between(t,{a:.2f},{b:.2f})" for a, b in region_times)
+            enable = f":enable='{expr}'"
     if region and mode in ("blur", "box", "crop"):
         sw, sh = info["width"], info["height"]
         rx, ry = int(region["x"] * sw) // 2 * 2, int(region["y"] * sh) // 2 * 2
@@ -283,12 +337,15 @@ def render_video(*, src: Path, out: Path, workdir: Path, info: dict, settings: d
         rw, rh = min(rw, sw - rx), min(rh, sh - ry)
         if mode == "blur":
             f.append(f"{v}split[hb0][hb1];[hb1]crop={rw}:{rh}:{rx}:{ry},boxblur=luma_radius=min(h\\,w)/4:luma_power=3[hbb];"
-                     f"[hb0][hbb]overlay={rx}:{ry}[vh]")
+                     f"[hb0][hbb]overlay={rx}:{ry}{enable}[vh]")
         elif mode == "box":
-            f.append(f"{v}drawbox=x={rx}:y={ry}:w={rw}:h={rh}:color=black@0.85:t=fill[vh]")
+            f.append(f"{v}drawbox=x={rx}:y={ry}:w={rw}:h={rh}:color=black@0.85:t=fill{enable}[vh]")
         else:
             f.append(f"{v}crop={sw}:{max(2, ry // 2 * 2)}:0:0[vh]")
         v = "[vh]"
+    if settings.get("flip"):  # lật sau khi xoá sub để toạ độ vùng sub vẫn đúng
+        f.append(f"{v}hflip[vf]")
+        v = "[vf]"
     # --- khung hình ---
     if settings.get("output_ratio", "source") in RATIOS or mode == "crop":
         f.append(f"{v}split[fg0][bg0];[bg0]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
@@ -305,6 +362,9 @@ def render_video(*, src: Path, out: Path, workdir: Path, info: dict, settings: d
         f.append(f"{v}setpts=PTS/{speed:.4f}[vsp]")
         f.append(f"{a}{atempo_chain(speed)}[asp]")
         v, a = "[vsp]", "[asp]"
+    if settings.get("loudnorm", True):  # chuẩn âm lượng mạng xã hội (~ -14 LUFS)
+        f.append(f"{a}loudnorm=I=-14:TP=-1.5:LRA=11,aresample=44100[aln]")
+        a = "[aln]"
     f.append(f"{a}alimiter=limit=0.95[aout]")
 
     total = sum(e - s for s, e in ranges) / speed

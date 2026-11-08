@@ -76,12 +76,17 @@ DEFAULT_SETTINGS = {
     "voice_female": "vi-VN-HoaiMyNeural",
     "tts_rate": 0,            # % tốc độ đọc gốc của edge-tts (-50..+50)
     "max_speed": 1.4,         # tăng tốc tối đa để khớp thời lượng câu
-    "orig_volume": 0.12,      # âm lượng tiếng gốc khi lồng tiếng (0 = tắt)
+    "orig_volume": 0.12,      # âm lượng tiếng gốc lúc đang có giọng Việt (0 = tắt)
+    "ducking": True,          # tiếng gốc to lại lúc giọng Việt im
+    "gap_volume": 0.8,        # âm lượng tiếng gốc lúc không có lời
+    "loudnorm": True,         # chuẩn âm lượng -14 LUFS
+    "auto_shorten": True,     # AI tự rút gọn câu đọc không kịp
     "voice_volume": 1.0,
     "separate_music": False,
     "hardsub": "blur",        # none | blur | box | crop
     "hardsub_region": {"x": 0.04, "y": 0.74, "w": 0.92, "h": 0.14},
     "auto_detect_region": True,
+    "hardsub_timing": "auto", # auto: chỉ làm mờ lúc có sub (cần OCR) | always
     "burn_subs": True,
     "encoder": "auto",        # auto | libx264 | h264_nvenc
     "crf": 21,

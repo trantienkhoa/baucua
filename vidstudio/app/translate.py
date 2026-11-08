@@ -276,6 +276,48 @@ def translate_texts(texts: list[str], settings: dict, src: str = "zh", tgt: str 
     return [got.get(i) or texts[i] for i in range(len(texts))]
 
 
+SHORT_SCHEMA = {
+    "type": "object",
+    "properties": {"lines": {"type": "array", "items": {
+        "type": "object",
+        "properties": {"id": {"type": "integer"}, "t": {"type": "string"}},
+        "required": ["id", "t"], "additionalProperties": False}}},
+    "required": ["lines"], "additionalProperties": False,
+}
+
+
+def shorten_lines(items: list[dict], settings: dict) -> dict[int, str]:
+    """Viết lại câu dịch ngắn hơn để giọng đọc kịp thời lượng.
+
+    items: {id, text, src, max_chars, seconds}. Trả về {id: câu mới}.
+    """
+    provider = settings.get("translator", "google")
+    if provider in ("google", "offline") or not items:
+        return {}
+    system = (
+        "Bạn biên tập phụ đề lồng tiếng tiếng Việt. Mỗi câu dưới đây đọc không kịp trong thời lượng cho phép. "
+        "Viết lại NGẮN HƠN, không vượt max_chars ký tự, giữ ý chính, cảm xúc và cách xưng hô; "
+        "bỏ từ đệm, từ lặp, chủ ngữ hiển nhiên. Đối chiếu câu gốc (src) để không sai nghĩa. "
+        "Nếu câu có từ được bọc *dấu sao* thì giữ dấu sao quanh từ quan trọng nhất. "
+        f"Văn phong: {settings.get('style_prompt') or 'tự nhiên'}. "
+        'Trả JSON {"lines":[{"id":1,"t":"..."}]}.'
+    )
+    out: dict[int, str] = {}
+    for start in range(0, len(items), 40):
+        part = items[start:start + 40]
+        raw = llm_complete(provider, system, json.dumps(part, ensure_ascii=False), settings, schema=SHORT_SCHEMA)
+        data = _extract_json(raw)
+        rows = data["lines"] if isinstance(data, dict) else data
+        for r in rows:
+            try:
+                t = str(r.get("t", "")).strip()
+                if t:
+                    out[int(r["id"])] = t
+            except (KeyError, ValueError, TypeError):
+                continue
+    return out
+
+
 CAPTION_SCHEMA = {
     "type": "object",
     "properties": {

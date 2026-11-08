@@ -128,3 +128,19 @@ def read_subtitles(src: Path, info: dict, region: dict, fps: float = 3.0,
     if cur:
         out.append(cur)
     return [s for s in out if s["end"] - s["start"] >= 0.3]
+
+
+def text_ranges(src: Path, info: dict, region: dict, fps: float = 2.0, cancel=None) -> list[list[float]]:
+    """Các khoảng thời gian có chữ trong vùng sub (để chỉ làm mờ lúc cần)."""
+    from . import media as _m
+    width = 640
+    hits: list[tuple[float, float]] = []
+    for t, img, full_h, _ in _frames(src, fps, width, info):
+        if cancel and cancel():
+            raise _m.Cancelled("Đã huỷ")
+        y0, y1 = int(region["y"] * full_h), int((region["y"] + region["h"]) * full_h)
+        x0, x1 = int(region["x"] * width), int((region["x"] + region["w"]) * width)
+        crop = img[y0:y1, x0:x1]
+        if crop.size and any(sc > 0.5 and len(tx.strip()) >= 2 for _, tx, sc in _boxes(np.ascontiguousarray(crop))):
+            hits.append((t, t + 1 / fps))
+    return _m.merge_ranges(hits)

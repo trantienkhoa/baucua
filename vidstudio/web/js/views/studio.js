@@ -47,8 +47,9 @@ export async function unmount() {
 async function loadProject() {
   const p = await api('/api/projects/' + S.pid);
   S.proj = p;
-  if (['queued', 'processing'].includes(p.status)) return renderProcessing();
+  if (['queued', 'processing'].includes(p.status) && !S.proj.segments.length) return renderProcessing();
   renderStudio();
+  if (p.busy || ['queued', 'processing'].includes(p.status)) { setBusy(true); watchJob(); }
 }
 
 // ======================================================================= đang xử lý
@@ -225,6 +226,7 @@ async function save(manual) {
     const res = await api('/api/projects/' + S.pid, { method: 'PUT', body: { segments: p.segments, style: p.style, settings: p.settings, trim: p.trim, cuts: p.cuts, title: p.title, next_id: p.next_id } });
     S.proj.status = res.status; S.proj.message = res.message; S.proj.qa = res.qa;
     S.dirty = false;
+    if (res.segments_locked) toast('Đang xử lý nền — thay đổi phụ đề chưa được lưu, hãy sửa lại sau khi xong', 'error');
     if (manual) toast('Đã lưu', 'ok');
   } catch (e) { toast('Lưu lỗi: ' + e.message, 'error'); } finally { S.saving = false; refreshStatus(); }
 }
@@ -234,10 +236,20 @@ async function runJob(kind, extra = {}) {
   await save();
   try {
     await api(`/api/projects/${S.pid}/run`, { method: 'POST', body: { kind, ...extra } });
-    toast(kind === 'clip' ? 'Đang xuất đoạn đã chọn…' : 'Đang cập nhật giọng đọc và xuất video…');
+    toast(kind === 'clip' ? 'Đang xuất đoạn đã chọn…' : extra.no_render ? 'Đang xử lý…' : 'Đang cập nhật giọng đọc và xuất video…');
     S.proj.status = 'processing';
+    setBusy(true);
     watchJob();
   } catch (e) { toast(e.message, 'error'); }
+}
+
+// Khi đang xử lý nền: khoá sửa câu để không ghi đè lẫn nhau
+function setBusy(b) {
+  S.busy = b;
+  const lines = $('#lines', root); if (!lines) return;
+  lines.classList.toggle('locked', b);
+  $$('[contenteditable]', lines).forEach(el => { el.contentEditable = b ? 'false' : 'true'; });
+  $$('#lines input, #lines select, #lines [data-a]:not([data-a="play"]), #add-line, #replace, #update, #export', root).forEach(el => { el.disabled = b; });
 }
 
 function watchJob() {
@@ -251,10 +263,11 @@ function watchJob() {
       const cj = $('#cj', root); if (cj) cj.onclick = () => api(`/api/projects/${S.pid}/cancel`, { method: 'POST' });
       return watchJob();
     }
-    // xong: lấy lại số liệu giọng đọc (tốc độ), file mới
-    const keepDirty = S.dirty;
+    // xong: lấy lại câu (có thể đã được dịch lại / tự rút gọn), tốc độ đọc, file mới
     S.proj.status = p.status; S.proj.message = p.message; S.proj.error = p.error; S.proj.outputs = p.outputs; S.proj.qa = p.qa;
-    if (!keepDirty) { S.proj.segments = p.segments; renderLines(); }
+    S.proj.segments = p.segments; S.proj.next_id = p.next_id; S.proj.title = p.title;
+    setBusy(false);
+    renderLines(); S.tl?.draw();
     S.ver = Date.now();
     refreshStatus(); computeQa(); loadPeaks();
     if (S.audio) S.audio.src = `/media/${S.pid}/dub.wav?v=${S.ver}`;
@@ -311,6 +324,7 @@ function renderLines() {
   }
   box.innerHTML = list.map(s => lineHtml(s, segs.indexOf(s))).join('') || '<div class="empty small">Không có câu phù hợp</div>';
   bindLines(box);
+  if (S.busy) setBusy(true);
   if (S.active) $(`.line[data-id="${S.active}"]`, box)?.classList.add('active');
 }
 
@@ -363,7 +377,7 @@ function bindLines(box) {
     pushUndo();
     const s = seg(line.dataset.id);
     s[f] = e.target.innerText.replace(/\n+/g, ' ').trim();
-    if (f === 'text') s.tts_key = '';
+    if (f === 'text') { s.tts_key = ''; s.locked = true; } // câu sửa tay → không tự rút gọn
     markDirty();
     if (s.id === S.active) renderOverlay(true);
     const t = plain(s.text); const maxC = Math.round(Math.max(0.01, s.end - s.start) * 17);
@@ -405,6 +419,7 @@ function isVisible(el) {
 
 async function lineAction(a, id) {
   const s = seg(id); if (!s) return;
+  if (S.busy && a !== 'play' && a !== 'listen') return toast('Đang xử lý nền — chờ xong rồi sửa');
   const segs = S.proj.segments; const i = segs.indexOf(s);
   if (a === 'play') { activate(id, true); S.stopAt = s.end; play(); return; }
   if (a === 'speaker') { pushUndo(true); s.speaker = s.speaker === 'male' ? 'female' : 'male'; s.tts_key = ''; markDirty(); return renderLines(); }
@@ -540,7 +555,16 @@ function applyVolumes() {
   if (!S.video) return;
   const st = S.proj.settings;
   if (S.mode === 'preview') {
-    S.video.volume = S.muted ? 0 : (st.dub ? Math.min(1, +st.orig_volume || 0) : 1);
+    let v = 1;
+    if (st.dub) {
+      v = +st.orig_volume || 0;
+      if (st.ducking !== false) { // giống thành phẩm: tiếng gốc to lại lúc không có lời
+        const t = S.video.currentTime;
+        const talking = S.proj.segments.some(s => !s.mute && s.text && t >= s.start - 0.1 && t < s.end + 0.1);
+        if (!talking) v = st.gap_volume ?? 0.8;
+      }
+    }
+    S.video.volume = S.muted ? 0 : Math.min(1, v);
     if (S.audio) S.audio.volume = S.muted ? 0 : Math.min(1, +st.voice_volume || 1);
   } else {
     S.video.volume = S.muted ? 0 : 1;
@@ -604,6 +628,7 @@ function onTime() {
   if (cur && cur.id !== lastLineId && !S.video.paused) activate(cur.id, false);
   lastLineId = cur?.id ?? null;
   renderOverlay();
+  if (S.mode === 'preview') { applyVolumes(); renderRegion(); }
   S.tl?.setTime(t);
 }
 
@@ -674,6 +699,12 @@ function renderRegion() {
   const mode = st.hardsub;
   const editing = S.tab === 'region';
   if (mode === 'none' && !editing) { box.hidden = true; return; }
+  // giống thành phẩm: chỉ làm mờ trong lúc OCR thấy có sub gốc
+  const ht = S.proj.hardsub_times;
+  if (!editing && st.hardsub_timing !== 'always' && ht && JSON.stringify(ht.region) === JSON.stringify(r) && mode !== 'crop') {
+    const t = S.video.currentTime;
+    if (!ht.ranges.some(([a, b]) => t >= a && t <= b)) { box.hidden = true; return; }
+  }
   box.hidden = false;
   const W = S.video.clientWidth; const H = S.video.clientHeight;
   Object.assign(box.style, { left: r.x * W + 'px', top: r.y * H + 'px', width: r.w * W + 'px', height: r.h * H + 'px',
@@ -768,9 +799,13 @@ function renderTab() {
         ${state.meta.voices.map(v => `<option value="${v.id}" ${cfg.voice_default === v.id ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select></label>
       ${slider('tts_rate', 'Tốc độ đọc gốc', cfg.tts_rate || 0, -30, 40, 5, v => (v > 0 ? '+' : '') + v + '%')}
       ${slider('max_speed', 'Tự tăng tốc tối đa khi câu dài', cfg.max_speed || 1.4, 1, 2, 0.05, v => (+v).toFixed(2) + 'x')}
-      ${slider('orig_volume', 'Âm lượng tiếng gốc', cfg.orig_volume ?? 0.12, 0, 1, 0.01, v => Math.round(v * 100) + '%')}
+      ${slider('orig_volume', 'Tiếng gốc lúc có giọng Việt', cfg.orig_volume ?? 0.12, 0, 1, 0.01, v => Math.round(v * 100) + '%')}
+      ${toggle('ducking', cfg.ducking !== false, 'Tiếng gốc to lại lúc không có lời', 'Giữ nhạc và tiếng động tự nhiên giữa các câu')}
+      ${cfg.ducking !== false ? slider('gap_volume', 'Tiếng gốc lúc không có lời', cfg.gap_volume ?? 0.8, 0, 1, 0.01, v => Math.round(v * 100) + '%') : ''}
       ${slider('voice_volume', 'Âm lượng giọng đọc', cfg.voice_volume ?? 1, 0.3, 2, 0.05, v => Math.round(v * 100) + '%')}
       ${toggle('separate_music', cfg.separate_music, 'Tách nhạc nền', 'Giữ nhạc, bỏ giọng gốc (cần audio-separator)')}
+      ${toggle('loudnorm', cfg.loudnorm !== false, 'Chuẩn âm lượng mạng xã hội', 'Đưa về khoảng -14 LUFS như TikTok, YouTube')}
+      ${toggle('auto_shorten', cfg.auto_shorten !== false, 'AI tự rút gọn câu đọc không kịp', 'Chỉ áp dụng cho câu chưa sửa tay, khi dịch bằng AI (không phải Google dịch)')}
       <div class="sep"></div>
       <div class="row"><button class="btn sm" id="all-voice-reset">Bỏ giọng riêng của từng câu</button>
       <button class="btn sm" id="detect-gender">Đặt Nam/Nữ cho tất cả…</button></div>
@@ -784,6 +819,7 @@ function renderTab() {
       <h3>Cách xoá sub gốc</h3>
       <div class="option-grid" style="grid-template-columns:1fr 1fr;margin-bottom:16px">${[['none', 'Giữ nguyên', 'Không xoá'], ['blur', 'Làm mờ', 'Tự nhiên nhất'], ['box', 'Che hộp đen', 'Che kín hoàn toàn'], ['crop', 'Cắt bỏ', 'Cắt phần dưới, lấp nền mờ']].map(([k, l, d]) => `<button class="option ${cfg.hardsub === k ? 'active' : ''}" data-hardsub="${k}"><b>${l}</b><span>${d}</span></button>`).join('')}</div>
       <div class="grid2" style="gap:10px">${['x', 'y', 'w', 'h'].map(k => `<label class="field"><span>${{ x: 'Trái', y: 'Trên', w: 'Rộng', h: 'Cao' }[k]} (%)</span><input type="number" data-region="${k}" value="${Math.round(r[k] * 1000) / 10}" step="0.5" min="0" max="100"></label>`).join('')}</div>
+      ${toggle('hardsub_timing', cfg.hardsub_timing !== 'always', 'Chỉ làm mờ lúc có sub gốc', 'Dùng OCR dò thời điểm có chữ — phần còn lại của hình giữ nét')}
       <div class="row"><button class="btn sm" id="detect">${icon('sparkle', 14)} Tự dò bằng OCR</button>
         <button class="btn sm" id="region-default">Đặt làm mặc định</button></div>`;
     },
@@ -858,7 +894,7 @@ function presetPreview(k) {
 function bindTab(body) {
   const p = S.proj; const st = p.style; const cfg = p.settings;
   const styleKeys = ['size', 'pos_y', 'outline', 'max_chars', 'color', 'highlight', 'outline_color', 'box_color', 'font'];
-  const cfgSliders = ['speed', 'crf', 'tts_rate', 'max_speed', 'orig_volume', 'voice_volume'];
+  const cfgSliders = ['speed', 'crf', 'tts_rate', 'max_speed', 'orig_volume', 'voice_volume', 'gap_volume'];
   body.oninput = e => {
     const id = e.target.id;
     if (styleKeys.includes(id)) {
@@ -867,7 +903,7 @@ function bindTab(body) {
       renderOverlay(true); markDirty();
     } else if (cfgSliders.includes(id)) {
       pushUndo(); cfg[id] = +e.target.value;
-      const fmt = { speed: v => v.toFixed(2) + 'x', crf: v => v, tts_rate: v => (v > 0 ? '+' : '') + v + '%', max_speed: v => v.toFixed(2) + 'x', orig_volume: v => Math.round(v * 100) + '%', voice_volume: v => Math.round(v * 100) + '%' }[id];
+      const fmt = { speed: v => v.toFixed(2) + 'x', crf: v => v, tts_rate: v => (v > 0 ? '+' : '') + v + '%', max_speed: v => v.toFixed(2) + 'x', orig_volume: v => Math.round(v * 100) + '%', gap_volume: v => Math.round(v * 100) + '%', voice_volume: v => Math.round(v * 100) + '%' }[id];
       $(`#${id}-v`, body).textContent = fmt(cfg[id]);
       if (id === 'tts_rate') p.segments.forEach(s => s.tts_key = '');
       applyVolumes(); markDirty();
@@ -878,7 +914,8 @@ function bindTab(body) {
   body.onchange = e => {
     const id = e.target.id; const chk = e.target.type === 'checkbox' ? e.target.checked : null;
     if (['bold', 'uppercase', 'show_source'].includes(id)) { pushUndo(true); st[id] = chk; renderOverlay(true); markDirty(); }
-    else if (['burn_subs', 'flip', 'dub', 'separate_music'].includes(id)) { pushUndo(true); cfg[id] = chk; markDirty(); if (id === 'dub') setMode('preview'); renderOverlay(true); }
+    else if (['burn_subs', 'flip', 'dub', 'separate_music', 'ducking', 'loudnorm', 'auto_shorten'].includes(id)) { pushUndo(true); cfg[id] = chk; markDirty(); if (id === 'dub') setMode('preview'); if (id === 'ducking') renderTab(); applyVolumes(); renderOverlay(true); }
+    else if (id === 'hardsub_timing') { pushUndo(true); cfg.hardsub_timing = chk ? 'auto' : 'always'; markDirty(); }
     else if (['encoder', 'voice_default', 'translator', 'asr_model'].includes(id)) { pushUndo(true); cfg[id] = e.target.value; if (id === 'voice_default') p.segments.forEach(s => s.tts_key = ''); markDirty(); }
     else if (id === 'source_mode') { p.source_mode = e.target.value; markDirty(); }
     else if (id === 'srt-in') importSrt(e.target.files[0]);

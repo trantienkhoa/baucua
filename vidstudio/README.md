@@ -45,6 +45,14 @@ Gói tuỳ chọn (bỏ comment trong `requirements.txt`):
 
 Bấm **Ctrl+K** ở bất cứ đâu để mở bảng lệnh.
 
+## Xử lý thông minh
+
+- **Chạy song song 3 làn:** tải/dịch/lồng tiếng (mạng), nhận dạng giọng nói, xuất video. Khi làm nhiều video, video sau đã dịch xong trong lúc video trước đang xuất.
+- **Tự rút gọn câu đọc không kịp:** sau khi tạo giọng, câu nào vượt thời lượng sẽ được AI viết ngắn lại rồi tạo giọng lại (tối đa 2 lượt). Câu bạn đã sửa tay không bị đụng tới. Cần dịch bằng AI (Claude, Gemini, DeepSeek, OpenAI, Ollama).
+- **Tiếng gốc tự nhỏ khi có giọng Việt, to lại lúc im lặng**, kèm chuẩn âm lượng -14 LUFS.
+- **Chỉ làm mờ sub gốc lúc có chữ** (dò bằng OCR), phần còn lại của video giữ nét.
+- Đang xử lý nền thì Studio tạm khoá sửa câu để không ghi đè lẫn nhau; file tạm cũ được dọn tự động.
+
 ## AI dịch
 
 | Lựa chọn | Ghi chú |

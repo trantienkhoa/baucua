@@ -36,7 +36,8 @@ def new_project(*, title: str, source_url: str = "", platform: str = "", setting
         "segments": [], "next_id": 1, "style": dict(s["style"]),
         "settings": {k: s[k] for k in ("translator", "source_lang", "target_lang", "dub", "voice_default",
                                        "voice_male", "voice_female", "tts_rate", "max_speed", "orig_volume",
-                                       "voice_volume", "separate_music", "hardsub", "hardsub_region",
+                                       "voice_volume", "separate_music", "ducking", "gap_volume", "loudnorm",
+                                       "auto_shorten", "hardsub_timing", "hardsub", "hardsub_region",
                                        "auto_detect_region", "burn_subs", "output_ratio", "flip", "speed",
                                        "encoder", "crf", "asr_model")},
         "source_mode": "asr", "trim": {"start": 0, "end": 0}, "cuts": [],
@@ -102,3 +103,18 @@ def duplicate(pid: str) -> dict:
     proj["outputs"] = []
     proj["status"] = "ready" if src["status"] in ("done", "ready") else src["status"]
     return save(proj)
+
+
+def cleanup(max_age_hours: float = 24) -> int:
+    """Xoá ảnh khung hình tạm và file nghe thử cũ. Trả về số file đã xoá."""
+    cutoff = time.time() - max_age_hours * 3600
+    n = 0
+    files = list(config.CACHE_DIR.glob("frame-*.jpg")) + list(config.PROJECTS_DIR.glob("*/tts/preview-*.mp3"))
+    for f in files:
+        try:
+            if f.stat().st_mtime < cutoff:
+                f.unlink()
+                n += 1
+        except OSError:
+            pass
+    return n

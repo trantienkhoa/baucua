@@ -80,6 +80,23 @@ def synthesize(jobs: list[tuple[str, str, int, Path]], progress: Optional[Callab
     asyncio.run(runner())
 
 
+def _trim_silence(pcm: np.ndarray) -> np.ndarray:
+    nz = np.where(np.abs(pcm) > 0.01)[0]
+    return pcm[max(0, nz[0] - 400): nz[-1] + 800] if nz.size else pcm
+
+
+def speech_duration(f: Path) -> float:
+    """Thời lượng giọng đọc sau khi bỏ khoảng lặng đầu/cuối."""
+    return len(_trim_silence(media.decode_pcm(f, 16000))) / 16000
+
+
+def window(segments: list[dict], i: int, duration: float) -> float:
+    """Khoảng thời gian câu i được phép đọc: tới đầu câu sau (mượn cả khoảng lặng)."""
+    start = float(segments[i]["start"])
+    nxt = float(segments[i + 1]["start"]) if i + 1 < len(segments) else duration
+    return max(0.3, min(nxt, duration) - start)
+
+
 def build_dub_track(segments: list[dict], tts_dir: Path, out_wav: Path, duration: float,
                     max_speed: float = 1.4) -> list[dict]:
     """Đặt từng câu đọc vào đúng thời điểm, tự tăng tốc nếu dài hơn khoảng trống.
@@ -93,27 +110,19 @@ def build_dub_track(segments: list[dict], tts_dir: Path, out_wav: Path, duration
         if not s.get("tts_key") or not f.exists() or s.get("mute"):
             stats.append({"id": s["id"], "rate": None, "tts_dur": None})
             continue
-        pcm = media.decode_pcm(f, SR)
-        # cắt khoảng lặng đầu/cuối của TTS
-        nz = np.where(np.abs(pcm) > 0.01)[0]
-        if nz.size:
-            pcm = pcm[max(0, nz[0] - 400): nz[-1] + 800]
+        pcm = _trim_silence(media.decode_pcm(f, SR))
         raw_dur = len(pcm) / SR
         start = float(s["start"])
-        nxt = float(segments[i + 1]["start"]) if i + 1 < len(segments) else duration
-        window = max(0.3, min(nxt, duration) - start)
+        win = window(segments, i, duration)
         user_speed = float(s.get("speed") or 1.0)
         speed = user_speed
-        if raw_dur / speed > window:  # đọc không kịp → tăng tốc, tối đa max_speed
-            speed = min(max(max_speed, user_speed), raw_dur / window)
+        if raw_dur / speed > win:  # đọc không kịp → tăng tốc, tối đa max_speed
+            speed = min(max(max_speed, user_speed), raw_dur / win)
         speed = max(0.5, speed)
         if abs(speed - 1.0) > 0.01:
-            pcm = media.decode_pcm(f, SR, filters=media.atempo_chain(speed))
-            nz = np.where(np.abs(pcm) > 0.01)[0]
-            if nz.size:
-                pcm = pcm[max(0, nz[0] - 400): nz[-1] + 800]
+            pcm = _trim_silence(media.decode_pcm(f, SR, filters=media.atempo_chain(speed)))
         # nếu vẫn quá dài thì cắt và làm nhỏ dần cuối câu
-        limit = int((window + 0.25) * SR)
+        limit = int((win + 0.25) * SR)
         if len(pcm) > limit:
             pcm = pcm[:limit].copy()
             fade = min(len(pcm), int(0.12 * SR))

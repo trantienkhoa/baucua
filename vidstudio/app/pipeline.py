@@ -10,7 +10,7 @@ import traceback
 from pathlib import Path
 
 from . import asr, config, media, ocr, store, translate, tts
-from .subtitles import build_ass, parse_srt, plain, quality_check
+from .subtitles import build_ass, parse_srt, plain, quality_check, to_srt
 
 STAGES = [
     ("download", "Tải video"),
@@ -29,41 +29,73 @@ class Job:
         self.pid, self.kind, self.opts = pid, kind, opts or {}
         self.cancelled = False
         self.created = time.time()
+        self.steps: list[tuple[str, callable]] = []  # (làn, hàm) chạy lần lượt
+        self.lane = ""
 
 
-_q: "queue.Queue[Job]" = queue.Queue()
-_pending: list[Job] = []
-_current: Job | None = None
+# Ba làn chạy song song: việc dùng mạng, nhận dạng (GPU/CPU nặng), xuất video (FFmpeg).
+# Một video chỉ nằm ở một làn tại một thời điểm, nhưng video 2 có thể đang dịch
+# trong lúc video 1 đang xuất.
+LANES = {"net": 2, "asr": 1, "render": 1}
+_queues: dict[str, "queue.Queue[Job]"] = {k: queue.Queue() for k in LANES}
+_jobs: dict[str, Job] = {}          # pid → job đang sống (chờ hoặc chạy)
+_running: dict[str, str] = {}       # pid → làn đang chạy
 _plock = threading.Lock()
-_events: list[dict] = []  # thông báo hoàn thành cho giao diện
+_events: list[dict] = []            # thông báo cho giao diện
+_live: dict[str, dict] = {}         # tiến độ giữ trong bộ nhớ, không ghi đĩa liên tục
+
+
+class Busy(RuntimeError):
+    pass
+
+
+def is_busy(pid: str) -> bool:
+    with _plock:
+        return pid in _jobs
 
 
 def enqueue(pid: str, kind: str = "full", opts: dict | None = None) -> None:
     job = Job(pid, kind, opts)
+    job.steps = plan(job)
     with _plock:
-        _pending.append(job)
-    status = "queued"
-    store.update(pid, status=status, message="Đang chờ trong hàng đợi", error="")
-    _q.put(job)
+        if pid in _jobs:
+            raise Busy("Video đang được xử lý — chờ xong hoặc bấm Huỷ")
+        _jobs[pid] = job
+    _live[pid] = {"stage": "", "progress": 0.0, "message": "Đang chờ trong hàng đợi"}
+    store.update(pid, status="queued", message="Đang chờ trong hàng đợi", error="")
+    _advance(job)
+
+
+def _advance(job: Job) -> None:
+    lane = job.steps[0][0]
+    job.lane = lane
+    _queues[lane].put(job)
 
 
 def cancel(pid: str) -> bool:
-    found = False
     with _plock:
-        for j in _pending:
-            if j.pid == pid:
-                j.cancelled = True
-                found = True
-        if _current and _current.pid == pid:
-            _current.cancelled = True
-            found = True
-    return found
+        job = _jobs.get(pid)
+        if job:
+            job.cancelled = True
+        return bool(job)
 
 
 def queue_state() -> dict:
     with _plock:
-        return {"current": _current.pid if _current else None,
-                "pending": [j.pid for j in _pending if not j.cancelled]}
+        return {"running": dict(_running),
+                "pending": [p for p, j in _jobs.items() if p not in _running and not j.cancelled]}
+
+
+def live(pid: str) -> dict | None:
+    return _live.get(pid)
+
+
+def overlay_live(proj: dict) -> dict:
+    """Ghép tiến độ trong bộ nhớ vào dữ liệu dự án đọc từ đĩa."""
+    lv = _live.get(proj.get("id"))
+    if lv and proj.get("status") in ("queued", "processing"):
+        proj.update(lv)
+    return proj
 
 
 def pop_events(since: float) -> list[dict]:
@@ -77,64 +109,81 @@ def _event(pid: str, kind: str, msg: str):
 
 def _set(pid: str, stage: str, frac: float, msg: str):
     lo, hi = WEIGHTS.get(stage, (0, 100))
-    store.update(pid, stage=stage, progress=round(lo + (hi - lo) * max(0, min(1, frac)), 1), message=msg)
+    _live[pid] = {"stage": stage, "progress": round(lo + (hi - lo) * max(0, min(1, frac)), 1), "message": msg}
 
 
 def _prog(pid: str, stage: str, msg: str):
-    last = [0.0]
-
     def cb(f: float):
-        now = time.time()
-        if now - last[0] > 0.7 or f >= 1:
-            last[0] = now
-            _set(pid, stage, f, f"{msg} {int(f * 100)}%")
+        _set(pid, stage, f, f"{msg} {int(f * 100)}%")
     return cb
 
 
-def worker():
-    global _current
-    while True:
-        job = _q.get()
-        with _plock:
-            if job in _pending:
-                _pending.remove(job)
-            if job.cancelled:
-                try:
-                    store.update(job.pid, status="cancelled", message="Đã huỷ")
-                except KeyError:
-                    pass
-                continue
-            _current = job
+def _finish(job: Job, **fields):
+    with _plock:
+        _jobs.pop(job.pid, None)
+        _running.pop(job.pid, None)
+    _live.pop(job.pid, None)
+    if fields:
         try:
-            store.update(job.pid, status="processing", error="")
-            if job.kind == "full":
-                run_full(job)
-            elif job.kind in ("update", "render", "clip"):
-                run_update(job)
-            elif job.kind == "merge":
-                run_merge(job)
-        except (media.Cancelled,) as e:
-            store.update(job.pid, status="cancelled", message=str(e))
+            store.update(job.pid, **fields)
+        except KeyError:
+            pass
+
+
+def worker(lane: str):
+    q = _queues[lane]
+    while True:
+        job = q.get()
+        if job.cancelled:
+            _finish(job, status="cancelled", message="Đã huỷ")
+            continue
+        with _plock:
+            _running[job.pid] = lane
+        try:
+            if store.load(job.pid).get("status") != "processing":
+                store.update(job.pid, status="processing", error="")
+            # chạy liên tiếp các bước cùng làn
+            while job.steps and job.steps[0][0] == lane:
+                if job.cancelled:
+                    raise media.Cancelled("Đã huỷ")
+                _, fn = job.steps.pop(0)
+                fn(job)
+            if job.steps:
+                with _plock:
+                    _running.pop(job.pid, None)
+                _live.setdefault(job.pid, {})["message"] = "Đang chờ bước tiếp theo"
+                _advance(job)
+            else:
+                _finish(job)
+        except media.Cancelled as e:
+            _finish(job, status="cancelled", message=str(e))
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
-            msg = str(e) if job.cancelled is False else "Đã huỷ"
-            try:
-                store.update(job.pid, status="cancelled" if job.cancelled else "error",
-                             error=msg, message="Lỗi: " + msg.splitlines()[0][:160] if msg else "Lỗi")
+            msg = "Đã huỷ" if job.cancelled else (str(e) or type(e).__name__)
+            _finish(job, status="cancelled" if job.cancelled else "error", error=msg,
+                     message="Lỗi: " + msg.splitlines()[0][:160])
+            if not job.cancelled:
                 _event(job.pid, "error", msg[:200])
-            except KeyError:
-                pass
-        finally:
-            with _plock:
-                _current = None
 
 
 def start_worker():
-    threading.Thread(target=worker, daemon=True, name="pipeline").start()
+    for lane, n in LANES.items():
+        for i in range(n):
+            threading.Thread(target=worker, args=(lane,), daemon=True, name=f"pipeline-{lane}-{i}").start()
+    threading.Thread(target=_janitor, daemon=True, name="janitor").start()
     # dự án đang dở dang khi tắt app → đánh dấu để người dùng chạy lại
     for p in store.list_projects():
         if p["status"] in ("queued", "processing"):
             store.update(p["id"], status="error", message="Bị gián đoạn — bấm Chạy lại", error="interrupted")
+
+
+def _janitor():
+    while True:
+        try:
+            store.cleanup()
+        except Exception:  # noqa: BLE001
+            traceback.print_exc()
+        time.sleep(6 * 3600)
 
 
 # ---------------------------------------------------------------- các bước
@@ -259,6 +308,10 @@ def recognize(job: Job, proj: dict) -> dict:
                               cancel=lambda: job.cancelled)
     if not segs:
         raise RuntimeError("Không nhận dạng được câu nào")
+    if proj.get("source_mode") == "ocr" and region:
+        # đọc sub bằng OCR → đã biết chính xác lúc nào có chữ
+        store.update(pid, hardsub_times={"region": dict(region),
+                                         "ranges": media.merge_ranges([(x["start"], x["end"]) for x in segs])})
     genders = [""] * len(segs)
     if proj.get("has_audio") and (d / "audio16k.wav").exists():
         try:
@@ -273,6 +326,20 @@ def recognize(job: Job, proj: dict) -> dict:
                     "text": "", "speaker": g or "female", "voice": "", "speed": 1.0})
         nid += 1
     return store.update(pid, segments=out, next_id=nid)
+
+
+def _save_segment_fields(pid: str, segs: list[dict], fields: tuple[str, ...]) -> dict:
+    """Ghi lại một số trường của từng câu theo id, không đè các thay đổi khác."""
+    by_id = {x["id"]: x for x in segs}
+    with store.lock(pid):
+        proj = store.load(pid)
+        for seg in proj["segments"]:
+            src = by_id.get(seg["id"])
+            if src:
+                for f in fields:
+                    if f in src:
+                        seg[f] = src[f]
+        return store.save(proj)
 
 
 def do_translate(job: Job, proj: dict, only_ids: set | None = None) -> dict:
@@ -291,14 +358,16 @@ def do_translate(job: Job, proj: dict, only_ids: set | None = None) -> dict:
                                            highlight=highlight, context_title=proj.get("title_src", ""))
         for x, t in zip(todo, res):
             x["text"] = t
-    upd = {"segments": segs}
+            x["locked"] = False  # bản dịch máy → cho phép tự rút gọn
+    proj = _save_segment_fields(pid, todo, ("text", "locked"))
     if proj.get("title_src") and (not proj.get("title") or proj["title"] == proj.get("title_src")):
         try:
-            upd["title"] = translate.translate_texts([proj["title_src"]], s, s.get("source_lang", "zh"),
-                                                     s.get("target_lang", "vi"))[0]
+            title = translate.translate_texts([proj["title_src"]], s, s.get("source_lang", "zh"),
+                                              s.get("target_lang", "vi"))[0]
+            proj = store.update(pid, title=title)
         except Exception:  # noqa: BLE001
             pass
-    return store.update(pid, **upd)
+    return proj
 
 
 def voice_for(seg: dict, s: dict) -> str:
@@ -309,13 +378,8 @@ def voice_for(seg: dict, s: dict) -> str:
     return s.get("voice_default") or s["voice_female"]
 
 
-def make_voice(job: Job, proj: dict) -> dict:
-    pid = proj["id"]
-    d = store.pdir(pid)
-    s = proj["settings"]
-    if not s.get("dub"):
-        (d / "dub.wav").unlink(missing_ok=True)
-        return proj
+def _assign_keys(proj: dict, s: dict) -> list[tuple]:
+    d = store.pdir(proj["id"])
     jobs = []
     for seg in proj["segments"]:
         if not plain(seg.get("text", "")) or seg.get("mute"):
@@ -326,7 +390,70 @@ def make_voice(job: Job, proj: dict) -> dict:
         key = tts.tts_key(seg["text"], voice, rate)
         seg["tts_key"] = key
         jobs.append((seg["text"], voice, rate, d / "tts" / f"{key}.mp3"))
-    tts.synthesize(jobs, progress=_prog(pid, "voice", "Đang lồng tiếng"))
+    return jobs
+
+
+def _auto_shorten(job: Job, proj: dict, s: dict) -> int:
+    """Câu đọc không kịp → nhờ AI dịch ngắn lại rồi tạo giọng lại. Trả về số câu đã rút gọn."""
+    if not s.get("auto_shorten", True) or s.get("translator") in ("google", "offline"):
+        return 0
+    d = store.pdir(proj["id"])
+    max_speed = float(s.get("max_speed", 1.4))
+    total = 0
+    for rnd in range(2):
+        segs = proj["segments"]
+        too_long = []
+        for i, seg in enumerate(segs):
+            if seg.get("locked") or not seg.get("tts_key") or seg.get("mute"):
+                continue
+            f = d / "tts" / f"{seg['tts_key']}.mp3"
+            if not f.exists():
+                continue
+            dur = tts.speech_duration(f)
+            win = tts.window(segs, i, proj["duration"])
+            need = dur / float(seg.get("speed") or 1.0)
+            if need > win * max_speed * 0.97:
+                # nhắm tới tốc độ ~1,15x để giọng còn tự nhiên
+                target = max(4, int(len(plain(seg["text"])) * win * 1.15 / need))
+                too_long.append({"id": seg["id"], "text": seg["text"], "src": seg.get("src", ""),
+                                 "max_chars": target, "seconds": round(win, 1)})
+        if not too_long:
+            break
+        _set(proj["id"], "voice", 0.6 + rnd * 0.15, f"Đang rút gọn {len(too_long)} câu đọc không kịp")
+        try:
+            short = translate.shorten_lines(too_long, s)
+        except Exception as e:  # noqa: BLE001
+            _event(proj["id"], "warn", f"Không rút gọn được câu: {e}")
+            break
+        changed = []
+        for seg in segs:
+            t = short.get(seg["id"])
+            if t and len(plain(t)) < len(plain(seg["text"])):
+                seg["text"] = t
+                changed.append(seg)
+        if not changed:
+            break
+        total += len(changed)
+        proj = _save_segment_fields(proj["id"], changed, ("text",))
+        tts.synthesize(_assign_keys(proj, s))
+        if job.cancelled:
+            raise media.Cancelled("Đã huỷ")
+    return total
+
+
+def make_voice(job: Job, proj: dict) -> dict:
+    pid = proj["id"]
+    d = store.pdir(pid)
+    s = {**config.load_settings(), **proj["settings"]}
+    if not s.get("dub"):
+        (d / "dub.wav").unlink(missing_ok=True)
+        return proj
+    tts.synthesize(_assign_keys(proj, s), progress=_prog(pid, "voice", "Đang lồng tiếng"))
+    n = _auto_shorten(job, proj, s)
+    if n:
+        proj = store.load(pid)
+        _assign_keys(proj, s)
+        _event(pid, "warn", f"Đã tự rút gọn {n} câu đọc không kịp — xem lại trong Studio")
     _set(pid, "voice", 0.95, "Đang ghép giọng đọc")
     stats = tts.build_dub_track(proj["segments"], d / "tts", d / "dub.wav", proj["duration"],
                                 float(s.get("max_speed", 1.4)))
@@ -338,9 +465,26 @@ def make_voice(job: Job, proj: dict) -> dict:
     # dọn file TTS cũ không còn dùng
     used = {f"{x.get('tts_key')}.mp3" for x in proj["segments"]}
     for f in (d / "tts").glob("*.mp3"):
-        if f.name not in used:
+        if f.name not in used and not f.name.startswith("preview-"):
             f.unlink(missing_ok=True)
-    return store.update(pid, segments=proj["segments"])
+    return _save_segment_fields(pid, proj["segments"], ("tts_key", "rate", "tts_dur"))
+
+
+def _hardsub_times(job: Job, proj: dict, region: dict) -> list | None:
+    """Khoảng thời gian sub gốc xuất hiện (để chỉ làm mờ lúc có chữ). None = làm mờ suốt video."""
+    s = proj["settings"]
+    if s.get("hardsub_timing", "auto") != "auto" or s.get("hardsub") in ("none", "crop"):
+        return None
+    cached = proj.get("hardsub_times")
+    if cached and cached.get("region") == region:
+        return cached["ranges"]
+    if not ocr.available():
+        return None
+    info = {"duration": proj["duration"], "width": proj["width"], "height": proj["height"]}
+    _set(proj["id"], "render", 0.0, "Đang dò lúc nào có sub gốc")
+    ranges = ocr.text_ranges(store.pdir(proj["id"]) / "source.mp4", info, region, cancel=lambda: job.cancelled)
+    store.update(proj["id"], hardsub_times={"region": dict(region), "ranges": ranges})
+    return ranges
 
 
 def render(job: Job, proj: dict, clip: tuple[float, float] | None = None) -> dict:
@@ -354,7 +498,6 @@ def render(job: Job, proj: dict, clip: tuple[float, float] | None = None) -> dic
     else:
         ranges = media.keep_ranges(proj["duration"], proj.get("trim"), proj.get("cuts"))
     W, H = media.output_size(info["width"], info["height"], s.get("output_ratio", "source"))
-    speed = float(s.get("speed") or 1.0)
     ass_name = None
     if s.get("burn_subs", True):
         style = dict(proj["style"])
@@ -364,14 +507,30 @@ def render(job: Job, proj: dict, clip: tuple[float, float] | None = None) -> dic
         (d / "subs.ass").write_text(ass, "utf-8")
         ass_name = "subs.ass"
     region = s.get("hardsub_region") if s.get("hardsub") != "none" else None
+    region_times = None
+    if region:
+        try:
+            raw = _hardsub_times(job, proj, region)
+        except media.Cancelled:
+            raise
+        except Exception as e:  # noqa: BLE001
+            _event(pid, "warn", f"Không dò được thời điểm sub gốc, sẽ làm mờ suốt video: {e}")
+            raw = None
+        if raw is not None:
+            region_times = media.remap_ranges(raw, ranges)
+    # khoảng có giọng Việt → hạ tiếng gốc
+    speech = None
+    if s.get("dub") and s.get("ducking", True):
+        speech = [(float(x["start"]), float(x["end"])) for x in proj["segments"]
+                  if x.get("tts_key") and not x.get("mute")]
     bg = d / "instrumental.wav" if s.get("separate_music") and (d / "instrumental.wav").exists() else None
     stamp = time.strftime("%H%M%S")
     name = f"output-clip-{stamp}.mp4" if clip else "output.mp4"
     tmp = d / ("_" + name)
     media.render_video(src=d / "source.mp4", out=tmp, workdir=d, info=info, settings=s, ass_name=ass_name,
                        dub_wav=(d / "dub.wav") if s.get("dub") else None, bg_wav=bg, ranges=ranges,
-                       region=region, progress=_prog(pid, "render", "Đang xuất video"),
-                       cancel=lambda: job.cancelled)
+                       region=region, region_times=region_times, speech=speech,
+                       progress=_prog(pid, "render", "Đang xuất video"), cancel=lambda: job.cancelled)
     tmp.replace(d / name)
     # bản sao dễ tìm trong thư mục exports
     nice = media.safe_name(proj.get("title", "video"))
@@ -380,13 +539,12 @@ def render(job: Job, proj: dict, clip: tuple[float, float] | None = None) -> dic
         shutil.copy2(d / name, export)
     except OSError:
         export = d / name
-    # phụ đề SRT đi kèm
+    speed = float(s.get("speed") or 1.0)
     srt_rows = []
     for x in proj["segments"]:
         a, b = media.remap_time(x["start"], ranges), media.remap_time(x["end"], ranges)
         if a is not None and b is not None and b > a and plain(x.get("text", "")):
             srt_rows.append((a / speed, b / speed, plain(x["text"])))
-    from .subtitles import to_srt
     (d / "output.srt").write_text(to_srt(srt_rows), "utf-8")
     outputs = proj.get("outputs", [])
     outputs.insert(0, {"file": name, "time": time.time(), "clip": bool(clip), "export": str(export)})
@@ -397,45 +555,49 @@ def render(job: Job, proj: dict, clip: tuple[float, float] | None = None) -> dic
     return proj
 
 
-# ---------------------------------------------------------------- luồng chính
+# ---------------------------------------------------------------- kế hoạch từng loại việc
 
-def run_full(job: Job):
-    pid = job.pid
-    proj = store.load(pid)
-    _set(pid, "download", 0, "Đang tải video")
-    proj = download(job, proj)
-    _set(pid, "audio", 0, "Đang tách âm thanh")
-    proj = prepare_audio(job, proj)
-    _set(pid, "recognize", 0, "Đang nhận dạng lời thoại")
-    proj = recognize(job, proj)
-    _set(pid, "translate", 0, "Đang dịch")
-    proj = do_translate(job, proj)
-    _set(pid, "voice", 0, "Đang lồng tiếng")
-    proj = make_voice(job, proj)
-    qa = quality_check(proj["segments"], float(proj["settings"].get("max_speed", 1.4)))
-    proj = store.update(pid, qa=qa)
-    if job.opts.get("render", True):
-        _set(pid, "render", 0, "Đang xuất video")
-        render(job, proj)
-    else:
-        store.update(pid, status="ready", progress=82, message="Sẵn sàng chỉnh sửa")
-        _event(pid, "done", f"Đã dịch xong: {proj['title']}")
+def plan(job: Job) -> list[tuple[str, callable]]:
+    """Chia việc thành các bước theo làn: net → asr → net → render."""
+    def step(stage, label, fn):
+        def run(j: Job):
+            _set(j.pid, stage, 0, label)
+            fn(j, store.load(j.pid))
+        return run
 
+    def finish_ready(j: Job):
+        proj = store.load(j.pid)
+        qa = quality_check(proj["segments"], float(proj["settings"].get("max_speed", 1.4)))
+        store.update(j.pid, status="ready", progress=82, message="Sẵn sàng chỉnh sửa", qa=qa)
+        _event(j.pid, "done", f"Đã dịch xong: {proj['title']}")
 
-def run_update(job: Job):
-    pid = job.pid
-    proj = store.load(pid)
-    if job.opts.get("retranslate_ids"):
-        proj = do_translate(job, proj, set(job.opts["retranslate_ids"]))
-    if job.kind in ("update",) or job.opts.get("revoice"):
-        _set(pid, "voice", 0, "Đang cập nhật giọng đọc")
-        proj = make_voice(job, proj)
-    if job.opts.get("no_render"):
-        store.update(pid, status="ready", message="Đã cập nhật giọng đọc", progress=82)
-        return
-    clip = tuple(job.opts["clip"]) if job.kind == "clip" and job.opts.get("clip") else None
-    _set(pid, "render", 0, "Đang xuất video")
-    render(job, proj, clip=clip)  # type: ignore[arg-type]
+    o = job.opts
+    if job.kind == "full":
+        steps = [("net", step("download", "Đang tải video", download)),
+                 ("asr", step("audio", "Đang tách âm thanh", prepare_audio)),
+                 ("asr", step("recognize", "Đang nhận dạng lời thoại", recognize)),
+                 ("net", step("translate", "Đang dịch", do_translate)),
+                 ("net", step("voice", "Đang lồng tiếng", make_voice))]
+        steps.append(("render", step("render", "Đang xuất video", render)) if o.get("render", True)
+                     else ("net", finish_ready))
+        return steps
+    if job.kind == "merge":
+        return [("render", run_merge)]
+    steps = []
+    if o.get("retranslate_ids"):
+        ids = set(o["retranslate_ids"])
+        steps.append(("net", step("translate", "Đang dịch lại", lambda j, p: do_translate(j, p, ids))))
+    if job.kind == "update" or o.get("revoice"):
+        steps.append(("net", step("voice", "Đang cập nhật giọng đọc", make_voice)))
+    if o.get("no_render"):
+        def done_voice(j: Job):
+            store.update(j.pid, status="ready", message="Đã cập nhật giọng đọc", progress=82)
+            _event(j.pid, "done", "Đã cập nhật giọng đọc")
+        steps.append(("net", done_voice))
+        return steps
+    clip = tuple(o["clip"]) if job.kind == "clip" and o.get("clip") else None
+    steps.append(("render", step("render", "Đang xuất video", lambda j, p: render(j, p, clip=clip))))
+    return steps
 
 
 def run_merge(job: Job):
