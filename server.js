@@ -176,9 +176,12 @@ function findUrl(obj, depth = 0) {
 }
 function pickUser(d) {
   const u = d.user || d.userIdentity || {};
-  const avatar = findUrl(u.profilePicture) || findUrl(u.avatarThumb) || findUrl(u.avatarMedium) || u.profilePictureUrl || '';
-  const id = String(u.uniqueId || u.userId || u.id || u.nickname || Math.random());
-  return { id, name: cleanName(u), avatar };
+  const avatar = findUrl(u.profilePicture) || findUrl(u.avatarThumb) || findUrl(u.avatarMedium) || findUrl(u.avatarLarge) || u.profilePictureUrl || '';
+  // thư viện 2.x trả dữ liệu proto v3: tên tài khoản nằm ở displayId, mã số ở id
+  const handle = typeof u.uniqueId === 'string' ? u.uniqueId : (u.displayId || '');
+  const num = u.userId || (u.id && String(u.id) !== '0' ? u.id : '');
+  const id = String(handle || num || u.nickname || ('anon' + Math.random()));
+  return { id, name: cleanName({ nickname: u.nickname, uniqueId: handle }), avatar };
 }
 
 // ---------- tổng xu / top ----------
@@ -458,7 +461,7 @@ function handleGift(d) {
   const name = det.giftName || ext.name || det.name || ('Quà #' + d.giftId);
   const diamonds = Number(det.diamondCount || ext.diamond_count || ext.diamondCount || d.diamondCount || 0);
   const img = (det.giftImage && det.giftImage.giftPictureUrl) || findUrl(ext.image) || findUrl(det.image) || findUrl(det.icon) || '';
-  const giftType = det.giftType ?? ext.type;
+  const giftType = det.giftType ?? det.type ?? ext.type;
   const repeatCount = Number(d.repeatCount || 1);
   const key = user.id + ':' + d.giftId;
 
@@ -494,25 +497,27 @@ function processGift(user, gift, count) {
 }
 
 function attach(c) {
-  c.on(WebcastEvent.CHAT, d => {
+  // bọc mọi sự kiện: một sự kiện lỗi không làm mất các sự kiện sau
+  const on = (ev, fn) => c.on(ev, d => { try { fn(d || {}); } catch (e) { console.error('Lỗi xử lý sự kiện', ev, e && e.message); } });
+  on(WebcastEvent.CHAT, d => {
     const user = pickUser(d);
     stats.comments++;
     const now = Date.now();
     const give = now - (chatXpAt.get(user.id) || 0) > 20000; if (give) chatXpAt.set(user.id, now);
     fanTouch(user, give ? 2 : 0);
-    broadcast({ type: 'chat', user, text: cleanText(d.comment, 80) });
+    broadcast({ type: 'chat', user, text: cleanText(d.comment ?? d.content, 80) || '' });
   });
-  c.on(WebcastEvent.GIFT, d => { try { handleGift(d); } catch (e) { console.error('gift', e); } });
-  c.on(WebcastEvent.LIKE, d => {
-    const n = Number(d.likeCount || 1);
+  on(WebcastEvent.GIFT, handleGift);
+  on(WebcastEvent.LIKE, d => {
+    const n = Math.max(1, Number(d.likeCount ?? d.count) || 1);
     stats.likes += n;
     broadcast({ type: 'like', user: fanTouch(pickUser(d), Math.min(5, n * 0.05)), count: n });
   });
-  c.on(WebcastEvent.MEMBER, d => broadcast({ type: 'member', user: pickUser(d) }));
-  c.on(WebcastEvent.FOLLOW, d => broadcast({ type: 'follow', user: fanTouch(pickUser(d), 20) }));
-  c.on(WebcastEvent.SHARE, d => broadcast({ type: 'share', user: fanTouch(pickUser(d), 10) }));
-  c.on(WebcastEvent.ROOM_USER, d => {
-    stats.viewers = Number(d.viewerCount || d.totalUser || stats.viewers);
+  on(WebcastEvent.MEMBER, d => broadcast({ type: 'member', user: pickUser(d) }));
+  on(WebcastEvent.FOLLOW, d => broadcast({ type: 'follow', user: fanTouch(pickUser(d), 20) }));
+  on(WebcastEvent.SHARE, d => broadcast({ type: 'share', user: fanTouch(pickUser(d), 10) }));
+  on(WebcastEvent.ROOM_USER, d => {
+    stats.viewers = Number(d.viewerCount || d.total || d.totalUser || stats.viewers) || 0;
     broadcast({ type: 'viewers', count: stats.viewers });
   });
   c.on(WebcastEvent.STREAM_END, () => { setState('ended', 'Phiên LIVE đã kết thúc'); manualStop = true; });
