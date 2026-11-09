@@ -20,6 +20,12 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## Chọn giọng MC (bản 2.8.3)
+
+- Mục **Sự kiện LIVE** có ô **🎙 Giọng MC** liệt kê mọi giọng tiếng Việt của trình duyệt, nút **▶ Nghe thử**. Giọng có ⭐ là giọng tự nhiên (Natural).
+- Mặc định ưu tiên **giọng nam Microsoft NamMinh Online** cho đúng chất MC; muốn giọng nữ chọn **HoaiMy**. Hai giọng này chỉ có khi mở trang điều khiển bằng **Microsoft Edge** (cần mạng).
+- Nếu màn game (OBS / Chrome) không có giọng đã chọn, trang điều khiển mở bằng Edge sẽ đọc thay — giữ trang đó mở và cho OBS/LIVE Studio thu âm thanh máy tính.
+
 ## Sửa lỗi “requires a Business plan” khi kết nối (bản 2.8.2)
 
 - Game không còn tải danh sách quà mở rộng khi kết nối. Bước này phải ký qua EulerStream **gói Business (trả phí)**, nên với key miễn phí hoặc không có key sẽ báo lỗi `fetchWebcastSignatureFromEulerRoute … requires a Business plan`. Tên, ảnh, giá xu của quà vẫn lấy được từ mỗi lượt tặng quà.

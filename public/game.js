@@ -1767,8 +1767,10 @@ function say(text, key, gap = 0, prio = false, hyped = false) {
   if (!S.ttsEnabled || !isPrimary) { mcTalkUntil = Math.max(mcTalkUntil, now()) + Math.min(6, 0.8 + String(text).length * 0.06); return; }
   mcTalkUntil = Math.max(mcTalkUntil, now()) + Math.min(8, 0.8 + String(text).length * 0.065);   // MC trên sân khấu mấp máy miệng, khua tay
   // màn game không có giọng tiếng Việt (thường gặp trong OBS / LIVE Studio) → nhờ trang điều khiển đọc, không đọc tiếng Việt bằng giọng tây
-  if (S.ttsWhere === 'admin' || !window.MC || !MC.available() || !MC.hasVietnamese()) socket.emit('say', { text, prio, hype: hyped, auto: S.ttsWhere !== 'admin' });
-  else if (window.MC) { MC.enabled = true; MC.volume = Number(S.ttsVolume) || 1; MC.rate = Number(S.ttsRate) || 1.05; MC.say(text, prio, hyped); }
+  if (window.MC) MC.setPref(S.ttsVoice);
+  // …hoặc chủ phòng đã chọn một giọng mà trình duyệt chạy màn game không có (vd NamMinh chỉ có trong Edge)
+  if (S.ttsWhere === 'admin' || !window.MC || !MC.available() || !MC.hasVietnamese() || (S.ttsVoice && !MC.list().includes(S.ttsVoice))) socket.emit('say', { text, prio, hype: hyped, auto: S.ttsWhere !== 'admin' });
+  else if (window.MC) { MC.setPref(S.ttsVoice); MC.enabled = true; MC.volume = Number(S.ttsVolume) || 1; MC.rate = Number(S.ttsRate) || 1.05; MC.say(text, prio, hyped); }
 }
 const nm = n => (window.MC ? MC.clean(n) : String(n || ''));
 

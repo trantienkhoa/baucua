@@ -147,6 +147,12 @@ document.getElementById('openGame').onclick = async () => {
       <button id="evClip">🎬 Quay clip ngay</button>
       <button id="evSay">🎙 Thử giọng MC</button>
     </div>
+    <div class="row" style="margin-top:8px">
+      <span>🎙 Giọng MC</span>
+      <select id="ttsVoice" style="min-width:260px"></select>
+      <button id="ttsTry">▶ Nghe thử</button>
+      <span class="muted">Giọng nam hay nhất: <b>Microsoft NamMinh Online</b> — mở trang này bằng <b>Edge</b> mới có.</span>
+    </div>
     <div class="muted" id="ttsInfo"></div>
     <div class="grid" id="evGrid" style="margin-top:10px"></div>
     <h3 style="font-size:15px;margin:16px 0 6px">🎯 Mục tiêu phòng → mở sân khấu</h3>
@@ -371,7 +377,7 @@ function renderUrls() {
   for (const b of $('urls').querySelectorAll('[data-copy]')) b.onclick = () => { navigator.clipboard.writeText(b.dataset.copy).then(() => { b.textContent = '✓ Đã chép'; setTimeout(() => b.textContent = 'Sao chép', 1500); }); };
 }
 
-socket.on('settings', s => { S = s; renderSettings(); renderActions(); renderEvents(); });
+socket.on('settings', s => { S = s; renderSettings(); renderActions(); renderEvents(); if (document.activeElement !== $('ttsVoice')) fillVoices(); });
 socket.on('gifts', g => { GIFTS = g; if (S.actions) renderActions(); });
 socket.on('connState', c => { const el = $('connStatus'); el.textContent = c.text; el.className = 'status ' + c.status; });
 
@@ -421,6 +427,21 @@ function ttsInfo() {
   else el.textContent = MC.hasVietnamese() ? '✓ Giọng MC: ' + MC.voiceName() + (el.dataset.auto ? ' — màn game không có giọng Việt nên trang này đang đọc thay (giữ trang này mở).' : '') : '⚠️ Máy này chưa có giọng tiếng Việt — Windows: Cài đặt → Thời gian & ngôn ngữ → Giọng nói → thêm Tiếng Việt; hoặc dùng Chrome / Edge (có giọng Google / Microsoft tiếng Việt).';
 }
 setTimeout(ttsInfo, 1500);
+// chọn giọng MC (danh sách giọng tiếng Việt của trình duyệt đang mở trang này)
+function fillVoices() {
+  const sel = $('ttsVoice'); if (!sel || !window.MC) return;
+  const list = MC.list(), cur = (S && S.ttsVoice) || '';
+  const nice = n => n.replace(/^Microsoft\s+/i, '').replace(/\s*-\s*Vietnamese.*$/i, '').replace(/\s*\(Vietnam\)/i, '');
+  sel.innerHTML = '<option value="">Tự chọn (ưu tiên giọng nam NamMinh)</option>' + list.map(n => `<option value="${n.replace(/"/g, '&quot;')}">${nice(n)}${/natural|online/i.test(n) ? ' ⭐' : ''}</option>`).join('')
+    + (cur && !list.includes(cur) ? `<option value="${cur.replace(/"/g, '&quot;')}">${nice(cur)} (không có trên trình duyệt này)</option>` : '');
+  sel.value = cur;
+  if (!list.length) sel.innerHTML = '<option value="">Trình duyệt này chưa có giọng tiếng Việt</option>';
+}
+if (window.MC) MC.onVoices = () => { fillVoices(); ttsInfo(); };
+setTimeout(fillVoices, 800); setTimeout(fillVoices, 2500);
+$('ttsVoice').onchange = () => { const v = $('ttsVoice').value; S.ttsVoice = v; MC.setPref(v); socket.emit('saveSettings', { ttsVoice: v }); ttsInfo(); };
+$('ttsTry').onclick = () => { MC.setPref($('ttsVoice').value); MC.enabled = true; MC.volume = Number(S.ttsVolume) || 1; MC.rate = Number(S.ttsRate) || 1;
+  MC.say('Xin chào cả nhà! Chào mừng các bạn đến với Vũ Trường Neon. Quẩy lên nào!', true, true); ttsInfo(); };
 function collectEvents() {
   const out = {};
   for (const el of $('evGrid').querySelectorAll('[data-key]')) out[el.dataset.key] = el.dataset.type === 'check' ? el.checked : el.dataset.type === 'num' ? Number(el.value) : el.value;
@@ -445,7 +466,7 @@ $('btnSave3').onclick = () => { socket.emit('saveSettings', Object.assign(collec
 socket.on('say', m => { if (typeof m === 'string') m = { text: m };
   if (!m || !S.ttsEnabled || !(S.ttsWhere === 'admin' || m.auto)) return;
   if (m.auto && !MC.hasVietnamese()) return;   // máy này cũng không có giọng Việt thì thôi, không đọc giọng tây
-  MC.enabled = true; MC.volume = Number(S.ttsVolume) || 1; MC.rate = Number(S.ttsRate) || 1; MC.say(m.text, m.prio, m.hype);
+  MC.setPref(S.ttsVoice); MC.enabled = true; MC.volume = Number(S.ttsVolume) || 1; MC.rate = Number(S.ttsRate) || 1; MC.say(m.text, m.prio, m.hype);
   if (m.auto) { const el = $('ttsInfo'); if (el && !el.dataset.auto) { el.dataset.auto = 1; ttsInfo(); } } });
 // clip
 socket.on('clips', list => {

@@ -100,7 +100,7 @@ const DEFAULT_SETTINGS = {
   tierEmperor: 999,
   bannedWords: '',
   // MC giọng nói
-  ttsEnabled: true, ttsWhere: 'game', ttsVolume: 1, ttsRate: 1.05, ttsMinCoins: 1, ttsJoin: false, ttsFollow: true,
+  ttsEnabled: true, ttsWhere: 'game', ttsVoice: '', ttsVolume: 1, ttsRate: 1.05, ttsMinCoins: 1, ttsJoin: false, ttsFollow: true,
   // đấu đội
   battleSeconds: 180, battleAuto: 0,          // tự mở mỗi N phút (0 = tắt)
   // solo
