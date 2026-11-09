@@ -20,6 +20,13 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## Giọng MC tiếng Việt tự nhiên (bản 2.8.1)
+
+- **Bỏ kiểu “giọng hô” kéo cao giọng, đọc nhanh** của bản 2.2. MC đọc giọng bình thường như các bản trước; câu hô sự kiện lớn chỉ to hơn và được đọc trước.
+- **Tự chọn giọng Việt hay nhất trên máy:** Microsoft HoaiMy / NamMinh Online (Edge) → Google Tiếng Việt (Chrome) → giọng Việt khác.
+- **Không bao giờ đọc tiếng Việt bằng giọng tây nữa.** Nếu màn game (OBS / LIVE Studio) không có giọng Việt, câu nói tự chuyển sang **trang điều khiển** mở bằng Chrome/Edge để đọc. Giữ trang điều khiển mở trên máy LIVE. Dòng “Giọng MC” ở mục sự kiện cho biết giọng đang dùng.
+- Máy không có giọng Việt nào: Windows → Cài đặt → Thời gian & ngôn ngữ → Giọng nói → thêm Tiếng Việt, hoặc mở trang điều khiển bằng Edge.
+
 ## Sửa lỗi bình luận không lên sàn, hình YouTube (không tiếng), nút lưu key (bản 2.8.0)
 
 - **YouTube trở lại màn LCD, chỉ có hình.** Mở *Bảng điều khiển màn hình* → mục ▶️ YouTube → dán link (video, Shorts, playlist, youtu.be) → **Thêm**. Màn LCD chiếu hình **luôn tắt tiếng**, kể cả khi bấm vào trang hay chỉnh âm lượng. Nhạc game, đèn theo nhạc và giọng MC vẫn chạy bình thường.

@@ -1,12 +1,14 @@
 // MC giọng nói tiếng Việt (Web Speech API, giọng có sẵn trên máy, miễn phí)
 (function () {
   const synth = window.speechSynthesis;
-  const T = { enabled: true, volume: 1, rate: 1.05, queue: [], speaking: false, voice: null, lastJoin: 0 };
+  const T = { enabled: true, volume: 1, rate: 1, queue: [], speaking: false, voice: null, lastJoin: 0 };
+  // chọn giọng tiếng Việt hay nhất trên máy: Microsoft HoaiMy/NamMinh Online (Edge) → Google Tiếng Việt (Chrome) → giọng Việt khác
   function pickVoice() {
     if (!synth) return null;
-    const vs = synth.getVoices();
-    return vs.find(v => /vi[-_]VN/i.test(v.lang) && /google|microsoft|natural|online/i.test(v.name))
-      || vs.find(v => /^vi/i.test(v.lang)) || null;
+    const vs = synth.getVoices().filter(v => /^vi([-_]|$)/i.test(v.lang) || /vietnam|tiếng việt/i.test(v.name));
+    const score = v => (/natural|online/i.test(v.name) ? 3 : 0) + (/google/i.test(v.name) ? 2 : 0) + (/microsoft/i.test(v.name) ? 1 : 0);
+    vs.sort((a, b) => score(b) - score(a));
+    return vs[0] || null;
   }
   if (synth) { T.voice = pickVoice(); synth.onvoiceschanged = () => { T.voice = pickVoice(); }; }
   // bỏ ký tự lạ / emoji trong tên để máy đọc rõ
@@ -24,9 +26,10 @@
     if (T.speaking || !T.queue.length) return;
     const it = T.queue.shift(); T.cur = it;
     const u = new SpeechSynthesisUtterance(it.text);
+    if (!T.voice) T.voice = pickVoice();   // giọng có thể tải chậm
     u.lang = 'vi-VN'; if (T.voice) u.voice = T.voice;
-    // giọng hô: nhanh hơn, cao hơn, to hết cỡ
-    u.volume = it.hype ? 1 : Math.max(0, Math.min(1, T.volume)); u.rate = Math.max(0.6, Math.min(1.7, T.rate * (it.hype ? 1.12 : 1))); u.pitch = it.hype ? 1.3 : 1.05;
+    // giọng tự nhiên như các bản trước: không kéo cao giọng / đọc nhanh khi hô (chỉ to hết cỡ và được chen lên trước)
+    u.volume = it.hype ? 1 : Math.max(0, Math.min(1, T.volume)); u.rate = Math.max(0.6, Math.min(1.6, T.rate)); u.pitch = 1;
     T.speaking = true;
     const done = () => { T.speaking = false; T.cur = null; setTimeout(pump, it.hype ? 60 : 150); };
     u.onend = done; u.onerror = done;
@@ -34,6 +37,7 @@
     synth.speak(u);
   }
   T.available = () => !!synth;
-  T.hasVietnamese = () => !!T.voice;
+  T.hasVietnamese = () => !!(T.voice || (T.voice = pickVoice()));
+  T.voiceName = () => (T.voice ? T.voice.name : '');
   window.MC = T;
 })();

@@ -1766,7 +1766,8 @@ function say(text, key, gap = 0, prio = false, hyped = false) {
   if (S.mcCaption !== false && (prio || hyped)) mcCaption = { text, hype: hyped, start: now(), until: now() + Math.min(7, 2.2 + String(text).length * 0.055) };
   if (!S.ttsEnabled || !isPrimary) { mcTalkUntil = Math.max(mcTalkUntil, now()) + Math.min(6, 0.8 + String(text).length * 0.06); return; }
   mcTalkUntil = Math.max(mcTalkUntil, now()) + Math.min(8, 0.8 + String(text).length * 0.065);   // MC trên sân khấu mấp máy miệng, khua tay
-  if (S.ttsWhere === 'admin') socket.emit('say', text);
+  // màn game không có giọng tiếng Việt (thường gặp trong OBS / LIVE Studio) → nhờ trang điều khiển đọc, không đọc tiếng Việt bằng giọng tây
+  if (S.ttsWhere === 'admin' || !window.MC || !MC.available() || !MC.hasVietnamese()) socket.emit('say', { text, prio, hype: hyped, auto: S.ttsWhere !== 'admin' });
   else if (window.MC) { MC.enabled = true; MC.volume = Number(S.ttsVolume) || 1; MC.rate = Number(S.ttsRate) || 1.05; MC.say(text, prio, hyped); }
 }
 const nm = n => (window.MC ? MC.clean(n) : String(n || ''));

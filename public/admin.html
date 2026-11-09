@@ -418,7 +418,7 @@ function renderEvents() {
 function ttsInfo() {
   const el = $('ttsInfo'); if (!el) return;
   if (!window.MC || !MC.available()) el.textContent = 'Trình duyệt này không có giọng đọc.';
-  else el.textContent = MC.hasVietnamese() ? '✓ Máy này có giọng đọc tiếng Việt.' : '⚠️ Máy này chưa có giọng tiếng Việt — Windows: Cài đặt → Thời gian & ngôn ngữ → Giọng nói → thêm Tiếng Việt; hoặc dùng Chrome / Edge (có giọng Google / Microsoft tiếng Việt).';
+  else el.textContent = MC.hasVietnamese() ? '✓ Giọng MC: ' + MC.voiceName() + (el.dataset.auto ? ' — màn game không có giọng Việt nên trang này đang đọc thay (giữ trang này mở).' : '') : '⚠️ Máy này chưa có giọng tiếng Việt — Windows: Cài đặt → Thời gian & ngôn ngữ → Giọng nói → thêm Tiếng Việt; hoặc dùng Chrome / Edge (có giọng Google / Microsoft tiếng Việt).';
 }
 setTimeout(ttsInfo, 1500);
 function collectEvents() {
@@ -436,12 +436,17 @@ $('evSolo').onclick = () => cmd('solo');
 $('evFlash').onclick = () => cmd('flashmob');
 $('evSpot').onclick = () => cmd('spotlight');
 $('evClip').onclick = () => cmd('clipNow');
-$('evSay').onclick = () => { cmd('sayTest'); if (S.ttsWhere === 'admin') { MC.enabled = true; MC.say('Xin chào! Tôi là MC của Vũ Trường Neon.'); } };
+$('evSay').onclick = () => { cmd('sayTest'); };
 $('themeApply').onclick = () => cmd('theme', { theme: $('themeSel').value });
 $('goalsReset').onclick = () => { if (confirm('Làm lại mục tiêu phòng từ đầu (về sân khấu mặc định)?')) cmd('goalsReset'); };
 $('btnSave3').onclick = () => { socket.emit('saveSettings', Object.assign(collect(), collectEvents())); $('saved3').textContent = '✓ Đã lưu'; setTimeout(() => $('saved3').textContent = '', 2000); };
 // MC đọc ở trang điều khiển
-socket.on('say', text => { if (S.ttsWhere === 'admin' && S.ttsEnabled) { MC.enabled = true; MC.volume = Number(S.ttsVolume) || 1; MC.rate = Number(S.ttsRate) || 1.05; MC.say(text); } });
+// (cũng đọc thay khi màn game không có giọng tiếng Việt — auto)
+socket.on('say', m => { if (typeof m === 'string') m = { text: m };
+  if (!m || !S.ttsEnabled || !(S.ttsWhere === 'admin' || m.auto)) return;
+  if (m.auto && !MC.hasVietnamese()) return;   // máy này cũng không có giọng Việt thì thôi, không đọc giọng tây
+  MC.enabled = true; MC.volume = Number(S.ttsVolume) || 1; MC.rate = Number(S.ttsRate) || 1; MC.say(m.text, m.prio, m.hype);
+  if (m.auto) { const el = $('ttsInfo'); if (el && !el.dataset.auto) { el.dataset.auto = 1; ttsInfo(); } } });
 // clip
 socket.on('clips', list => {
   $('clips').innerHTML = list.length ? list.map(c => `<div><span>🎬 ${esc(c.file)} <span class="muted">${(c.size / 1048576).toFixed(1)} MB</span></span><span><a href="${c.url}" download><button>Tải về</button></a> <a href="${c.url}" target="_blank"><button>Xem</button></a> <button data-delclip="${esc(c.file)}">Xoá</button></span></div>`).join('') : '<div class="muted">Chưa có clip nào.</div>';

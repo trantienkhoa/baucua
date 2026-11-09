@@ -798,7 +798,11 @@ io.on('connection', socket => {
     if (it && st.title && st.videoId && (it.id === st.videoId) && it.title !== st.title) { it.title = String(st.title).slice(0, 150); writeJSON('screen.json', screenState); }
     io.to('screenctl').emit('screenStatus', st);
   });
-  socket.on('say', text => { if (typeof text === 'string') io.to('admin').emit('say', text.slice(0, 200)); });
+  socket.on('say', m => {
+    if (typeof m === 'string') m = { text: m };
+    if (!m || typeof m.text !== 'string') return;
+    io.to('admin').emit('say', { text: m.text.slice(0, 200), prio: !!m.prio, hype: !!m.hype, auto: !!m.auto });
+  });
 
   socket.on('saveSettings', s => {
     if (!s || typeof s !== 'object') return;
