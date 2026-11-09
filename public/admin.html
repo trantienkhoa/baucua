@@ -70,7 +70,7 @@
   </div>
 
   <div class="card" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-    <div style="flex:1;min-width:240px"><b>📺 Màn hình LCD sau lưng DJ</b><div class="muted">Phát video / ảnh của bạn trên màn lớn sân khấu; người tặng quà lớn vẫn được chiếu chen ngang.</div></div>
+    <div style="flex:1;min-width:240px"><b>📺 Màn hình LCD sau lưng DJ</b><div class="muted">Chiếu hình YouTube (không tiếng), video / ảnh của bạn trên màn lớn sân khấu; người tặng quà lớn vẫn được chiếu chen ngang.</div></div>
     <a href="/man-hinh.html" target="_blank"><button class="pri">Mở bảng điều khiển màn hình</button></a>
     <button id="openGame" title="Mở màn hình game bằng Chrome/Edge, tự phát tiếng không cần bấm vào trang">🖥️ Mở màn hình game (tự có tiếng)</button>
     <span class="muted" id="openGameMsg"></span>
@@ -93,12 +93,14 @@ document.getElementById('openGame').onclick = async () => {
     <div class="row">
       <label><input type="checkbox" id="autoReconnect"> Tự kết nối lại khi rớt mạng / mở lại app</label>
     </div>
-    <details>
-      <summary class="muted">Tuỳ chọn: API key EulerStream (không bắt buộc)</summary>
-      <div class="row">
-        <input id="apiKey" type="password" placeholder="Để trống cũng được" style="flex:1;min-width:220px">
-      </div>
-    </details>
+    <div class="row" style="margin-top:10px">
+      <span style="white-space:nowrap">🔑 API key EulerStream <span class="muted">(không bắt buộc)</span></span>
+      <input id="apiKey" type="password" placeholder="Dán key vào đây — để trống cũng được" autocomplete="off" style="flex:1;min-width:220px">
+      <button id="btnKeyShow" title="Hiện / ẩn key">👁</button>
+      <button class="pri" id="btnKeySave">💾 Lưu key</button>
+      <button id="btnKeyClear" title="Xoá key đã lưu">Xoá</button>
+      <span class="muted" id="keyMsg"></span>
+    </div>
     <h3 style="font-size:15px;margin:16px 0 6px">Đường dẫn màn hình game</h3>
     <div id="urls"></div>
   </div>
@@ -319,7 +321,8 @@ function renderSettings() {
   $('bannedWords').value = S.bannedWords || '';
   $('autoReconnect').checked = !!S.autoReconnect;
   if (document.activeElement !== $('username')) $('username').value = S.username || '';
-  if (document.activeElement !== $('apiKey')) $('apiKey').value = S.apiKey || '';
+  if (document.activeElement !== $('apiKey') && !keyDirty) $('apiKey').value = S.apiKey || '';
+  if (!keyDirty) $('keyMsg').textContent = S.apiKey ? '✓ Đã có key' : 'Chưa có key';
 }
 function collect() {
   const out = {};
@@ -495,6 +498,16 @@ $('modelFile').onchange = async e => {
 };
 fetch('/api/info').then(r => r.json()).then(i => { INFO = i; ACTIONS = i.actions; $('ver').textContent = i.version; renderUrls(); if (S.actions) renderActions(); });
 
+var keyDirty = false;
+$('apiKey').oninput = () => { keyDirty = true; $('keyMsg').textContent = 'Chưa lưu — bấm “Lưu key”'; };
+$('btnKeyShow').onclick = () => { const i = $('apiKey'); i.type = i.type === 'password' ? 'text' : 'password'; };
+function saveKey(v) {
+  socket.emit('saveSettings', { apiKey: v.trim() }); keyDirty = false;
+  $('keyMsg').textContent = v.trim() ? '✓ Đã lưu key — lần kết nối sau sẽ dùng key này' : '✓ Đã xoá key';
+}
+$('btnKeySave').onclick = () => saveKey($('apiKey').value);
+$('btnKeyClear').onclick = () => { $('apiKey').value = ''; saveKey(''); };
+$('apiKey').onkeydown = e => { if (e.key === 'Enter') saveKey($('apiKey').value); };
 $('btnConnect').onclick = () => socket.emit('connect-tiktok', { username: $('username').value, apiKey: $('apiKey').value });
 $('btnDisconnect').onclick = () => socket.emit('disconnect-tiktok');
 $('btnSave').onclick = () => save('saved');

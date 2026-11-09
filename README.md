@@ -20,6 +20,12 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## Hình YouTube trên màn LCD (không tiếng), nút lưu key (bản 2.8.0)
+
+- **YouTube trở lại màn LCD, chỉ có hình.** Mở *Bảng điều khiển màn hình* → mục ▶️ YouTube → dán link (video, Shorts, playlist, youtu.be) → **Thêm**. Màn LCD chiếu hình **luôn tắt tiếng**, kể cả khi bấm vào trang hay chỉnh âm lượng. Nhạc game, đèn theo nhạc và giọng MC vẫn chạy bình thường.
+- Người tặng quà lớn vẫn được chiếu chen ngang như cũ. Video chủ kênh tắt nhúng sẽ tự bỏ qua. Cần mạng Internet.
+- **Nút 💾 Lưu key EulerStream** ở mục 1 trang quản trị (trước đây key chỉ lưu khi bấm Kết nối). Có nút 👁 hiện/ẩn, nút **Xoá**, và dòng báo “✓ Đã có key”. Nhấn Enter trong ô cũng lưu.
+
 ## Chuẩn hoá 98 nhân vật (bản 2.7.0)
 
 - **Bỏ `char98`, `char99`:** danh sách còn 98 vai, khớp với 98 nhân vật của bạn.

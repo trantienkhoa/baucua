@@ -1,4 +1,4 @@
-// Màn hình LCD sau lưng DJ: sóng nhạc / video trên máy / ảnh (phần YouTube đã tắt từ bản 2.3).
+// Màn hình LCD sau lưng DJ: sóng nhạc / YouTube (chỉ hình, luôn tắt tiếng) / video trên máy / ảnh.
 // YouTube không vẽ được vào WebGL (khác nguồn), nên khung YouTube được đặt bằng CSS3D NẰM SAU canvas 3D,
 // rồi canvas "đục lỗ" (alpha = 0) đúng chỗ màn hình — người, bàn DJ đứng trước vẫn che màn bình thường.
 import * as THREE from 'three';
@@ -79,7 +79,7 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
   let imgSrc = '', imgTex = null;
 
   // ---------- YouTube ----------
-  let player = null, ytReady = false, ytLoading = false, ytKey = '', ytState = -1, ytError = false, ytMutedAuto = false, lastTitle = '';
+  let player = null, ytReady = false, ytLoading = false, ytKey = '', ytState = -1, ytError = false, lastTitle = '';
   function loadYT() {
     if (ytLoading) return; ytLoading = true;
     const prev = window.onYouTubeIframeAPIReady;
@@ -91,9 +91,9 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
   function makePlayer() {
     player = new YT.Player(ytDiv, {
       width: PX, height: S.fit === 'contain' ? PH : Math.round(PX * 9 / 16),
-      playerVars: { autoplay: 1, controls: 0, disablekb: 1, fs: 0, rel: 0, playsinline: 1, iv_load_policy: 3, modestbranding: 1, origin: location.origin },
+      playerVars: { autoplay: 1, controls: 0, disablekb: 1, fs: 0, rel: 0, playsinline: 1, mute: 1, iv_load_policy: 3, modestbranding: 1, origin: location.origin },
       events: {
-        onReady: () => { ytReady = true; ytKey = ''; const f = player.getIframe(); f.setAttribute('allow', 'autoplay; encrypted-media'); },
+        onReady: () => { ytReady = true; ytKey = ''; player.mute(); const f = player.getIframe(); f.setAttribute('allow', 'autoplay; encrypted-media'); },
         onStateChange: e => { ytState = e.data; if (e.data === 1) ytError = false; if (e.data === 0) onEnded(); },
         onError: e => { ytError = true; console.warn('YouTube lỗi', e.data); if (isPrimary()) setTimeout(() => socket.emit('screen:cmd', { type: 'ended' }), 1500); },
       },
@@ -116,7 +116,7 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
   // ---------- âm thanh ----------
   function wantMuted() { return S.muted || !isPrimary(); }
   // trình duyệt chặn tự phát có tiếng khi chưa bấm vào trang → phát không tiếng, bấm vào trang thì bật tiếng
-  window.addEventListener('pointerdown', () => { if (ytMutedAuto && player && ytReady && !wantMuted()) { player.unMute(); ytMutedAuto = false; } if (video.muted && !wantMuted()) { video.muted = false; video._autoMuted = false; video.play().catch(() => {}); } });
+  window.addEventListener('pointerdown', () => { if (video.muted && !wantMuted()) { video.muted = false; video._autoMuted = false; video.play().catch(() => {}); } });
 
   let giftHold = false, pausedByGift = false;
   function sync(gift) {
@@ -137,14 +137,11 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
         }
         const vol = Math.round(S.volume);
         if (player.getVolume && player.getVolume() !== vol) player.setVolume(vol);
-        if (wantMuted()) { if (!player.isMuted()) player.mute(); }
-        else if (!ytMutedAuto && player.isMuted()) player.unMute();
+        if (!player.isMuted()) player.mute();   // YouTube chỉ lấy hình, không bao giờ phát tiếng
         const shouldPlay = S.playing && !(gift && S.giftPause);
         if (it) {
           if (shouldPlay && (ytState === 2 || ytState === 5 || (ytState === -1 && performance.now() - ytStartAt > 2500))) {
-            player.playVideo();
-            // vẫn không chạy (bị chặn tự phát có tiếng) → phát không tiếng
-            if (ytState === -1 && performance.now() - ytStartAt > 4000 && !player.isMuted()) { player.mute(); ytMutedAuto = true; }
+            player.mute(); player.playVideo();
           }
           if (!shouldPlay && (ytState === 1 || ytState === 3)) player.pauseVideo();
         }
@@ -176,7 +173,7 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
     if (S.mode === 'youtube' && player && ytReady) {
       try {
         const d = player.getVideoData ? player.getVideoData() : {};
-        Object.assign(st, { state: giftHold && S.giftPause ? 'gift' : ytError ? 'error' : ({ 1: 'playing', 2: 'paused', 3: 'buffering', 0: 'ended' }[ytState] || 'loading'), time: player.getCurrentTime(), duration: player.getDuration(), title: d.title || '', videoId: d.video_id || '', autoMuted: ytMutedAuto });
+        Object.assign(st, { state: giftHold && S.giftPause ? 'gift' : ytError ? 'error' : ({ 1: 'playing', 2: 'paused', 3: 'buffering', 0: 'ended' }[ytState] || 'loading'), time: player.getCurrentTime(), duration: player.getDuration(), title: d.title || '', videoId: d.video_id || '', autoMuted: false });
       } catch (e) {}
     } else if (S.mode === 'video') Object.assign(st, { state: video.paused ? 'paused' : 'playing', time: video.currentTime, duration: video.duration || 0, autoMuted: !!video._autoMuted && video.muted });
     socket.emit('screen:status', st);
@@ -184,7 +181,6 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
 
   socket.on('screen', s => {
     const old = S; S = Object.assign({}, S, s);
-    if (S.mode === 'youtube') S.mode = 'eq';   // bản 2.3: đã bỏ YouTube
     if (old.fit !== S.fit) { ytLayout(); if (S.mode === 'video' && video.videoWidth) fitScale(video.videoWidth / video.videoHeight); if (S.mode === 'image' && imgTex) fitScale(imgTex.image.width / imgTex.image.height); }
   });
   socket.on('screen:cmd', c => {
@@ -200,13 +196,11 @@ export function createLCD({ scene, camera, led, glCanvas, socket, Music, isPrima
   function duck() {
     let talking = false;
     if (isPrimary() && S.duck && !giftHold) {
-      if (S.mode === 'youtube' && player && ytReady && ytState === 1 && !S.muted && !ytMutedAuto && S.volume > 0) talking = true;
       if (S.mode === 'video' && !video.paused && !video.muted && S.volume > 0) talking = true;
     }
     // đèn theo nhạc: video trên máy → đưa tiếng vào bộ phân tích; YouTube → dùng nhịp BPM chủ phòng đặt
     if (S.mode === 'video' && Music.ctx && Music.ctx.state === 'running' && Music.attachMedia) Music.attachMedia(video);
-    const ytSound = S.mode === 'youtube' && player && ytReady && ytState === 1 && !S.muted && S.volume > 0 && !giftHold;
-    if (Music.setExternalBpm) Music.setExternalBpm(ytSound && Number(S.bpm) > 0 ? S.bpm : 0);
+    if (Music.setExternalBpm) Music.setExternalBpm(0);   // YouTube không tiếng → nhạc game vẫn chạy, đèn theo nhạc game
     const k = talking ? 0.15 : 1;
     if (k !== duckK) { duckK = k; if (Music.setDuck) Music.setDuck(k); }
   }
