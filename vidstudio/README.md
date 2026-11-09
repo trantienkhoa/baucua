@@ -22,22 +22,17 @@ Lưu ý: Google dịch và Edge TTS là dịch vụ web miễn phí không chín
 
 ## Cài đặt
 
-Cần **Python 3.10+** và **FFmpeg** (có libass, các bản build phổ biến đều có).
+**Windows:** giải nén rồi bấm đúp `ChayStudio.bat`. Lần đầu file này tự làm hết:
+1. Chưa có Python thì tự cài Python 3.12 (qua winget có sẵn trong Windows 10/11).
+2. Chưa có FFmpeg thì tự cài FFmpeg.
+3. Tạo môi trường riêng `.venv` và cài thư viện (5–15 phút). Gói khuyên dùng nào lỗi thì bỏ qua, app vẫn chạy.
+4. Mở app trong trình duyệt tại `http://127.0.0.1:8765`.
 
-- **Windows:** cài FFmpeg (`winget install Gyan.FFmpeg`), rồi bấm đúp `ChayStudio.bat`. Lần đầu sẽ tự cài thư viện.
-- **macOS / Linux:** `brew install ffmpeg` hoặc `sudo apt install ffmpeg`, rồi chạy `./run.sh`.
+Nếu sau khi cài Python/FFmpeg file báo "chưa nhận", đóng cửa sổ rồi bấm đúp lại. Máy không có winget thì cài tay [Python](https://www.python.org/downloads/) (tick *Add python.exe to PATH*) và [FFmpeg](https://www.gyan.dev/ffmpeg/builds/).
 
-App mở tại `http://127.0.0.1:8765`. Thêm `--window` để mở thành cửa sổ riêng (cần `pip install pywebview`).
+**macOS / Linux:** cài FFmpeg (`brew install ffmpeg` hoặc `sudo apt install ffmpeg`), rồi chạy `./run.sh`.
 
-Gói tuỳ chọn (bỏ comment trong `requirements.txt`):
-
-| Gói | Dùng để |
-|---|---|
-| `faster-whisper` | Nhận dạng giọng nói (đã bật sẵn). Có GPU NVIDIA thì chạy nhanh hơn nhiều |
-| `rapidocr-onnxruntime` | Tự dò vùng sub gốc, đọc phụ đề cứng trên hình (OCR) |
-| `argostranslate` | Dịch offline không cần mạng |
-| `audio-separator[gpu]` | Tách nhạc nền: giữ nhạc, bỏ giọng gốc |
-| `pywebview` | Mở như app desktop |
+Thư viện bắt buộc nằm trong `requirements.txt`; gói khuyên dùng (Whisper, giọng offline, OpenCV, OCR) và tuỳ chọn nằm trong `requirements-extra.txt`.
 
 ## Các trang
 

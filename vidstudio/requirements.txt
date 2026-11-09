@@ -1,4 +1,4 @@
-# Bắt buộc
+# Bắt buộc — ChayStudio.bat / run.sh cài tự động
 fastapi>=0.110
 uvicorn>=0.29
 python-multipart>=0.0.9
@@ -7,16 +7,3 @@ numpy>=1.26
 yt-dlp>=2024.10.0
 edge-tts>=7.0
 anthropic>=2.0             # chỉ dùng khi tắt chế độ miễn phí và chọn Claude
-piper-tts>=1.3             # giọng đọc offline miễn phí (dự phòng khi mất mạng)
-
-# Khuyên dùng (nhận dạng giọng nói)
-faster-whisper>=1.0
-
-# Tuỳ chọn — bỏ comment nếu muốn
-# opencv-python-headless>=4.8    # xoá sub gốc bằng cách vẽ lại nền
-# simple-lama-inpainting>=0.1    # vẽ lại nền bằng AI LaMa (cần PyTorch, nên có GPU)
-# pyannote.audio>=3.1            # phân biệt người nói (cần token Hugging Face)
-# rapidocr-onnxruntime>=1.3      # tự dò vùng sub gốc bằng OCR
-# argostranslate>=1.9            # dịch offline không cần key
-# audio-separator[gpu]>=0.17     # tách nhạc nền khỏi giọng gốc
-# pywebview>=5.0                 # mở như app desktop thay vì trình duyệt
