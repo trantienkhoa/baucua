@@ -23,12 +23,12 @@ Lưu ý: Google dịch và Edge TTS là dịch vụ web miễn phí không chín
 ## Cài đặt
 
 **Windows:** giải nén rồi bấm đúp `ChayStudio.bat`. Lần đầu file này tự làm hết:
-1. Chưa có Python thì tự cài Python 3.12 (qua winget có sẵn trong Windows 10/11).
-2. Chưa có FFmpeg thì tự cài FFmpeg.
+1. Chưa có Python thì tự tải bộ cài chính thức từ python.org (~25 MB) và cài im lặng cho tài khoản của bạn.
+2. Chưa có FFmpeg thì tự tải bản FFmpeg (~100 MB) vào thư mục `tools/` của app.
 3. Tạo môi trường riêng `.venv` và cài thư viện (5–15 phút). Gói khuyên dùng nào lỗi thì bỏ qua, app vẫn chạy.
 4. Mở app trong trình duyệt tại `http://127.0.0.1:8765`.
 
-Nếu sau khi cài Python/FFmpeg file báo "chưa nhận", đóng cửa sổ rồi bấm đúp lại. Máy không có winget thì cài tay [Python](https://www.python.org/downloads/) (tick *Add python.exe to PATH*) và [FFmpeg](https://www.gyan.dev/ffmpeg/builds/).
+Nếu không tải được (mất mạng, mạng công ty chặn), cài tay [Python](https://www.python.org/downloads/) (tick *Add python.exe to PATH*) và [FFmpeg](https://www.gyan.dev/ffmpeg/builds/).
 
 **macOS / Linux:** cài FFmpeg (`brew install ffmpeg` hoặc `sudo apt install ffmpeg`), rồi chạy `./run.sh`.
 

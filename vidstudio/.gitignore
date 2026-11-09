@@ -2,3 +2,6 @@ data/
 .venv/
 __pycache__/
 *.pyc
+tools/ffmpeg-*/
+tools/*.zip
+tools/*.exe
