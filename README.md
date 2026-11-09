@@ -20,6 +20,11 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## Sửa lỗi “requires a Business plan” khi kết nối (bản 2.8.2)
+
+- Game không còn tải danh sách quà mở rộng khi kết nối. Bước này phải ký qua EulerStream **gói Business (trả phí)**, nên với key miễn phí hoặc không có key sẽ báo lỗi `fetchWebcastSignatureFromEulerRoute … requires a Business plan`. Tên, ảnh, giá xu của quà vẫn lấy được từ mỗi lượt tặng quà.
+- Nếu EulerStream vẫn báo cần gói trả phí, game tự thử lại một lần **không dùng key**.
+
 ## Giọng MC tiếng Việt tự nhiên (bản 2.8.1)
 
 - **Bỏ kiểu “giọng hô” kéo cao giọng, đọc nhanh** của bản 2.2. MC đọc giọng bình thường như các bản trước; câu hô sự kiện lớn chỉ to hơn và được đọc trước.

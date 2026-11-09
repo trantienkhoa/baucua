@@ -537,6 +537,7 @@ function attach(c) {
 // - bị captcha / chặn / giới hạn: nghỉ hẳn 15 phút rồi mới thử lại
 const MIN_GAP = 20000, BLOCK_PAUSE = 15 * 60000;
 let lastConnectAt = 0, blockedUntil = 0;
+let skipKeyOnce = false;
 async function connectTikTok(fromButton) {
   clearTimeout(reconnectTimer);
   const nowMs = Date.now();
@@ -552,8 +553,11 @@ async function connectTikTok(fromButton) {
   if (conn) { try { manualStop = true; await conn.disconnect(); } catch {} conn = null; }
   manualStop = false;
   setState('connecting', `Đang kết nối @${uname}…`);
-  const opts = { enableExtendedGiftInfo: true };
-  if (settings.apiKey) opts.signApiKey = settings.apiKey; // không bắt buộc
+  // KHÔNG bật enableExtendedGiftInfo: bước tải danh sách quà phải ký qua EulerStream gói Business (trả phí),
+  // gói miễn phí sẽ báo lỗi "requires a Business plan". Tên / ảnh / giá quà đã có sẵn trong mỗi sự kiện tặng quà.
+  const opts = { enableExtendedGiftInfo: false };
+  if (settings.apiKey && !skipKeyOnce) opts.signApiKey = settings.apiKey; // không bắt buộc
+  const usedKey = !!opts.signApiKey; skipKeyOnce = false;
   const c = new TikTokLiveConnection(uname, opts);
   conn = c;
   attach(c);
@@ -568,7 +572,12 @@ async function connectTikTok(fromButton) {
     const msg = String((e && (e.message || e.name)) || e);
     let text = 'Lỗi: ' + msg;
     let kind = 'other';
-    if (/offline|not.*live|UserOffline/i.test(msg) || (e && e.name === 'UserOfflineError')) { kind = 'offline'; text = `@${uname} chưa LIVE — bật LIVE trước rồi kết nối (tự thử lại thưa dần)`; }
+    if (/business plan|premium|requires a .*plan|pricing/i.test(msg)) {
+      // tính năng này cần gói trả phí của EulerStream → thử lại ngay một lần không dùng key
+      if (usedKey) { setState('connecting', 'Key EulerStream (gói miễn phí) không dùng được tính năng này — đang thử kết nối không dùng key…'); skipKeyOnce = true; setTimeout(() => { if (!manualStop) connectTikTok(true); }, 3000); return; }
+      text = 'Lỗi: tính năng cần gói trả phí của EulerStream. Hãy bấm Xoá key rồi kết nối lại.';
+    }
+    else if (/offline|not.*live|UserOffline/i.test(msg) || (e && e.name === 'UserOfflineError')) { kind = 'offline'; text = `@${uname} chưa LIVE — bật LIVE trước rồi kết nối (tự thử lại thưa dần)`; }
     else if (/captcha|verify|403|forbidden|blocked|denied|rate|429|limit/i.test(msg)) {
       kind = 'blocked'; blockedUntil = Date.now() + BLOCK_PAUSE;
       text = 'TikTok đang yêu cầu xác minh / giới hạn lượt — game tạm nghỉ 15 phút rồi tự thử lại. Đừng bấm Kết nối liên tục.';
