@@ -32,8 +32,7 @@
   .stats span { font-size:12px; color:var(--sub); }
   .games { display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:18px; }
   .game { border-radius:18px; padding:18px; border:1px solid var(--line); position:relative; overflow:hidden; }
-  .game.neon { background:linear-gradient(160deg,#3a0f5e,#14123a 60%); }
-  .game.map { background:linear-gradient(160deg,#5e3a0f,#1a1530 60%); }
+    .game.map { background:linear-gradient(160deg,#5e3a0f,#1a1530 60%); }
   .game.nhau { background:linear-gradient(160deg,#6a2a0a,#1e1010 60%); }
   .game.massage { background:linear-gradient(160deg,#0f4a3a,#121e1a 60%); }
   .game.cafe { background:linear-gradient(160deg,#4a2f4a,#16121e 60%); }
@@ -84,16 +83,8 @@
   </section>
 
   <section class="wide">
-    <h2>2. Chọn game (5 game)</h2>
+    <h2>2. Chọn game</h2>
     <div class="games">
-      <div class="game neon">
-        <div class="ic">🪩</div>
-        <h3>Vũ Trường Neon</h3>
-        <p>Sàn nhảy 3D: bình luận là có nhân vật mang ảnh + tên bạn nhảy trên sàn, tặng quà để làm VIP, đấu đội, solo, flash mob…</p>
-        <div class="btns"><a href="/admin.html"><button class="pri">⚙️ Điều khiển</button></a><a href="/game.html" target="_blank"><button>📺 Mở màn LIVE</button></a><button data-open="game">🪟 Cửa sổ riêng</button><a href="/man-hinh.html" target="_blank"><button>🖥 Màn LCD</button></a></div>
-        <div class="muted" data-msg="game"></div>
-        <div data-links="game"></div>
-      </div>
       <div class="game map">
         <div class="ic">🏮</div>
         <h3>Thắp Sáng Quê Hương</h3>
@@ -181,7 +172,7 @@ $('blockSwear').onchange = () => socket.emit('saveSettings', { blockSwear: $('bl
 // link cho từng game
 fetch('/api/info').then(r => r.json()).then(i => {
   $('ver').textContent = 'bản ' + i.version;
-  const p = i.port, pages = { game: 'game.html', map: 'ban-do.html', nhau: 'quan.html?v=nhau', massage: 'quan.html?v=massage', cafe: 'quan.html?v=cafe' };
+  const p = i.port, pages = { map: 'ban-do.html', nhau: 'quan.html?v=nhau', massage: 'quan.html?v=massage', cafe: 'quan.html?v=cafe' };
   for (const [k, page] of Object.entries(pages)) {
     const q = page.includes('?') ? '&' : '?', list = [['OBS (máy này)', `http://localhost:${p}/${page}${q}obs=1`], ['TikTok LIVE Studio (máy này)', `http://127.0.0.1:${p}/${page}${q}obs=1`]];
     for (const ip of i.ips || []) list.push(['LIVE Studio nếu link trên không nhận (mạng LAN)', `http://${ip}:${p}/${page}${q}obs=1`], ['Điện thoại cùng Wi-Fi', `http://${ip}:${p}/${page}`]);

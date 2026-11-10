@@ -1,7 +1,7 @@
 {
   "name": "bo-game-tiktok-live",
-  "version": "4.1.0",
-  "description": "Bộ game TikTok LIVE: Vũ Trường Neon, Thắp Sáng Quê Hương, Quán Nhậu Chung, Tiệm Massage, Tiệm Cà Phê Chill - tự host, không cần key bản quyền",
+  "version": "5.0.0",
+  "description": "Bộ game TikTok LIVE: Thắp Sáng Quê Hương, Quán Nhậu Chung, Tiệm Massage, Tiệm Cà Phê Chill - tự host, không cần key bản quyền",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -19,7 +19,6 @@
     "express": "^5.3.0",
     "multer": "^2.5.0",
     "socket.io": "^4.8.4",
-    "three": "^0.187.0",
     "tiktok-live-connector": "^2.5.0"
   },
   "private": true

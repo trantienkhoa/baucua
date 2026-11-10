@@ -1,4 +1,4 @@
-BỘ GAME TIKTOK LIVE — 5 game trong 1 phần mềm
+BỘ GAME TIKTOK LIVE — 4 game trong 1 phần mềm
 ============================================
 
 1. Cài Node.js bản LTS: https://nodejs.org  (chỉ làm 1 lần)
@@ -10,18 +10,13 @@ BỘ GAME TIKTOK LIVE — 5 game trong 1 phần mềm
 Ở trang chính:
 - Nhập tên kênh, (tuỳ chọn) lưu key EulerStream → Kết nối. Dùng chung cho mọi game.
 - Bộ lọc từ, nhạc nền: dùng chung.
-- Chọn game: bấm "Điều khiển" để vào trang điều khiển của game đó.
-- Mỗi game có sẵn link cho OBS, TikTok LIVE Studio (127.0.0.1 / mạng LAN), điện thoại
-  và nút "Cửa sổ riêng" để dùng Window Capture.
+- Chọn game → "Điều khiển". Mỗi game có link cho OBS, TikTok LIVE Studio (127.0.0.1 / mạng LAN),
+  điện thoại và nút "Cửa sổ riêng" để dùng Window Capture.
 
 Game:
-- 🪩 Vũ Trường Neon: sàn nhảy 3D, màn LIVE /game.html?obs=1
-- 🏮 Thắp Sáng Quê Hương: bản đồ 34 tỉnh, thành, màn LIVE /ban-do.html?obs=1
-- 🍻 Quán Nhậu Chung: màn LIVE /quan.html?v=nhau&obs=1
-- 💆 Tiệm Massage Thư Giãn: màn LIVE /quan.html?v=massage&obs=1
-- ☕ Tiệm Cà Phê Chill: màn LIVE /quan.html?v=cafe&obs=1
-
-Đang dùng bản Thắp Sáng Quê Hương chạy riêng? Đặt thư mục thap-sang-que-huong (có data/)
-cạnh thư mục này hoặc bên trong nó → lần chạy đầu tự chuyển điểm, người quen, chức vụ, key, nhạc sang.
+- 🏮 Thắp Sáng Quê Hương: màn LIVE /ban-do.html?obs=1
+- 🍻 Quán Nhậu Chung:     màn LIVE /quan.html?v=nhau&obs=1
+- 💆 Tiệm Massage:        màn LIVE /quan.html?v=massage&obs=1
+- ☕ Tiệm Cà Phê Chill:    màn LIVE /quan.html?v=cafe&obs=1
 
 Không cần key bản quyền. Chi tiết: xem README.md
