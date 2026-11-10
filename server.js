@@ -266,6 +266,8 @@ console.log('  Danh sách nhân vật:', roster.length);
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { maxHttpBufferSize: 1e6 });
+// chế độ Thắp Sáng Quê Hương (bản đồ Việt Nam) — dùng chung kết nối TikTok
+const vnmap = require('./vnmap-server.js')({ io, readJSON, writeJSON });
 app.use(express.json({ limit: '1mb' }));
 app.use('/api/clips', express.raw({ type: () => true, limit: '300mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -396,7 +398,7 @@ function setState(status, text) {
   console.log('[TikTok]', text);
 }
 
-function broadcast(ev) { session.lastEvent = Date.now(); io.to('game').emit('ev', ev); try { textHook(ev); } catch (e) { console.error('text', e); } }
+function broadcast(ev) { session.lastEvent = Date.now(); io.to('game').emit('ev', ev); try { textHook(ev); } catch (e) { console.error('text', e); } vnmap.hook(ev); }
 
 // ---------- lời nhắn lên màn hình LCD: bình luận "mh: …" + tặng quà ----------
 const TEXT_PREFIX = /^\s*(mh|màn hình|man hinh|manhinh|lcd|chữ|chu|text|tn|lời nhắn|loi nhan)\s*[:：\-–>]\s*/i;
@@ -749,6 +751,7 @@ function testUser(i) {
 }
 
 io.on('connection', socket => {
+  vnmap.onConnection(socket);
   socket.on('hello', (role, info) => {
     if (role === 'game') { socket.join('game'); screens.set(socket.id, { obs: !!(info && info.obs) }); pickPrimary(); socket.emit('goalState', goalState); }
     else if (role === 'screen') { socket.join('screenctl'); socket.emit('screenMedia', screenMedia()); socket.emit('screenStatus', screenStatus); socket.emit('textQueue', textPending); socket.emit('textHistory', textHistory); }
@@ -878,6 +881,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('\n  Vũ Trường Neon đã chạy');
   console.log(`  Trang điều khiển : http://localhost:${PORT}/admin.html`);
   console.log(`  Màn hình game    : http://localhost:${PORT}/game.html`);
+  console.log(`  Bản đồ quê hương : http://localhost:${PORT}/ban-do-admin.html  (màn LIVE: /ban-do.html?obs=1)`);
   for (const ip of ips) console.log(`  Trong mạng LAN   : http://${ip}:${PORT}/game.html`);
   console.log('');
   if (settings.username && settings.autoReconnect && process.env.AUTOCONNECT !== '0') connectTikTok();

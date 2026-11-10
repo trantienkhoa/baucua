@@ -20,3 +20,8 @@ Sự kiện LIVE (trang điều khiển → 🎮 Sự kiện LIVE): đấu độ
 đèn chiếu, MC giọng nói, mục tiêu phòng mở sân khấu mới, clip khoảnh khắc.
 Lệnh người xem: 1/2 (chọn đội, bình chọn solo), bài 1/2/3 (chọn nhạc).
 Chi tiết: xem README.md
+
+THẮP SÁNG QUÊ HƯƠNG (bản đồ Việt Nam) — chế độ mới bản 3.0
+- Trang điều khiển: http://localhost:3300/ban-do-admin.html
+- OBS: Browser source  http://localhost:3300/ban-do.html?obs=1  (1080 × 1920)
+- Người xem bình luận tên tỉnh (tên mới, tên cũ, thành phố, viết tắt) để thắp đèn quê.

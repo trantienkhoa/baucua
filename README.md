@@ -20,6 +20,44 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 🏮 Chế độ mới: Thắp Sáng Quê Hương — bản đồ Việt Nam (bản 3.0.0)
+
+Bản đồ **34 tỉnh, thành** (sau sắp xếp 2025, có **quần đảo Hoàng Sa, Trường Sa**) hiện trên LIVE. Người xem **bình luận tên quê** là đèn quê họ sáng lên, sao chổi bay từ thẻ người xem tới đúng tỉnh. Dùng chung kết nối TikTok với game sàn nhảy.
+
+- **Trang điều khiển:** `http://localhost:3300/ban-do-admin.html` (có nút ở trang điều khiển chính).
+- **OBS:** Browser source `http://localhost:3300/ban-do.html?obs=1`, 1080 × 1920, bật *Control audio via OBS*. Điện thoại cùng Wi-Fi mở đường dẫn LAN ghi trong trang điều khiển.
+
+**Cách chơi**
+- 💬 Bình luận tên tỉnh → +1 điểm cho tỉnh đó (chống spam 4 giây / người / tỉnh). Nhận **tên mới, tên cũ đã gộp** (Bình Dương → TP HCM, Quảng Nam → Đà Nẵng, Hà Giang → Tuyên Quang…), **tên thành phố** (Đà Lạt, Nha Trang, Vũng Tàu, Phú Quốc, Sa Pa…), **viết tắt** (HN, SG, HCM, HP, BMT), có dấu hay không dấu đều được.
+- 🎁 Tặng quà → cộng điểm cho quê người tặng theo bảng điểm (chỉnh được). Chưa nói quê thì điểm **được giữ lại**, bình luận tên quê là nhận.
+- ❤️ Mỗi 50 tim của một người → +1 điểm cho quê người đó.
+- 🇻🇳 Tổng xu cả buổi đủ 10.000 → **cả nước rực sáng** (pháo hoa, thắp lần lượt từ Bắc vào Nam).
+- 🏁 **Đua theo vòng** (5 phút / vòng), tỉnh nhất vòng có vương miện.
+- 👑 **Chủ tỉnh**: người tặng nhiều xu nhất cho một tỉnh, có vương miện trên bản đồ.
+
+**Tính năng giữ chân người xem (mới so với các tool cùng loại)**
+- ⚔️ **Đại chiến tự động** giữa 2 tỉnh dẫn đầu (thỉnh thoảng lôi tỉnh hạng 3–4 vào cho bất ngờ), thanh kéo co đỏ – xanh, thắng được thưởng điểm.
+- ❓ **Đố vui quê hương** (40 câu: Vịnh Hạ Long, Hội An nay thuộc đâu…), ai trả lời đúng đầu tiên được điểm cho quê mình — dạy luôn địa giới mới sau sáp nhập.
+- ⭐ **Tỉnh may mắn ×2** mỗi 4 phút, ưu tiên tỉnh còn tối để rủ người quê đó vào.
+- 🔥 **Tỉnh đang hot ×2**: 3 người khác nhau cùng gọi một tỉnh trong 20 giây.
+- ❤️ **Sóng tim**: mỗi 1.000 tim cả phòng tự thắp một tỉnh còn tối.
+- 🏡 **Người quen quay lại** (đã từng bình luận quê ở phiên trước) vào phòng là **tự thắp đèn quê họ**, MC chào tên.
+- 📅 **Điểm danh mỗi ngày**: bình luận nhiều ngày liên tiếp được thưởng điểm tăng dần.
+- 🏆 **Cột mốc** 5 / 10 / 17 / 25 / 30 / 34 tỉnh có pháo hoa và băng-rôn.
+- 📊 **Tổng kết phiên** một chạm: số tỉnh sáng, số người, bình luận, tim, xu, người quay lại, quê dẫn đầu, người tặng nhiều nhất — để chụp màn hình đăng bài.
+- 🎙 **MC giọng AI**: giới thiệu tỉnh khi đèn đầu tiên sáng, chào người mới, cảm ơn quà, hô đại chiến / đố vui, và khi phòng im lâu thì **kể tên các tỉnh còn tối** để rủ người xem.
+- Điểm phiên được lưu trên máy chủ: tải lại màn hình hay khởi động lại máy không mất điểm (phiên tự làm mới sau 6 tiếng không dùng, hoặc bấm *Phiên mới*).
+
+**10 giao diện, đổi 1 chạm** (màn LIVE đổi ngay, không tải lại), mỗi giao diện có nền động và hiệu ứng thắp đèn riêng:
+Đêm Sao (sao chổi) · Sơn Mài (trống đồng xoay) · Cực Quang (cột sáng) · Neon (tia laser, lưới neon) · Đêm Trăng Hội An (đèn lồng bay, trăng rằm) · Radar Chỉ Huy (tia quét, khoá mục tiêu) · Tết Rộn Ràng (pháo hoa, hoa mai) · Giấy Cổ (la bàn, đóng dấu "QUÊ") · Biển Xanh (sóng nước, gợn sóng) · Hoa Sen (cánh sen, đom đóm).
+
+- 🧊 **Bản đồ 3D nổi khối**: tỉnh càng nhiều điểm càng nhô cao, bản đồ chuyển động nhẹ (bật/tắt 1 nút).
+- ⚡ **Hiệu ứng nhẹ** cho máy yếu (30 hình/giây, ít hạt, bỏ đổ bóng).
+- 🎵 Nhạc nền lấy từ thư mục nhạc của game; không có nhạc thì phát tiếng đàn ngũ cung nhẹ.
+- 🧪 Nút thử (bình luận, quà, tim, người quen, theo dõi, trả lời đố vui) để xem trước khi lên LIVE.
+
+Dữ liệu ranh giới tỉnh: gộp từ bộ geoBoundaries (public domain) theo Nghị quyết 202/2025/QH15.
+
 ## Chọn giọng MC (bản 2.8.3)
 
 - Mục **Sự kiện LIVE** có ô **🎙 Giọng MC** liệt kê mọi giọng tiếng Việt của trình duyệt, nút **▶ Nghe thử**. Giọng có ⭐ là giọng tự nhiên (Natural).

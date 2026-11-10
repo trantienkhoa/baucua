@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Điều khiển · Thắp Sáng Quê Hương</title>
+<style>
+  :root { --bg:#0f1226; --card:#181c3a; --line:#2c3266; --text:#eef0ff; --sub:#a9b0d9; --acc:#ffcc4d; --ok:#34d399; --bad:#f87171; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.45 'Segoe UI',system-ui,sans-serif; }
+  header { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:14px; padding:12px 18px; background:#0b0e1f; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header h1 { margin:0; font-size:20px; }
+  header a { color:var(--acc); text-decoration:none; font-weight:600; }
+  .status { padding:4px 10px; border-radius:20px; background:#333; font-weight:600; font-size:13px; }
+  .status.connected { background:#065f46; } .status.error,.status.blocked { background:#7f1d1d; } .status.connecting,.status.reconnecting { background:#78350f; }
+  main { max-width:1180px; margin:0 auto; padding:16px; display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:16px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; }
+  section h2 { margin:0 0 12px; font-size:17px; }
+  label { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:8px 0; color:var(--sub); }
+  label > span { flex:1; }
+  input[type=text],input[type=password],input[type=number],select { background:#0d1030; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:7px 9px; font:inherit; }
+  input[type=number] { width:90px; }
+  input[type=range] { width:160px; }
+  button { background:#2b3170; color:var(--text); border:1px solid #3c4490; border-radius:9px; padding:8px 12px; font:inherit; font-weight:600; cursor:pointer; }
+  button:hover { filter:brightness(1.2); }
+  button.pri { background:var(--acc); color:#1a1300; border-color:var(--acc); }
+  button.bad { background:#5a1a1a; border-color:#8a2a2a; }
+  .btns { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+  .themes { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+  .themes button { text-align:left; }
+  .themes button.on { outline:2px solid var(--acc); background:#3a3f8a; }
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .stats div { background:#0d1030; border-radius:10px; padding:8px; text-align:center; }
+  .stats b { display:block; font-size:22px; color:var(--acc); }
+  .stats span { font-size:12px; color:var(--sub); }
+  code { background:#0d1030; padding:2px 6px; border-radius:6px; color:#ffe39a; word-break:break-all; }
+  .muted { color:var(--sub); font-size:13px; }
+  .tier { display:flex; gap:8px; align-items:center; margin:5px 0; }
+  .wide { grid-column:1/-1; }
+  .switch { width:20px; height:20px; }
+  .live { font-size:13px; color:var(--sub); margin-top:8px; min-height:20px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🏮 Thắp Sáng Quê Hương</h1>
+  <span id="conn" class="status">Chưa kết nối</span>
+  <a href="/ban-do.html" target="_blank">Mở màn hình ↗</a>
+  <a href="/admin.html">← Game sàn nhảy</a>
+</header>
+<main>
+  <section>
+    <h2>1. Kết nối TikTok LIVE</h2>
+    <label><span>Tên kênh (@)</span><input id="username" type="text" placeholder="tenkenh"></label>
+    <label><span>Key EulerStream (tuỳ chọn)</span><input id="apiKey" type="password" placeholder="để trống cũng được"></label>
+    <div class="btns"><button class="pri" id="btnConnect">Kết nối</button><button id="btnDisconnect">Ngắt</button></div>
+    <p class="muted">Dùng chung kết nối với game sàn nhảy: chạy cả hai cùng lúc cũng được.</p>
+  </section>
+
+  <section>
+    <h2>2. Đưa lên LIVE</h2>
+    <p><b>OBS</b>: Browser source, 1080 × 1920, bật <i>Control audio via OBS</i><br><code id="obsUrl">http://localhost:3300/ban-do.html?obs=1</code></p>
+    <p><b>Điện thoại / LIVE Studio</b> (cùng Wi-Fi):<br><span id="lanUrls" class="muted">…</span></p>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <section>
+    <h2>🎨 Giao diện màn hình</h2>
+    <div class="themes" id="themes"></div>
+    <label><span>🧊 Bản đồ 3D nổi khối</span><input type="checkbox" class="switch" data-k="mode3d"></label>
+    <label><span>⚡ Hiệu ứng nhẹ (máy yếu)</span><input type="checkbox" class="switch" data-k="lite"></label>
+    <label><span>Tiêu đề</span><input type="text" data-k="title" style="width:220px"></label>
+    <label><span>Dòng phụ</span><input type="text" data-k="subtitle" style="width:220px"></label>
+  </section>
+
+  <section>
+    <h2>🎮 Điều khiển nhanh</h2>
+    <div class="btns">
+      <button id="cRound">🏁 Kết thúc vòng ngay</button>
+      <button id="cBattle">⚔️ Đại chiến</button>
+      <button id="cQuiz">❓ Đố vui</button>
+      <button id="cLucky">⭐ Tỉnh may mắn</button>
+      <button id="cCountry">🇻🇳 Cả nước rực sáng</button>
+      <button id="cSummary" class="pri">📊 Tổng kết phiên</button>
+      <button id="cReset" class="bad">♻️ Phiên mới (xoá điểm)</button>
+    </div>
+    <label style="margin-top:14px"><span>🎙 MC nói</span><input type="text" id="sayText" placeholder="Gõ câu cho MC đọc…" style="width:200px"><button id="sayBtn">Nói</button></label>
+    <div class="live" id="live"></div>
+  </section>
+
+  <section>
+    <h2>🏆 Luật chơi</h2>
+    <label><span>Mỗi vòng đua (phút)</span><input type="number" data-k="roundMin" min="1"></label>
+    <label><span>Điểm mỗi bình luận</span><input type="number" data-k="commentPts" min="0"></label>
+    <label><span>Chống spam (giây / người / tỉnh)</span><input type="number" data-k="chatCooldown" min="0"></label>
+    <label><span>Số tim của 1 người = +1 điểm</span><input type="number" data-k="likeEvery" min="1"></label>
+    <label><span>Theo dõi / Chia sẻ (điểm)</span><span style="flex:0;display:flex;gap:6px"><input type="number" data-k="followPts"><input type="number" data-k="sharePts"></span></label>
+    <label><span>Xu cả buổi để cả nước rực sáng</span><input type="number" data-k="countryCoins" min="0"></label>
+    <div class="muted" style="margin-top:10px">Điểm quà tặng (xu mỗi quà → điểm):</div>
+    <div id="tiers"></div>
+    <div class="btns"><button id="addTier">+ Thêm mức</button><button id="saveTiers" class="pri">Lưu bảng điểm</button></div>
+  </section>
+
+  <section>
+    <h2>✨ Tính năng giữ chân người xem</h2>
+    <label><span>⚔️ Đại chiến mỗi (phút, 0 = tắt)</span><input type="number" data-k="battleEvery" min="0"></label>
+    <label><span>&nbsp;&nbsp;thời lượng (giây) / thưởng</span><span style="flex:0;display:flex;gap:6px"><input type="number" data-k="battleSec"><input type="number" data-k="battleBonus"></span></label>
+    <label><span>❓ Đố vui quê hương mỗi (phút)</span><input type="number" data-k="quizEvery" min="0"></label>
+    <label><span>&nbsp;&nbsp;thời gian trả lời (giây) / điểm</span><span style="flex:0;display:flex;gap:6px"><input type="number" data-k="quizSec"><input type="number" data-k="quizPts"></span></label>
+    <label><span>⭐ Tỉnh may mắn ×2 mỗi (phút)</span><input type="number" data-k="luckyEvery" min="0"></label>
+    <label><span>🔥 Tỉnh hot: số người / trong (giây)</span><span style="flex:0;display:flex;gap:6px"><input type="number" data-k="hotUsers"><input type="number" data-k="hotWindow"></span></label>
+    <label><span>❤️ Sóng tim: mỗi bao nhiêu tim cả phòng</span><input type="number" data-k="waveLikes" min="0"></label>
+    <label><span>🏡 Người quen quay lại tự thắp đèn quê</span><input type="checkbox" class="switch" data-k="autoHome"></label>
+    <label><span>📅 Thưởng điểm danh mỗi ngày liên tiếp</span><input type="number" data-k="streakBonus" min="0"></label>
+  </section>
+
+  <section>
+    <h2>🎙 MC & 🎵 nhạc</h2>
+    <label><span>Bật MC giọng nói</span><input type="checkbox" class="switch" data-k="mcOn"></label>
+    <label><span>Giọng</span><select data-k="mcVoice" id="voice" style="width:220px"></select><button id="voiceTest">▶</button></label>
+    <label><span>Tốc độ đọc</span><input type="range" data-k="mcRate" min="0.7" max="1.4" step="0.05"></label>
+    <label><span>Chào người mới / người quen</span><input type="checkbox" class="switch" data-k="mcWelcome"></label>
+    <label><span>Cảm ơn quà tặng</span><input type="checkbox" class="switch" data-k="mcGift"></label>
+    <label><span>Giới thiệu tỉnh khi đèn đầu tiên sáng</span><input type="checkbox" class="switch" data-k="mcIntro"></label>
+    <label><span>Nhạc nền tự phát</span><input type="checkbox" class="switch" data-k="musicOn"></label>
+    <label><span>Âm lượng nhạc</span><input type="range" data-k="musicVol" min="0" max="1" step="0.05"></label>
+    <p class="muted">Nhạc nền lấy từ thư mục nhạc của game (trang điều khiển sàn nhảy → tải nhạc). Không có nhạc thì phát tiếng đàn nhẹ. Màn hình OBS không có giọng Việt thì trang này sẽ đọc thay — giữ trang mở (tốt nhất bằng Edge).</p>
+  </section>
+
+  <section>
+    <h2>🧪 Thử không cần LIVE</h2>
+    <div class="btns">
+      <button data-test="comment" data-n="1">💬 1 bình luận</button>
+      <button data-test="comment" data-n="15">💬 15 bình luận</button>
+      <button data-test="gift">🎁 Quà ngẫu nhiên</button>
+      <button data-test="gift" data-v="199">🎁 199 xu</button>
+      <button data-test="gift" data-v="1000">🎁 1.000 xu</button>
+      <button data-test="like" data-n="500">❤️ 500 tim</button>
+      <button data-test="returning">🏡 Người quen quay lại</button>
+      <button data-test="follow">➕ Theo dõi</button>
+      <button data-test="quizAnswer">✅ Trả lời đúng đố vui</button>
+    </div>
+    <p class="muted">Người xem gõ tên tỉnh mới, tên cũ (Bình Dương, Quảng Nam, Hà Giang…), tên thành phố (Đà Lạt, Nha Trang, Vũng Tàu…) hoặc viết tắt (HN, SG, HCM) đều được — không dấu cũng nhận.</p>
+  </section>
+</main>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/tts.js"></script>
+<script src="/vnmap/themes.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const socket = io();
+let CFG = {};
+socket.on('connect', () => { socket.emit('hello', 'mapadmin'); socket.emit('vm:hello', 'ctl'); });
+socket.on('settings', s => { if (document.activeElement !== $('username')) $('username').value = s.username || ''; if (document.activeElement !== $('apiKey')) $('apiKey').value = s.apiKey || ''; });
+socket.on('connState', c => { $('conn').textContent = c.text; $('conn').className = 'status ' + c.status; });
+$('btnConnect').onclick = () => socket.emit('connect-tiktok', { username: $('username').value, apiKey: $('apiKey').value });
+$('btnDisconnect').onclick = () => socket.emit('disconnect-tiktok');
+
+fetch('/api/info').then(r => r.json()).then(i => {
+  $('obsUrl').textContent = `http://localhost:${i.port}/ban-do.html?obs=1`;
+  $('lanUrls').innerHTML = (i.ips || []).map(ip => `<code>http://${ip}:${i.port}/ban-do.html</code>`).join('<br>') || 'Không tìm thấy mạng LAN';
+});
+
+// giao diện
+const TH = window.VN_THEMES;
+$('themes').innerHTML = Object.entries(TH).map(([k, t]) => `<button data-theme="${k}">${t.name}</button>`).join('');
+$('themes').onclick = e => { const b = e.target.closest('[data-theme]'); if (b) socket.emit('vm:cfg', { theme: b.dataset.theme }); };
+
+function fill(c) {
+  CFG = c;
+  for (const b of document.querySelectorAll('[data-theme]')) b.classList.toggle('on', b.dataset.theme === c.theme);
+  for (const el of document.querySelectorAll('[data-k]')) {
+    if (document.activeElement === el) continue;
+    const v = c[el.dataset.k];
+    if (el.type === 'checkbox') el.checked = !!v; else if (v != null) el.value = v;
+  }
+  renderTiers(c.tiers || []);
+  if (window.MC) { MC.setPref(c.mcVoice || ''); MC.rate = +c.mcRate || 1; MC.enabled = true; }
+}
+socket.on('vm:cfg', fill);
+for (const el of document.querySelectorAll('[data-k]')) {
+  el.addEventListener('change', () => {
+    const k = el.dataset.k; let v = el.type === 'checkbox' ? el.checked : el.value;
+    if (el.type === 'number' || el.type === 'range') v = Number(v);
+    socket.emit('vm:cfg', { [k]: v });
+  });
+}
+// bảng điểm quà
+let tierDraft = null;
+function renderTiers(t) {
+  if (tierDraft) return;
+  $('tiers').innerHTML = t.map(([min, pts], i) => `<div class="tier">Từ <input type="number" value="${min}" data-i="${i}" data-f="0"> xu → <input type="number" value="${pts}" data-i="${i}" data-f="1"> điểm <button data-del="${i}">✕</button></div>`).join('');
+}
+$('tiers').oninput = () => { tierDraft = true; };
+$('tiers').onclick = e => { const d = e.target.dataset.del; if (d != null) { const t = readTiers(); t.splice(+d, 1); tierDraft = null; renderTiers(t); tierDraft = true; } };
+function readTiers() { const rows = [...$('tiers').querySelectorAll('.tier')]; return rows.map(r => [+r.querySelector('[data-f="0"]').value, +r.querySelector('[data-f="1"]').value]); }
+$('addTier').onclick = () => { const t = readTiers(); const last = t[t.length - 1] || [1, 1]; t.push([last[0] * 5, last[1] * 3]); tierDraft = null; renderTiers(t); tierDraft = true; };
+$('saveTiers').onclick = () => { const t = readTiers(); tierDraft = null; socket.emit('vm:cfg', { tiers: t }); };
+
+// lệnh
+const cmd = type => socket.emit('vm:cmd', { type });
+$('cRound').onclick = () => cmd('newRound'); $('cBattle').onclick = () => cmd('battle'); $('cQuiz').onclick = () => cmd('quiz');
+$('cLucky').onclick = () => cmd('lucky'); $('cCountry').onclick = () => cmd('country'); $('cSummary').onclick = () => cmd('summary');
+$('cReset').onclick = () => { if (confirm('Bắt đầu phiên mới? Toàn bộ điểm phiên này sẽ bị xoá (bảng xếp hạng mọi thời đại và người quen vẫn giữ).')) cmd('reset'); };
+$('sayBtn').onclick = () => { const t = $('sayText').value.trim(); if (t) { socket.emit('vm:cmd', { type: 'say', text: t }); $('sayText').value = ''; } };
+$('sayText').onkeydown = e => { if (e.key === 'Enter') $('sayBtn').click(); };
+document.querySelectorAll('[data-test]').forEach(b => b.onclick = () => socket.emit('vm:test', { kind: b.dataset.test, n: +b.dataset.n || undefined, value: +b.dataset.v || undefined }));
+
+// thống kê
+const fmt = n => Math.round(n || 0).toLocaleString('vi-VN');
+socket.on('vm:stats', s => {
+  $('stats').innerHTML = [[`${s.lit}/${s.total}`, 'tỉnh đã sáng'], [fmt(s.people), 'người thắp đèn'], [fmt(s.comments), 'bình luận'], [fmt(s.coins), 'xu'], [fmt(s.returning), 'người quen quay lại'], [s.screens, 'màn hình đang mở']]
+    .map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('');
+  const parts = [`Vòng ${s.round}`];
+  if (s.battle) parts.push('⚔️ đang đại chiến'); if (s.quiz) parts.push('❓ đang đố vui: ' + s.quiz.q); if (s.lucky) parts.push('⭐ tỉnh may mắn đang chạy');
+  parts.push(`🇻🇳 ${fmt(s.country.pool)}/${fmt(s.country.target)} xu`);
+  $('live').textContent = parts.join(' · ');
+});
+
+// giọng MC
+function voices() {
+  if (!window.MC) return;
+  const list = MC.list(), sel = $('voice');
+  sel.innerHTML = '<option value="">Tự chọn giọng hay nhất</option>' + list.map(n => `<option value="${n.replace(/"/g, '&quot;')}">${/natural|online/i.test(n) ? '⭐ ' : ''}${n}</option>`).join('');
+  sel.value = CFG.mcVoice || '';
+}
+if (window.MC) { MC.onVoices = voices; voices(); }
+$('voiceTest').onclick = () => { if (window.MC) { MC.setPref($('voice').value); MC.enabled = true; MC.say('Đèn đầu tiên của Huế đã sáng, xứ cố đô mộng mơ bên dòng sông Hương!', true); } };
+// màn hình không có giọng Việt → đọc ở đây
+socket.on('vm:say', m => { if (window.MC && CFG.mcOn) { MC.enabled = true; MC.say(m.text, m.prio); } });
+</script>
+</body>
+</html>
