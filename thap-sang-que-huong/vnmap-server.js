@@ -366,9 +366,16 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
     S.lucky = { id: p.id, endsAt: Date.now() + cfg.luckySec * 1000, sec: cfg.luckySec };
     fx('lucky', { prov: p.id, sec: cfg.luckySec }); dirty = true;
   }
-  let quizIdx = Math.floor(Math.random() * VN.QUIZ.length);
+  // đố vui xoay vòng đủ 34 tỉnh (thứ tự ngẫu nhiên) rồi mới lặp; mỗi tỉnh lần lượt hỏi câu khác nhau
+  let quizOrder = [], quizTurn = {};
+  function nextQuestion() {
+    if (!quizOrder.length) { quizOrder = VN.LIST.map(p => p.id).sort(() => Math.random() - 0.5); if (S.quiz && quizOrder[0] === S.quiz.a) quizOrder.push(quizOrder.shift()); }
+    const a = quizOrder.shift(), list = VN.QUIZ_BY[a];
+    const k = quizTurn[a] == null ? Math.floor(Math.random() * list.length) : quizTurn[a] + 1; quizTurn[a] = k;
+    return { q: list[k % list.length], a };
+  }
   function startQuiz() {
-    const q = VN.QUIZ[quizIdx++ % VN.QUIZ.length];
+    const q = nextQuestion();
     S.quiz = { q: q.q, a: q.a, endsAt: Date.now() + cfg.quizSec * 1000, sec: cfg.quizSec };
     fx('quizStart', { q: q.q, sec: cfg.quizSec, pts: cfg.quizPts }); dirty = true;
   }

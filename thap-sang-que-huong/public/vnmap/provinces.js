@@ -59,49 +59,44 @@
     return null;
   }
 
-  // Đố vui quê hương — đáp án là tỉnh MỚI (tên cũ cũng được tính vì tự quy về tỉnh mới)
-  const QUIZ = [
-    ['Vịnh Hạ Long thuộc tỉnh nào?', 'quang-ninh'],
-    ['Phố cổ Hội An nay thuộc tỉnh, thành nào?', 'da-nang'],
-    ['Chợ nổi Cái Răng ở đâu?', 'can-tho'],
-    ['Đảo Phú Quốc nay thuộc tỉnh nào?', 'an-giang'],
-    ['Thành phố Đà Lạt nay thuộc tỉnh nào?', 'lam-dong'],
-    ['Sa Pa nay thuộc tỉnh nào?', 'lao-cai'],
-    ['Đền Hùng ở tỉnh nào?', 'phu-tho'],
-    ['Quê hương quan họ là tỉnh nào?', 'bac-ninh'],
-    ['Mũi đất cực Nam Tổ quốc thuộc tỉnh nào?', 'ca-mau'],
-    ['Thác Bản Giốc ở tỉnh nào?', 'cao-bang'],
-    ['Động Phong Nha nay thuộc tỉnh nào?', 'quang-tri'],
-    ['Biển Nha Trang thuộc tỉnh nào?', 'khanh-hoa'],
-    ['Cố đô Hoa Lư ở tỉnh nào?', 'ninh-binh'],
-    ['Thành phố Vũng Tàu nay thuộc tỉnh, thành nào?', 'tp-hcm'],
-    ['Đảo Lý Sơn nay thuộc tỉnh nào?', 'quang-ngai'],
-    ['Thủ phủ cà phê Buôn Ma Thuột thuộc tỉnh nào?', 'dak-lak'],
-    ['Núi Bà Đen ở tỉnh nào?', 'tay-ninh'],
-    ['Xứ dừa Bến Tre nay thuộc tỉnh nào?', 'vinh-long'],
-    ['Cao nguyên đá Đồng Văn nay thuộc tỉnh nào?', 'tuyen-quang'],
-    ['Hồ Ba Bể nay thuộc tỉnh nào?', 'thai-nguyen'],
-    ['Thành phố Quy Nhơn nay thuộc tỉnh nào?', 'gia-lai'],
-    ['Biển Sầm Sơn ở tỉnh nào?', 'thanh-hoa'],
-    ['Đảo Cát Bà thuộc thành phố nào?', 'hai-phong'],
-    ['Cầu Rồng phun lửa ở thành phố nào?', 'da-nang'],
-    ['Đại Nội và lăng tẩm các vua Nguyễn ở đâu?', 'hue'],
-    ['Làng Sen quê Bác Hồ ở tỉnh nào?', 'nghe-an'],
-    ['Mũi Né nay thuộc tỉnh nào?', 'lam-dong'],
-    ['Thành phố Biên Hòa thuộc tỉnh nào?', 'dong-nai'],
-    ['Làng hoa Sa Đéc nay thuộc tỉnh nào?', 'dong-thap'],
-    ['Cao nguyên Mộc Châu ở tỉnh nào?', 'son-la'],
-    ['Quê lúa Thái Bình nay thuộc tỉnh nào?', 'hung-yen'],
-    ['Phố núi Pleiku thuộc tỉnh nào?', 'gia-lai'],
-    ['Côn Đảo nay thuộc tỉnh, thành nào?', 'tp-hcm'],
-    ['Chùa Bái Đính ở tỉnh nào?', 'ninh-binh'],
-    ['Ruộng bậc thang Mù Cang Chải nay thuộc tỉnh nào?', 'lao-cai'],
-    ['Tam Đảo nay thuộc tỉnh nào?', 'phu-tho'],
-    ['Phố cổ Đồng Văn và đèo Mã Pì Lèng nay thuộc tỉnh nào?', 'tuyen-quang'],
-    ['Bãi biển Mỹ Khê ở thành phố nào?', 'da-nang'],
-    ['Hồ Gươm ở đâu?', 'ha-noi'],
-    ['Thánh địa Mỹ Sơn nay thuộc tỉnh, thành nào?', 'da-nang'],
-  ].map(([q, a]) => ({ q, a }));
+  // Đố vui quê hương — mỗi tỉnh 3 câu; đáp án là tỉnh MỚI (gõ đúng tên tỉnh mới mới được tính)
+  const QUIZ_BY = {
+    'ha-noi': ["Hồ Gươm và tháp Rùa ở đâu?", "Văn Miếu – Quốc Tử Giám, trường đại học đầu tiên của nước ta, ở đâu?", "Làng gốm Bát Tràng thuộc tỉnh, thành nào?"],
+    'hue': ["Đại Nội và lăng tẩm các vua Nguyễn ở đâu?", "Chùa Thiên Mụ bên bờ sông Hương thuộc tỉnh, thành nào?", "Cầu Trường Tiền nổi tiếng ở thành phố nào?"],
+    'lai-chau': ["Cầu kính Rồng Mây trên đèo Ô Quy Hồ thuộc tỉnh nào?", "Sông Đà chảy vào nước ta ở tỉnh nào?", "Đỉnh Pu Si Lung, ngọn núi cao thứ hai Việt Nam, thuộc tỉnh nào?"],
+    'dien-bien': ["Đồi A1, nơi diễn ra trận đánh lịch sử năm 1954, ở tỉnh nào?", "Điểm cực Tây A Pa Chải của Tổ quốc thuộc tỉnh nào?", "Cánh đồng Mường Thanh rộng lớn ở tỉnh nào?"],
+    'son-la': ["Cao nguyên Mộc Châu ở tỉnh nào?", "Nhà máy thủy điện lớn nhất Đông Nam Á trên sông Đà ở tỉnh nào?", "Rừng thông Bản Áng ở Mộc Châu thuộc tỉnh nào?"],
+    'lang-son': ["Ải Chi Lăng lịch sử thuộc tỉnh nào?", "Cửa khẩu Hữu Nghị thuộc tỉnh nào?", "Núi Tô Thị và động Tam Thanh ở tỉnh nào?"],
+    'quang-ninh': ["Vịnh Hạ Long thuộc tỉnh nào?", "Chùa Đồng trên đỉnh Yên Tử thuộc tỉnh nào?", "Đảo Cô Tô thuộc tỉnh nào?"],
+    'thanh-hoa': ["Biển Sầm Sơn ở tỉnh nào?", "Thành nhà Hồ, di sản thế giới, ở tỉnh nào?", "Khu bảo tồn Pù Luông với ruộng bậc thang thuộc tỉnh nào?"],
+    'nghe-an': ["Làng Sen quê Bác Hồ ở tỉnh nào?", "Biển Cửa Lò thuộc tỉnh nào?", "Vườn quốc gia Pù Mát thuộc tỉnh nào?"],
+    'ha-tinh': ["Ngã ba Đồng Lộc, nơi mười cô gái hy sinh, ở tỉnh nào?", "Khu lưu niệm đại thi hào Nguyễn Du ở Tiên Điền thuộc tỉnh nào?", "Biển Thiên Cầm thuộc tỉnh nào?"],
+    'cao-bang': ["Thác Bản Giốc ở tỉnh nào?", "Hang Pác Bó, nơi Bác Hồ về nước năm 1941, thuộc tỉnh nào?", "Hồ Thang Hen thuộc tỉnh nào?"],
+    'tuyen-quang': ["Cây đa Tân Trào thuộc tỉnh nào?", "Cột cờ Lũng Cú nơi địa đầu Tổ quốc nay thuộc tỉnh nào?", "Đèo Mã Pì Lèng nay thuộc tỉnh nào?"],
+    'lao-cai': ["Thị trấn sương mù Sa Pa nay thuộc tỉnh nào?", "Đỉnh Fansipan, nóc nhà Đông Dương, thuộc tỉnh nào?", "Ruộng bậc thang Mù Cang Chải nay thuộc tỉnh nào?"],
+    'thai-nguyen': ["Chè Tân Cương nổi tiếng thuộc tỉnh nào?", "Hồ Núi Cốc thuộc tỉnh nào?", "Hồ Ba Bể nay thuộc tỉnh nào?"],
+    'phu-tho': ["Đền Hùng ở tỉnh nào?", "Khu nghỉ mát Tam Đảo nay thuộc tỉnh nào?", "Nhà máy thủy điện Hòa Bình nay thuộc tỉnh nào?"],
+    'bac-ninh': ["Quê hương dân ca quan họ là tỉnh nào?", "Làng tranh Đông Hồ thuộc tỉnh nào?", "Vùng vải thiều Lục Ngạn nay thuộc tỉnh nào?"],
+    'hung-yen': ["Phố Hiến xưa thuộc tỉnh nào?", "Chùa Keo cổ kính ở Thái Bình nay thuộc tỉnh nào?", "Quê lúa Thái Bình nay thuộc tỉnh nào?"],
+    'hai-phong': ["Đảo Cát Bà thuộc thành phố nào?", "Bãi biển Đồ Sơn thuộc thành phố nào?", "Khu di tích Côn Sơn – Kiếp Bạc nay thuộc tỉnh, thành nào?"],
+    'ninh-binh': ["Quần thể danh thắng Tràng An ở tỉnh nào?", "Nhà thờ đá Phát Diệm thuộc tỉnh nào?", "Chùa Tam Chúc ở Hà Nam nay thuộc tỉnh nào?"],
+    'quang-tri': ["Địa đạo Vịnh Mốc thuộc tỉnh nào?", "Cầu Hiền Lương bên sông Bến Hải thuộc tỉnh nào?", "Hang Sơn Đoòng, hang động lớn nhất thế giới, nay thuộc tỉnh nào?"],
+    'da-nang': ["Phố cổ Hội An nay thuộc tỉnh, thành nào?", "Khu du lịch Bà Nà với Cầu Vàng thuộc thành phố nào?", "Cầu Rồng phun lửa ở thành phố nào?"],
+    'quang-ngai': ["Đảo Lý Sơn thuộc tỉnh nào?", "Nhà thờ gỗ Kon Tum nay thuộc tỉnh nào?", "Ngã ba Đông Dương nơi giáp Lào và Campuchia nay thuộc tỉnh nào?"],
+    'gia-lai': ["Biển Hồ T’Nưng ở phố núi Pleiku thuộc tỉnh nào?", "Eo Gió ở Quy Nhơn nay thuộc tỉnh nào?", "Bãi biển Kỳ Co ở Bình Định nay thuộc tỉnh nào?"],
+    'khanh-hoa': ["Tháp Bà Ponagar ở Nha Trang thuộc tỉnh nào?", "Vịnh Vĩnh Hy ở Ninh Thuận nay thuộc tỉnh nào?", "Quần đảo Trường Sa thuộc tỉnh nào?"],
+    'lam-dong': ["Hồ Xuân Hương ở Đà Lạt thuộc tỉnh nào?", "Đồi cát Mũi Né nay thuộc tỉnh nào?", "Hồ Tà Đùng ở Đắk Nông nay thuộc tỉnh nào?"],
+    'dak-lak': ["Thủ phủ cà phê Buôn Ma Thuột thuộc tỉnh nào?", "Gành Đá Đĩa ở Phú Yên nay thuộc tỉnh nào?", "Buôn Đôn nổi tiếng săn bắt, thuần dưỡng voi thuộc tỉnh nào?"],
+    'tp-hcm': ["Chợ Bến Thành ở thành phố nào?", "Địa đạo Củ Chi thuộc tỉnh, thành nào?", "Côn Đảo nay thuộc tỉnh, thành nào?"],
+    'dong-nai': ["Vườn quốc gia Nam Cát Tiên phần lớn thuộc tỉnh nào?", "Thành phố Biên Hòa thuộc tỉnh nào?", "Thủ phủ hạt điều Bình Phước nay thuộc tỉnh nào?"],
+    'tay-ninh': ["Núi Bà Đen ở tỉnh nào?", "Tòa Thánh Cao Đài ở tỉnh nào?", "Tỉnh Long An nay sáp nhập vào tỉnh nào?"],
+    'can-tho': ["Chợ nổi Cái Răng ở đâu?", "Bến Ninh Kiều thuộc thành phố nào?", "Chùa Dơi ở Sóc Trăng nay thuộc tỉnh, thành nào?"],
+    'vinh-long': ["Xứ dừa Bến Tre nay thuộc tỉnh nào?", "Ao Bà Om ở Trà Vinh nay thuộc tỉnh nào?", "Cù lao An Bình trên sông Tiền thuộc tỉnh nào?"],
+    'dong-thap': ["Làng hoa Sa Đéc thuộc tỉnh nào?", "Vườn quốc gia Tràm Chim thuộc tỉnh nào?", "Chợ nổi Cái Bè ở Tiền Giang nay thuộc tỉnh nào?"],
+    'ca-mau': ["Mũi đất cực Nam Tổ quốc thuộc tỉnh nào?", "Nhà Công tử Bạc Liêu nay thuộc tỉnh nào?", "Cánh đồng điện gió Bạc Liêu nay thuộc tỉnh nào?"],
+    'an-giang': ["Đảo Phú Quốc nay thuộc tỉnh nào?", "Miếu Bà Chúa Xứ núi Sam thuộc tỉnh nào?", "Rừng tràm Trà Sư thuộc tỉnh nào?"],
+  };
+  const QUIZ = []; for (const a in QUIZ_BY) for (const q of QUIZ_BY[a]) QUIZ.push({ q, a });
 
   // Đố vui: chỉ tính đúng khi gõ CHÍNH XÁC tên tỉnh mới (không tính tên tỉnh cũ đã gộp, tên thành phố…)
   const EXACT_EXTRA = { 'tp-hcm': ['ho chi minh', 'tp hcm', 'tphcm', 'hcm', 'tp ho chi minh', 'thanh pho ho chi minh'], 'ha-noi': ['hanoi'], 'da-nang': ['danang'], 'hue': ['thua thien hue'], 'dak-lak': ['daklak', 'dac lac'] };
@@ -129,6 +124,6 @@
     return /(tỉnh|TP|Sở)$/.test(t) ? `${t} ${place}` : `${t} · ${place}`;
   }
 
-  const api = { LIST, BY_ID, findProvince, isExactAnswer, deacc, QUIZ, COUNT: LIST.length, TITLES, levelOf, xpFor, titleOf, iconOf, rankName };
+  const api = { LIST, BY_ID, findProvince, isExactAnswer, deacc, QUIZ, QUIZ_BY, COUNT: LIST.length, TITLES, levelOf, xpFor, titleOf, iconOf, rankName };
   if (typeof module === 'object' && module.exports) module.exports = api; else root.VN_PROV = api;
 })(typeof window !== 'undefined' ? window : globalThis);

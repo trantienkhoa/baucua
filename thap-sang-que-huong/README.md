@@ -30,7 +30,7 @@ Key EulerStream là tuỳ chọn, chỉ để giảm giới hạn số lần k�
 ## Tính năng giữ chân người xem
 
 - ⚔️ **Đại chiến tự động** giữa 2 tỉnh dẫn đầu, thanh kéo co, thắng được thưởng.
-- ❓ **Đố vui quê hương** (40 câu), ai trả lời đúng đầu tiên được điểm cho quê mình.
+- ❓ **Đố vui quê hương** (102 câu, mỗi tỉnh 3 câu), ai trả lời đúng đầu tiên được điểm cho quê mình.
 - ⭐ **Tỉnh may mắn ×2** · 🔥 **Tỉnh hot ×2** (3 người cùng gọi 1 tỉnh trong 20 giây).
 - ❤️ **Sóng tim**: mỗi 1.000 tim cả phòng tự thắp một tỉnh còn tối.
 - 🏡 **Người quen quay lại** tự thắp đèn quê họ, MC chào tên.
@@ -45,6 +45,8 @@ Key EulerStream là tuỳ chọn, chỉ để giảm giới hạn số lần k�
 - 🧧 **Lộc rơi** mỗi 6 phút: bao lì xì rơi khắp màn, ai gõ "lộc" trong 20 giây được bốc thăm 3 người nhận điểm cho quê.
 - ⏳ **Đếm ngược sự kiện kế tiếp** (đại chiến / đố vui / lộc rơi) luôn hiện trên màn để người xem chờ.
 - "Bạn là người thứ 12 của Huế" khi có người mới cùng quê.
+- 🎁 **Tặng quà hoành tráng theo cấp**: dưới 10 xu hiện thẻ cảm ơn có hình quà + ảnh người tặng; 10–99 xu thêm pháo bay và giấy màu; 100–999 xu thẻ lớn giữa màn có tia sáng xoay, 6 quả pháo, chớp sáng, rung màn, vỗ tay, MC hô "Quà lớn!"; từ 1.000 xu là màn pháo hoa "QUÀ KHỦNG" 10 giây, MC hô hào một tràng. Tặng liên tục cùng một quà thì gộp "×số lượng".
+- ❓ **Đố vui 102 câu, mỗi tỉnh 3 câu riêng**, hỏi xoay vòng đủ 34 tỉnh (thứ tự ngẫu nhiên) rồi mới lặp lại.
 - 🎆 **Cả nước rực sáng** có màn pháo hoa lớn 16 giây: pháo bay từ dưới lên nổ hình ngôi sao vàng, trái tim, vòng tròn, liễu rủ, kim tuyến; màn bắn dồn cuối; giấy màu rơi; chớp sáng, rung màn; chữ "CẢ NƯỚC RỰC SÁNG" lớn giữa màn; tiếng pháo nổ và vỗ tay; MC hô hào một tràng ("Từ địa đầu Lũng Cú đến mũi Cà Mau…", cảm ơn người tặng). Sáng đủ 34/34 cũng có màn tương tự.
 - 🎖 **Chức vụ của tỉnh** thay cho cấp: điểm tích luỹ qua các buổi LIVE đưa người xem từ Công dân → Tổ phó dân phố → Tổ trưởng dân phố → Trưởng thôn → Phó Chủ tịch xã → Chủ tịch xã → Phó Giám đốc Sở → Giám đốc Sở → Phó Chủ tịch tỉnh → Chủ tịch tỉnh (thành phố trực thuộc trung ương: phường / TP). Hiện trên dòng sự kiện, thẻ vào phòng ("👑 Chủ tịch tỉnh Nghệ An"), băng-rôn thăng chức, bảng chức vụ chạy luân phiên với bảng điểm, và tổng kết phiên.
 - 👋 **Khách vào phòng** hiện thẻ có ảnh + tên (người quen thì kèm quê), vào dồn dập thì gộp "+N người khác"; ô Sóng tim có thêm số người đang xem.

@@ -694,6 +694,38 @@
   }
   $('feed').style.cssText += ';left:30px;top:980px;width:380px;height:420px';
 
+  // ---------- màn tặng quà: quà càng lớn càng hoành tráng ----------
+  const giftQ = []; let giftBusy = false, bnHold = 0;
+  const giftTier = v => v >= 1000 ? 4 : v >= 100 ? 3 : v >= 10 ? 2 : 1;
+  function giftShow(e) {
+    const last = giftQ[giftQ.length - 1];
+    // quà nhỏ cùng người, cùng loại đang chờ: gộp số lượng
+    if (last && last.user.id === e.user.id && last.gift.name === e.gift.name && giftTier(last.value) < 3) { last.count += e.count; last.value += e.value; last.pts += e.pts; return; }
+    giftQ.push(Object.assign({}, e));
+    if (giftQ.length > 6) { const i = giftQ.findIndex(x => giftTier(x.value) === 1); if (i >= 0) giftQ.splice(i, 1); }
+    pumpGift();
+  }
+  function pumpGift() {
+    if (giftBusy || !giftQ.length) return; giftBusy = true;
+    const e = giftQ.shift(), tier = giftTier(e.value), host = $('giftShow');
+    const img = e.gift.img ? `<img src="${/^https?:/i.test(e.gift.img) ? '/api/img?u=' + encodeURIComponent(e.gift.img) : esc(e.gift.img)}" onerror="this.replaceWith(document.createTextNode('🎁'))">` : '🎁';
+    const title = { 1: 'Cảm ơn quà tặng', 2: 'Quà tặng', 3: 'Quà lớn', 4: 'Quà khủng' }[tier];
+    host.className = 'abs t' + tier;
+    host.innerHTML = `<div class="gcard">${tier >= 3 ? '<div class="grays"></div>' : ''}<div class="gk">${title}</div>
+      <div class="grow"><div class="gimg">${img}</div>${avatarHTML(e.user)}</div>
+      <div class="gnm">${esc(e.user.name)}</div>
+      <div class="gtx">tặng <b>${esc(e.gift.name)}</b>${e.count > 1 ? ` <span class="gx">×${e.count}</span>` : ''}${e.value ? ` · ${fmt(e.value)} xu` : ''}</div>
+      ${e.prov ? `<div class="gpt">+${fmt(e.pts)} điểm cho ${esc(pname(e.prov))}</div>` : `<div class="gpt small">Bình luận tên quê để nhận ${fmt(e.pending || 0)} điểm</div>`}</div>`;
+    const busy = giftQ.length > 2;
+    const ms = ({ 1: 1800, 2: 2800, 3: 4800, 4: 7000 }[tier]) * (busy && tier < 3 ? 0.55 : 1);
+    if (tier >= 3) bnHold = performance.now() + ms;
+    // hiệu ứng theo cấp
+    if (tier >= 2) { for (let i = 0; i < (tier === 2 ? 2 : 6); i++) setTimeout(rocket, i * 260); confetti(tier === 2 ? 1 : 3); }
+    if (tier >= 3) { flashA = Math.min(0.5, flashA + 0.3); shakeT = 0.4; applause(tier === 4 ? 5 : 3); sfx.fanfare(); }
+    if (tier === 4) grandShow(10, 'QUÀ KHỦNG', `<b>${esc(e.user.name)}</b> tặng ${esc(e.gift.name)}${e.count > 1 ? ' ×' + e.count : ''} · ${fmt(e.value)} xu`, e.user);
+    setTimeout(() => { host.classList.add('out'); setTimeout(() => { host.innerHTML = ''; host.className = 'abs'; giftBusy = false; pumpGift(); }, 400); }, ms);
+  }
+
   // ---------- khách vào phòng ----------
   const joinQ = []; let joinBusy = false, joinSkipped = 0;
   function joinToast(u, prov, lv) {
@@ -718,7 +750,8 @@
   }
   function pumpBanner() {
     if (bnBusy || !bnQueue.length) return;
-    if (performance.now() < showUntil) { clearTimeout(pumpBanner.t); pumpBanner.t = setTimeout(pumpBanner, showUntil - performance.now() + 300); return; }
+    const hold = Math.max(showUntil, bnHold);
+    if (performance.now() < hold) { clearTimeout(pumpBanner.t); pumpBanner.t = setTimeout(pumpBanner, hold - performance.now() + 300); return; }
     bnBusy = true;
     while (bnQueue.length > 1 && Date.now() - bnQueue[0].t > 25000) bnQueue.shift();   // bỏ băng-rôn đã cũ
     const b = bnQueue.shift(), host = $('banner');
@@ -792,15 +825,19 @@
         joinToast(u, e.prov, e.lv);
         if (CFG.mcWelcome) say(e.prov ? `Chào ${nm(u)}, người ${P} đã vào phòng!` : `Chào ${nm(u)}, bình luận tên quê để thắp đèn nhé!`, false, 'join', 12000);
         break;
-      case 'gift':
-        if (e.prov) { comet(GIFT_ORIGIN, e.prov, T.accent, e.value >= 30); if (e.value >= 100) { firework(rnd(200, 600), rnd(500, 900)); firework(rnd(200, 600), rnd(500, 900)); } }
+      case 'gift': {
+        if (e.prov) comet(GIFT_ORIGIN, e.prov, T.accent, e.value >= 10);
         feedAdd(u, `🎁 <b>${esc(u.name)}</b> tặng ${esc(e.gift.name)}${e.count > 1 ? ' ×' + e.count : ''}${e.prov ? ` <span class="pt">+${fmt(e.pts)}</span>` : ''}`);
-        if (e.value >= 100) banner('Quà lớn', `${esc(u.name)}`, `${esc(e.gift.name)} · <b>+${fmt(e.pts)}</b> điểm cho ${esc(P || 'quê nhà')}`, 3500, [u]);
+        giftShow(e);
         if (CFG.mcGift) {
-          if (e.prov) say(`Cảm ơn ${nm(u)} đã tặng ${MC ? MC.clean(e.gift.name) : e.gift.name}, cộng ${e.pts} điểm cho quê ${P}!`, e.value >= 30, e.value >= 30 ? '' : 'gift', 2500);
-          else say(`${nm(u)} ơi, bình luận tên quê mình để nhận ${e.pending} điểm nhé!`, true, 'pend' + u.id, 15000);
+          const g = window.MC ? MC.clean(e.gift.name) : e.gift.name, cnt = e.count > 1 ? e.count + ' ' : '';
+          if (!e.prov) say(`Cảm ơn ${nm(u)} đã tặng ${cnt}${g}! ${nm(u)} ơi, bình luận tên quê mình để nhận ${e.pending} điểm nhé!`, true, 'pend' + u.id, 12000);
+          else if (e.value >= 1000) say(`Quà khủng! Quà khủng! ${nm(u)} vừa tặng ${cnt}${g}, trị giá ${fmt(e.value)} xu! ${P} được cộng ngay ${fmt(e.pts)} điểm! Cả phòng vỗ tay cảm ơn ${nm(u)} nào! ${nm(u)} đúng là niềm tự hào của ${P}!`, true, '', 0, true);
+          else if (e.value >= 100) say(`Ôi! Quà lớn! ${nm(u)} vừa tặng ${cnt}${g}! Cộng ngay ${fmt(e.pts)} điểm cho quê ${P}! Cả phòng thả tim cảm ơn ${nm(u)} nào!`, true, '', 0, true);
+          else if (e.value >= 10) say(`Cảm ơn ${nm(u)} đã tặng ${cnt}${g}! Quê ${P} được cộng ${fmt(e.pts)} điểm!`, true);
+          else say(`Cảm ơn ${nm(u)} đã tặng ${cnt}${g}, cộng ${e.pts} điểm cho quê ${P}!`, false, 'gift', 2500);
         }
-        break;
+        break; }
       case 'claim':
         comet(GIFT_ORIGIN, e.prov, T.accent, true);
         feedAdd(u, `💰 <b>${esc(u.name)}</b> nhận <span class="pt">+${fmt(e.pts)}</span> cho ${esc(P)}`);
