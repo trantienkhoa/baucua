@@ -48,6 +48,15 @@ Bản đồ **34 tỉnh, thành** (sau sắp xếp 2025, có **quần đảo Ho�
 - 🎙 **MC giọng AI**: giới thiệu tỉnh khi đèn đầu tiên sáng, chào người mới, cảm ơn quà, hô đại chiến / đố vui, và khi phòng im lâu thì **kể tên các tỉnh còn tối** để rủ người xem.
 - Điểm phiên được lưu trên máy chủ: tải lại màn hình hay khởi động lại máy không mất điểm (phiên tự làm mới sau 6 tiếng không dùng, hoặc bấm *Phiên mới*).
 
+**Mới: giữ chân người xem mạnh hơn**
+- 🕯 **Đèn tắt dần**: tỉnh không ai bình luận / tặng quà sẽ mờ dần, chập chờn ⚠️ rồi tắt (mặc định 8 phút). MC gọi "Đèn Hà Nội sắp tắt, người Hà Nội đâu rồi!" → người xem phải ở lại giữ lửa cho quê.
+- 🔄 **Mùa mới**: sáng đủ 34/34 tỉnh (hoặc cả nước rực sáng) → ăn mừng, ghi tên quê dẫn đầu, sau 20 giây bản đồ tắt hết và **mùa mới bắt đầu**, đua lại từ đầu.
+- 🧧 **Lộc rơi** mỗi 6 phút: bao lì xì rơi khắp màn, ai gõ "lộc" trong 20 giây được bốc thăm 3 người nhận điểm cho quê.
+- ⏳ **Đếm ngược sự kiện kế tiếp** (đại chiến / đố vui / lộc rơi) luôn hiện trên màn để người xem chờ.
+- ⬆️ **Cấp người thắp đèn** lưu qua các phiên (Lv2, Lv3…), "bạn là người thứ 12 của Huế".
+- 🎲 **Tự đổi giao diện ngẫu nhiên** mỗi 10 phút và khi sang mùa mới.
+- ❓ Đố vui: điểm cộng cho **quê của người trả lời**, gõ tên tỉnh lúc đang đố không làm đổi quê.
+
 **10 giao diện, đổi 1 chạm** (màn LIVE đổi ngay, không tải lại), mỗi giao diện có nền động và hiệu ứng thắp đèn riêng:
 Đêm Sao (sao chổi) · Sơn Mài (trống đồng xoay) · Cực Quang (cột sáng) · Neon (tia laser, lưới neon) · Đêm Trăng Hội An (đèn lồng bay, trăng rằm) · Radar Chỉ Huy (tia quét, khoá mục tiêu) · Tết Rộn Ràng (pháo hoa, hoa mai) · Giấy Cổ (la bàn, đóng dấu "QUÊ") · Biển Xanh (sóng nước, gợn sóng) · Hoa Sen (cánh sen, đom đóm).
 

@@ -20,6 +20,12 @@ const DEFAULT_CFG = {
   luckyEvery: 4, luckySec: 60,
   quizEvery: 5, quizSec: 40, quizPts: 50,
   hotUsers: 3, hotWindow: 20, hotSec: 30,
+  decayMin: 8,             // đèn tắt dần: số phút từ sáng nhất tới tắt nếu không ai giữ lửa (0 = không tắt)
+  autoSeason: true,        // sáng đủ 34 tỉnh → ăn mừng rồi tự sang mùa mới
+  seasonDelay: 20,         // giây ăn mừng trước khi mùa mới bắt đầu
+  dropEvery: 6, dropSec: 20, dropWinners: 3, dropMin: 20, dropMax: 100, dropWord: 'lộc',
+  themeRotate: 10,         // tự đổi giao diện ngẫu nhiên mỗi 10 phút (0 = tắt)
+  themeOnSeason: true,     // đổi giao diện khi sang mùa mới
   autoHome: true,          // người quen quay lại (đã từng bình luận quê) tự thắp đèn quê họ
   streakBonus: 5,          // điểm thưởng mỗi ngày chuỗi điểm danh
   mcOn: true, mcVoice: '', mcVol: 1, mcRate: 1,
@@ -34,7 +40,7 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
   const alltime = readJSON('vnmap-alltime.json', {});  // prov -> { pts, coins, wins }
   let fansDirty = false, allDirty = false;
 
-  const freshProv = () => ({ pts: 0, roundPts: 0, coins: 0, lit: 0, users: [], owner: null, giver: {} });
+  const freshProv = () => ({ pts: 0, roundPts: 0, coins: 0, lit: 0, energy: 0, users: [], owner: null, giver: {} });
   function freshState() {
     const provs = {}; for (const p of VN.LIST) provs[p.id] = freshProv();
     const now = Date.now();
@@ -44,6 +50,7 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
       country: { pool: 0, times: 0 }, lastGift: null, battle: null, lucky: null, quiz: null, hot: {},
       nextBattle: now + cfg.battleEvery * 60000, nextLucky: now + 90000, nextQuiz: now + cfg.quizEvery * 60000,
       milestones: [], newPeople: 0, returning: 0,
+      season: 1, seasonDone: 0, seasonWins: [], drop: null, nextDrop: now + cfg.dropEvery * 60000, quizLock: 0,
     };
   }
   let S = readJSON('vnmap-state.json', null);
@@ -51,7 +58,7 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
   if (!S || !S.provs || Date.now() - (S.saved || 0) > 6 * 3600000) S = freshState();
   for (const p of VN.LIST) if (!S.provs[p.id]) S.provs[p.id] = freshProv();
   // hẹn giờ đã quá hạn khi máy tắt → hẹn lại
-  { const now = Date.now(); if (S.round.endsAt < now) S.round.endsAt = now + cfg.roundMin * 60000; S.battle = null; S.quiz = null; S.lucky = null; S.nextBattle = now + cfg.battleEvery * 60000; S.nextQuiz = now + cfg.quizEvery * 60000; S.nextLucky = now + 60000; }
+  { const now = Date.now(); if (S.round.endsAt < now) S.round.endsAt = now + cfg.roundMin * 60000; S.battle = null; S.quiz = null; S.lucky = null; S.nextBattle = now + cfg.battleEvery * 60000; S.nextQuiz = now + cfg.quizEvery * 60000; S.nextLucky = now + 60000; S.drop = null; S.nextDrop = now + cfg.dropEvery * 60000; S.seasonDone = 0; if (!S.season) S.season = 1; if (!S.seasonWins) S.seasonWins = []; for (const p of VN.LIST) { const r = S.provs[p.id]; if (r.energy == null) r.energy = r.lit ? 60 : 0; } }
   let dirty = true;
   const seenSession = new Set(Object.keys(S.users));
   const chatAt = new Map(), likeAcc = new Map(), hotLog = {};
@@ -81,18 +88,59 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
     const wasLit = !!pr.lit;
     pr.pts += pts; pr.roundPts += pts;
     if (!wasLit) pr.lit = Date.now();
+    pr.energy = Math.min(100, Math.max(wasLit ? pr.energy : 45, pr.energy + pts * 9));
+    pr.warned = false;
     if (user && !pr.users.includes(user.id)) { pr.users.push(user.id); if (pr.users.length > 5000) pr.users.shift(); }
     if (S.battle && S.battle.endsAt > Date.now()) { if (S.battle.a === id) S.battle.sa += pts; else if (S.battle.b === id) S.battle.sb += pts; }
     const at = alltime[id] || (alltime[id] = { pts: 0, coins: 0, wins: 0 }); at.pts += pts; allDirty = true;
-    if (user) { const u = S.users[user.id]; if (u) u.pts += pts; }
+    if (user) { const u = S.users[user.id]; if (u) u.pts += pts; gainXp(user, pts, id); }
     if (!wasLit) {
-      fx('light', { prov: id, user: userCard(user), first: true, pts, why, mult: m });
+      fx('light', { prov: id, user: userCard(user), first: true, pts, why, mult: m, nth: 1, lv: user ? lvOf(user.id) : 0 });
       const n = litCount();
-      for (const ms of [5, 10, 17, 25, 30, VN.COUNT]) if (n >= ms && !S.milestones.includes(ms)) { S.milestones.push(ms); setTimeout(() => fx('milestone', { n: ms, total: VN.COUNT }), 1200); }
+      for (const ms of [5, 10, 17, 25, 30]) if (n >= ms && !S.milestones.includes(ms)) { S.milestones.push(ms); setTimeout(() => fx('milestone', { n: ms, total: VN.COUNT }), 1200); }
+      checkSeason();
     }
     dirty = true;
     return pts;
   }
+
+  // cấp người thắp đèn (lưu qua các phiên → có lý do quay lại)
+  const levelOf = xp => Math.floor(Math.sqrt(Math.max(0, xp) / 6)) + 1;
+  function gainXp(user, pts, prov) {
+    const f = fans[user.id]; if (!f) return;
+    const before = levelOf(f.xp || 0); f.xp = (f.xp || 0) + pts; const after = levelOf(f.xp);
+    if (after > before && after >= 2) fx('levelUp', { user: userCard(user), level: after, prov });
+    fansDirty = true;
+  }
+  const lvOf = uid => levelOf((fans[uid] && fans[uid].xp) || 0);
+
+  // sáng đủ 34 tỉnh cùng lúc → hoàn thành mùa, ăn mừng rồi tự bắt đầu mùa mới
+  function checkSeason() {
+    if (!cfg.autoSeason || S.seasonDone || litCount() < VN.COUNT) return;
+    S.seasonDone = Date.now() + cfg.seasonDelay * 1000;
+    const top = sortedBy('pts').slice(0, 3);
+    if (top[0]) { S.seasonWins.unshift({ season: S.season, prov: top[0].id }); S.seasonWins = S.seasonWins.slice(0, 20); const at = alltime[top[0].id] || (alltime[top[0].id] = { pts: 0, coins: 0, wins: 0 }); at.seasons = (at.seasons || 0) + 1; allDirty = true; }
+    setTimeout(() => fx('seasonEnd', { season: S.season, top, delay: cfg.seasonDelay }), 1500);
+    dirty = true;
+  }
+  function newSeason() {
+    S.season++; S.seasonDone = 0; S.milestones = [];
+    for (const p of VN.LIST) { const r = S.provs[p.id]; r.pts = 0; r.roundPts = 0; r.lit = 0; r.energy = 0; r.warned = false; }
+    S.hot = {}; S.lucky = null; S.battle = null; S.quiz = null; S.drop = null;
+    const now = Date.now();
+    S.round.endsAt = now + cfg.roundMin * 60000; S.nextBattle = now + cfg.battleEvery * 60000; S.nextLucky = now + 60000; S.nextQuiz = now + cfg.quizEvery * 60000; S.nextDrop = now + Math.max(2, cfg.dropEvery) * 60000;
+    fx('seasonStart', { season: S.season }); dirty = true;
+    if (cfg.themeOnSeason) rotateTheme();
+  }
+  const THEME_KEYS = ['dem-sao', 'son-mai', 'cuc-quang', 'neon', 'trung-thu', 'radar', 'tet', 'giay-co', 'bien-xanh', 'hoa-sen'];
+  let nextTheme = Date.now() + cfg.themeRotate * 60000;
+  function rotateTheme() {
+    const pool = THEME_KEYS.filter(k => k !== cfg.theme);
+    cfg.theme = pool[Math.floor(Math.random() * pool.length)];
+    nextTheme = Date.now() + cfg.themeRotate * 60000;
+    saveCfg(); io.emit('vm:cfg', cfg); fx('theme', { theme: cfg.theme }); dirty = true;
+  }
+  setInterval(() => { if (cfg.themeRotate > 0 && Date.now() >= nextTheme && !S.battle && !S.quiz && !S.drop) rotateTheme(); else if (!(cfg.themeRotate > 0)) nextTheme = Date.now() + 60000; }, 5000);
 
   function touchUser(user, prov) {
     let u = S.users[user.id];
@@ -157,30 +205,39 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
   // ---------- sự kiện TikTok ----------
   function onChat(user, text) {
     S.comments++;
-    const prov = VN.findProvince(text);
-    const u = touchUser(user, prov);
-    const returning = firstSeen(user, u, false);
-    // đố vui: ai trả lời đúng đầu tiên
-    if (S.quiz && S.quiz.endsAt > Date.now() && prov === S.quiz.a) {
-      const home = u.prov || prov, q = S.quiz; S.quiz = null; S.nextQuiz = Date.now() + cfg.quizEvery * 60000;
-      const pts = addPts(home, cfg.quizPts, user, 'quiz');
-      fx('quizWin', { user: userCard(user), prov: home, answer: q.a, q: q.q, pts });
+    let prov = VN.findProvince(text);
+    const now = Date.now();
+    // đang đố vui (và 15 giây sau): gõ tên tỉnh là TRẢ LỜI, không đổi quê, không thắp tỉnh trong đáp án
+    const quizOn = S.quiz && S.quiz.endsAt > now;
+    const guessing = prov && (quizOn || now < (S.quizLock || 0));
+    const u = touchUser(user, guessing ? null : prov);
+    firstSeen(user, u, false);
+    if (guessing) {
+      if (quizOn && prov === S.quiz.a) {
+        const q = S.quiz; S.quiz = null; S.nextQuiz = now + cfg.quizEvery * 60000; S.quizLock = now + 15000;
+        const home = u.prov;   // quê THẬT của người trả lời
+        if (home) { const pts = addPts(home, cfg.quizPts, user, 'quiz'); fx('quizWin', { user: userCard(user), prov: home, answer: q.a, q: q.q, pts }); }
+        else { S.pending[user.id] = (S.pending[user.id] || 0) + cfg.quizPts; fx('quizWin', { user: userCard(user), prov: null, answer: q.a, q: q.q, pts: cfg.quizPts, pending: S.pending[user.id] }); }
+        dirty = true;
+      }
+      prov = null;   // câu trả lời không tính là bình luận quê
     }
+    // lộc rơi: gõ đúng chữ để vào danh sách nhận lộc
+    if (S.drop && S.drop.endsAt > now && !S.drop.users.includes(user.id) && VN.deacc(text).includes(VN.deacc(cfg.dropWord || 'lộc'))) { S.drop.users.push(user.id); dirty = true; }
     if (prov) {
       const pending = S.pending[user.id]; if (pending) { delete S.pending[user.id]; const pts = addPts(prov, pending, user, 'pending'); fx('claim', { user: userCard(user), prov, pts }); }
-      const key = user.id + ':' + prov, now = Date.now();
+      const key = user.id + ':' + prov;
       const newcomer = !P(prov).users.includes(user.id);
       if (now - (chatAt.get(key) || 0) >= cfg.chatCooldown * 1000) {
         chatAt.set(key, now);
         const wasLit = !!P(prov).lit;
         const pts = addPts(prov, cfg.commentPts, user, 'chat');
-        if (wasLit) fx(newcomer ? 'light' : 'ping', { prov, user: userCard(user), pts, mult: mult(prov) });
+        if (wasLit) fx(newcomer ? 'light' : 'ping', { prov, user: userCard(user), pts, mult: mult(prov), nth: newcomer ? P(prov).users.length : 0, lv: lvOf(user.id) });
         hotCheck(prov, user.id);
       }
       fans[user.id].total = (fans[user.id].total || 0) + 1;
     }
     checkIn(user, u);
-    void returning;
     if (chatAt.size > 20000) chatAt.clear();
   }
 
@@ -207,8 +264,9 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
     S.country.pool += value || 0;
     while (cfg.countryCoins > 0 && S.country.pool >= cfg.countryCoins) {
       S.country.pool -= cfg.countryCoins; S.country.times++;
-      for (const p of VN.LIST) if (!S.provs[p.id].lit) S.provs[p.id].lit = Date.now();
+      for (const p of VN.LIST) { const r = S.provs[p.id]; if (!r.lit) r.lit = Date.now(); r.energy = 100; r.warned = false; }
       fx('country', { user: userCard(user), times: S.country.times });
+      setTimeout(checkSeason, 6000);
     }
     dirty = true;
   }
@@ -293,22 +351,56 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
     S.quiz = { q: q.q, a: q.a, endsAt: Date.now() + cfg.quizSec * 1000, sec: cfg.quizSec };
     fx('quizStart', { q: q.q, sec: cfg.quizSec, pts: cfg.quizPts }); dirty = true;
   }
+  function startDrop() {
+    S.drop = { endsAt: Date.now() + cfg.dropSec * 1000, sec: cfg.dropSec, users: [] };
+    fx('dropStart', { word: cfg.dropWord || 'lộc', sec: cfg.dropSec, winners: cfg.dropWinners }); dirty = true;
+  }
+  function endDrop() {
+    const d = S.drop; S.drop = null; S.nextDrop = Date.now() + cfg.dropEvery * 60000;
+    const pool = d.users.slice(), winners = [];
+    while (pool.length && winners.length < cfg.dropWinners) {
+      const uid = pool.splice(Math.floor(Math.random() * pool.length), 1)[0], u = S.users[uid]; if (!u) continue;
+      const pts = Math.round(cfg.dropMin + Math.random() * Math.max(0, cfg.dropMax - cfg.dropMin));
+      if (u.prov) addPts(u.prov, pts, u, 'drop'); else S.pending[uid] = (S.pending[uid] || 0) + pts;
+      winners.push({ user: userCard(u), prov: u.prov, pts });
+    }
+    fx('dropEnd', { winners, total: d.users.length, word: cfg.dropWord || 'lộc' }); dirty = true;
+  }
+  // đèn tắt dần: tỉnh không ai giữ lửa sẽ mờ rồi tắt → người quê đó phải vào bình luận
+  let lastDecay = Date.now();
+  setInterval(() => {
+    const now = Date.now(), dt = (now - lastDecay) / 1000; lastDecay = now;
+    if (!cfg.decayMin || S.seasonDone) return;
+    const rate = 100 / (cfg.decayMin * 60);
+    for (const p of VN.LIST) {
+      const r = S.provs[p.id]; if (!r.lit) continue;
+      const shield = S.lucky && S.lucky.id === p.id && S.lucky.endsAt > now;   // tỉnh may mắn không bị tắt
+      if (!shield) r.energy = Math.max(0, r.energy - rate * dt);
+      if (r.energy <= 25 && !r.warned) { r.warned = true; fx('dim', { prov: p.id }); }
+      if (r.energy <= 0) { r.lit = 0; r.warned = false; fx('off', { prov: p.id }); }
+    }
+    dirty = true;
+  }, 2000);
+
   setInterval(() => {
     const now = Date.now();
+    if (S.seasonDone) { if (now >= S.seasonDone) newSeason(); return; }
     if (now >= S.round.endsAt) endRound();
+    if (S.drop && now >= S.drop.endsAt) endDrop();
+    else if (!S.drop && cfg.dropEvery > 0 && now >= S.nextDrop && !S.quiz && !S.battle) startDrop();
     if (S.battle && now >= S.battle.endsAt) endBattle();
     else if (!S.battle && cfg.battleEvery > 0 && now >= S.nextBattle && !S.quiz) startBattle();
     if (S.lucky && now >= S.lucky.endsAt) { S.lucky = null; S.nextLucky = now + cfg.luckyEvery * 60000; dirty = true; }
     else if (!S.lucky && cfg.luckyEvery > 0 && now >= S.nextLucky) startLucky();
-    if (S.quiz && now >= S.quiz.endsAt) { fx('quizEnd', { q: S.quiz.q, answer: S.quiz.a }); S.quiz = null; S.nextQuiz = now + cfg.quizEvery * 60000; dirty = true; }
-    else if (!S.quiz && cfg.quizEvery > 0 && now >= S.nextQuiz && !S.battle) startQuiz();
+    if (S.quiz && now >= S.quiz.endsAt) { fx('quizEnd', { q: S.quiz.q, answer: S.quiz.a }); S.quiz = null; S.quizLock = now + 15000; S.nextQuiz = now + cfg.quizEvery * 60000; dirty = true; }
+    else if (!S.quiz && cfg.quizEvery > 0 && now >= S.nextQuiz && !S.battle && !S.drop) startQuiz();
     for (const id in S.hot) if (S.hot[id] < now) { delete S.hot[id]; dirty = true; }
   }, 1000);
 
   // ---------- ảnh chụp trạng thái gửi màn hình ----------
   function snapshot() {
     const provs = {};
-    for (const p of VN.LIST) { const r = S.provs[p.id]; provs[p.id] = { pts: r.pts, rp: r.roundPts, coins: r.coins, lit: r.lit, n: r.users.length, owner: r.owner ? { name: r.owner.name, avatar: r.owner.avatar } : null }; }
+    for (const p of VN.LIST) { const r = S.provs[p.id]; provs[p.id] = { pts: r.pts, rp: r.roundPts, coins: r.coins, lit: r.lit, e: Math.round(r.energy || 0), n: r.users.length, owner: r.owner ? { name: r.owner.name, avatar: r.owner.avatar } : null }; }
     const users = Object.values(S.users);
     const podium = users.filter(u => u.coins > 0).sort((a, b) => b.coins - a.coins).slice(0, 3).map(u => ({ name: u.name, avatar: u.avatar, coins: u.coins, prov: u.prov }));
     const recent = users.slice(-60).filter(u => u.prov).slice(-24).map(u => ({ id: u.id, name: u.name, avatar: u.avatar, prov: u.prov }));
@@ -320,7 +412,19 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
       country: { pool: S.country.pool, target: cfg.countryCoins, times: S.country.times },
       battle: S.battle, lucky: S.lucky, quiz: S.quiz ? { q: S.quiz.q, endsAt: S.quiz.endsAt, sec: S.quiz.sec, pts: cfg.quizPts } : null, hot: S.hot,
       likes: S.likes, waveNext: S.waveNext, comments: S.comments,
+      season: S.season, seasonDone: S.seasonDone, seasonWins: S.seasonWins.slice(0, 3),
+      drop: S.drop ? { endsAt: S.drop.endsAt, sec: S.drop.sec, n: S.drop.users.length, word: cfg.dropWord || 'lộc' } : null,
+      next: nextEvent(),
     };
+  }
+  // sự kiện sắp tới (hiện đếm ngược để người xem chờ)
+  function nextEvent() {
+    if (S.battle || S.quiz || S.drop || S.seasonDone) return null;
+    const c = [];
+    if (cfg.battleEvery > 0) c.push({ type: 'battle', at: S.nextBattle });
+    if (cfg.quizEvery > 0) c.push({ type: 'quiz', at: S.nextQuiz });
+    if (cfg.dropEvery > 0) c.push({ type: 'drop', at: S.nextDrop });
+    c.sort((a, b) => a.at - b.at); return c[0] || null;
   }
   function publicCfg() {
     const c = Object.assign({}, cfg); return c;
@@ -342,13 +446,14 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
     return { lit: litCount(), total: VN.COUNT, people: Object.keys(S.users).length, comments: S.comments, gifts: S.gifts, coins: S.coins, likes: S.likes,
       newPeople: S.newPeople, returning: S.returning, fans: Object.keys(fans).length, round: S.round.n, roundEndsAt: S.round.endsAt,
       battle: S.battle, lucky: S.lucky, quiz: S.quiz, country: { pool: S.country.pool, target: cfg.countryCoins, times: S.country.times },
+      season: S.season, drop: S.drop ? { n: S.drop.users.length } : null,
       start: S.start, screens: (io.sockets.adapter.rooms.get('map') || new Set()).size };
   }
 
   function summary() {
     const users = Object.values(S.users);
     return {
-      mins: Math.round((Date.now() - S.start) / 60000), lit: litCount(), total: VN.COUNT, people: users.length,
+      mins: Math.round((Date.now() - S.start) / 60000), lit: litCount(), seasons: S.season - 1, total: VN.COUNT, people: users.length,
       comments: S.comments, likes: S.likes, coins: S.coins, newPeople: S.newPeople, returning: S.returning,
       topProv: sortedBy('pts').slice(0, 3),
       topGivers: users.filter(u => u.coins > 0).sort((a, b) => b.coins - a.coins).slice(0, 3).map(u => ({ name: u.name, avatar: u.avatar, coins: u.coins, prov: u.prov })),
@@ -380,6 +485,9 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
       fans[u.id] = { name: u.name, prov: rnd(VN.LIST).id, streak: 2, lastDay: new Date(Date.now() - 86400000).toISOString().slice(0, 10), days: 3, total: 5 };
       hook({ type: 'member', user: u });
       setTimeout(() => hook({ type: 'chat', user: u, text: 'hello mọi người' }), 1500);
+    } else if (t.kind === 'drop') {
+      if (!S.drop) startDrop();
+      for (let i = 0; i < 8; i++) setTimeout(() => hook({ type: 'chat', user: fakeUser(), text: cfg.dropWord || 'lộc' }), 300 + i * 200);
     } else if (t.kind === 'quizAnswer' && S.quiz) {
       hook({ type: 'chat', user: fakeUser(), text: VN.BY_ID[S.quiz.a].name });
     } else if (t.kind === 'follow') {
@@ -411,8 +519,11 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
       if (c.type === 'newRound') endRound();
       else if (c.type === 'battle') { if (S.battle) endBattle(); else startBattle(); }
       else if (c.type === 'lucky') startLucky();
+      else if (c.type === 'drop') { if (S.drop) endDrop(); else startDrop(); }
+      else if (c.type === 'season') newSeason();
+      else if (c.type === 'theme') rotateTheme();
       else if (c.type === 'quiz') { if (!S.quiz) startQuiz(); }
-      else if (c.type === 'country') { for (const p of VN.LIST) if (!S.provs[p.id].lit) S.provs[p.id].lit = now; S.country.times++; fx('country', { user: null, times: S.country.times }); dirty = true; }
+      else if (c.type === 'country') { for (const p of VN.LIST) { const r = S.provs[p.id]; if (!r.lit) r.lit = now; r.energy = 100; r.warned = false; } S.country.times++; fx('country', { user: null, times: S.country.times }); setTimeout(checkSeason, 6000); dirty = true; }
       else if (c.type === 'summary') fx('summary', summary());
       else if (c.type === 'reset') { S = freshState(); seenSession.clear(); chatAt.clear(); likeAcc.clear(); fx('reset'); dirty = true; }
       else if (c.type === 'say' && typeof c.text === 'string') fx('say', { text: c.text.slice(0, 200) });

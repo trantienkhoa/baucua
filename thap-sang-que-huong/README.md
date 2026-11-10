@@ -39,6 +39,15 @@ Key EulerStream là tuỳ chọn, chỉ để giảm giới hạn số lần k�
 - 🎙 **MC giọng AI**: giới thiệu tỉnh khi đèn đầu tiên sáng, chào người mới, cảm ơn quà, hô đại chiến / đố vui, phòng im thì kể tên các tỉnh còn tối.
 - Điểm lưu trên máy: tải lại màn hình hay khởi động lại máy không mất điểm.
 
+**Mới: giữ chân người xem mạnh hơn**
+- 🕯 **Đèn tắt dần**: tỉnh không ai bình luận / tặng quà sẽ mờ dần, chập chờn ⚠️ rồi tắt (mặc định 8 phút). MC gọi "Đèn Hà Nội sắp tắt, người Hà Nội đâu rồi!" → người xem phải ở lại giữ lửa cho quê.
+- 🔄 **Mùa mới**: sáng đủ 34/34 tỉnh (hoặc cả nước rực sáng) → ăn mừng, ghi tên quê dẫn đầu, sau 20 giây bản đồ tắt hết và **mùa mới bắt đầu**, đua lại từ đầu.
+- 🧧 **Lộc rơi** mỗi 6 phút: bao lì xì rơi khắp màn, ai gõ "lộc" trong 20 giây được bốc thăm 3 người nhận điểm cho quê.
+- ⏳ **Đếm ngược sự kiện kế tiếp** (đại chiến / đố vui / lộc rơi) luôn hiện trên màn để người xem chờ.
+- ⬆️ **Cấp người thắp đèn** lưu qua các phiên (Lv2, Lv3…), "bạn là người thứ 12 của Huế".
+- 🎲 **Tự đổi giao diện ngẫu nhiên** mỗi 10 phút và khi sang mùa mới.
+- ❓ Đố vui: điểm cộng cho **quê của người trả lời**, gõ tên tỉnh lúc đang đố không làm đổi quê.
+
 ## Giao diện
 
 10 giao diện đổi 1 chạm, mỗi cái có hiệu ứng riêng: Đêm Sao · Sơn Mài · Cực Quang · Neon · Đêm Trăng Hội An · Radar Chỉ Huy · Tết Rộn Ràng · Giấy Cổ · Biển Xanh · Hoa Sen.

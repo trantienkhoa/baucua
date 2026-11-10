@@ -245,14 +245,16 @@
     // tỉnh đã sáng
     for (const id of ORDER) {
       RAISE[id] = 0; if (!lit(id)) continue;
-      const lv = level(S.provs[id].pts), h = d3 ? (8 + lv * 22) : 0; RAISE[id] = h;
+      const en = Math.max(0.05, (S.provs[id].e == null ? 100 : S.provs[id].e) / 100);
+      const lv = Math.min(1, level(S.provs[id].pts) * 0.5 + en * 0.5), h = d3 ? (8 + lv * 22) : 0; RAISE[id] = h;
       const c = SH.d[id].c, top = hexMix(T.lit[1], T.lit[0], 0.35 + lv * 0.65);
       if (d3) for (let k = 0; k < h; k += 1.3) { g.save(); g.translate(0, -k / MS); g.fillStyle = hexMix(T.side, T.lit[1], k / h * 0.5); g.fill(PATHS[id]); g.restore(); }
       g.save(); g.translate(0, -h / MS);
-      if (fancy) { g.shadowColor = T.glow; g.shadowBlur = 16 + lv * 40; }
+      g.globalAlpha = 0.45 + en * 0.55;
+      if (fancy) { g.shadowColor = T.glow; g.shadowBlur = 8 + lv * 40 * en; }
       const gr = g.createRadialGradient(c[0], c[1] - 10, 2, c[0], c[1], 120);
       gr.addColorStop(0, T.litTop); gr.addColorStop(0.5, top); gr.addColorStop(1, T.lit[1]);
-      g.fillStyle = gr; g.fill(PATHS[id]); g.shadowBlur = 0;
+      g.fillStyle = gr; g.fill(PATHS[id]); g.shadowBlur = 0; g.globalAlpha = 1;
       g.strokeStyle = T.edge; g.globalAlpha = 0.85; g.lineWidth = 1.6 / MS; g.stroke(PATHS[id]);
       g.restore();
     }
@@ -274,7 +276,7 @@
   function mapSignature() {
     if (!S) return 'x';
     let s = themeKey + (CFG.mode3d ? 'D' : 'F') + (CFG.lite ? 'L' : '');
-    for (const id of ORDER) { const p = S.provs[id]; s += p.lit ? Math.round(level(p.pts) * 12).toString(36) : '-'; }
+    for (const id of ORDER) { const p = S.provs[id]; s += p.lit ? Math.round(level(p.pts) * 8).toString(36) + Math.round((p.e == null ? 100 : p.e) / 20) : '-'; }
     return s;
   }
 
@@ -342,6 +344,15 @@
     ORDER.forEach((id, i) => setTimeout(() => { flash[id] = performance.now(); if (i % (lite() ? 4 : 2) === 0) hit(id, false); }, i * 90));
     sfx.fanfare();
   }
+  function flashScreen() {   // chớp sáng khi đổi giao diện
+    const el = document.createElement('div'); el.style.cssText = 'position:absolute;inset:0;background:#fff;opacity:.85;z-index:30;transition:opacity .9s;pointer-events:none';
+    stage.appendChild(el); requestAnimationFrame(() => requestAnimationFrame(() => { el.style.opacity = 0; })); setTimeout(() => el.remove(), 1000);
+  }
+  function lixi(sec) {   // bao lì xì rơi khắp màn
+    const end = performance.now() + Math.min(8, sec) * 1000;
+    const tick = () => { if (performance.now() > end) return; for (let i = 0; i < (lite() ? 1 : 3); i++) fxList.push({ k: 'env', x: rnd(40, W - 40), y: -30, vx: rnd(-20, 20), vy: rnd(160, 300), life: 0, max: 7, rot: rnd(-0.5, 0.5) }); setTimeout(tick, 160); };
+    tick(); sfx.fanfare();
+  }
   function firework(x, y) {
     const cols = [T.accent, T.accent2, T.glow, '#ffffff', T.lit[0]], c = cols[Math.floor(Math.random() * cols.length)];
     const cnt = lite() ? 30 : 70;
@@ -385,6 +396,10 @@
         const s = 70 * (1 - p) + 18; ctx.globalAlpha = 1 - p * 0.6; ctx.strokeStyle = f.c; ctx.lineWidth = 3;
         for (const [dx, dy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { ctx.beginPath(); ctx.moveTo(f.x + dx * s, f.y + dy * s * 0.5); ctx.lineTo(f.x + dx * s, f.y + dy * s); ctx.lineTo(f.x + dx * s * 0.5, f.y + dy * s); ctx.stroke(); }
         ctx.font = `800 16px ${T.font}`; ctx.fillStyle = f.c; ctx.textAlign = 'center'; ctx.fillText('ĐÃ KHÓA', f.x, f.y - s - 6);
+      } else if (f.k === 'env') {
+        f.x += f.vx * dt; f.y += f.vy * dt; f.rot += Math.sin(f.life * 3) * dt; if (f.y > H + 40) f.life = f.max;
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.rot);
+        ctx.fillStyle = '#d61f1f'; ctx.fillRect(-14, -20, 28, 40); ctx.fillStyle = '#ffd34d'; ctx.beginPath(); ctx.arc(0, -4, 7, 0, 7); ctx.fill(); ctx.fillRect(-14, -20, 28, 4); ctx.restore();
       } else if (f.k === 'stamp') {
         const s = p < 0.15 ? 3 - p / 0.15 * 2 : 1; ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = p < 0.7 ? 0.9 : (1 - p) / 0.3 * 0.9; ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(-0.15); ctx.scale(s, s);
@@ -417,7 +432,13 @@
       const a = (T.light ? 0.06 : 0.07) + 0.06 * Math.sin(t * 2 + SH.d[id].c[1] / 60) + fl * 0.75;
       if (a > 0.01) { ctx.globalAlpha = Math.min(1, a); ctx.fillStyle = T.light ? T.lit[1] : '#ffffff'; ctx.fill(PATHS[id]); }
     }
-    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    for (const id of ORDER) {   // sắp tắt: chập chờn
+      const pr = S.provs[id]; if (!pr.lit || pr.e == null || pr.e > 25) continue;
+      ctx.setTransform(base); ctx.translate(0, -(RAISE[id] || 0) / MS);
+      ctx.globalAlpha = 0.25 + 0.3 * Math.max(0, Math.sin(t * 9 + id.length)) * (1 - pr.e / 25); ctx.fillStyle = T.dark; ctx.fill(PATHS[id]);
+    }
+    ctx.globalAlpha = 1;
     const outline = (id, color, w, dash) => { ctx.setTransform(base); ctx.translate(0, -(RAISE[id] || 0) / MS); ctx.strokeStyle = color; ctx.lineWidth = w / MS; ctx.setLineDash(dash ? [8 / MS, 6 / MS] : []); ctx.lineDashOffset = -t * 30 / MS; ctx.stroke(PATHS[id]); ctx.setLineDash([]); };
     if (S.lucky && S.lucky.endsAt > tn) outline(S.lucky.id, Math.sin(t * 6) > 0 ? '#ffffff' : T.accent, 4, true);
     if (S.battle && S.battle.endsAt > tn) { outline(S.battle.a, '#ff3d5a', 4.5, true); outline(S.battle.b, '#3a8bff', 4.5, true); }
@@ -434,6 +455,7 @@
       const label = pshort(id); ctx.strokeText(label, x, y + 22); ctx.fillText(label, x, y + 22);
       let ix = x + ctx.measureText(label).width / 2 + 10;
       if (pr.owner) { ctx.font = '18px serif'; ctx.fillText('👑', ix, y + 20); ix += 20; }
+      if (pr.lit && pr.e != null && pr.e <= 25 && Math.sin(t * 6) > -0.3) { ctx.font = '18px serif'; ctx.fillText('⚠️', ix, y + 20); ix += 20; }
       if (S.hot && S.hot[id] > tn) { ctx.font = '18px serif'; ctx.fillText('🔥', ix, y + 20); ix += 20; }
       if (S.lucky && S.lucky.id === id && S.lucky.endsAt > tn) { ctx.font = `${20 + Math.sin(t * 6) * 3}px serif`; ctx.fillText('⭐', x, y - 28); }
     }
@@ -480,7 +502,7 @@
   function onState() {
     if (!S) return;
     $('barFill').style.width = (S.lit / S.total * 100) + '%';
-    $('progText').innerHTML = `Đã sáng <em>${S.lit}</em>/${S.total} tỉnh, thành · ${fmt(S.people)} người`;
+    $('progText').innerHTML = `${S.season > 1 ? `Mùa ${S.season} · ` : ''}Đã sáng <em>${S.lit}</em>/${S.total} tỉnh, thành · ${fmt(S.people)} người`;
     rows($('raceRows'), S.round.top.map(x => ({ id: x.id, v: x.v })), x => x.v, x => (S.round.winners[0] && S.round.winners[0].prov === x.id ? ' <span class="tag">👑1</span>' : ''));
     rows($('giftRows'), S.giftTop.map(x => ({ id: x.id, v: x.v })), x => x.v, null, 'xu');
     if (!S.round.top.length) $('raceRows').innerHTML = `<div style="opacity:.7;font-size:19px;padding:8px 2px">Bình luận tên tỉnh để bắt đầu đua!</div>`;
@@ -514,11 +536,14 @@
     if (S.battle && S.battle.endsAt > tn) chips.push(['battle', `<span class="ic">⚔️</span><div class="vs"><span class="sd" style="color:#ff6b80">${esc(pshort(S.battle.a))} <b data-k="sa">${S.battle.sa}</b></span><div class="tug"><i data-k="tug" style="width:${S.battle.sa + S.battle.sb ? S.battle.sa / (S.battle.sa + S.battle.sb) * 100 : 50}%"></i></div><span class="sd" style="text-align:right;color:#6aa8ff"><b data-k="sb">${S.battle.sb}</b> ${esc(pshort(S.battle.b))}</span></div><span class="tm" data-end="${S.battle.endsAt}"></span>`]);
     if (S.quiz && S.quiz.endsAt > tn) chips.push(['quiz', `<span class="ic">❓</span><span style="white-space:normal;line-height:1.1;font-size:22px">${esc(S.quiz.q)} <b style="color:var(--accent)">+${S.quiz.pts}</b></span><span class="tm" data-end="${S.quiz.endsAt}"></span>`]);
     if (S.lucky && S.lucky.endsAt > tn) chips.push(['lucky', `<span class="ic">⭐</span><span>${esc(pname(S.lucky.id))} <b style="color:var(--accent)">×2</b></span><span class="tm" data-end="${S.lucky.endsAt}"></span>`]);
+    if (S.drop && S.drop.endsAt > tn) chips.push(['drop', `<span class="ic">🧧</span><span>Gõ <b style="color:var(--accent)">“${esc(S.drop.word)}”</b> nhận lộc · <b data-k="dropn">${S.drop.n}</b> người</span><span class="tm" data-end="${S.drop.endsAt}"></span>`]);
+    const NEXT = { battle: '⚔️ Đại chiến', quiz: '❓ Đố vui', drop: '🧧 Lộc rơi' };
+    if (!chips.length && S.next && S.next.at > tn) chips.push(['next', `<span class="ic">⏳</span><span>${NEXT[S.next.type]} sau</span><span class="tm" data-end="${S.next.at}"></span>`]);
     const hots = Object.keys(S.hot || {}).filter(id => S.hot[id] > tn);
-    if (hots.length && !chips.length) chips.push(['hot', `<span class="ic">🔥</span><span>${hots.map(pshort).map(esc).join(', ')} <b style="color:var(--accent)">×2</b></span>`]);
+    if (hots.length && (!chips.length || chips[0][0] === 'next')) chips.push(['hot', `<span class="ic">🔥</span><span>${hots.map(pshort).map(esc).join(', ')} <b style="color:var(--accent)">×2</b></span>`]);
     const wv = CFG.waveLikes ? Math.max(0, Math.min(1, 1 - (S.waveNext - S.likes) / CFG.waveLikes)) : 0;
     chips.push(['wave', `<span class="ic">❤️</span><div style="flex:1"><div style="font-size:17px;margin-bottom:4px">Sóng tim · ${fmt(S.likes)}</div><div class="mini"><i data-k="wave" style="width:${wv * 100}%"></i></div></div>`]);
-    const sig = chips.map(c => c[0] + (c[0] === 'battle' ? S.battle.a + S.battle.b : c[0] === 'quiz' ? S.quiz.q : c[0] === 'lucky' ? S.lucky.id : c[0] === 'hot' ? hots.join() : '')).join('|');
+    const sig = chips.map(c => c[0] + (c[0] === 'battle' ? S.battle.a + S.battle.b : c[0] === 'quiz' ? S.quiz.q : c[0] === 'lucky' ? S.lucky.id : c[0] === 'hot' ? hots.join() : c[0] === 'next' ? S.next.type + S.next.at : '')).join('|');
     if (sig !== barSig) {
       const before = new Set(barSig.split('|')); barSig = sig;
       const keys = sig.split('|');
@@ -527,6 +552,7 @@
     else {   // chỉ cập nhật số
       const q = s => $('eventBar').querySelector(s);
       if (S.battle && q('[data-k="sa"]')) { q('[data-k="sa"]').textContent = S.battle.sa; q('[data-k="sb"]').textContent = S.battle.sb; q('[data-k="tug"]').style.width = (S.battle.sa + S.battle.sb ? S.battle.sa / (S.battle.sa + S.battle.sb) * 100 : 50) + '%'; }
+      if (S.drop && q('[data-k="dropn"]')) q('[data-k="dropn"]').textContent = S.drop.n;
       if (q('[data-k="wave"]')) { q('[data-k="wave"]').style.width = wv * 100 + '%'; q('[data-k="wave"]').parentNode.previousElementSibling.textContent = 'Sóng tim · ' + fmt(S.likes); }
     }
   }
@@ -535,7 +561,7 @@
     const tn = now();
     $('roundTime').textContent = 'còn ' + fmtTime(S.round.endsAt - tn);
     for (const el of $('eventBar').querySelectorAll('[data-end]')) el.textContent = fmtTime(+el.dataset.end - tn);
-    if ((S.battle && S.battle.endsAt < tn) || (S.quiz && S.quiz.endsAt < tn) || (S.lucky && S.lucky.endsAt < tn)) renderEventBar();
+    if ((S.battle && S.battle.endsAt < tn) || (S.quiz && S.quiz.endsAt < tn) || (S.lucky && S.lucky.endsAt < tn) || (S.drop && S.drop.endsAt < tn) || (S.next && S.next.at < tn)) renderEventBar();
   }
   setInterval(tickTimers, 250);
 
@@ -591,7 +617,7 @@
     switch (e.type) {
       case 'light':
         if (e.prov) comet(FEED_ORIGIN, e.prov, null, e.first);
-        if (u) feedAdd(u, `<b>${esc(u.name)}</b> thắp đèn ${esc(P)} <span class="pt">+${e.pts}</span>${e.mult > 1 ? ' ×' + e.mult : ''}`);
+        if (u) feedAdd(u, `${e.lv > 1 ? `<span class="pt">Lv${e.lv}</span> ` : ''}<b>${esc(u.name)}</b> ${e.nth > 1 ? `người thứ ${e.nth} của` : 'thắp đèn'} ${esc(P)} <span class="pt">+${e.pts}</span>${e.mult > 1 ? ' ×' + e.mult : ''}`);
         else if (e.why === 'wave') feedAdd(null, `Sóng tim thắp sáng <b>${esc(P)}</b>`);
         if (e.first && CFG.mcIntro) {
           const intro = (VN.BY_ID[e.prov] || {}).intro;
@@ -652,13 +678,18 @@
         else { banner('Kết quả đại chiến', 'Hòa!', `${e.sa} – ${e.sb}`, 3500); say('Đại chiến kết thúc với tỉ số hòa!', true); }
         break;
       case 'quizStart':
-        banner('Đố vui quê hương', '❓', `${esc(e.q)}<br><span style="font-size:24px">Trả lời đúng đầu tiên: <b>+${e.pts}</b> điểm cho quê bạn</span>`, 5500);
-        say(`Đố vui quê hương! ${e.q} Ai trả lời đúng đầu tiên được ${e.pts} điểm cho quê mình!`, true);
+        banner('Đố vui quê hương', '❓', `${esc(e.q)}<br><span style="font-size:24px">Trả lời đúng đầu tiên: <b>+${e.pts}</b> điểm cho <b>quê của bạn</b></span>`, 5500);
+        say(`Đố vui quê hương! ${e.q} Ai trả lời đúng đầu tiên được ${e.pts} điểm cộng cho quê của chính mình!`, true);
         break;
       case 'quizWin':
-        hit(e.prov, true);
-        banner('Chính xác', `${esc(u.name)}`, `Đáp án: <b>${esc(pname(e.answer))}</b> · +${e.pts} điểm cho ${esc(P)}`, 4500, [u]);
-        say(`Chính xác! ${nm(u)} trả lời đúng là ${pname(e.answer)}, cộng ${e.pts} điểm cho ${P}!`, true);
+        if (e.prov) {
+          comet([W / 2, 760], e.prov, T.accent2, true);
+          banner('Chính xác', `${esc(u.name)}`, `Đáp án: <b>${esc(pname(e.answer))}</b> · +${e.pts} điểm cho quê <b>${esc(P)}</b>`, 4500, [u]);
+          say(`Chính xác! ${nm(u)} trả lời đúng là ${pname(e.answer)}, cộng ${e.pts} điểm cho quê ${P} của bạn ấy!`, true);
+        } else {
+          banner('Chính xác', `${esc(u.name)}`, `Đáp án: <b>${esc(pname(e.answer))}</b> · ${e.pts} điểm đang chờ — bình luận tên quê để nhận`, 5000, [u]);
+          say(`Chính xác! ${nm(u)} trả lời đúng là ${pname(e.answer)}. Bình luận tên quê của bạn để nhận ${e.pts} điểm nhé!`, true);
+        }
         break;
       case 'quizEnd':
         banner('Hết giờ', `Đáp án: ${esc(pname(e.answer))}`, '', 3500);
@@ -689,6 +720,46 @@
         feedAdd(u, `${e.type === 'follow' ? '➕ theo dõi' : '🔗 chia sẻ'} · <b>${esc(u.name)}</b> <span class="pt">+${e.pts}</span>`);
         say(`Cảm ơn ${nm(u)} đã ${e.type === 'follow' ? 'theo dõi' : 'chia sẻ'}, cộng ${e.pts} điểm cho ${P}!`, false, e.type, 5000);
         break;
+      case 'dim':
+        feedAdd(null, `⚠️ Đèn <b>${esc(P)}</b> sắp tắt!`);
+        say(`Đèn ${P} sắp tắt rồi! Người ${P} đâu, bình luận giữ lửa cho quê mình nào!`, false, 'dim', 9000);
+        break;
+      case 'off':
+        feedAdd(null, `💨 Đèn <b>${esc(P)}</b> đã tắt`);
+        say(`Ôi, đèn ${P} đã tắt mất rồi! Ai thắp lại cho ${P} đây?`, false, 'off', 12000);
+        break;
+      case 'seasonEnd': {
+        celebrate(Math.min(10, e.delay || 10));
+        const w = e.top && e.top[0];
+        banner(`Hoàn thành mùa ${e.season}`, '🇻🇳 SÁNG ĐỦ 34/34!', `${w ? `Quê dẫn đầu: <b>${esc(pname(w.id))}</b> · ` : ''}mùa mới sau <b>${e.delay}</b> giây`, 8000);
+        say(`Tuyệt vời! Cả nước đã sáng đủ 34 tỉnh thành, hoàn thành mùa ${e.season}!${w ? ' Quê dẫn đầu là ' + pname(w.id) + '.' : ''} Mùa mới sẽ bắt đầu sau ${e.delay} giây, chuẩn bị đua lại từ đầu nhé!`, true);
+        break; }
+      case 'seasonStart':
+        fxList.length = 0; for (const k in flash) delete flash[k];
+        banner(`Mùa ${e.season}`, 'Bắt đầu thắp lại!', 'Bản đồ đã tắt hết — bình luận tên quê để thắp đèn đầu tiên', 5000);
+        say(`Mùa ${e.season} bắt đầu! Bản đồ đã tắt hết, ai sẽ là người thắp đèn đầu tiên? Bình luận tên quê ngay nào!`, true);
+        sfx.fanfare();
+        break;
+      case 'dropStart':
+        lixi(e.sec);
+        banner('Lộc rơi', `🧧 Gõ “${esc(e.word)}”`, `trong <b>${e.sec} giây</b> · ${e.winners} người may mắn nhận điểm cho quê`, 4500);
+        say(`Lộc rơi rồi! Gõ chữ ${e.word} trong ${e.sec} giây, ${e.winners} người may mắn sẽ nhận điểm cho quê mình!`, true);
+        break;
+      case 'dropEnd':
+        if (e.winners.length) {
+          for (const w of e.winners) if (w.prov) comet([W / 2, 300], w.prov, '#ff3d3d', true);
+          banner('Trúng lộc', '🧧 ' + e.winners.map(w => esc(w.user.name)).join(', '), e.winners.map(w => `<b>+${w.pts}</b> ${esc(w.prov ? pshort(w.prov) : 'chờ nhận')}`).join(' · '), 5500, e.winners.map(w => w.user));
+          say(`Chúc mừng ${e.winners.map(w => nm(w.user)).join(', ')} đã trúng lộc! Lần sau nhớ gõ ${e.word} thật nhanh nhé!`, true);
+        } else { banner('Lộc rơi', 'Không ai nhận lộc', 'Lần sau gõ nhanh hơn nhé!', 3000); }
+        break;
+      case 'levelUp':
+        feedAdd(u, `⬆️ <b>${esc(u.name)}</b> lên <span class="pt">cấp ${e.level}</span>`);
+        if (e.level >= 3) say(`${nm(u)} đã lên cấp ${e.level}!`, false, 'lv', 8000);
+        break;
+      case 'theme': {
+        const th = THEMES[e.theme]; flashScreen();
+        if (th) feedAdd(null, `🎨 Đổi giao diện: <b>${esc(th.name)}</b>`);
+        break; }
       case 'summary': showSummary(e); break;
       case 'reset': fxList.length = 0; for (const k in flash) delete flash[k]; feed.splice(0).forEach(x => x.remove()); banner('Phiên mới', 'Bắt đầu thắp đèn!', 'Bình luận tên tỉnh, thành quê bạn', 3500); break;
       case 'say': say(e.text, true); break;
@@ -700,7 +771,7 @@
     const prov = (e.topProv || []).map((x, i) => `<div><div style="font-size:54px">${['🥇', '🥈', '🥉'][i]}</div>${esc(pname(x.id))}<br><span style="color:var(--accent)">${fmt(x.v)} điểm</span></div>`).join('');
     const giv = (e.topGivers || []).map(u => `<div>${avatarHTML(u)}${esc(u.name)}<br><span style="color:var(--accent)">${fmt(u.coins)} xu</span></div>`).join('');
     el.innerHTML = `<div class="card"><h2>TỔNG KẾT PHIÊN LIVE</h2><div style="font-size:24px;color:var(--sub);margin-top:6px">${e.mins} phút · cảm ơn mọi người đã thắp đèn 🇻🇳</div>
-      <div class="grid"><div class="st"><b>${e.lit}/${e.total}</b><span>tỉnh đã sáng</span></div><div class="st"><b>${fmt(e.people)}</b><span>người thắp đèn</span></div><div class="st"><b>${fmt(e.comments)}</b><span>bình luận</span></div>
+      <div class="grid"><div class="st"><b>${e.seasons ? e.seasons + ' mùa' : e.lit + '/' + e.total}</b><span>${e.seasons ? 'sáng đủ 34 tỉnh' : 'tỉnh đã sáng'}</span></div><div class="st"><b>${fmt(e.people)}</b><span>người thắp đèn</span></div><div class="st"><b>${fmt(e.comments)}</b><span>bình luận</span></div>
       <div class="st"><b>${fmt(e.likes)}</b><span>lượt tim</span></div><div class="st"><b>${fmt(e.coins)}</b><span>xu quà tặng</span></div><div class="st"><b>${fmt(e.returning)}</b><span>người quen quay lại</span></div></div>
       ${prov ? `<h3>Quê dẫn đầu</h3><div class="tops">${prov}</div>` : ''}${giv ? `<h3>Vinh danh người thắp đèn</h3><div class="tops">${giv}</div>` : ''}</div>`;
     el.style.display = 'flex'; celebrate(4);

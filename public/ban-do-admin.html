@@ -67,6 +67,8 @@
   <section>
     <h2>🎨 Giao diện màn hình</h2>
     <div class="themes" id="themes"></div>
+    <label><span>🎲 Tự đổi giao diện ngẫu nhiên mỗi (phút, 0 = tắt)</span><input type="number" data-k="themeRotate" min="0"></label>
+    <label><span>🎲 Đổi giao diện khi sang mùa mới</span><input type="checkbox" class="switch" data-k="themeOnSeason"></label>
     <label><span>🧊 Bản đồ 3D nổi khối</span><input type="checkbox" class="switch" data-k="mode3d"></label>
     <label><span>⚡ Hiệu ứng nhẹ (máy yếu)</span><input type="checkbox" class="switch" data-k="lite"></label>
     <label><span>Tiêu đề</span><input type="text" data-k="title" style="width:220px"></label>
@@ -81,6 +83,9 @@
       <button id="cQuiz">❓ Đố vui</button>
       <button id="cLucky">⭐ Tỉnh may mắn</button>
       <button id="cCountry">🇻🇳 Cả nước rực sáng</button>
+      <button id="cDrop">🧧 Lộc rơi</button>
+      <button id="cTheme">🎲 Đổi giao diện</button>
+      <button id="cSeason">🔄 Sang mùa mới</button>
       <button id="cSummary" class="pri">📊 Tổng kết phiên</button>
       <button id="cReset" class="bad">♻️ Phiên mới (xoá điểm)</button>
     </div>
@@ -110,6 +115,13 @@
     <label><span>⭐ Tỉnh may mắn ×2 mỗi (phút)</span><input type="number" data-k="luckyEvery" min="0"></label>
     <label><span>🔥 Tỉnh hot: số người / trong (giây)</span><span style="flex:0;display:flex;gap:6px"><input type="number" data-k="hotUsers"><input type="number" data-k="hotWindow"></span></label>
     <label><span>❤️ Sóng tim: mỗi bao nhiêu tim cả phòng</span><input type="number" data-k="waveLikes" min="0"></label>
+    <label><span>🕯 Đèn tắt dần sau (phút không ai giữ lửa, 0 = không tắt)</span><input type="number" data-k="decayMin" min="0"></label>
+    <label><span>🔄 Sáng đủ 34 tỉnh → tự sang mùa mới</span><input type="checkbox" class="switch" data-k="autoSeason"></label>
+    <label><span>&nbsp;&nbsp;ăn mừng bao lâu (giây)</span><input type="number" data-k="seasonDelay" min="5"></label>
+    <label><span>🧧 Lộc rơi mỗi (phút, 0 = tắt)</span><input type="number" data-k="dropEvery" min="0"></label>
+    <label><span>&nbsp;&nbsp;chữ phải gõ</span><input type="text" data-k="dropWord" style="width:90px"></label>
+    <label><span>&nbsp;&nbsp;thời gian (giây) / số người trúng</span><span style="flex:0;display:flex;gap:6px"><input type="number" data-k="dropSec"><input type="number" data-k="dropWinners"></span></label>
+    <label><span>&nbsp;&nbsp;điểm thưởng từ / đến</span><span style="flex:0;display:flex;gap:6px"><input type="number" data-k="dropMin"><input type="number" data-k="dropMax"></span></label>
     <label><span>🏡 Người quen quay lại tự thắp đèn quê</span><input type="checkbox" class="switch" data-k="autoHome"></label>
     <label><span>📅 Thưởng điểm danh mỗi ngày liên tiếp</span><input type="number" data-k="streakBonus" min="0"></label>
   </section>
@@ -139,6 +151,7 @@
       <button data-test="returning">🏡 Người quen quay lại</button>
       <button data-test="follow">➕ Theo dõi</button>
       <button data-test="quizAnswer">✅ Trả lời đúng đố vui</button>
+      <button data-test="drop">🧧 Lộc rơi + 8 người nhận</button>
     </div>
     <p class="muted">Người xem gõ tên tỉnh mới, tên cũ (Bình Dương, Quảng Nam, Hà Giang…), tên thành phố (Đà Lạt, Nha Trang, Vũng Tàu…) hoặc viết tắt (HN, SG, HCM) đều được — không dấu cũng nhận.</p>
   </section>
@@ -201,6 +214,7 @@ $('saveTiers').onclick = () => { const t = readTiers(); tierDraft = null; socket
 const cmd = type => socket.emit('vm:cmd', { type });
 $('cRound').onclick = () => cmd('newRound'); $('cBattle').onclick = () => cmd('battle'); $('cQuiz').onclick = () => cmd('quiz');
 $('cLucky').onclick = () => cmd('lucky'); $('cCountry').onclick = () => cmd('country'); $('cSummary').onclick = () => cmd('summary');
+$('cDrop').onclick = () => cmd('drop'); $('cTheme').onclick = () => cmd('theme'); $('cSeason').onclick = () => { if (confirm('Tắt hết đèn và bắt đầu mùa mới?')) cmd('season'); };
 $('cReset').onclick = () => { if (confirm('Bắt đầu phiên mới? Toàn bộ điểm phiên này sẽ bị xoá (bảng xếp hạng mọi thời đại và người quen vẫn giữ).')) cmd('reset'); };
 $('sayBtn').onclick = () => { const t = $('sayText').value.trim(); if (t) { socket.emit('vm:cmd', { type: 'say', text: t }); $('sayText').value = ''; } };
 $('sayText').onkeydown = e => { if (e.key === 'Enter') $('sayBtn').click(); };
@@ -211,7 +225,8 @@ const fmt = n => Math.round(n || 0).toLocaleString('vi-VN');
 socket.on('vm:stats', s => {
   $('stats').innerHTML = [[`${s.lit}/${s.total}`, 'tỉnh đã sáng'], [fmt(s.people), 'người thắp đèn'], [fmt(s.comments), 'bình luận'], [fmt(s.coins), 'xu'], [fmt(s.returning), 'người quen quay lại'], [s.screens, 'màn hình đang mở']]
     .map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('');
-  const parts = [`Vòng ${s.round}`];
+  const parts = [`Mùa ${s.season || 1}`, `Vòng ${s.round}`];
+  if (s.drop) parts.push(`🧧 ${s.drop.n} người đang nhận lộc`);
   if (s.battle) parts.push('⚔️ đang đại chiến'); if (s.quiz) parts.push('❓ đang đố vui: ' + s.quiz.q); if (s.lucky) parts.push('⭐ tỉnh may mắn đang chạy');
   parts.push(`🇻🇳 ${fmt(s.country.pool)}/${fmt(s.country.target)} xu`);
   $('live').textContent = parts.join(' · ');
