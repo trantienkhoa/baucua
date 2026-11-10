@@ -45,6 +45,9 @@ Key EulerStream là tuỳ chọn, chỉ để giảm giới hạn số lần k�
 - 🧧 **Lộc rơi** mỗi 6 phút: bao lì xì rơi khắp màn, ai gõ "lộc" trong 20 giây được bốc thăm 3 người nhận điểm cho quê.
 - ⏳ **Đếm ngược sự kiện kế tiếp** (đại chiến / đố vui / lộc rơi) luôn hiện trên màn để người xem chờ.
 - ⬆️ **Cấp người thắp đèn** lưu qua các phiên (Lv2, Lv3…), "bạn là người thứ 12 của Huế".
+- 🔍 **Zoom vào tỉnh vừa được cộng điểm**: tỉnh nháy sáng mạnh, số "+điểm" bay lên, camera zoom vào rồi lùi ra (bật/tắt, chỉnh mức zoom).
+- 🛡 **Chống spam chia sẻ**: mỗi người chỉ được cộng điểm chia sẻ 1 lần / 10 phút, tối đa 3 lần mỗi phiên; theo dõi chỉ tính 1 lần.
+- ❓ Đố vui chỉ tính đúng khi gõ **chính xác tên tỉnh mới** (tên tỉnh cũ đã gộp, tên thành phố không tính).
 - 🎲 **Tự đổi giao diện ngẫu nhiên** mỗi 10 phút và khi sang mùa mới.
 - ❓ Đố vui: điểm cộng cho **quê của người trả lời**, gõ tên tỉnh lúc đang đố không làm đổi quê.
 

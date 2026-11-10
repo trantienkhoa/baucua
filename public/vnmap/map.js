@@ -314,8 +314,26 @@
   const flash = {};   // id -> thời điểm thắp (nháy sáng)
   const FEED_ORIGIN = [210, 900], GIFT_ORIGIN = [870, 440];
   function provPoint(id) { const c = CENTER[id]; return c ? [c[0], c[1] - (RAISE[id] || 0)] : [MAP.x + 300, MAP.y + 600]; }
+  // ---------- camera: zoom vào tỉnh vừa được cộng điểm ----------
+  const VC = [MAP.x + 300, MAP.y + 640];
+  const CAM = { x: VC[0], y: VC[1], z: 1, tx: VC[0], ty: VC[1], tz: 1, until: 0 };
+  function focus(id, pts, strong) {
+    if (!CENTER[id]) return;
+    flash[id] = performance.now();
+    const [x, y] = provPoint(id);
+    if (pts > 0) fxList.push({ k: 'num', x, y: y - 10, text: '+' + fmt(pts), life: 0, max: 1.7, big: strong });
+    if (CFG.zoomOn === false) return;
+    const z = Math.max(1.2, +CFG.zoomScale || 2.2);
+    CAM.tx = x; CAM.ty = y; CAM.tz = strong ? z : 1 + (z - 1) * 0.75; CAM.until = performance.now() + (strong ? 2800 : 1700);
+  }
+  function stepCam(dt) {
+    if (performance.now() > CAM.until) { CAM.tx = VC[0]; CAM.ty = VC[1]; CAM.tz = 1; }
+    const k = 1 - Math.exp(-dt * 3.2);
+    CAM.x += (CAM.tx - CAM.x) * k; CAM.y += (CAM.ty - CAM.y) * k; CAM.z += (CAM.tz - CAM.z) * k;
+  }
+  const toWorld = (sx, sy) => [(sx - VC[0]) / CAM.z + CAM.x, (sy - VC[1]) / CAM.z + CAM.y];
   function comet(from, id, color, big) {
-    const to = provPoint(id);
+    const to = provPoint(id); from = toWorld(from[0], from[1]);
     fxList.push({ k: 'comet', x: from[0], y: from[1], sx: from[0], sy: from[1], tx: to[0], ty: to[1], life: 0, max: big ? 1.4 : 1.05, prov: id, color: color || T.accent, trail: [], big });
     sfx.whoosh();
   }
@@ -396,6 +414,12 @@
         const s = 70 * (1 - p) + 18; ctx.globalAlpha = 1 - p * 0.6; ctx.strokeStyle = f.c; ctx.lineWidth = 3;
         for (const [dx, dy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { ctx.beginPath(); ctx.moveTo(f.x + dx * s, f.y + dy * s * 0.5); ctx.lineTo(f.x + dx * s, f.y + dy * s); ctx.lineTo(f.x + dx * s * 0.5, f.y + dy * s); ctx.stroke(); }
         ctx.font = `800 16px ${T.font}`; ctx.fillStyle = f.c; ctx.textAlign = 'center'; ctx.fillText('ĐÃ KHÓA', f.x, f.y - s - 6);
+      } else if (f.k === 'num') {
+        const pop = p < 0.15 ? 0.6 + p / 0.15 * 0.6 : 1.2 - Math.min(0.2, (p - 0.15));
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = p > 0.7 ? (1 - p) / 0.3 : 1;
+        ctx.save(); ctx.translate(f.x, f.y - p * 70); ctx.scale(pop / CAM.z * 1.4, pop / CAM.z * 1.4);
+        ctx.font = `900 ${f.big ? 40 : 30}px ${T.font}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 6; ctx.lineJoin = 'round';
+        ctx.strokeStyle = 'rgba(0,0,0,.75)'; ctx.strokeText(f.text, 0, 0); ctx.fillStyle = T.accent; ctx.fillText(f.text, 0, 0); ctx.restore();
       } else if (f.k === 'env') {
         f.x += f.vx * dt; f.y += f.vy * dt; f.rot += Math.sin(f.life * 3) * dt; if (f.y > H + 40) f.life = f.max;
         ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.rot);
@@ -429,8 +453,14 @@
       const pr = S.provs[id]; if (!pr.lit) continue;
       const h = (RAISE[id] || 0) / MS; ctx.setTransform(base); ctx.translate(0, -h);
       const fl = flash[id] ? Math.max(0, 1 - (nowp - flash[id]) / 1500) : 0;
-      const a = (T.light ? 0.06 : 0.07) + 0.06 * Math.sin(t * 2 + SH.d[id].c[1] / 60) + fl * 0.75;
+      const blink = fl > 0 ? fl * (0.75 + 0.25 * Math.sin((nowp - flash[id]) / 60)) : 0;   // nháy sáng khi được cộng điểm
+      const a = (T.light ? 0.06 : 0.07) + 0.06 * Math.sin(t * 2 + SH.d[id].c[1] / 60) + blink * 0.95;
       if (a > 0.01) { ctx.globalAlpha = Math.min(1, a); ctx.fillStyle = T.light ? T.lit[1] : '#ffffff'; ctx.fill(PATHS[id]); }
+      if (blink > 0.02) {
+        ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, blink * 1.2);
+        if (!lite()) { ctx.shadowColor = T.glow; ctx.shadowBlur = 30 * blink; }
+        ctx.strokeStyle = T.light ? T.lit[1] : '#ffffff'; ctx.lineWidth = (2 + 5 * blink) / MS; ctx.stroke(PATHS[id]); ctx.restore();
+      }
     }
     ctx.globalCompositeOperation = 'source-over';
     for (const id of ORDER) {   // sắp tắt: chập chờn
@@ -614,6 +644,10 @@
   function onFx(e) {
     if (!e) return;
     const u = e.user, P = e.prov ? pname(e.prov) : '';
+    if (e.prov && e.pts > 0 && !/^(dim|off|hot|lucky|owner)$/.test(e.type)) focus(e.prov, e.pts, e.type === 'gift' || e.type === 'quizWin' || e.type === 'claim' || e.first);
+    if (e.type === 'battleEnd' && e.win) focus(e.win, e.bonus, true);
+    if (e.type === 'dropEnd') e.winners.forEach((w, i) => w.prov && setTimeout(() => focus(w.prov, w.pts, true), i * 1200));
+    if (e.type === 'lucky') focus(e.prov, 0, true);
     switch (e.type) {
       case 'light':
         if (e.prov) comet(FEED_ORIGIN, e.prov, null, e.first);
@@ -625,7 +659,6 @@
         } else if (u && CFG.mcWelcome) say(`Chào ${nm(u)} đến từ ${P}!`, false, 'hello', 7000);
         break;
       case 'ping':
-        flash[e.prov] = performance.now() - 900;
         if (Math.random() < 0.35 && u) feedAdd(u, `<b>${esc(u.name)}</b> · ${esc(P)} <span class="pt">+${e.pts}</span>`);
         break;
       case 'returning':
@@ -824,8 +857,12 @@
     const t = n / 1000;
     if (!bgCanvas) setTheme(themeKey || 'dem-sao');
     drawBg(t, lite() ? dt * 2 : dt);
+    stepCam(dt);
+    ctx.save();
+    if (Math.abs(CAM.z - 1) > 0.002 || Math.abs(CAM.x - VC[0]) > 0.5) { ctx.translate(VC[0], VC[1]); ctx.scale(CAM.z, CAM.z); ctx.translate(-CAM.x, -CAM.y); }
     drawMap(t);
     drawFx(lite() ? dt * 2 : dt);
+    ctx.restore();
     stepTweens();
     requestAnimationFrame(frame);
   }

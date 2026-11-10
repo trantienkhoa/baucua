@@ -8,6 +8,8 @@ const DEFAULT_CFG = {
   theme: 'dem-sao',
   mode3d: false,
   lite: false,
+  zoomOn: true,            // zoom vào tỉnh vừa được cộng điểm
+  zoomScale: 2.2,
   roundMin: 5,             // mỗi vòng đua (phút)
   commentPts: 1,
   chatCooldown: 4,         // giây — chống spam: cùng người cùng tỉnh chỉ cộng điểm mỗi 4s
