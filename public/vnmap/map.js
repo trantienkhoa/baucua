@@ -321,7 +321,7 @@
     if (!CENTER[id]) return;
     flash[id] = performance.now();
     const [x, y] = provPoint(id);
-    if (pts > 0) fxList.push({ k: 'num', x, y: y - 10, text: '+' + fmt(pts), life: 0, max: 1.7, big: strong });
+    if (pts > 0) { fxList.push({ k: 'num', x, y: y - 10, text: '+' + fmt(pts), life: 0, max: 1.7, big: strong }); pointSound(pts); }
     if (CFG.zoomOn === false) return;
     const z = Math.max(1.2, +CFG.zoomScale || 2.2);
     CAM.tx = x; CAM.ty = y; CAM.tz = strong ? z : 1 + (z - 1) * 0.75; CAM.until = performance.now() + (strong ? 2800 : 1700);
@@ -793,6 +793,7 @@
         const th = THEMES[e.theme]; flashScreen();
         if (th) feedAdd(null, `🎨 Đổi giao diện: <b>${esc(th.name)}</b>`);
         break; }
+      case 'sfxTest': { const ac = audioCtx(); if (ac) ac.resume(); [1, 10, 199, 500].forEach((v, i) => setTimeout(() => { ptGate = 0; pointSound(v); }, i * 1400)); break; }
       case 'summary': showSummary(e); break;
       case 'reset': fxList.length = 0; for (const k in flash) delete flash[k]; feed.splice(0).forEach(x => x.remove()); banner('Phiên mới', 'Bắt đầu thắp đèn!', 'Bình luận tên tỉnh, thành quê bạn', 3500); break;
       case 'say': say(e.text, true); break;
@@ -817,10 +818,55 @@
   const audioCtx = () => { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } return AC; };
   function tone(f, dur, type, vol, when) {
     const ac = audioCtx(); if (!ac || ac.state !== 'running') return;
-    const v = (CFG.musicOn === false ? 0.5 : 1) * (vol || 0.08); const t0 = ac.currentTime + (when || 0);
+    const v = vol || 0.08; const t0 = ac.currentTime + (when || 0);
     const o = ac.createOscillator(), g = ac.createGain(); o.type = type || 'sine'; o.frequency.setValueAtTime(f, t0);
     g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(v, t0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    o.connect(g).connect(ac.destination); o.start(t0); o.stop(t0 + dur + 0.05);
+    o.connect(g).connect(sfxBus()); o.start(t0); o.stop(t0 + dur + 0.05);
+  }
+  // kênh âm thanh hiệu ứng: âm lượng riêng + nén nhẹ cho to, rõ mà không rè
+  let BUS = null;
+  function sfxBus() {
+    const ac = audioCtx();
+    if (!BUS) { const comp = ac.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4; BUS = ac.createGain(); BUS.connect(comp).connect(ac.destination); }
+    BUS.gain.value = CFG.sfxOn === false ? 0 : Math.max(0, Math.min(1.5, CFG.sfxVol == null ? 0.9 : +CFG.sfxVol)) * 1.6;
+    return BUS;
+  }
+  function sweep(f0, f1, dur, type, vol, when) {
+    const ac = audioCtx(); if (!ac || ac.state !== 'running') return;
+    const t0 = ac.currentTime + (when || 0), o = ac.createOscillator(), g = ac.createGain();
+    o.type = type || 'sine'; o.frequency.setValueAtTime(f0, t0); o.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
+    g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g).connect(sfxBus()); o.start(t0); o.stop(t0 + dur + 0.05);
+  }
+  let NOISE = null;
+  function noise(dur, vol, hp, when) {   // tiếng xèo / chập chõa
+    const ac = audioCtx(); if (!ac || ac.state !== 'running') return;
+    if (!NOISE) { NOISE = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = NOISE.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+    const t0 = ac.currentTime + (when || 0), src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+    src.buffer = NOISE; f.type = 'highpass'; f.frequency.value = hp || 5000;
+    g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(f).connect(g).connect(sfxBus()); src.start(t0); src.stop(t0 + dur + 0.05);
+  }
+  // âm thanh cộng điểm: càng nhiều điểm càng hoành tráng, cộng liên tục thì cao dần (combo)
+  let combo = 0, comboAt = 0, ptGate = 0;
+  function pointSound(pts) {
+    const n = performance.now();
+    if (n - ptGate < 70) return; ptGate = n;
+    combo = n - comboAt < 2200 ? Math.min(14, combo + 1) : 0; comboAt = n;
+    const k = Math.pow(2, combo / 12);   // mỗi lần combo lên nửa cung
+    if (pts < 5) {   // ting ting
+      tone(1175 * k, 0.1, 'triangle', 0.06); tone(1568 * k, 0.35, 'triangle', 0.06, 0.06); tone(3136 * k, 0.22, 'sine', 0.018, 0.06);
+    } else if (pts < 100) {   // chuỗi xu rơi
+      [1047, 1319, 1568, 2093].forEach((f, i) => tone(f * k, 0.18, 'triangle', 0.06, i * 0.06));
+      tone(2637 * k, 0.4, 'sine', 0.03, 0.26); noise(0.25, 0.05, 7000, 0.24);
+    } else {   // trống + kèn chiến thắng + lấp lánh
+      sweep(160, 45, 0.35, 'sine', 0.35); noise(0.08, 0.12, 1500);
+      [523, 659, 784, 1047].forEach((f, i) => { tone(f, 0.22, 'sawtooth', 0.035, 0.08 + i * 0.08); tone(f * 2, 0.22, 'triangle', 0.04, 0.08 + i * 0.08); });
+      [1047, 1319, 1568].forEach(f => tone(f, 1.1, 'triangle', 0.045, 0.42));
+      for (let i = 0; i < 8; i++) tone(2000 + Math.random() * 2500, 0.18, 'sine', 0.025, 0.45 + i * 0.07);
+      noise(1.2, 0.07, 6000, 0.42);
+      if (pts >= 500) { sweep(300, 1800, 0.6, 'sawtooth', 0.03, 0.9); [1568, 2093, 2637].forEach((f, i) => tone(f, 0.9, 'triangle', 0.04, 1.4 + i * 0.09)); sweep(140, 40, 0.4, 'sine', 0.35, 1.4); }
+    }
   }
   const PENTA = [523, 587, 659, 784, 880, 1047, 1175];
   let sfxGate = 0;

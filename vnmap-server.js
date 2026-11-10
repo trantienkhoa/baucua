@@ -35,6 +35,7 @@ const DEFAULT_CFG = {
   mcOn: true, mcVoice: '', mcVol: 1, mcRate: 1,
   mcWelcome: true, mcGift: true, mcIntro: true,
   musicOn: true, musicVol: 0.35,
+  sfxOn: true, sfxVol: 0.9,  // âm thanh hiệu ứng (cộng điểm, pháo hoa…)
 };
 
 module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
@@ -536,6 +537,7 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
       else if (c.type === 'drop') { if (S.drop) endDrop(); else startDrop(); }
       else if (c.type === 'season') newSeason();
       else if (c.type === 'theme') rotateTheme();
+      else if (c.type === 'sfxTest') fx('sfxTest');
       else if (c.type === 'quiz') { if (!S.quiz) startQuiz(); }
       else if (c.type === 'country') { for (const p of VN.LIST) { const r = S.provs[p.id]; if (!r.lit) r.lit = now; r.energy = 100; r.warned = false; } S.country.times++; fx('country', { user: null, times: S.country.times }); setTimeout(checkSeason, 6000); dirty = true; }
       else if (c.type === 'summary') fx('summary', summary());

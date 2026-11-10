@@ -54,6 +54,7 @@ Bản đồ **34 tỉnh, thành** (sau sắp xếp 2025, có **quần đảo Ho�
 - 🧧 **Lộc rơi** mỗi 6 phút: bao lì xì rơi khắp màn, ai gõ "lộc" trong 20 giây được bốc thăm 3 người nhận điểm cho quê.
 - ⏳ **Đếm ngược sự kiện kế tiếp** (đại chiến / đố vui / lộc rơi) luôn hiện trên màn để người xem chờ.
 - ⬆️ **Cấp người thắp đèn** lưu qua các phiên (Lv2, Lv3…), "bạn là người thứ 12 của Huế".
+- 🔔 **Âm thanh cộng điểm**: +1 kêu "ting", +5…99 chuỗi xu rơi, +100 trở lên có trống và kèn chiến thắng, +500 hoành tráng hơn nữa. Cộng liên tục thì tiếng cao dần như combo. Có âm lượng riêng và nút nghe thử.
 - 🔍 **Zoom vào tỉnh vừa được cộng điểm**: tỉnh nháy sáng mạnh, số "+điểm" bay lên, camera zoom vào rồi lùi ra (bật/tắt, chỉnh mức zoom).
 - 🛡 **Chống spam chia sẻ**: mỗi người chỉ được cộng điểm chia sẻ 1 lần / 10 phút, tối đa 3 lần mỗi phiên; theo dõi chỉ tính 1 lần.
 - ❓ Đố vui chỉ tính đúng khi gõ **chính xác tên tỉnh mới** (tên tỉnh cũ đã gộp, tên thành phố không tính).

@@ -139,6 +139,9 @@
     <label><span>Giới thiệu tỉnh khi đèn đầu tiên sáng</span><input type="checkbox" class="switch" data-k="mcIntro"></label>
     <label><span>Nhạc nền tự phát</span><input type="checkbox" class="switch" data-k="musicOn"></label>
     <label><span>Âm lượng nhạc</span><input type="range" data-k="musicVol" min="0" max="1" step="0.05"></label>
+    <label><span>🔔 Âm thanh hiệu ứng (cộng điểm, pháo hoa)</span><input type="checkbox" class="switch" data-k="sfxOn"></label>
+    <label><span>Âm lượng hiệu ứng</span><input type="range" data-k="sfxVol" min="0" max="1.5" step="0.05"></label>
+    <button type="button" id="sfxTest" style="margin-top:4px">🔊 Nghe thử (mở màn LIVE trước)</button>
     <p class="muted">Nhạc nền lấy từ thư mục nhạc của game (trang điều khiển sàn nhảy → tải nhạc). Không có nhạc thì phát tiếng đàn nhẹ. Màn hình OBS không có giọng Việt thì trang này sẽ đọc thay — giữ trang mở (tốt nhất bằng Edge).</p>
   </section>
 
@@ -217,6 +220,7 @@ $('saveTiers').onclick = () => { const t = readTiers(); tierDraft = null; socket
 const cmd = type => socket.emit('vm:cmd', { type });
 $('cRound').onclick = () => cmd('newRound'); $('cBattle').onclick = () => cmd('battle'); $('cQuiz').onclick = () => cmd('quiz');
 $('cLucky').onclick = () => cmd('lucky'); $('cCountry').onclick = () => cmd('country'); $('cSummary').onclick = () => cmd('summary');
+$('sfxTest').onclick = () => socket.emit('vm:cmd', { type: 'sfxTest' });
 $('cDrop').onclick = () => cmd('drop'); $('cTheme').onclick = () => cmd('theme'); $('cSeason').onclick = () => { if (confirm('Tắt hết đèn và bắt đầu mùa mới?')) cmd('season'); };
 $('cReset').onclick = () => { if (confirm('Bắt đầu phiên mới? Toàn bộ điểm phiên này sẽ bị xoá (bảng xếp hạng mọi thời đại và người quen vẫn giữ).')) cmd('reset'); };
 $('sayBtn').onclick = () => { const t = $('sayText').value.trim(); if (t) { socket.emit('vm:cmd', { type: 'say', text: t }); $('sayText').value = ''; } };
