@@ -52,17 +52,41 @@
   <section>
     <h2>1. Kết nối TikTok LIVE</h2>
     <label><span>Tên kênh (@)</span><input id="username" type="text" placeholder="tenkenh"></label>
-    <label><span>Key EulerStream (tuỳ chọn)</span><input id="apiKey" type="password" placeholder="để trống cũng được"></label>
+    <div class="muted" style="margin-top:6px">Key EulerStream (tuỳ chọn — không có vẫn kết nối được, chỉ bị giới hạn số lần kết nối mỗi giờ)</div>
+    <div class="btns" style="align-items:center">
+      <input id="apiKey" type="password" placeholder="Dán key vào đây — để trống cũng được" autocomplete="off" style="flex:1;min-width:200px">
+      <button id="btnKeyShow" title="Hiện / ẩn key">👁</button>
+      <button class="pri" id="btnKeySave">💾 Lưu key</button>
+      <button id="btnKeyClear" title="Xoá key đã lưu">Xoá</button>
+    </div>
+    <div class="muted" id="keyMsg" style="margin-top:4px"></div>
+    <label><span>Tự kết nối lại khi rớt mạng</span><input type="checkbox" class="switch" id="autoReconnect"></label>
     <div class="btns"><button class="pri" id="btnConnect">Kết nối</button><button id="btnDisconnect">Ngắt</button></div>
-    <label><span>Từ cấm (cách nhau dấu phẩy)</span><input id="banned" type="text" placeholder="từ1, từ2" style="width:200px"></label>
-    <p class="muted">Không cần key bản quyền. Key EulerStream chỉ để giảm giới hạn số lần kết nối mỗi giờ.</p>
+    <div class="stats" id="room" style="margin-top:10px"></div>
   </section>
 
   <section>
     <h2>2. Đưa lên LIVE</h2>
-    <p><b>OBS</b>: Browser source, 1080 × 1920, bật <i>Control audio via OBS</i><br><code id="obsUrl">http://localhost:3310/live.html?obs=1</code></p>
-    <p><b>Điện thoại / LIVE Studio</b> (cùng Wi-Fi):<br><span id="lanUrls" class="muted">…</span></p>
+    <div id="links"></div>
+    <div class="btns"><button class="pri" id="btnOpenLive">🪟 Mở màn hình LIVE trong cửa sổ riêng</button></div>
+    <div class="muted" id="openMsg"></div>
+    <details style="margin:10px 0"><summary style="cursor:pointer;font-weight:600">Hướng dẫn từng phần mềm</summary>
+      <ul class="muted" style="padding-left:18px">
+        <li><b>OBS:</b> Sources → + → <b>Browser</b> → dán link "OBS", 1080 × 1920, bật <i>Control audio via OBS</i>.</li>
+        <li><b>TikTok LIVE Studio:</b> Thêm nguồn → <b>Liên kết</b> → dán link "LIVE Studio" (127.0.0.1). Không nhận thì dán link mạng LAN. Vẫn không được: bấm <b>Mở màn hình LIVE trong cửa sổ riêng</b> rồi trong LIVE Studio chọn <b>Chụp cửa sổ / Window Capture</b> → chọn cửa sổ "Thắp Sáng Quê Hương".</li>
+        <li><b>LIVE bằng điện thoại:</b> điện thoại cùng Wi-Fi mở link "Điện thoại", rồi dùng tính năng chiếu màn hình / livestream màn hình.</li>
+        <li>Windows hỏi tường lửa lần đầu chạy: bấm <b>Cho phép</b> (cả mạng riêng tư) để điện thoại / LIVE Studio vào được link LAN.</li>
+      </ul>
+    </details>
     <div class="stats" id="stats"></div>
+  </section>
+
+  <section>
+    <h2>🚫 Bộ lọc từ</h2>
+    <div class="muted">Mỗi từ cách nhau dấu phẩy hoặc xuống dòng. Bình luận có từ cấm sẽ không được tính, tên có từ cấm hiện là “Khách ẩn danh”. Link, số điện thoại, Zalo luôn bị chặn.</div>
+    <textarea id="banned" placeholder="ví dụ: từ cấm 1, từ cấm 2" style="width:100%;min-height:90px;margin-top:8px;background:#0d1030;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit"></textarea>
+    <label><span>Chặn sẵn từ chửi thề phổ biến (tên bị che bằng ***)</span><input type="checkbox" class="switch" id="blockSwear"></label>
+    <div class="btns"><button class="pri" id="btnBanned">💾 Lưu bộ lọc</button><span class="muted" id="bannedMsg" style="align-self:center"></span></div>
   </section>
 
   <section>
@@ -153,13 +177,43 @@
 <script>
 const $ = id => document.getElementById(id);
 const socket = io();
+const fmt = n => Math.round(n || 0).toLocaleString('vi-VN');
+document.addEventListener('click', e => { const u = e.target.dataset && e.target.dataset.copy; if (!u) return; const done = () => { e.target.textContent = '✓ Đã chép'; setTimeout(() => e.target.textContent = '📋 Chép', 1500); }; if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(u).then(done); else { const t = document.createElement('textarea'); t.value = u; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); done(); } });
 let CFG = {};
 socket.on('connect', () => { socket.emit('hello'); socket.emit('vm:hello', 'ctl'); });
-socket.on('settings', s => { if (document.activeElement !== $('banned')) $('banned').value = s.bannedWords || ''; if (document.activeElement !== $('username')) $('username').value = s.username || ''; if (document.activeElement !== $('apiKey')) $('apiKey').value = s.apiKey || ''; });
+let keyDirty = false, keySavedAt = 0;
+socket.on('settings', s => {
+  if (document.activeElement !== $('banned')) $('banned').value = s.bannedWords || '';
+  if (document.activeElement !== $('username')) $('username').value = s.username || '';
+  if (document.activeElement !== $('apiKey') && !keyDirty) $('apiKey').value = s.apiKey || '';
+  if (!keyDirty && Date.now() - keySavedAt > 3000) $('keyMsg').textContent = s.apiKey ? '✓ Đã có key' : 'Chưa có key';
+  $('autoReconnect').checked = s.autoReconnect !== false;
+  $('blockSwear').checked = s.blockSwear !== false;
+});
+$('apiKey').oninput = () => { keyDirty = true; $('keyMsg').textContent = 'Chưa lưu — bấm “Lưu key”'; };
+$('btnKeyShow').onclick = () => { const i = $('apiKey'); i.type = i.type === 'password' ? 'text' : 'password'; };
+function saveKey(v) {
+  socket.emit('saveSettings', { apiKey: v.trim() }); keyDirty = false; keySavedAt = Date.now();
+  $('keyMsg').textContent = v.trim() ? '✓ Đã lưu key — lần kết nối sau sẽ dùng key này' : '✓ Đã xoá key';
+}
+$('btnKeySave').onclick = () => saveKey($('apiKey').value);
+$('btnKeyClear').onclick = () => { $('apiKey').value = ''; saveKey(''); };
+$('apiKey').onkeydown = e => { if (e.key === 'Enter') saveKey($('apiKey').value); };
+$('autoReconnect').onchange = () => socket.emit('saveSettings', { autoReconnect: $('autoReconnect').checked });
+$('username').onchange = () => socket.emit('saveSettings', { username: $('username').value });
+socket.on('roomStats', r => {
+  $('room').innerHTML = [[fmt(r.viewers), 'người xem'], [fmt(r.likes), 'tim'], [fmt(r.gifts), 'lượt quà']].map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('');
+});
+$('btnOpenLive').onclick = async () => {
+  const m = $('openMsg'); m.textContent = 'Đang mở…';
+  try { const r = await (await fetch('/api/open-live', { method: 'POST' })).json(); m.textContent = r.ok ? '✓ Đã mở bằng ' + r.browser + ' — dùng Window Capture để thu cửa sổ này' : '⚠ ' + r.error; }
+  catch (e) { m.textContent = '⚠ Không mở được'; }
+};
 socket.on('connState', c => { $('conn').textContent = c.text; $('conn').className = 'status ' + c.status; });
 $('btnConnect').onclick = () => socket.emit('connect-tiktok', { username: $('username').value, apiKey: $('apiKey').value });
 $('btnDisconnect').onclick = () => socket.emit('disconnect-tiktok');
-$('banned').onchange = () => socket.emit('saveSettings', { bannedWords: $('banned').value });
+$('btnBanned').onclick = () => { socket.emit('saveSettings', { bannedWords: $('banned').value, blockSwear: $('blockSwear').checked }); $('bannedMsg').textContent = '✓ Đã lưu'; setTimeout(() => $('bannedMsg').textContent = '', 2000); };
+$('blockSwear').onchange = () => socket.emit('saveSettings', { blockSwear: $('blockSwear').checked });
 // nhạc nền
 function renderMusic(list) {
   $('music').innerHTML = list.length ? list.map(f => `<div style="display:flex;justify-content:space-between;gap:8px;margin:3px 0"><span>🎵 ${f.replace(/</g, '&lt;')}</span><button data-del-music="${encodeURIComponent(f)}" style="padding:2px 8px">✕</button></div>`).join('') : 'Chưa có bài nào.';
@@ -170,8 +224,9 @@ $('musicFile').onchange = () => { const fd = new FormData(); for (const f of $('
 
 fetch('/api/info').then(r => r.json()).then(i => {
   $('ver').textContent = 'bản ' + i.version;
-  $('obsUrl').textContent = `http://localhost:${i.port}/live.html?obs=1`;
-  $('lanUrls').innerHTML = (i.ips || []).map(ip => `<code>http://${ip}:${i.port}/live.html</code>`).join('<br>') || 'Không tìm thấy mạng LAN';
+  const p = i.port, list = [['OBS (máy này)', `http://localhost:${p}/live.html?obs=1`], ['TikTok LIVE Studio (máy này)', `http://127.0.0.1:${p}/live.html?obs=1`]];
+  for (const ip of i.ips || []) list.push(['LIVE Studio nếu link trên không nhận (mạng LAN)', `http://${ip}:${p}/live.html?obs=1`], ['Điện thoại cùng Wi-Fi', `http://${ip}:${p}/live.html`]);
+  $('links').innerHTML = list.map(([t, u]) => `<div style="margin:8px 0"><div class="muted">${t}</div><div style="display:flex;gap:6px;align-items:center"><code style="flex:1">${u}</code><button data-copy="${u}" style="padding:4px 10px">📋 Chép</button></div></div>`).join('');
 });
 
 // giao diện
@@ -220,7 +275,6 @@ $('sayText').onkeydown = e => { if (e.key === 'Enter') $('sayBtn').click(); };
 document.querySelectorAll('[data-test]').forEach(b => b.onclick = () => socket.emit('vm:test', { kind: b.dataset.test, n: +b.dataset.n || undefined, value: +b.dataset.v || undefined }));
 
 // thống kê
-const fmt = n => Math.round(n || 0).toLocaleString('vi-VN');
 socket.on('vm:stats', s => {
   $('stats').innerHTML = [[`${s.lit}/${s.total}`, 'tỉnh đã sáng'], [fmt(s.people), 'người thắp đèn'], [fmt(s.comments), 'bình luận'], [fmt(s.coins), 'xu'], [fmt(s.returning), 'người quen quay lại'], [s.screens, 'màn hình đang mở']]
     .map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('');

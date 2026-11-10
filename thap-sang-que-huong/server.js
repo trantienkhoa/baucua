@@ -21,21 +21,56 @@ function writeJSON(file, obj) {
 }
 
 // cài đặt kết nối (tên kênh, key EulerStream)
-const settings = Object.assign({ username: '', apiKey: '', autoReconnect: true, bannedWords: '' }, readJSON('connection.json', {}));
+const settings = Object.assign({ username: '', apiKey: '', autoReconnect: true, bannedWords: '', blockSwear: true }, readJSON('connection.json', {}));
 const saveSettings = () => writeJSON('connection.json', settings);
 
-// ---------- lọc chữ ----------
+// ---------- lọc chữ (giống game sàn nhảy) ----------
+// link, số điện thoại, Zalo luôn bị chặn; danh sách từ cấm do chủ phòng tự nhập
 const LINK_RE = /(https?:\/\/|www\.|\b[\w-]+\.(com|net|vn|org|io|xyz|me|link|shop|store|online|site|top|info)\b)/i;
 const PHONE_RE = /(\+?84|0)[\s.\-]?\d([\s.\-]?\d){7,9}/;
 const ZALO_RE = /\b(zalo|za1o|zl|telegram|tele|fb\.com|facebook)\b/i;
+function bannedList() {
+  return String(settings.bannedWords || '').split(/[,\n]/).map(s => s.trim().toLowerCase()).filter(Boolean);
+}
 function cleanText(t, max = 60) {
   t = String(t || '').replace(/[\u0000-\u001f]/g, '').trim();
   if (LINK_RE.test(t) || PHONE_RE.test(t) || ZALO_RE.test(t)) return null;
   const low = t.toLowerCase();
-  for (const w of String(settings.bannedWords || '').split(/[,\n]/).map(s => s.trim().toLowerCase()).filter(Boolean)) if (low.includes(w)) return null;
+  for (const w of bannedList()) if (w && low.includes(w)) return null;
+  if (settings.blockSwear && cleanBad(t).hit) return null;
   return t.slice(0, max);
 }
-const cleanName = u => cleanText(u.nickname, 24) || cleanText(u.uniqueId, 24) || 'Khách ẩn danh';
+// tên chứa từ chửi thề: che bằng dấu * thay vì bỏ hẳn
+function cleanName(u) {
+  const raw = [u.nickname, u.uniqueId].map(x => String(x || '').replace(/[\u0000-\u001f]/g, '').trim()).find(Boolean) || '';
+  if (!raw || LINK_RE.test(raw) || PHONE_RE.test(raw) || ZALO_RE.test(raw)) return 'Khách ẩn danh';
+  const low = raw.toLowerCase(); for (const w of bannedList()) if (w && low.includes(w)) return 'Khách ẩn danh';
+  return (settings.blockSwear ? cleanBad(raw).text : raw).slice(0, 24) || 'Khách ẩn danh';
+}
+
+// bộ lọc chửi thề có sẵn (lấy từ game sàn nhảy)
+// so khớp CÓ DẤU (tránh chặn nhầm "ngủ", "lớn", "các", "buổi") và BỎ DẤU cho kiểu viết tắt
+const BAD_ACC = ['ngu', 'lồn', 'cặc', 'buồi', 'địt', 'đĩ', 'đụ', 'đù má', 'đụ má', 'súc vật', 'óc chó', 'thằng chó', 'con chó', 'mẹ mày', 'má mày', 'cave'];
+const BAD_FLAT = ['dm', 'dmm', 'dcm', 'dkm', 'vcl', 'vkl', 'vl', 'vcc', 'clm', 'cmm', 'cc', 'loz', 'lol', 'fuck', 'fck', 'fucking', 'shit', 'bitch', 'dit me', 'dit cu', 'du ma', 'deo', 'dek'];
+const deacc = t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+const esc = w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+');
+const mkRe = list => new RegExp('(^|[^\\p{L}\\p{N}])(' + list.map(esc).join('|') + ')(?=$|[^\\p{L}\\p{N}])', 'giu');
+const RE_ACC = mkRe(BAD_ACC.map(w => w.normalize('NFC'))), RE_FLAT = mkRe(BAD_FLAT);
+function cleanBad(text) {
+  const src = [...text.normalize('NFC')];
+  const low = src.map(ch => ch.toLowerCase()).map(c => [...c][0] || ' ').join('');
+  const flat = src.map(ch => deacc(ch)[0] || ' ').join('');
+  let hit = false; const out = src.slice();
+  for (const [str, re] of [[low, RE_ACC], [flat, RE_FLAT]]) {
+    re.lastIndex = 0;
+    str.replace(re, (m, pre, w, off) => {
+      hit = true; const a = [...str.slice(0, off + pre.length)].length, n = [...w].length;
+      for (let k = a; k < a + n; k++) if (out[k] !== ' ') out[k] = '*';
+      return m;
+    });
+  }
+  return { text: out.join(''), hit };
+}
 
 // ---------- trích dữ liệu sự kiện TikTok ----------
 function findUrl(obj, depth = 0) {
@@ -112,7 +147,13 @@ function setState(status, text) {
   io.emit('connState', connState);
   console.log('[TikTok]', text);
 }
-const emit = ev => vnmap.hook(ev);
+const stats = { viewers: 0, comments: 0, likes: 0, gifts: 0, coins: 0 };
+const emit = ev => {
+  if (ev.type === 'chat') stats.comments++;
+  else if (ev.type === 'like') stats.likes += ev.count || 1;
+  else if (ev.type === 'gift') { stats.gifts += ev.count || 1; stats.coins += ev.value || 0; }
+  vnmap.hook(ev);
+};
 
 // quà tặng theo chuỗi (combo): chỉ tính 1 lần khi bắt đầu để màn hình phản ứng ngay, phần còn lại khi kết thúc
 const pendingStreaks = new Map();
@@ -145,6 +186,7 @@ function attach(c) {
   on(WebcastEvent.MEMBER, d => emit({ type: 'member', user: pickUser(d) }));
   on(WebcastEvent.FOLLOW, d => emit({ type: 'follow', user: pickUser(d) }));
   on(WebcastEvent.SHARE, d => emit({ type: 'share', user: pickUser(d) }));
+  on(WebcastEvent.ROOM_USER, d => { stats.viewers = Number(d.viewerCount || d.total || d.totalUser || stats.viewers) || 0; });
   c.on(WebcastEvent.STREAM_END, () => { setState('ended', 'Phiên LIVE đã kết thúc'); manualStop = true; });
   const onDisc = () => { if (manualStop) return; setState('reconnecting', 'Mất kết nối — đang thử lại…'); scheduleReconnect(); };
   if (ControlEvent && ControlEvent.DISCONNECTED) c.on(ControlEvent.DISCONNECTED, onDisc); else c.on('disconnected', onDisc);
@@ -211,23 +253,58 @@ async function disconnectTikTok() {
   setState('idle', 'Đã ngắt kết nối');
 }
 
+const publicSettings = () => ({ username: settings.username, apiKey: settings.apiKey, bannedWords: settings.bannedWords, autoReconnect: settings.autoReconnect, blockSwear: settings.blockSwear });
+
+// mở màn hình LIVE bằng Chrome/Edge (cửa sổ riêng, tự phát tiếng) — dùng cho Window Capture của TikTok LIVE Studio / OBS
+function findBrowser() {
+  const c = [];
+  if (process.platform === 'win32') {
+    for (const base of [process.env['ProgramFiles(x86)'], process.env.ProgramFiles, process.env.LOCALAPPDATA].filter(Boolean)) {
+      c.push(path.join(base, 'Google', 'Chrome', 'Application', 'chrome.exe'), path.join(base, 'Microsoft', 'Edge', 'Application', 'msedge.exe'));
+    }
+  } else if (process.platform === 'darwin') {
+    c.push('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', '/Applications/Chromium.app/Contents/MacOS/Chromium');
+  } else {
+    for (const d of (process.env.PATH || '').split(':')) for (const n of ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'microsoft-edge']) c.push(path.join(d, n));
+  }
+  return c.find(f => { try { return fs.statSync(f).isFile(); } catch { return false; } }) || null;
+}
+app.post('/api/open-live', (req, res) => {
+  const ip = req.socket.remoteAddress || '';
+  if (!/^(::1|127\.|::ffff:127\.)/.test(ip)) return res.status(403).json({ ok: false, error: 'Chỉ mở được từ chính máy chạy game.' });
+  const exe = findBrowser();
+  if (!exe) return res.json({ ok: false, error: 'Không tìm thấy Chrome hoặc Edge trên máy.' });
+  const url = `http://127.0.0.1:${PORT}/live.html?obs=1`;
+  try {
+    const child = require('child_process').spawn(exe, ['--autoplay-policy=no-user-gesture-required', `--user-data-dir=${path.join(DATA, 'browser-live')}`, '--no-first-run', '--no-default-browser-check', '--window-size=560,1000', `--app=${url}`], { detached: true, stdio: 'ignore' });
+    child.on('error', () => {}); child.unref();
+    res.json({ ok: true, browser: path.basename(exe) });
+  } catch (e) { res.json({ ok: false, error: String(e.message || e) }); }
+});
+
+// trạng thái phòng cho trang điều khiển
+setInterval(() => io.emit('roomStats', { ...stats, ram: Math.round(process.memoryUsage().rss / 1048576) }), 2000);
+
 // ---------- socket ----------
 io.on('connection', socket => {
   vnmap.onConnection(socket);
   socket.on('hello', () => {
-    socket.emit('settings', { username: settings.username, apiKey: settings.apiKey, bannedWords: settings.bannedWords });
+    socket.emit('settings', publicSettings());
     socket.emit('connState', connState);
     socket.emit('music', musicList());
   });
   socket.on('saveSettings', s => {
     if (!s || typeof s !== 'object') return;
     for (const k of ['username', 'apiKey', 'bannedWords']) if (typeof s[k] === 'string') settings[k] = s[k].trim();
-    saveSettings();
+    if ('autoReconnect' in s) settings.autoReconnect = !!s.autoReconnect;
+    if ('blockSwear' in s) settings.blockSwear = !!s.blockSwear;
+    settings.username = settings.username.replace(/^@/, '');
+    saveSettings(); io.emit('settings', publicSettings());
   });
   socket.on('connect-tiktok', ({ username, apiKey } = {}) => {
     if (typeof username === 'string') settings.username = username.replace(/^@/, '').trim();
     if (typeof apiKey === 'string') settings.apiKey = apiKey.trim();
-    saveSettings(); connectTikTok(true);
+    saveSettings(); io.emit('settings', publicSettings()); connectTikTok(true);
   });
   socket.on('disconnect-tiktok', () => disconnectTikTok());
 });
@@ -236,7 +313,8 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('\n  🏮 Thắp Sáng Quê Hương đã chạy');
   console.log(`  Trang điều khiển : http://localhost:${PORT}/admin.html`);
   console.log(`  Màn hình LIVE    : http://localhost:${PORT}/live.html?obs=1`);
-  for (const ip of lanIPs()) console.log(`  Trong mạng LAN   : http://${ip}:${PORT}/live.html`);
+  console.log(`  LIVE Studio      : http://127.0.0.1:${PORT}/live.html?obs=1`);
+  for (const ip of lanIPs()) console.log(`  Trong mạng LAN   : http://${ip}:${PORT}/live.html?obs=1`);
   console.log('');
 });
 server.on('error', e => {

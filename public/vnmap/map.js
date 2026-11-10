@@ -66,6 +66,9 @@
     const r = document.documentElement.style;
     r.setProperty('--accent', T.accent); r.setProperty('--accent2', T.accent2); r.setProperty('--text', T.text); r.setProperty('--sub', T.sub);
     r.setProperty('--panel', T.panel); r.setProperty('--border', T.border); r.setProperty('--font', T.font);
+    const hexA = (h, a) => { const n = parseInt(h.slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; };
+    for (const a of [30, 40, 50, 60]) r.setProperty('--accent-a' + a, hexA(T.accent, a / 100));
+    r.setProperty('--t2-a45', hexA(T.title[1], 0.45));
     r.setProperty('--t1', T.title[0]); r.setProperty('--t2', T.title[1]); r.setProperty('--t3', T.title[2]);
     $('title').classList.toggle('it', !!T.italic);
     buildBg(); bgItems = []; mapSig = '';
