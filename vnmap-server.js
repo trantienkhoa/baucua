@@ -115,7 +115,7 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
   function gainXp(user, pts, prov) {
     const f = fans[user.id]; if (!f) return;
     const before = levelOf(f.xp || 0); f.xp = (f.xp || 0) + pts; const after = levelOf(f.xp);
-    if (after > before && after >= 2) fx('levelUp', { user: userCard(user), level: after, title: VN.titleOf(after), prov: (S.users[user.id] && S.users[user.id].prov) || prov });
+    if (after > before && after >= 2) fx('levelUp', { user: userCard(user), level: after, title: VN.rankName(after, (S.users[user.id] && S.users[user.id].prov) || prov), prov: (S.users[user.id] && S.users[user.id].prov) || prov });
     fansDirty = true;
   }
   const lvOf = uid => levelOf((fans[uid] && fans[uid].xp) || 0);

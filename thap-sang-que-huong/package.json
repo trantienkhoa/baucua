@@ -1,6 +1,6 @@
 {
   "name": "thap-sang-que-huong",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Game TikTok LIVE thắp sáng bản đồ Việt Nam 34 tỉnh thành - tự chạy trên máy, không cần key bản quyền",
   "main": "server.js",
   "scripts": {

@@ -84,7 +84,7 @@
   .fi .pt { color:var(--accent2); font-weight:900; }
   /* chức vụ */
   .rank { display:inline-block; padding:0 8px; border-radius:10px; background:var(--accent-a30); color:var(--accent); font-weight:900; font-size:.85em; white-space:nowrap; }
-  .ranks { display:grid; grid-template-columns:1fr 1fr; column-gap:10px; }
+  .ranks { display:grid; grid-template-columns:1fr; }
   .ranks div { display:flex; justify-content:space-between; font-size:16px; font-weight:700; padding:2px 0; border-bottom:1px solid rgba(255,255,255,.06); }
   .ranks b { color:var(--accent); font-variant-numeric:tabular-nums; }
   .offs { margin-top:6px; display:flex; flex-direction:column; gap:4px; }
@@ -119,6 +119,21 @@
   .vs .sd { flex:1; font-size:23px; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .vs .tug { flex:1.2; height:18px; border-radius:10px; background:#3a6bff; overflow:hidden; position:relative; }
   .vs .tug i { position:absolute; left:0; top:0; bottom:0; background:#ff3d5a; transition:width .5s; }
+  /* màn chúc mừng cả nước rực sáng */
+  #grand { inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; z-index:15; padding-bottom:200px; }
+  #grand .gstar { position:absolute; font-size:520px; line-height:1; color:#ffd23d; opacity:.18; animation:gspin 8s linear infinite, gpulse 1.2s ease-in-out infinite; text-shadow:0 0 80px #ff3b3b; }
+  #grand .gw { display:inline-block; white-space:nowrap; }
+  #grand .gh { position:relative; font-size:92px; font-weight:900; text-align:center; line-height:1.1; max-width:760px; filter:drop-shadow(0 6px 0 rgba(0,0,0,.4)) drop-shadow(0 0 30px rgba(255,60,60,.8)); }
+  #grand .gh span { display:inline-block; background:linear-gradient(180deg,#fff7d0,#ffd23d 50%,#ff5a2a); -webkit-background-clip:text; background-clip:text; color:transparent; animation:gletter .7s cubic-bezier(.2,1.8,.4,1) both, gwave 1.6s ease-in-out .8s infinite; }
+  #grand .gav .av { width:140px; height:140px; font-size:56px; margin:18px auto 0; border-width:5px; }
+  #grand .gs { position:relative; margin-top:16px; font-size:36px; font-weight:800; text-align:center; text-shadow:0 3px 8px rgba(0,0,0,.7); padding:10px 30px; border-radius:40px; background:rgba(0,0,0,.35); }
+  #grand .gs b { color:#ffd23d; }
+  #grand.off { animation:goff .8s forwards; }
+  @keyframes gletter { from { transform:translateY(-200px) scale(2); opacity:0 } }
+  @keyframes gwave { 50% { transform:translateY(-12px) } }
+  @keyframes gspin { to { transform:rotate(360deg) } }
+  @keyframes gpulse { 50% { opacity:.3 } }
+  @keyframes goff { to { opacity:0; transform:scale(1.15) } }
   /* tổng kết */
   #summary { inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.6); backdrop-filter:blur(6px); z-index:20; }
   #summary .card { width:900px; border-radius:36px; padding:40px; background:var(--panel); border:3px solid var(--accent); text-align:center; box-shadow:0 0 80px var(--accent-a40); animation:bnIn .8s cubic-bezier(.2,1.4,.4,1); }
@@ -160,6 +175,7 @@
     <div id="podium"></div>
     <div id="mcTag">🎙 MC đọc bằng giọng AI</div>
   </div>
+  <div id="grand" class="abs"></div>
   <div id="summary" class="abs"></div>
 </div>
 <div id="tap">🔊 Bấm vào màn hình để bật nhạc và giọng MC</div>

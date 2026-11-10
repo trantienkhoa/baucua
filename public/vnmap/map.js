@@ -12,7 +12,7 @@
   const rnd = (a, b) => a + Math.random() * (b - a);
   const fmt = n => Math.round(n).toLocaleString('vi-VN');
   // chức vụ: "🏮 Tri huyện Huế"
-  const rankTxt = (lv, prov) => lv > 1 ? `${VN.iconOf(lv)} ${VN.titleOf(lv)}${prov ? ' ' + pname(prov) : ''}` : '';
+  const rankTxt = (lv, prov) => lv > 1 ? `${VN.iconOf(lv)} ${VN.rankName(lv, prov)}` : '';
   const rankHTML = (lv, prov) => lv > 1 ? `<span class="rank">${esc(rankTxt(lv, prov))}</span> ` : '';
 
   // ---------- co giãn sân khấu ----------
@@ -325,7 +325,7 @@
     flash[id] = performance.now();
     const [x, y] = provPoint(id);
     if (pts > 0) { fxList.push({ k: 'num', x, y: y - 10, text: '+' + fmt(pts), life: 0, max: 1.7, big: strong }); pointSound(pts); }
-    if (CFG.zoomOn === false) return;
+    if (CFG.zoomOn === false || performance.now() < showUntil) return;
     const z = Math.max(1.2, +CFG.zoomScale || 2.2);
     CAM.tx = x; CAM.ty = y; CAM.tz = strong ? z : 1 + (z - 1) * 0.75; CAM.until = performance.now() + (strong ? 2800 : 1700);
   }
@@ -364,6 +364,65 @@
     tick();
     ORDER.forEach((id, i) => setTimeout(() => { flash[id] = performance.now(); if (i % (lite() ? 4 : 2) === 0) hit(id, false); }, i * 90));
     sfx.fanfare();
+  }
+  // ---------- màn pháo hoa lớn: cả nước rực sáng / hoàn thành mùa ----------
+  let showUntil = 0, flashA = 0, shakeT = 0;
+  const FW_COLORS = ['#ff3b3b', '#ffd23d', '#ffffff', '#3dff8a', '#3db8ff', '#ff5ad1', '#ff8a2a', '#b07bff'];
+  function grandShow(seconds, head, sub, user) {
+    const n0 = performance.now(), end = n0 + seconds * 1000;
+    showUntil = Math.max(showUntil, end); CAM.until = 0;
+    $('banner').innerHTML = ''; bnBusy = false;   // dẹp băng-rôn thường để màn chúc mừng nổi bật
+    const gap = lite() ? 700 : 330;
+    const launch = () => {
+      const n = performance.now(); if (n > end) return;
+      const finale = end - n < 2600;
+      for (let i = 0; i < (finale ? (lite() ? 2 : 5) : 1); i++) rocket();
+      setTimeout(launch, finale ? 280 : gap * (0.6 + Math.random() * 0.8));
+    };
+    launch(); confetti(Math.min(8, seconds));
+    ORDER.forEach((id, i) => setTimeout(() => { flash[id] = performance.now(); }, i * 70));
+    applause(Math.min(6, seconds)); sfx.fanfare();
+    if (!head && sub && $('grand').style.display === 'flex') { const gs = $('grand').querySelector('.gs'); if (gs) gs.innerHTML = sub; }
+    if (head) {
+      const el = $('grand');
+      let k = 0;
+      const words = head.split(' ').map(w => `<span class="gw">${[...w].map(ch => `<span style="animation-delay:${(k++) * 0.05}s">${esc(ch)}</span>`).join('')}</span>`).join(' ');
+      el.innerHTML = `<div class="gstar">★</div><div class="gh">${words}</div>${user ? `<div class="gav">${avatarHTML(user)}</div>` : ''}<div class="gs">${sub || ''}</div>`;
+      el.classList.remove('off'); el.style.display = 'flex';
+      clearTimeout(grandShow.t); grandShow.t = setTimeout(() => { el.classList.add('off'); setTimeout(() => { el.style.display = 'none'; }, 800); }, Math.min(9000, seconds * 1000));
+    }
+  }
+  function rocket() {
+    const x = rnd(90, W - 90), ty = rnd(260, 900), c = FW_COLORS[Math.floor(Math.random() * FW_COLORS.length)];
+    const type = ['peony', 'peony', 'ring', 'willow', 'star', 'glitter', 'heart', 'double'][Math.floor(Math.random() * 8)];
+    fxList.push({ k: 'rocket', x, y: H + 10, vx: rnd(-40, 40), vy: -Math.sqrt(2 * 520 * (H - ty)), ty, c, type, life: 0, max: 4 });
+    sfx.whistle();
+  }
+  function explode(x, y, c, type) {
+    const m = lite() ? 0.45 : 1, add = (vx, vy, o) => fxList.push(Object.assign({ k: 'fw', x, y, vx, vy, life: 0, max: rnd(1.1, 1.8), c, r: rnd(2, 3.6), drag: 0.975, g: 90 }, o));
+    if (type === 'ring' || type === 'double') { const n = Math.round(64 * m); for (let i = 0; i < n; i++) { const a = i / n * 6.283; add(Math.cos(a) * 300, Math.sin(a) * 300); } }
+    if (type === 'double') { const c2 = FW_COLORS[Math.floor(Math.random() * FW_COLORS.length)], n = Math.round(40 * m); for (let i = 0; i < n; i++) { const a = i / n * 6.283; add(Math.cos(a) * 160, Math.sin(a) * 160, { c: c2 }); } }
+    if (type === 'peony') { const n = Math.round(110 * m); for (let i = 0; i < n; i++) { const a = rnd(0, 6.283), v = rnd(60, 360); add(Math.cos(a) * v, Math.sin(a) * v); } }
+    if (type === 'willow') { const n = Math.round(90 * m); for (let i = 0; i < n; i++) { const a = rnd(0, 6.283), v = rnd(80, 300); add(Math.cos(a) * v, Math.sin(a) * v, { c: '#ffd36b', max: rnd(2.2, 3.2), drag: 0.955, g: 45, r: 2.2 }); } }
+    if (type === 'glitter') { const n = Math.round(100 * m); for (let i = 0; i < n; i++) { const a = rnd(0, 6.283), v = rnd(60, 320); add(Math.cos(a) * v, Math.sin(a) * v, { c: '#ffffff', glit: true, max: rnd(1.6, 2.4) }); } }
+    if (type === 'star') {   // ngôi sao vàng năm cánh
+      const pts = []; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 0.42 : 1; pts.push([Math.cos(a) * r, Math.sin(a) * r]); }
+      const per = Math.round(12 * m);
+      for (let i = 0; i < 10; i++) { const [ax, ay] = pts[i], [bx, by] = pts[(i + 1) % 10]; for (let k = 0; k < per; k++) { const f = k / per; add((ax + (bx - ax) * f) * 330, (ay + (by - ay) * f) * 330, { c: '#ffd23d', g: 30, drag: 0.97 }); } }
+      for (let i = 0; i < 30 * m; i++) { const a = rnd(0, 6.283), v = rnd(20, 90); add(Math.cos(a) * v, Math.sin(a) * v, { c: '#ff3b3b' }); }
+    }
+    if (type === 'heart') { const n = Math.round(80 * m); for (let i = 0; i < n; i++) { const t = i / n * 6.283; add(16 * Math.pow(Math.sin(t), 3) * 17, -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) * 17, { c: '#ff5a8a', g: 30, drag: 0.97 }); } }
+    flashA = Math.min(0.45, flashA + 0.18); shakeT = 0.25;
+    sfx.boom(); if (Math.random() < 0.6) sfx.crackle(0.4);
+  }
+  function confetti(sec) {
+    const end = performance.now() + sec * 1000;
+    const tick = () => { if (performance.now() > end) return; for (let i = 0; i < (lite() ? 2 : 6); i++) fxList.push({ k: 'conf', x: rnd(0, W), y: -20, vx: rnd(-40, 40), vy: rnd(120, 260), life: 0, max: 9, rot: rnd(0, 6), vr: rnd(-6, 6), c: FW_COLORS[Math.floor(Math.random() * FW_COLORS.length)] }); setTimeout(tick, 120); };
+    tick();
+  }
+  function applause(sec) {   // tiếng vỗ tay reo hò
+    const ac = audioCtx(); if (!ac || ac.state !== 'running') return;
+    for (let i = 0; i < sec * (lite() ? 14 : 28); i++) { const t = Math.random() * sec, fade = 1 - t / sec; noise(0.03 + Math.random() * 0.03, (0.05 + Math.random() * 0.07) * fade, 900 + Math.random() * 1800, t); }
   }
   function flashScreen() {   // chớp sáng khi đổi giao diện
     const el = document.createElement('div'); el.style.cssText = 'position:absolute;inset:0;background:#fff;opacity:.85;z-index:30;transition:opacity .9s;pointer-events:none';
@@ -417,6 +476,20 @@
         const s = 70 * (1 - p) + 18; ctx.globalAlpha = 1 - p * 0.6; ctx.strokeStyle = f.c; ctx.lineWidth = 3;
         for (const [dx, dy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { ctx.beginPath(); ctx.moveTo(f.x + dx * s, f.y + dy * s * 0.5); ctx.lineTo(f.x + dx * s, f.y + dy * s); ctx.lineTo(f.x + dx * s * 0.5, f.y + dy * s); ctx.stroke(); }
         ctx.font = `800 16px ${T.font}`; ctx.fillStyle = f.c; ctx.textAlign = 'center'; ctx.fillText('ĐÃ KHÓA', f.x, f.y - s - 6);
+      } else if (f.k === 'rocket') {
+        f.vy += 520 * dt; f.x += f.vx * dt; f.y += f.vy * dt;
+        if (!lite()) fxList.push({ k: 'fw', x: f.x, y: f.y, vx: rnd(-20, 20), vy: rnd(20, 60), life: 0, max: 0.5, c: '#ffcf8a', r: 2, drag: 0.9, g: 40 });
+        ctx.globalAlpha = 1; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(f.x, f.y, 3.5, 0, 7); ctx.fill();
+        if (f.vy >= -40 || f.y <= f.ty) { f.life = f.max; explode(f.x, f.y, f.c, f.type); }
+      } else if (f.k === 'fw') {
+        const px = f.x, py = f.y;
+        f.vx *= Math.pow(f.drag, dt * 60); f.vy = f.vy * Math.pow(f.drag, dt * 60) + f.g * dt; f.x += f.vx * dt; f.y += f.vy * dt;
+        let a = 1 - p * p; if (f.glit) a *= Math.random() < 0.5 ? 1 : 0.15;
+        ctx.globalAlpha = a; ctx.strokeStyle = f.c; ctx.lineWidth = f.r; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(px - (f.x - px) * 2.5, py - (f.y - py) * 2.5); ctx.lineTo(f.x, f.y); ctx.stroke();
+      } else if (f.k === 'conf') {
+        f.x += f.vx * dt + Math.sin(f.life * 3 + f.rot) * 0.8; f.y += f.vy * dt; f.rot += f.vr * dt; if (f.y > H + 20) f.life = f.max;
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 0.95; ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.rot); ctx.scale(1, Math.abs(Math.cos(f.life * 5 + f.rot))); ctx.fillStyle = f.c; ctx.fillRect(-6, -3.5, 12, 7); ctx.restore();
       } else if (f.k === 'num') {
         const pop = p < 0.15 ? 0.6 + p / 0.15 * 0.6 : 1.2 - Math.min(0.2, (p - 0.15));
         ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = p > 0.7 ? (1 - p) / 0.3 : 1;
@@ -537,7 +610,7 @@
     if (!showRanks) { ph.textContent = 'Bảng điểm thắp đèn'; $('tiers').innerHTML = tiersHTML; return; }
     ph.textContent = 'Chức vụ của tỉnh';
     const off = (S && S.officials) || [];
-    $('tiers').innerHTML = `<div class="ranks">${VN.TITLES.map((t, i) => `<div><span>${VN.iconOf(i + 1)} ${esc(t)}</span><b>${fmt(VN.xpFor(i + 1))}</b></div>`).join('')}</div>`
+    $('tiers').innerHTML = `<div class="ranks">${VN.TITLES.map((t, i) => `<div><span>${VN.iconOf(i + 1)} ${esc(VN.titleOf(i + 1))}</span><b>${fmt(VN.xpFor(i + 1))}</b></div>`).join('')}</div>`
       + (off.length ? `<div class="offs">${off.map(o => `<div>${avatarHTML(o)}<span><b>${esc(o.name)}</b><br>${esc(rankTxt(o.lv, o.prov))}</span></div>`).join('')}</div>` : `<div class="tr" style="font-size:16px;opacity:.8;margin-top:4px">Điểm tích luỹ qua các buổi LIVE</div>`);
   }
   setInterval(() => { showRanks = !showRanks; const el = $('tiers').parentNode; el.classList.remove('flip'); void el.offsetWidth; el.classList.add('flip'); renderTierPanel(); }, 12000);
@@ -644,8 +717,10 @@
     bnQueue.push({ kicker, head, desc, ms: ms || 4000, avs, t: Date.now() }); if (bnQueue.length > 4) bnQueue.splice(1, 1); pumpBanner();
   }
   function pumpBanner() {
-    if (bnBusy || !bnQueue.length) return; bnBusy = true;
-    while (bnQueue.length > 1 && Date.now() - bnQueue[0].t > 7000) bnQueue.shift();   // bỏ băng-rôn đã cũ
+    if (bnBusy || !bnQueue.length) return;
+    if (performance.now() < showUntil) { clearTimeout(pumpBanner.t); pumpBanner.t = setTimeout(pumpBanner, showUntil - performance.now() + 300); return; }
+    bnBusy = true;
+    while (bnQueue.length > 1 && Date.now() - bnQueue[0].t > 25000) bnQueue.shift();   // bỏ băng-rôn đã cũ
     const b = bnQueue.shift(), host = $('banner');
     host.innerHTML = `<div class="bn"><div class="k">${b.kicker}</div>${b.avs ? `<div class="avs">${b.avs.map(u => avatarHTML(u)).join('')}</div>` : ''}<div class="h">${b.head}</div>${b.desc ? `<div class="d">${b.desc}</div>` : ''}</div>`;
     setTimeout(() => { const el = host.firstChild; if (el) el.classList.add('out'); setTimeout(() => { host.innerHTML = ''; bnBusy = false; pumpBanner(); }, 450); }, b.ms);
@@ -653,15 +728,15 @@
 
   // ---------- MC giọng nói ----------
   const said = {};
-  function say(text, prio, key, gap) {
+  function say(text, prio, key, gap, hype) {
     if (!CFG.mcOn || !text) return;
     if (key) { const n = Date.now(); if (n - (said[key] || 0) < (gap || 0)) return; said[key] = n; }
     lastTalk = Date.now();
-    if (window.MC && MC.hasVietnamese()) MC.say(text, prio);
+    if (window.MC && MC.hasVietnamese()) MC.say(text, prio, hype);
     else socket.emit('vm:say', { text, prio });
   }
   const nm = u => window.MC ? MC.clean(u && u.name) : (u && u.name) || 'bạn';
-  let lastTalk = Date.now();
+  let lastTalk = Date.now(), lastCountry = 0;
   // MC tự nói khi phòng im: bình luận bảng xếp hạng, kể tỉnh còn tối, nhắc sự kiện sắp tới, rủ tặng quà
   let idleIdx = 0;
   function idleLine() {
@@ -731,11 +806,15 @@
         feedAdd(u, `💰 <b>${esc(u.name)}</b> nhận <span class="pt">+${fmt(e.pts)}</span> cho ${esc(P)}`);
         say(`${nm(u)} đã nhận ${e.pts} điểm cho ${P}!`, false);
         break;
-      case 'country':
-        celebrate(9);
-        banner('Tuyệt vời', '🇻🇳 CẢ NƯỚC RỰC SÁNG!', u ? `Cảm ơn <b>${esc(u.name)}</b> và tất cả mọi người` : 'Cảm ơn tất cả mọi người', 7000, u ? [u] : null);
-        say('Tuyệt vời! Cả nước đã rực sáng! Cảm ơn tất cả mọi người!', true);
-        break;
+      case 'country': {
+        lastCountry = Date.now();
+        grandShow(16, 'CẢ NƯỚC RỰC SÁNG', u ? `Cảm ơn <b>${esc(u.name)}</b> đã thắp sáng cả nước 🇻🇳` : 'Cảm ơn tất cả mọi người 🇻🇳', u);
+        const giv = (S && S.podium || []).map(x => nm(x)).slice(0, 3);
+        say(`Tuyệt vời! Tuyệt vời! Cả nước đã rực sáng! Từ địa đầu Lũng Cú đến mũi Cà Mau, từ quần đảo Hoàng Sa đến quần đảo Trường Sa, đèn đã sáng khắp mọi miền Tổ quốc! `
+          + (u ? `Xin cảm ơn ${nm(u)} đã tặng món quà thắp sáng cả nước! ` : '')
+          + (giv.length ? `Cảm ơn ${giv.join(', ')} đã tặng quà nhiều nhất đêm nay! ` : '')
+          + `Cả phòng thả tim thật nhiều để ăn mừng nào! Tự hào Việt Nam!`, true, '', 0, true);
+        break; }
       case 'milestone':
         if (e.n >= e.total) { celebrate(7); banner('Kỳ tích', `Sáng đủ ${e.total}/${e.total}!`, 'Mọi miền Tổ quốc đều đã sáng đèn', 6000); say(`Kỳ tích! Đã sáng đủ ${e.total} tỉnh thành!`, true); }
         else { for (let i = 0; i < 4; i++) setTimeout(() => firework(rnd(150, 900), rnd(400, 900)), i * 300); banner('Cột mốc', `Đã sáng ${e.n}/${e.total}`, `Còn <b>${e.total - e.n}</b> tỉnh, thành nữa thôi!`, 3500); say(`Đã sáng ${e.n} trên ${e.total} tỉnh thành! Còn ${e.total - e.n} nữa thôi, cùng thắp tiếp nào!`, false); }
@@ -810,10 +889,15 @@
         say(`Ôi, đèn ${P} đã tắt mất rồi! Ai thắp lại cho ${P} đây?`, false, 'off', 12000);
         break;
       case 'seasonEnd': {
-        celebrate(Math.min(10, e.delay || 10));
-        const w = e.top && e.top[0];
+        const w = e.top && e.top[0], afterCountry = Date.now() - lastCountry < 30000;
+        grandShow(Math.max(8, Math.min(18, e.delay || 12)), afterCountry ? '' : 'SÁNG ĐỦ 34/34', `Hoàn thành mùa ${e.season}${w ? ` · quê dẫn đầu <b>${esc(pname(w.id))}</b>` : ''}`);
+        if (!afterCountry) {
+          say(`Tuyệt vời! Cả nước đã sáng đủ 34 tỉnh thành, hoàn thành mùa ${e.season}! Từ địa đầu Lũng Cú đến mũi Cà Mau, đâu đâu cũng rực sáng! `
+            + (w ? `Quê dẫn đầu mùa này là ${pname(w.id)}, xin chúc mừng! ` : '') + `Mùa mới sẽ bắt đầu sau ${e.delay} giây, cả nhà chuẩn bị đua lại từ đầu nhé!`, true, '', 0, true);
+          break;
+        }
         banner(`Hoàn thành mùa ${e.season}`, '🇻🇳 SÁNG ĐỦ 34/34!', `${w ? `Quê dẫn đầu: <b>${esc(pname(w.id))}</b> · ` : ''}mùa mới sau <b>${e.delay}</b> giây`, 8000);
-        say(`Tuyệt vời! Cả nước đã sáng đủ 34 tỉnh thành, hoàn thành mùa ${e.season}!${w ? ' Quê dẫn đầu là ' + pname(w.id) + '.' : ''} Mùa mới sẽ bắt đầu sau ${e.delay} giây, chuẩn bị đua lại từ đầu nhé!`, true);
+        say(`Hoàn thành mùa ${e.season}!${w ? ' Quê dẫn đầu là ' + pname(w.id) + '.' : ''} Mùa mới sẽ bắt đầu sau ${e.delay} giây!`, true);
         break; }
       case 'seasonStart':
         fxList.length = 0; for (const k in flash) delete flash[k];
@@ -835,8 +919,8 @@
         break;
       case 'levelUp':
         feedAdd(u, `⬆️ <b>${esc(u.name)}</b> thăng chức <span class="rank">${esc(rankTxt(e.level, e.prov))}</span>`);
-        if (e.level >= 4) { banner('Thăng chức', `${VN.iconOf(e.level)} ${esc(e.title)}${e.prov ? ' ' + esc(pname(e.prov)) : ''}`, `Chúc mừng <b>${esc(u.name)}</b>`, 3500, [u]); sfx.fanfare(); }
-        say(`Chúc mừng ${nm(u)} được thăng chức ${e.title}${e.prov ? ' ' + pname(e.prov) : ''}!`, e.level >= 6, 'lv', e.level >= 6 ? 0 : 6000);
+        if (e.level >= 4) { banner('Thăng chức', `${VN.iconOf(e.level)} ${esc(e.title)}`, `Chúc mừng <b>${esc(u.name)}</b>`, 3500, [u]); sfx.fanfare(); }
+        say(`Chúc mừng ${nm(u)} được bổ nhiệm làm ${e.title.replace(' · ', ' ')}!`, e.level >= 6, 'lv', e.level >= 6 ? 0 : 6000);
         break;
       case 'theme': {
         const th = THEMES[e.theme]; flashScreen();
@@ -852,7 +936,7 @@
   function showSummary(e) {
     const el = $('summary');
     const prov = (e.topProv || []).map((x, i) => `<div><div style="font-size:54px">${['🥇', '🥈', '🥉'][i]}</div>${esc(pname(x.id))}<br><span style="color:var(--accent)">${fmt(x.v)} điểm</span></div>`).join('');
-    const fansH = (e.topFans || []).filter(u => u.pts > 0).map(u => `<div>${avatarHTML(u)}${esc(u.name)}<br><span style="color:var(--accent)">${esc(rankTxt(u.lv, u.prov) || 'Dân làng')}</span></div>`).join('');
+    const fansH = (e.topFans || []).filter(u => u.pts > 0).map(u => `<div>${avatarHTML(u)}${esc(u.name)}<br><span style="color:var(--accent)">${esc(rankTxt(u.lv, u.prov) || 'Công dân')}</span></div>`).join('');
     const giv = (e.topGivers || []).map(u => `<div>${avatarHTML(u)}${esc(u.name)}<br><span style="color:var(--accent)">${fmt(u.coins)} xu</span></div>`).join('');
     el.innerHTML = `<div class="card"><h2>TỔNG KẾT PHIÊN LIVE</h2><div style="font-size:24px;color:var(--sub);margin-top:6px">${e.mins} phút · cảm ơn mọi người đã thắp đèn 🇻🇳</div>
       <div class="grid"><div class="st"><b>${e.seasons ? e.seasons + ' mùa' : e.lit + '/' + e.total}</b><span>${e.seasons ? 'sáng đủ 34 tỉnh' : 'tỉnh đã sáng'}</span></div><div class="st"><b>${fmt(e.people)}</b><span>người thắp đèn</span></div><div class="st"><b>${fmt(e.comments)}</b><span>bình luận</span></div>
@@ -923,7 +1007,9 @@
   const sfx = {
     chime(big) { const n = performance.now(); if (n - sfxGate < 90) return; sfxGate = n; const f = PENTA[Math.floor(Math.random() * PENTA.length)]; tone(f, 0.6, 'sine', 0.07); tone(f * 2, 0.4, 'triangle', 0.025, 0.02); if (big) { tone(f * 1.5, 0.8, 'sine', 0.05, 0.12); } },
     whoosh() { const ac = audioCtx(); if (!ac || ac.state !== 'running' || lite()) return; const o = ac.createOscillator(), g = ac.createGain(); const t0 = ac.currentTime; o.type = 'sawtooth'; o.frequency.setValueAtTime(300, t0); o.frequency.exponentialRampToValueAtTime(1200, t0 + 0.5); g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(0.012, t0 + 0.2); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.6); o.connect(g).connect(ac.destination); o.start(t0); o.stop(t0 + 0.65); },
-    boom() { tone(rnd(70, 110), 0.5, 'sine', 0.12); tone(rnd(900, 1400), 0.25, 'triangle', 0.02, 0.05); },
+    boom() { sweep(rnd(110, 150), 38, 0.7, 'sine', 0.4); noise(0.5, 0.16, 300); noise(0.12, 0.1, 2500); },
+    whistle() { if (Math.random() < 0.6) sweep(rnd(500, 700), rnd(1500, 2200), rnd(0.7, 1.0), 'triangle', 0.025); },
+    crackle(sec) { for (let i = 0; i < 22; i++) noise(0.02, 0.06 + Math.random() * 0.05, 3000, 0.25 + Math.random() * sec); },
     fanfare() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.5, 'triangle', 0.06, i * 0.12)); tone(1047, 1.2, 'sine', 0.05, 0.5); },
   };
   const music = (() => {
@@ -955,10 +1041,13 @@
     drawBg(t, lite() ? dt * 2 : dt);
     stepCam(dt);
     ctx.save();
+    if (shakeT > 0) { shakeT -= dt; ctx.translate(rnd(-5, 5) * shakeT * 4, rnd(-5, 5) * shakeT * 4); }
     if (Math.abs(CAM.z - 1) > 0.002 || Math.abs(CAM.x - VC[0]) > 0.5) { ctx.translate(VC[0], VC[1]); ctx.scale(CAM.z, CAM.z); ctx.translate(-CAM.x, -CAM.y); }
     drawMap(t);
+    if (showUntil > performance.now() - 1500) { const a = 0.55 * Math.min(1, Math.max(0, (showUntil - performance.now() + 1500) / 1500)); ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = a; ctx.fillStyle = '#05061a'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
     drawFx(lite() ? dt * 2 : dt);
     ctx.restore();
+    if (flashA > 0.005) { ctx.save(); ctx.globalAlpha = flashA; ctx.fillStyle = '#fff6dc'; ctx.fillRect(0, 0, W, H); ctx.restore(); flashA *= Math.pow(0.02, dt); }
     stepTweens();
     requestAnimationFrame(frame);
   }

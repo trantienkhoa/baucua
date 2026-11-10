@@ -111,14 +111,24 @@
     return [deacc(p.name), deacc(p.short), ...(EXACT_EXTRA[id] || [])].some(n => s.includes(' ' + n + ' '));
   }
 
-  // Chức vụ của tỉnh theo điểm tích luỹ (lưu qua các phiên). Cấp n cần 6·(n−1)² điểm.
-  const TITLES = ['Dân làng', 'Trưởng xóm', 'Trưởng thôn', 'Lý trưởng', 'Chánh tổng', 'Tri huyện', 'Tri phủ', 'Án sát', 'Bố chính', 'Tuần phủ', 'Tổng đốc', 'Thượng thư', 'Tể tướng'];
-  const TITLE_ICON = ['🧑‍🌾', '🏡', '🛖', '📜', '🎋', '🏮', '🏯', '⚖️', '💰', '🛡️', '🐉', '👑', '🌟'];
-  const levelOf = xp => Math.min(TITLES.length, Math.floor(Math.sqrt(Math.max(0, xp) / 6)) + 1);
-  const xpFor = lv => 6 * (lv - 1) * (lv - 1);
-  const titleOf = lv => TITLES[Math.max(1, Math.min(TITLES.length, lv || 1)) - 1];
-  const iconOf = lv => TITLE_ICON[Math.max(1, Math.min(TITLES.length, lv || 1)) - 1];
+  // Chức vụ của tỉnh theo điểm tích luỹ (lưu qua các phiên). Cấp n cần 8·(n−1)² điểm.
+  // {xa} = xã / phường, {dv} = tỉnh / TP (thành phố trực thuộc trung ương)
+  const TITLES = ['Công dân', 'Tổ phó dân phố', 'Tổ trưởng dân phố', 'Trưởng thôn', 'Phó Chủ tịch {xa}', 'Chủ tịch {xa}', 'Phó Giám đốc Sở', 'Giám đốc Sở', 'Phó Chủ tịch {dv}', 'Chủ tịch {dv}'];
+  const TITLE_ICON = ['🧑', '🏘️', '🏠', '🌾', '📋', '🏛️', '💼', '🏢', '🎖️', '👑'];
+  const CITIES = new Set(['ha-noi', 'tp-hcm', 'hai-phong', 'da-nang', 'hue', 'can-tho']);
+  const clampLv = lv => Math.max(1, Math.min(TITLES.length, lv || 1));
+  const levelOf = xp => Math.min(TITLES.length, Math.floor(Math.sqrt(Math.max(0, xp) / 8)) + 1);
+  const xpFor = lv => 8 * (lv - 1) * (lv - 1);
+  const titleOf = (lv, prov) => { const c = CITIES.has(prov); return TITLES[clampLv(lv) - 1].replace('{xa}', c ? 'phường' : 'xã').replace('{dv}', c ? 'TP' : 'tỉnh'); };
+  const iconOf = lv => TITLE_ICON[clampLv(lv) - 1];
+  // "Chủ tịch tỉnh Nghệ An", "Chủ tịch TP Hồ Chí Minh", "Trưởng thôn (Huế)"
+  function rankName(lv, prov) {
+    const p = BY_ID[prov]; const t = titleOf(lv, prov);
+    if (!p) return t;
+    const place = p.name.replace(/^TP /, '');
+    return /(tỉnh|TP|Sở)$/.test(t) ? `${t} ${place}` : `${t} · ${place}`;
+  }
 
-  const api = { LIST, BY_ID, findProvince, isExactAnswer, deacc, QUIZ, COUNT: LIST.length, TITLES, levelOf, xpFor, titleOf, iconOf };
+  const api = { LIST, BY_ID, findProvince, isExactAnswer, deacc, QUIZ, COUNT: LIST.length, TITLES, levelOf, xpFor, titleOf, iconOf, rankName };
   if (typeof module === 'object' && module.exports) module.exports = api; else root.VN_PROV = api;
 })(typeof window !== 'undefined' ? window : globalThis);
