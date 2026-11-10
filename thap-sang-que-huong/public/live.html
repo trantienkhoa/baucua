@@ -82,6 +82,15 @@
   .fi > span { overflow:hidden; text-overflow:ellipsis; }
   .fi b { color:var(--accent); }
   .fi .pt { color:var(--accent2); font-weight:900; }
+  /* khách vào phòng */
+  #joins { left:30px; top:1662px; width:640px; height:58px; pointer-events:none; }
+  .jn { position:absolute; left:0; top:0; display:flex; align-items:center; gap:10px; padding:5px 18px 5px 5px; border-radius:30px; background:linear-gradient(90deg,var(--accent-a40),var(--panel)); border:1.5px solid var(--border); font-weight:800; font-size:23px; white-space:nowrap; max-width:640px; box-shadow:0 4px 14px rgba(0,0,0,.35); animation:jnIn .45s cubic-bezier(.2,1.4,.4,1); }
+  .jn .av { width:44px; height:44px; border-width:2px; font-size:19px; }
+  .jn b { color:var(--accent); }
+  .jn small { color:var(--sub); font-weight:700; font-size:19px; }
+  .jn.out { animation:jnOut .35s forwards; }
+  @keyframes jnIn { from { transform:translateX(-120px); opacity:0 } }
+  @keyframes jnOut { to { transform:translateY(-20px); opacity:0 } }
   /* băng-rôn lớn giữa màn */
   #banner { left:60px; right:60px; top:640px; text-align:center; pointer-events:none; }
   .bn { display:inline-block; padding:26px 40px; border-radius:30px; background:var(--panel); border:3px solid var(--accent); box-shadow:0 0 60px var(--accent-a50), 0 20px 50px rgba(0,0,0,.5); animation:bnIn .7s cubic-bezier(.2,1.5,.4,1); max-width:880px; }
@@ -133,6 +142,7 @@
       <div id="country"><div class="c1" id="cTxt"></div><div class="c2">🇻🇳 CẢ NƯỚC RỰC SÁNG</div><div class="mini" style="margin-top:6px"><i id="cFill" style="width:0"></i></div></div>
     </div>
   </div>
+  <div id="joins" class="abs"></div>
   <div id="banner" class="abs"></div>
   <div id="bottom" class="abs">
     <div id="honor">Vinh danh người thắp đèn<small>tặng quà nhiều nhất đêm nay</small></div>

@@ -45,6 +45,8 @@ Key EulerStream là tuỳ chọn, chỉ để giảm giới hạn số lần k�
 - 🧧 **Lộc rơi** mỗi 6 phút: bao lì xì rơi khắp màn, ai gõ "lộc" trong 20 giây được bốc thăm 3 người nhận điểm cho quê.
 - ⏳ **Đếm ngược sự kiện kế tiếp** (đại chiến / đố vui / lộc rơi) luôn hiện trên màn để người xem chờ.
 - ⬆️ **Cấp người thắp đèn** lưu qua các phiên (Lv2, Lv3…), "bạn là người thứ 12 của Huế".
+- 👋 **Khách vào phòng** hiện thẻ có ảnh + tên (người quen thì kèm quê), vào dồn dập thì gộp "+N người khác"; ô Sóng tim có thêm số người đang xem.
+- 🎙 **MC không còn im ru**: tự gỡ khi giọng đọc của trình duyệt bị treo, chia câu ngắn, đọc tiếp ngay cả khi tab chạy nền. MC tự nói khi phòng im (bình luận bảng xếp hạng, tỉnh sắp tắt, sự kiện sắp tới…), chọn mức Ít / Vừa / Nhiều.
 - 🔔 **Âm thanh cộng điểm**: +1 kêu "ting", +5…99 chuỗi xu rơi, +100 trở lên có trống và kèn chiến thắng, +500 hoành tráng hơn nữa. Cộng liên tục thì tiếng cao dần như combo. Có âm lượng riêng và nút nghe thử.
 - 🔍 **Zoom vào tỉnh vừa được cộng điểm**: tỉnh nháy sáng mạnh, số "+điểm" bay lên, camera zoom vào rồi lùi ra (bật/tắt, chỉnh mức zoom).
 - 🛡 **Chống spam chia sẻ**: mỗi người chỉ được cộng điểm chia sẻ 1 lần / 10 phút, tối đa 3 lần mỗi phiên; theo dõi chỉ tính 1 lần.

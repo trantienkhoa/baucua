@@ -572,7 +572,7 @@
     const hots = Object.keys(S.hot || {}).filter(id => S.hot[id] > tn);
     if (hots.length && (!chips.length || chips[0][0] === 'next')) chips.push(['hot', `<span class="ic">🔥</span><span>${hots.map(pshort).map(esc).join(', ')} <b style="color:var(--accent)">×2</b></span>`]);
     const wv = CFG.waveLikes ? Math.max(0, Math.min(1, 1 - (S.waveNext - S.likes) / CFG.waveLikes)) : 0;
-    chips.push(['wave', `<span class="ic">❤️</span><div style="flex:1"><div style="font-size:17px;margin-bottom:4px">Sóng tim · ${fmt(S.likes)}</div><div class="mini"><i data-k="wave" style="width:${wv * 100}%"></i></div></div>`]);
+    chips.push(['wave', `<span class="ic">❤️</span><div style="flex:1"><div style="font-size:17px;margin-bottom:4px" data-k="wavet">Sóng tim · ${fmt(S.likes)}${S.viewers ? ` · 👀 ${fmt(S.viewers)}` : ''}</div><div class="mini"><i data-k="wave" style="width:${wv * 100}%"></i></div></div>`]);
     const sig = chips.map(c => c[0] + (c[0] === 'battle' ? S.battle.a + S.battle.b : c[0] === 'quiz' ? S.quiz.q : c[0] === 'lucky' ? S.lucky.id : c[0] === 'hot' ? hots.join() : c[0] === 'next' ? S.next.type + S.next.at : '')).join('|');
     if (sig !== barSig) {
       const before = new Set(barSig.split('|')); barSig = sig;
@@ -583,7 +583,7 @@
       const q = s => $('eventBar').querySelector(s);
       if (S.battle && q('[data-k="sa"]')) { q('[data-k="sa"]').textContent = S.battle.sa; q('[data-k="sb"]').textContent = S.battle.sb; q('[data-k="tug"]').style.width = (S.battle.sa + S.battle.sb ? S.battle.sa / (S.battle.sa + S.battle.sb) * 100 : 50) + '%'; }
       if (S.drop && q('[data-k="dropn"]')) q('[data-k="dropn"]').textContent = S.drop.n;
-      if (q('[data-k="wave"]')) { q('[data-k="wave"]').style.width = wv * 100 + '%'; q('[data-k="wave"]').parentNode.previousElementSibling.textContent = 'Sóng tim · ' + fmt(S.likes); }
+      if (q('[data-k="wave"]')) { q('[data-k="wave"]').style.width = wv * 100 + '%'; q('[data-k="wavet"]').textContent = 'Sóng tim · ' + fmt(S.likes) + (S.viewers ? ' · 👀 ' + fmt(S.viewers) : ''); }
     }
   }
   function tickTimers() {
@@ -607,6 +607,23 @@
     requestAnimationFrame(() => requestAnimationFrame(() => feed.forEach((e, i) => { e.style.opacity = 1 - i * 0.14; e.style.transform = `translateY(${-i * 60}px) scale(${i ? 0.94 : 1})`; e.style.transformOrigin = 'left center'; })));
   }
   $('feed').style.cssText += ';left:30px;top:980px;width:380px;height:420px';
+
+  // ---------- khách vào phòng ----------
+  const joinQ = []; let joinBusy = false, joinSkipped = 0;
+  function joinToast(u, prov, lv) {
+    joinQ.push({ u, prov, lv });
+    if (joinQ.length > 4) { joinQ.shift(); joinSkipped++; }   // vào dồn dập: gộp lại "+N người khác"
+    pumpJoin();
+  }
+  function pumpJoin() {
+    if (joinBusy || !joinQ.length) return; joinBusy = true;
+    const j = joinQ.shift(), host = $('joins'), more = joinSkipped; joinSkipped = 0;
+    const el = document.createElement('div'); el.className = 'jn';
+    el.innerHTML = avatarHTML(j.u) + `<span>👋 <b>${esc(j.u.name)}</b>${j.lv > 1 ? ` <small>Lv${j.lv}</small>` : ''} vừa vào phòng ${j.prov ? `<small>· người ${esc(pname(j.prov))}</small>` : '<small>· bình luận tên quê để thắp đèn</small>'}${more ? ` <small>+${more} người khác</small>` : ''}</span>`;
+    host.innerHTML = ''; host.appendChild(el);
+    const ms = joinQ.length ? 1400 : 2600;
+    setTimeout(() => { el.classList.add('out'); setTimeout(() => { el.remove(); joinBusy = false; pumpJoin(); }, 330); }, ms);
+  }
 
   // ---------- băng-rôn giữa màn ----------
   const bnQueue = []; let bnBusy = false;
@@ -632,13 +649,29 @@
   }
   const nm = u => window.MC ? MC.clean(u && u.name) : (u && u.name) || 'bạn';
   let lastTalk = Date.now();
-  // nhắc khéo khi phòng im: kể tên các tỉnh còn tối
-  setInterval(() => {
-    if (!S || Date.now() - lastTalk < 75000) return;
+  // MC tự nói khi phòng im: bình luận bảng xếp hạng, kể tỉnh còn tối, nhắc sự kiện sắp tới, rủ tặng quà
+  let idleIdx = 0;
+  function idleLine() {
     const dark = Object.keys(S.provs).filter(id => !S.provs[id].lit);
-    if (dark.length) { const pick = dark.sort(() => Math.random() - 0.5).slice(0, 3).map(pname); say(`Còn ${dark.length} tỉnh thành chưa sáng đèn, như ${pick.join(', ')}. Người con các tỉnh này đâu rồi, bình luận tên quê để thắp đèn nhé!`, false, 'idle', 60000); }
-    else say('Cả nước đang rực sáng! Tặng quà để quê mình vươn lên dẫn đầu bảng xếp hạng nhé!', false, 'idle', 60000);
-  }, 15000);
+    const top = S.round.top || [], tn = now();
+    const dim = Object.keys(S.provs).filter(id => S.provs[id].lit && S.provs[id].e != null && S.provs[id].e < 35);
+    const L = [];
+    if (dark.length) L.push(() => `Còn ${dark.length} tỉnh thành chưa sáng đèn, như ${dark.sort(() => Math.random() - 0.5).slice(0, 3).map(pname).join(', ')}. Người con các tỉnh này đâu rồi, bình luận tên quê để thắp đèn nhé!`);
+    if (top[0]) L.push(() => top[1] ? `${pname(top[0].id)} đang dẫn đầu vòng này với ${top[0].v} điểm, ${pname(top[1].id)} bám sát với ${top[1].v} điểm. Ai sẽ lật ngược thế cờ đây?` : `${pname(top[0].id)} đang dẫn đầu với ${top[0].v} điểm. Các tỉnh khác vào đua đi nào!`);
+    if (dim.length) L.push(() => `Đèn ${dim.slice(0, 2).map(pname).join(' và ')} đang yếu dần. Bình luận giữ lửa cho quê mình nhé!`);
+    if (S.next && S.next.at > tn) { const m = Math.max(1, Math.round((S.next.at - tn) / 60000)); const nm2 = { battle: 'đại chiến giữa các tỉnh', quiz: 'đố vui quê hương', drop: 'lộc rơi' }[S.next.type]; L.push(() => `Khoảng ${m} phút nữa sẽ có ${nm2}. Ở lại đừng bỏ lỡ nhé!`); }
+    if (S.round.endsAt > tn) L.push(() => `Vòng đua còn ${Math.max(1, Math.round((S.round.endsAt - tn) / 60000))} phút. Tỉnh nào về nhất sẽ được đội vương miện!`);
+    if (S.country.target) L.push(() => `Còn ${fmt(Math.max(0, S.country.target - S.country.pool))} xu nữa là cả nước rực sáng. Mỗi món quà đều cộng điểm cho quê của bạn!`);
+    L.push(() => `Ai mới vào phòng thì bình luận tên quê mình để thắp đèn nhé. Gõ tên tỉnh cũ hay tên thành phố cũng được!`);
+    L.push(() => `Thả tim thật nhiều nào! Đủ tim là sóng tim sẽ thắp sáng một tỉnh còn tối.`);
+    return L[idleIdx++ % L.length]();
+  }
+  setInterval(() => {
+    if (!S || !CFG.mcOn) return;
+    const gap = { 1: 60000, 2: 30000, 3: 15000 }[CFG.mcChatty || 2] || 30000;
+    if (Date.now() - lastTalk < gap) return;
+    say(idleLine(), false);
+  }, 5000);
 
   // ---------- xử lý sự kiện ----------
   function onFx(e) {
@@ -664,10 +697,12 @@
       case 'returning':
         comet(FEED_ORIGIN, e.prov, T.accent2, true);
         feedAdd(u, `🏡 <b>${esc(u.name)}</b> người con ${esc(P)} quay lại!`);
+        joinToast(u, e.prov, 0);
         if (CFG.mcWelcome) say(`Chào mừng ${nm(u)}, người con ${P} đã quay lại! Đèn quê ${P} tự thắp sáng.`, false, 'ret', 4000);
         break;
       case 'join':
-        if (CFG.mcWelcome) say(`Chào ${nm(u)}, bình luận tên quê để thắp đèn nhé!`, false, 'join', 25000);
+        joinToast(u, e.prov, e.lv);
+        if (CFG.mcWelcome) say(e.prov ? `Chào ${nm(u)}, người ${P} đã vào phòng!` : `Chào ${nm(u)}, bình luận tên quê để thắp đèn nhé!`, false, 'join', 12000);
         break;
       case 'gift':
         if (e.prov) { comet(GIFT_ORIGIN, e.prov, T.accent, e.value >= 30); if (e.value >= 100) { firework(rnd(200, 600), rnd(500, 900)); firework(rnd(200, 600), rnd(500, 900)); } }

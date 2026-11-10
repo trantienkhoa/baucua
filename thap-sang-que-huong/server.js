@@ -186,7 +186,7 @@ function attach(c) {
   on(WebcastEvent.MEMBER, d => emit({ type: 'member', user: pickUser(d) }));
   on(WebcastEvent.FOLLOW, d => emit({ type: 'follow', user: pickUser(d) }));
   on(WebcastEvent.SHARE, d => emit({ type: 'share', user: pickUser(d) }));
-  on(WebcastEvent.ROOM_USER, d => { stats.viewers = Number(d.viewerCount || d.total || d.totalUser || stats.viewers) || 0; });
+  on(WebcastEvent.ROOM_USER, d => { stats.viewers = Number(d.viewerCount || d.total || d.totalUser || stats.viewers) || 0; vnmap.hook({ type: 'viewers', count: stats.viewers }); });
   c.on(WebcastEvent.STREAM_END, () => { setState('ended', 'Phiên LIVE đã kết thúc'); manualStop = true; });
   const onDisc = () => { if (manualStop) return; setState('reconnecting', 'Mất kết nối — đang thử lại…'); scheduleReconnect(); };
   if (ControlEvent && ControlEvent.DISCONNECTED) c.on(ControlEvent.DISCONNECTED, onDisc); else c.on('disconnected', onDisc);

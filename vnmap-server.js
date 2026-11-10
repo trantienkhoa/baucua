@@ -34,6 +34,7 @@ const DEFAULT_CFG = {
   streakBonus: 5,          // điểm thưởng mỗi ngày chuỗi điểm danh
   mcOn: true, mcVoice: '', mcVol: 1, mcRate: 1,
   mcWelcome: true, mcGift: true, mcIntro: true,
+  mcChatty: 2,             // MC tự nói khi phòng im: 1 = ít (60s), 2 = vừa (30s), 3 = nhiều (15s)
   musicOn: true, musicVol: 0.35,
   sfxOn: true, sfxVol: 0.9,  // âm thanh hiệu ứng (cộng điểm, pháo hoa…)
 };
@@ -295,10 +296,14 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
     dirty = true;
   }
 
+  const joinAt = new Map();
   function onMember(user) {
     const f = fans[user.id];
-    if (f && f.prov) { const u = touchUser(user, null); firstSeen(user, u, true); }
-    else if (!seenSession.has(user.id)) fx('join', { user: userCard(user) });
+    const now = Date.now();
+    if (now - (joinAt.get(user.id) || 0) < 10 * 60000) return;   // vào ra liên tục: 10 phút mới chào lại
+    joinAt.set(user.id, now); if (joinAt.size > 20000) joinAt.clear();
+    if (f && f.prov) { const u = touchUser(user, null); if (!firstSeen(user, u, true)) fx('join', { user: userCard(user), prov: f.prov, lv: lvOf(user.id) }); }
+    else fx('join', { user: userCard(user), lv: lvOf(user.id) });
   }
 
   const bonusLog = new Map();   // uid -> { share: [thời điểm…], follow: true }
@@ -316,6 +321,7 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
   }
 
   function hook(ev) {
+    if (ev && ev.type === 'viewers') { S.viewers = Math.max(0, Number(ev.count) || 0); dirty = true; return; }
     if (!ev || !ev.user) return;
     try {
       if (ev.type === 'chat') onChat(ev.user, ev.text || '');
@@ -426,7 +432,7 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
       giftTop: sortedBy('coins').slice(0, 5), podium, recent, lastGift: S.lastGift, alltime: at,
       country: { pool: S.country.pool, target: cfg.countryCoins, times: S.country.times },
       battle: S.battle, lucky: S.lucky, quiz: S.quiz ? { q: S.quiz.q, endsAt: S.quiz.endsAt, sec: S.quiz.sec, pts: cfg.quizPts } : null, hot: S.hot,
-      likes: S.likes, waveNext: S.waveNext, comments: S.comments,
+      likes: S.likes, waveNext: S.waveNext, comments: S.comments, viewers: S.viewers || 0,
       season: S.season, seasonDone: S.seasonDone, seasonWins: S.seasonWins.slice(0, 3),
       drop: S.drop ? { endsAt: S.drop.endsAt, sec: S.drop.sec, n: S.drop.users.length, word: cfg.dropWord || 'lộc' } : null,
       next: nextEvent(),
@@ -500,6 +506,9 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
       fans[u.id] = { name: u.name, prov: rnd(VN.LIST).id, streak: 2, lastDay: new Date(Date.now() - 86400000).toISOString().slice(0, 10), days: 3, total: 5 };
       hook({ type: 'member', user: u });
       setTimeout(() => hook({ type: 'chat', user: u, text: 'hello mọi người' }), 1500);
+    } else if (t.kind === 'join') {
+      for (let i = 0; i < 6; i++) setTimeout(() => { const u = fakeUser(200 + Math.floor(Math.random() * 800)); u.id = 'join' + Date.now() + i; hook({ type: 'member', user: u }); }, i * 500);
+      hook({ type: 'viewers', count: 50 + Math.floor(Math.random() * 300) });
     } else if (t.kind === 'drop') {
       if (!S.drop) startDrop();
       for (let i = 0; i < 8; i++) setTimeout(() => hook({ type: 'chat', user: fakeUser(), text: cfg.dropWord || 'lộc' }), 300 + i * 200);

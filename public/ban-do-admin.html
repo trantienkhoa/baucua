@@ -134,6 +134,7 @@
     <label><span>Bật MC giọng nói</span><input type="checkbox" class="switch" data-k="mcOn"></label>
     <label><span>Giọng</span><select data-k="mcVoice" id="voice" style="width:220px"></select><button id="voiceTest">▶</button></label>
     <label><span>Tốc độ đọc</span><input type="range" data-k="mcRate" min="0.7" max="1.4" step="0.05"></label>
+    <label><span>MC tự nói khi phòng im</span><select data-k="mcChatty"><option value="1">Ít (mỗi 60 giây)</option><option value="2">Vừa (mỗi 30 giây)</option><option value="3">Nhiều (mỗi 15 giây)</option></select></label>
     <label><span>Chào người mới / người quen</span><input type="checkbox" class="switch" data-k="mcWelcome"></label>
     <label><span>Cảm ơn quà tặng</span><input type="checkbox" class="switch" data-k="mcGift"></label>
     <label><span>Giới thiệu tỉnh khi đèn đầu tiên sáng</span><input type="checkbox" class="switch" data-k="mcIntro"></label>
@@ -156,6 +157,7 @@
       <button data-test="like" data-n="500">❤️ 500 tim</button>
       <button data-test="returning">🏡 Người quen quay lại</button>
       <button data-test="follow">➕ Theo dõi</button>
+      <button data-test="join">👋 Khách vào phòng</button>
       <button data-test="quizAnswer">✅ Trả lời đúng đố vui</button>
       <button data-test="drop">🧧 Lộc rơi + 8 người nhận</button>
     </div>
@@ -200,7 +202,7 @@ socket.on('vm:cfg', fill);
 for (const el of document.querySelectorAll('[data-k]')) {
   el.addEventListener('change', () => {
     const k = el.dataset.k; let v = el.type === 'checkbox' ? el.checked : el.value;
-    if (el.type === 'number' || el.type === 'range') v = Number(v);
+    if (el.type === 'number' || el.type === 'range' || el.dataset.k === 'mcChatty') v = Number(v);
     socket.emit('vm:cfg', { [k]: v });
   });
 }
