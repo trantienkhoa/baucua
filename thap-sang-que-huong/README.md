@@ -45,6 +45,7 @@ Key EulerStream là tuỳ chọn, chỉ để giảm giới hạn số lần k�
 - 🧧 **Lộc rơi** mỗi 6 phút: bao lì xì rơi khắp màn, ai gõ "lộc" trong 20 giây được bốc thăm 3 người nhận điểm cho quê.
 - ⏳ **Đếm ngược sự kiện kế tiếp** (đại chiến / đố vui / lộc rơi) luôn hiện trên màn để người xem chờ.
 - "Bạn là người thứ 12 của Huế" khi có người mới cùng quê.
+- 🔦 **Còn 3 / 2 / 1 tỉnh**: MC đọc tên từng tỉnh còn lại ("Chỉ còn 3 tỉnh nữa thôi: Lai Châu, Gia Lai và Cà Mau! Người … đâu rồi?"), băng-rôn gọi tên, ô "Còn 3: …" trên màn, các tỉnh còn tối có dấu ? và viền nhấp nháy; MC nhắc lại khi phòng im.
 - 🎁 **Tặng quà hoành tráng theo cấp**: dưới 10 xu hiện thẻ cảm ơn có hình quà + ảnh người tặng; 10–99 xu thêm pháo bay và giấy màu; 100–999 xu thẻ lớn giữa màn có tia sáng xoay, 6 quả pháo, chớp sáng, rung màn, vỗ tay, MC hô "Quà lớn!"; từ 1.000 xu là màn pháo hoa "QUÀ KHỦNG" 10 giây, MC hô hào một tràng. Tặng liên tục cùng một quà thì gộp "×số lượng".
 - ❓ **Đố vui 102 câu, mỗi tỉnh 3 câu riêng**, hỏi xoay vòng đủ 34 tỉnh (thứ tự ngẫu nhiên) rồi mới lặp lại.
 - 🎆 **Cả nước rực sáng** có màn pháo hoa lớn 16 giây: pháo bay từ dưới lên nổ hình ngôi sao vàng, trái tim, vòng tròn, liễu rủ, kim tuyến; màn bắn dồn cuối; giấy màu rơi; chớp sáng, rung màn; chữ "CẢ NƯỚC RỰC SÁNG" lớn giữa màn; tiếng pháo nổ và vỗ tay; MC hô hào một tràng ("Từ địa đầu Lũng Cú đến mũi Cà Mau…", cảm ơn người tặng). Sáng đủ 34/34 cũng có màn tương tự.

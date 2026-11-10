@@ -547,6 +547,8 @@
     ctx.globalAlpha = 1;
     const outline = (id, color, w, dash) => { ctx.setTransform(base); ctx.translate(0, -(RAISE[id] || 0) / MS); ctx.strokeStyle = color; ctx.lineWidth = w / MS; ctx.setLineDash(dash ? [8 / MS, 6 / MS] : []); ctx.lineDashOffset = -t * 30 / MS; ctx.stroke(PATHS[id]); ctx.setLineDash([]); };
     if (S.lucky && S.lucky.endsAt > tn) outline(S.lucky.id, Math.sin(t * 6) > 0 ? '#ffffff' : T.accent, 4, true);
+    const darkNow = ORDER.filter(id => !S.provs[id].lit);
+    if (darkNow.length && darkNow.length <= 3 && !S.seasonDone) for (const id of darkNow) { ctx.save(); if (!lite()) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 20; } outline(id, Math.sin(t * 5) > 0 ? '#ffffff' : T.accent2, 3 + 2 * Math.abs(Math.sin(t * 5)), true); ctx.restore(); }
     if (S.battle && S.battle.endsAt > tn) { outline(S.battle.a, '#ff3d5a', 4.5, true); outline(S.battle.b, '#3a8bff', 4.5, true); }
     for (const id in (S.hot || {})) if (S.hot[id] > tn) outline(id, `hsl(${20 + Math.sin(t * 8) * 15},100%,60%)`, 3.5, false);
     ctx.restore();
@@ -563,6 +565,7 @@
       if (pr.owner) { ctx.font = '18px serif'; ctx.fillText('👑', ix, y + 20); ix += 20; }
       if (pr.lit && pr.e != null && pr.e <= 25 && Math.sin(t * 6) > -0.3) { ctx.font = '18px serif'; ctx.fillText('⚠️', ix, y + 20); ix += 20; }
       if (S.hot && S.hot[id] > tn) { ctx.font = '18px serif'; ctx.fillText('🔥', ix, y + 20); ix += 20; }
+      if (!pr.lit && !S.seasonDone && ORDER.filter(k => !S.provs[k].lit).length <= 3) { ctx.font = `900 ${26 + Math.sin(t * 5) * 4}px ${T.font}`; ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 4; ctx.strokeText('?', x, y - 4); ctx.fillText('?', x, y - 4); ctx.font = `800 15px ${T.font}`; }
       if (S.lucky && S.lucky.id === id && S.lucky.endsAt > tn) { ctx.font = `${20 + Math.sin(t * 6) * 3}px serif`; ctx.fillText('⭐', x, y - 28); }
     }
     // người xem quanh tỉnh (tối đa 4 người / tỉnh)
@@ -652,14 +655,16 @@
     if (S.battle && S.battle.endsAt > tn) chips.push(['battle', `<span class="ic">⚔️</span><div class="vs"><span class="sd" style="color:#ff6b80">${esc(pshort(S.battle.a))} <b data-k="sa">${S.battle.sa}</b></span><div class="tug"><i data-k="tug" style="width:${S.battle.sa + S.battle.sb ? S.battle.sa / (S.battle.sa + S.battle.sb) * 100 : 50}%"></i></div><span class="sd" style="text-align:right;color:#6aa8ff"><b data-k="sb">${S.battle.sb}</b> ${esc(pshort(S.battle.b))}</span></div><span class="tm" data-end="${S.battle.endsAt}"></span>`]);
     if (S.quiz && S.quiz.endsAt > tn) chips.push(['quiz', `<span class="ic">❓</span><span style="white-space:normal;line-height:1.1;font-size:22px">${esc(S.quiz.q)} <b style="color:var(--accent)">+${S.quiz.pts}</b></span><span class="tm" data-end="${S.quiz.endsAt}"></span>`]);
     if (S.lucky && S.lucky.endsAt > tn) chips.push(['lucky', `<span class="ic">⭐</span><span>${esc(pname(S.lucky.id))} <b style="color:var(--accent)">×2</b></span><span class="tm" data-end="${S.lucky.endsAt}"></span>`]);
+    const darkL = Object.keys(S.provs).filter(id => !S.provs[id].lit);
+    if (darkL.length && darkL.length <= 3 && !S.seasonDone) chips.push(['almost', `<span class="ic">🔦</span><span style="white-space:normal;line-height:1.1">Còn <b style="color:var(--accent)">${darkL.length}</b>: ${darkL.map(pshort).map(esc).join(', ')}</span>`]);
     if (S.drop && S.drop.endsAt > tn) chips.push(['drop', `<span class="ic">🧧</span><span>Gõ <b style="color:var(--accent)">“${esc(S.drop.word)}”</b> nhận lộc · <b data-k="dropn">${S.drop.n}</b> người</span><span class="tm" data-end="${S.drop.endsAt}"></span>`]);
     const NEXT = { battle: '⚔️ Đại chiến', quiz: '❓ Đố vui', drop: '🧧 Lộc rơi' };
-    if (!chips.length && S.next && S.next.at > tn) chips.push(['next', `<span class="ic">⏳</span><span>${NEXT[S.next.type]} sau</span><span class="tm" data-end="${S.next.at}"></span>`]);
+    if ((!chips.length || (chips.length === 1 && chips[0][0] === 'almost')) && S.next && S.next.at > tn && chips.length < 2) chips.push(['next', `<span class="ic">⏳</span><span>${NEXT[S.next.type]} sau</span><span class="tm" data-end="${S.next.at}"></span>`]);
     const hots = Object.keys(S.hot || {}).filter(id => S.hot[id] > tn);
     if (hots.length && (!chips.length || chips[0][0] === 'next')) chips.push(['hot', `<span class="ic">🔥</span><span>${hots.map(pshort).map(esc).join(', ')} <b style="color:var(--accent)">×2</b></span>`]);
     const wv = CFG.waveLikes ? Math.max(0, Math.min(1, 1 - (S.waveNext - S.likes) / CFG.waveLikes)) : 0;
     chips.push(['wave', `<span class="ic">❤️</span><div style="flex:1"><div style="font-size:17px;margin-bottom:4px" data-k="wavet">Sóng tim · ${fmt(S.likes)}${S.viewers ? ` · 👀 ${fmt(S.viewers)}` : ''}</div><div class="mini"><i data-k="wave" style="width:${wv * 100}%"></i></div></div>`]);
-    const sig = chips.map(c => c[0] + (c[0] === 'battle' ? S.battle.a + S.battle.b : c[0] === 'quiz' ? S.quiz.q : c[0] === 'lucky' ? S.lucky.id : c[0] === 'hot' ? hots.join() : c[0] === 'next' ? S.next.type + S.next.at : '')).join('|');
+    const sig = chips.map(c => c[0] + (c[0] === 'battle' ? S.battle.a + S.battle.b : c[0] === 'quiz' ? S.quiz.q : c[0] === 'lucky' ? S.lucky.id : c[0] === 'hot' ? hots.join() : c[0] === 'next' ? S.next.type + S.next.at : c[0] === 'almost' ? darkL.join() : '')).join('|');
     if (sig !== barSig) {
       const before = new Set(barSig.split('|')); barSig = sig;
       const keys = sig.split('|');
@@ -777,6 +782,7 @@
     const top = S.round.top || [], tn = now();
     const dim = Object.keys(S.provs).filter(id => S.provs[id].lit && S.provs[id].e != null && S.provs[id].e < 35);
     const L = [];
+    if (dark.length && dark.length <= 3) { const nn = dark.map(pname); return `Chỉ còn ${dark.length} tỉnh chưa sáng: ${nn.join(', ')}. Người ${nn.join(', ')} đâu rồi, bình luận tên quê để cả nước rực sáng nhé!`; }
     if (dark.length) L.push(() => `Còn ${dark.length} tỉnh thành chưa sáng đèn, như ${dark.sort(() => Math.random() - 0.5).slice(0, 3).map(pname).join(', ')}. Người con các tỉnh này đâu rồi, bình luận tên quê để thắp đèn nhé!`);
     if (top[0]) L.push(() => top[1] ? `${pname(top[0].id)} đang dẫn đầu vòng này với ${top[0].v} điểm, ${pname(top[1].id)} bám sát với ${top[1].v} điểm. Ai sẽ lật ngược thế cờ đây?` : `${pname(top[0].id)} đang dẫn đầu với ${top[0].v} điểm. Các tỉnh khác vào đua đi nào!`);
     if (dim.length) L.push(() => `Đèn ${dim.slice(0, 2).map(pname).join(' và ')} đang yếu dần. Bình luận giữ lửa cho quê mình nhé!`);
@@ -964,6 +970,15 @@
         if (th) feedAdd(null, `🎨 Đổi giao diện: <b>${esc(th.name)}</b>`);
         break; }
       case 'sfxTest': { const ac = audioCtx(); if (ac) ac.resume(); [1, 10, 199, 500].forEach((v, i) => setTimeout(() => { ptGate = 0; pointSound(v); }, i * 1400)); break; }
+      case 'almost': {
+        const names = e.dark.map(pname), list = names.length > 1 ? names.slice(0, -1).join(', ') + ' và ' + names[names.length - 1] : names[0];
+        for (const id of e.dark) hit(id, true);
+        bnQueue.length = 0;   // bỏ băng-rôn cũ đang chờ, gọi tên tỉnh còn lại ngay
+        banner(e.dark.length === 1 ? 'Tỉnh cuối cùng' : `Chỉ còn ${e.dark.length} tỉnh`, esc(names.join(' · ')), 'Bình luận tên quê để cả nước rực sáng!', 4500);
+        say(e.dark.length === 1
+          ? `Chỉ còn đúng một tỉnh cuối cùng: ${list}! Người ${list} đâu rồi? Bình luận ${list} ngay để cả nước rực sáng nào!`
+          : `Chỉ còn ${e.dark.length} tỉnh nữa thôi: ${list}! Người ${list} đâu rồi? Bình luận tên quê ngay để cả nước rực sáng nào!`, true, '', 0, true);
+        break; }
       case 'summary': showSummary(e); break;
       case 'reset': fxList.length = 0; for (const k in flash) delete flash[k]; feed.splice(0).forEach(x => x.remove()); banner('Phiên mới', 'Bắt đầu thắp đèn!', 'Bình luận tên tỉnh, thành quê bạn', 3500); break;
       case 'say': say(e.text, true); break;

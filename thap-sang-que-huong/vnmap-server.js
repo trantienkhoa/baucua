@@ -105,11 +105,17 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
       const n = litCount();
       for (const ms of [5, 10, 17, 25, 30]) if (n >= ms && !S.milestones.includes(ms)) { S.milestones.push(ms); setTimeout(() => fx('milestone', { n: ms, total: VN.COUNT }), 1200); }
       checkSeason();
+      // còn 3 / 2 / 1 tỉnh chưa sáng: đọc tên từng tỉnh (mỗi mức nhắc lại tối đa 1 lần / 45 giây)
+      const darkIds = VN.LIST.filter(p => !S.provs[p.id].lit).map(p => p.id);
+      if (darkIds.length >= 1 && darkIds.length <= 3 && Date.now() - (almostAt[darkIds.length] || 0) > 45000 && !S.seasonDone) {
+        almostAt[darkIds.length] = Date.now(); setTimeout(() => fx('almost', { dark: darkIds, total: VN.COUNT }), 1500);
+      }
     }
     dirty = true;
     return pts;
   }
 
+  const almostAt = {};
   // cấp người thắp đèn (lưu qua các phiên → có lý do quay lại)
   const levelOf = VN.levelOf;
   function gainXp(user, pts, prov) {
