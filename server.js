@@ -286,6 +286,8 @@ for (const dir of [path.join(__dirname, 'thap-sang-que-huong', 'data'), path.joi
 }
 // chế độ Thắp Sáng Quê Hương (bản đồ Việt Nam) — dùng chung kết nối TikTok
 const vnmap = require('./vnmap-server.js')({ io, readJSON, writeJSON });
+// ba game quán: Quán Nhậu Chung, Tiệm Massage, Tiệm Cà Phê Chill — dùng chung kết nối TikTok
+const venues = require('./venue-server.js')({ io, readJSON, writeJSON });
 app.use(express.json({ limit: '1mb' }));
 app.use('/api/clips', express.raw({ type: () => true, limit: '300mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -416,7 +418,7 @@ function setState(status, text) {
   console.log('[TikTok]', text);
 }
 
-function broadcast(ev) { session.lastEvent = Date.now(); io.to('game').emit('ev', ev); try { textHook(ev); } catch (e) { console.error('text', e); } vnmap.hook(ev); }
+function broadcast(ev) { session.lastEvent = Date.now(); io.to('game').emit('ev', ev); try { textHook(ev); } catch (e) { console.error('text', e); } vnmap.hook(ev); venues.hook(ev); }
 
 // ---------- lời nhắn lên màn hình LCD: bình luận "mh: …" + tặng quà ----------
 const TEXT_PREFIX = /^\s*(mh|màn hình|man hinh|manhinh|lcd|chữ|chu|text|tn|lời nhắn|loi nhan)\s*[:：\-–>]\s*/i;
@@ -740,9 +742,10 @@ app.post('/api/open-game', (req, res) => {
   if (!/^(::1|127\.|::ffff:127\.)/.test(ip)) return res.status(403).json({ ok: false, error: 'Chỉ mở được từ chính máy chạy game.' });
   const exe = findBrowser();
   if (!exe) return res.json({ ok: false, error: 'Không tìm thấy Chrome hoặc Edge trên máy.' });
+  const venue = req.body && ['nhau', 'massage', 'cafe'].includes(req.body.page) ? req.body.page : null;
   const map = req.body && req.body.page === 'map';
-  const profile = path.join(DATA, map ? 'browser-map' : 'browser-game');
-  const url = map ? `http://127.0.0.1:${PORT}/ban-do.html?obs=1` : `http://localhost:${PORT}/game.html` + (req.body && req.body.obs ? '?obs=1' : '');
+  const profile = path.join(DATA, venue ? 'browser-' + venue : map ? 'browser-map' : 'browser-game');
+  const url = venue ? `http://127.0.0.1:${PORT}/quan.html?v=${venue}&obs=1` : map ? `http://127.0.0.1:${PORT}/ban-do.html?obs=1` : `http://localhost:${PORT}/game.html` + (req.body && req.body.obs ? '?obs=1' : '');
   try {
     const child = require('child_process').spawn(exe, ['--autoplay-policy=no-user-gesture-required', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check', '--window-size=560,1000', `--app=${url}`], { detached: true, stdio: 'ignore' });
     child.on('error', () => {}); child.unref();
@@ -771,6 +774,7 @@ function testUser(i) {
 
 io.on('connection', socket => {
   vnmap.onConnection(socket);
+  venues.onConnection(socket);
   socket.on('hello', (role, info) => {
     if (role === 'game') { socket.join('game'); screens.set(socket.id, { obs: !!(info && info.obs) }); pickPrimary(); socket.emit('goalState', goalState); }
     else if (role === 'screen') { socket.join('screenctl'); socket.emit('screenMedia', screenMedia()); socket.emit('screenStatus', screenStatus); socket.emit('textQueue', textPending); socket.emit('textHistory', textHistory); }

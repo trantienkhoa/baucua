@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Điều khiển quán</title>
+<style>
+  :root { --bg:#0f1226; --card:#181c3a; --line:#2c3266; --text:#eef0ff; --sub:#a9b0d9; --acc:#ffcc4d; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.45 'Segoe UI',system-ui,sans-serif; }
+  header { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:14px; padding:12px 18px; background:#0b0e1f; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header h1 { margin:0; font-size:20px; }
+  header a { color:var(--acc); text-decoration:none; font-weight:600; }
+  .status { padding:4px 10px; border-radius:20px; background:#333; font-weight:600; font-size:13px; }
+  .status.connected { background:#065f46; } .status.error,.status.blocked { background:#7f1d1d; } .status.connecting,.status.reconnecting { background:#78350f; }
+  main { max-width:1180px; margin:0 auto; padding:16px; display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:16px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; }
+  section h2 { margin:0 0 12px; font-size:17px; }
+  label { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:8px 0; color:var(--sub); }
+  label > span { flex:1; }
+  input[type=text],input[type=number],select { background:#0d1030; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:7px 9px; font:inherit; }
+  input[type=number] { width:80px; }
+  input[type=range] { width:150px; }
+  button { background:#2b3170; color:var(--text); border:1px solid #3c4490; border-radius:9px; padding:8px 12px; font:inherit; font-weight:600; cursor:pointer; }
+  button.pri { background:var(--acc); color:#1a1300; border-color:var(--acc); }
+  button.bad { background:#5a1a1a; border-color:#8a2a2a; }
+  .btns { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .stats div { background:#0d1030; border-radius:10px; padding:8px; text-align:center; }
+  .stats b { display:block; font-size:22px; color:var(--acc); }
+  .stats span { font-size:12px; color:var(--sub); }
+  code { background:#0d1030; padding:3px 6px; border-radius:6px; color:#ffe39a; word-break:break-all; flex:1; }
+  .muted { color:var(--sub); font-size:13px; }
+  .mrow { display:grid; grid-template-columns:44px 1fr 70px 96px 60px 30px; gap:6px; margin:4px 0; align-items:center; }
+  .mrow input { width:100%; }
+  .switch { width:20px; height:20px; }
+  .tabs a { padding:6px 12px; border-radius:20px; background:#2b3170; }
+  .tabs a.on { background:var(--acc); color:#1a1300; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Quán</h1>
+  <span id="conn" class="status">Chưa kết nối</span>
+  <span class="tabs" style="display:flex;gap:6px"><a href="?v=nhau" data-v="nhau">🍻 Quán nhậu</a><a href="?v=massage" data-v="massage">💆 Massage</a><a href="?v=cafe" data-v="cafe">☕ Cà phê</a></span>
+  <a href="/">← Trang chính</a>
+</header>
+<main>
+  <section>
+    <h2>📺 Đưa lên LIVE</h2>
+    <div id="links"></div>
+    <div class="btns"><a id="openScr" target="_blank"><button>📺 Mở màn LIVE</button></a><button class="pri" id="btnOpen">🪟 Cửa sổ riêng</button></div>
+    <div class="muted" id="openMsg"></div>
+    <p class="muted">Kết nối TikTok, key, bộ lọc từ, nhạc nền dùng chung — chỉnh ở <a href="/" style="color:var(--acc)">Trang chính</a>.</p>
+  </section>
+  <section>
+    <h2>📊 Trong quán</h2>
+    <div class="stats" id="stats"></div>
+    <div class="btns">
+      <button id="cHappy">⚡ Bật giờ nhân đôi</button>
+      <button id="cRound">🎁 Quán mời 1 vòng</button>
+      <button id="cRain" style="display:none">🌧 Bật/tắt mưa</button>
+      <button id="cNotes" style="display:none">🧹 Xoá bảng lời nhắn</button>
+      <button id="cReset" class="bad">♻️ Dọn quán (phiên mới)</button>
+    </div>
+    <label style="margin-top:12px"><span>🎙 MC nói</span><input type="text" id="sayText" placeholder="Gõ câu cho MC đọc…" style="width:190px"><button id="sayBtn">Nói</button></label>
+  </section>
+  <section>
+    <h2>🎁 Thực đơn quà (xu mỗi quà → món)</h2>
+    <div class="muted">Món: <b>mình</b> = người tặng, <b>bàn</b> = cả bàn của người tặng, <b>quán</b> = mọi người đang ngồi. "Cảm xúc" là số cộng vào thanh cảm xúc.</div>
+    <div class="mrow muted" style="margin-top:8px"><span>Biểu tượng</span><span>Tên món</span><span>Từ xu</span><span>Cho ai</span><span>Cảm xúc</span><span></span></div>
+    <div id="menu"></div>
+    <div class="btns"><button id="addM">+ Thêm món</button><button class="pri" id="saveM">Lưu thực đơn</button><span class="muted" id="menuMsg"></span></div>
+  </section>
+  <section>
+    <h2>⚙️ Luật quán</h2>
+    <label><span>Không bình luận bao nhiêu phút thì rời quán</span><input type="number" data-k="idleMin" min="1"></label>
+    <label><span>Giờ nhân đôi mỗi (phút, 0 = tắt)</span><input type="number" data-k="happyEvery" min="0"></label>
+    <label><span>&nbsp;&nbsp;kéo dài (giây)</span><input type="number" data-k="happySec" min="10"></label>
+    <label><span>Combo: tính trong (giây)</span><input type="number" data-k="comboWin" min="3"></label>
+    <label><span>Mỗi bao nhiêu tim cả phòng → quán mời 1 vòng</span><input type="number" data-k="likeGoal" min="0"></label>
+    <label id="noteRow" style="display:none"><span>Lời nhắn: quà tối thiểu (xu)</span><input type="number" data-k="noteCoins" min="1"></label>
+    <label><span>⚡ Hiệu ứng nhẹ (máy yếu)</span><input type="checkbox" class="switch" data-k="lite"></label>
+  </section>
+  <section>
+    <h2>🎙 MC & 🎵 âm thanh</h2>
+    <label><span>Bật MC giọng nói</span><input type="checkbox" class="switch" data-k="mcOn"></label>
+    <label><span>Giọng</span><select data-k="mcVoice" id="voice" style="width:200px"></select><button id="voiceTest">▶</button></label>
+    <label><span>Tốc độ đọc</span><input type="range" data-k="mcRate" min="0.7" max="1.4" step="0.05"></label>
+    <label><span>MC tự nói khi phòng im</span><select data-k="mcChatty"><option value="1">Ít</option><option value="2">Vừa</option><option value="3">Nhiều</option></select></label>
+    <label><span>Chào khách vào quán</span><input type="checkbox" class="switch" data-k="mcWelcome"></label>
+    <label><span>Nhạc nền</span><input type="checkbox" class="switch" data-k="musicOn"></label>
+    <label><span>Âm lượng nhạc</span><input type="range" data-k="musicVol" min="0" max="1" step="0.05"></label>
+    <label><span>Âm thanh hiệu ứng</span><input type="checkbox" class="switch" data-k="sfxOn"></label>
+    <label><span>Âm lượng hiệu ứng</span><input type="range" data-k="sfxVol" min="0" max="1.5" step="0.05"></label>
+    <div class="btns"><button id="sfxTest">🔊 Nghe thử (mở màn LIVE trước)</button></div>
+  </section>
+  <section>
+    <h2>🧪 Thử không cần LIVE</h2>
+    <div class="btns">
+      <button data-test="join" data-n="6">🚪 6 khách vào</button>
+      <button data-test="cmd" data-n="8" id="tCmd">🍻 8 người hô</button>
+      <button data-test="cmd" data-n="15">🔥 15 người hô (combo lớn)</button>
+      <button data-test="gift" data-v="1">🎁 1 xu</button>
+      <button data-test="gift" data-v="10">🎁 10 xu</button>
+      <button data-test="gift" data-v="30">🎁 30 xu</button>
+      <button data-test="gift" data-v="100">🎁 100 xu</button>
+      <button data-test="gift" data-v="500">🎁 500 xu</button>
+      <button data-test="like" data-n="1000">❤️ 1000 tim</button>
+      <button data-test="member">🏡 Khách quen vào phòng</button>
+    </div>
+  </section>
+</main>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/tts.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const V = (new URLSearchParams(location.search).get('v') || 'nhau').replace(/[^a-z]/g, '');
+const NAMES = { nhau: '🍻 Quán Nhậu Chung', massage: '💆 Tiệm Massage Thư Giãn', cafe: '☕ Tiệm Cà Phê Chill' };
+const CMD = { nhau: 'dzô', massage: 'đã quá', cafe: 'chill' };
+$('title').textContent = NAMES[V] || V; document.title = 'Điều khiển · ' + (NAMES[V] || V);
+document.querySelectorAll('.tabs a').forEach(a => a.classList.toggle('on', a.dataset.v === V));
+$('tCmd').textContent = `🗣 8 người gõ “${CMD[V]}”`;
+if (V === 'cafe') { $('cRain').style.display = ''; $('cNotes').style.display = ''; $('noteRow').style.display = ''; }
+$('openScr').href = `/quan.html?v=${V}`;
+const fmt = n => Math.round(n || 0).toLocaleString('vi-VN');
+const socket = io();
+let CFG = {};
+socket.on('connect', () => { socket.emit('hello', 'quanadmin'); socket.emit('vn:hello', { v: V, role: 'ctl' }); });
+socket.on('connState', c => { $('conn').textContent = c.text; $('conn').className = 'status ' + c.status; });
+fetch('/api/info').then(r => r.json()).then(i => {
+  const p = i.port, page = `quan.html?v=${V}`, list = [['OBS (máy này)', `http://localhost:${p}/${page}&obs=1`], ['TikTok LIVE Studio (máy này)', `http://127.0.0.1:${p}/${page}&obs=1`]];
+  for (const ip of i.ips || []) list.push(['LIVE Studio nếu link trên không nhận (mạng LAN)', `http://${ip}:${p}/${page}&obs=1`], ['Điện thoại cùng Wi-Fi', `http://${ip}:${p}/${page}`]);
+  $('links').innerHTML = list.map(([t, u]) => `<div style="margin:8px 0"><div class="muted">${t}</div><div style="display:flex;gap:6px;align-items:center"><code>${u}</code><button data-copy="${u}" style="padding:4px 10px">📋 Chép</button></div></div>`).join('');
+});
+document.addEventListener('click', e => { const u = e.target.dataset && e.target.dataset.copy; if (!u) return; const done = () => { e.target.textContent = '✓ Đã chép'; setTimeout(() => e.target.textContent = '📋 Chép', 1500); }; if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(u).then(done); else { const t = document.createElement('textarea'); t.value = u; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); done(); } });
+$('btnOpen').onclick = async () => { const m = $('openMsg'); m.textContent = 'Đang mở…'; try { const r = await (await fetch('/api/open-game', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page: V }) })).json(); m.textContent = r.ok ? '✓ Đã mở bằng ' + r.browser + ' — dùng Window Capture để thu cửa sổ này' : '⚠ ' + r.error; } catch (e) { m.textContent = '⚠ Không mở được'; } };
+
+function fill(c) {
+  CFG = c;
+  for (const el of document.querySelectorAll('[data-k]')) { if (document.activeElement === el) continue; const v = c[el.dataset.k]; if (el.type === 'checkbox') el.checked = !!v; else if (v != null) el.value = v; }
+  if (!menuDirty) renderMenu(c.menu || []);
+  if (window.MC) { MC.setPref(c.mcVoice || ''); MC.rate = +c.mcRate || 1; }
+}
+socket.on('vn:cfg', m => { if (m && m.v === V) fill(m.cfg); });
+for (const el of document.querySelectorAll('[data-k]')) el.addEventListener('change', () => {
+  let v = el.type === 'checkbox' ? el.checked : el.value;
+  if (el.type === 'number' || el.type === 'range' || el.dataset.k === 'mcChatty') v = Number(v);
+  socket.emit('vn:cfg', { v: V, patch: { [el.dataset.k]: v } });
+});
+let menuDirty = false;
+function renderMenu(m) {
+  $('menu').innerHTML = m.map((x, i) => `<div class="mrow" data-i="${i}"><input type="text" value="${x.icon}" data-f="icon"><input type="text" value="${String(x.name).replace(/"/g, '&quot;')}" data-f="name"><input type="number" value="${x.min}" data-f="min"><select data-f="kind"><option value="self"${x.kind === 'self' ? ' selected' : ''}>mình</option><option value="table"${x.kind === 'table' ? ' selected' : ''}>bàn</option><option value="all"${x.kind === 'all' ? ' selected' : ''}>quán</option></select><input type="number" value="${x.meter}" data-f="meter"><button data-del="${i}" style="padding:2px 6px">✕</button></div>`).join('');
+}
+const readMenu = () => [...$('menu').querySelectorAll('.mrow')].map(r => ({ icon: r.querySelector('[data-f=icon]').value, name: r.querySelector('[data-f=name]').value, min: +r.querySelector('[data-f=min]').value, kind: r.querySelector('[data-f=kind]').value, meter: +r.querySelector('[data-f=meter]').value }));
+$('menu').oninput = () => { menuDirty = true; $('menuMsg').textContent = 'Chưa lưu'; };
+$('menu').onclick = e => { const d = e.target.dataset.del; if (d != null) { const m = readMenu(); m.splice(+d, 1); renderMenu(m); menuDirty = true; } };
+$('addM').onclick = () => { const m = readMenu(); const l = m[m.length - 1] || { min: 1, meter: 8 }; m.push({ icon: '🎁', name: 'Món mới', min: l.min * 2, kind: 'self', meter: l.meter }); renderMenu(m); menuDirty = true; };
+$('saveM').onclick = () => { socket.emit('vn:cfg', { v: V, patch: { menu: readMenu() } }); menuDirty = false; $('menuMsg').textContent = '✓ Đã lưu'; };
+
+const cmd = (type, extra) => socket.emit('vn:cmd', Object.assign({ v: V, type }, extra || {}));
+$('cHappy').onclick = () => cmd('happy'); $('cRound').onclick = () => cmd('round'); $('cRain').onclick = () => cmd('rain'); $('cNotes').onclick = () => cmd('clearNotes');
+$('cReset').onclick = () => { if (confirm('Dọn quán: mời mọi khách ra, xoá bảng đại gia phiên này? (Danh hiệu khách quen vẫn giữ)')) cmd('reset'); };
+$('sayBtn').onclick = () => { const t = $('sayText').value.trim(); if (t) { cmd('say', { text: t }); $('sayText').value = ''; } };
+$('sayText').onkeydown = e => { if (e.key === 'Enter') $('sayBtn').click(); };
+$('sfxTest').onclick = () => cmd('sfxTest');
+document.querySelectorAll('[data-test]').forEach(b => b.onclick = () => socket.emit('vn:test', { v: V, kind: b.dataset.test, n: +b.dataset.n || undefined, value: +b.dataset.v || undefined }));
+socket.on('vn:stats', s => {
+  if (!s || s.v !== V) return;
+  $('stats').innerHTML = [[`${s.seated}/${s.seats}`, 'đang ngồi'], [s.wait, 'đang chờ'], [fmt(s.people), 'khách phiên này'], [fmt(s.coins), 'xu'], [fmt(s.toasts), `lần gõ “${CMD[V]}”`], [fmt(s.fans), 'khách quen']].map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('');
+});
+function voices() { if (!window.MC) return; const list = MC.list(), sel = $('voice'); sel.innerHTML = '<option value="">Tự chọn giọng hay nhất</option>' + list.map(n => `<option value="${n.replace(/"/g, '&quot;')}">${/natural|online/i.test(n) ? '⭐ ' : ''}${n}</option>`).join(''); sel.value = CFG.mcVoice || ''; }
+if (window.MC) { MC.onVoices = voices; voices(); }
+$('voiceTest').onclick = () => { if (window.MC) { MC.setPref($('voice').value); MC.enabled = true; MC.say('Xin chào quý khách, chúc cả nhà một buổi tối thật vui!', true); } };
+socket.on('vn:say', m => { if (window.MC && CFG.mcOn) { MC.enabled = true; MC.say(m.text, m.prio); } });
+</script>
+</body>
+</html>

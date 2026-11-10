@@ -1,7 +1,7 @@
 {
   "name": "bo-game-tiktok-live",
-  "version": "4.0.0",
-  "description": "Bộ game TikTok LIVE: Vũ Trường Neon (sàn nhảy 3D) + Thắp Sáng Quê Hương (bản đồ Việt Nam) - tự host, không cần key bản quyền",
+  "version": "4.1.0",
+  "description": "Bộ game TikTok LIVE: Vũ Trường Neon, Thắp Sáng Quê Hương, Quán Nhậu Chung, Tiệm Massage, Tiệm Cà Phê Chill - tự host, không cần key bản quyền",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

@@ -6,6 +6,9 @@ Một phần mềm, nhiều game TikTok LIVE, dùng chung **một kết nối Ti
 |---|---|---|
 | 🪩 **Vũ Trường Neon** — sàn nhảy 3D, người xem bình luận là lên sàn nhảy | `/game.html?obs=1` | `/admin.html` |
 | 🏮 **Thắp Sáng Quê Hương** — bản đồ 34 tỉnh, thành, bình luận tên quê để thắp đèn | `/ban-do.html?obs=1` | `/ban-do-admin.html` |
+| 🍻 **Quán Nhậu Chung** — quán nhậu vỉa hè, gõ “dzô” cả quán cụng ly | `/quan.html?v=nhau&obs=1` | `/quan-admin.html?v=nhau` |
+| 💆 **Tiệm Massage Thư Giãn** — vào giường thư giãn, gõ “đã quá” | `/quan.html?v=massage&obs=1` | `/quan-admin.html?v=massage` |
+| ☕ **Tiệm Cà Phê Chill** — quán cà phê đêm mưa, gõ “chill”, bảng lời nhắn | `/quan.html?v=cafe&obs=1` | `/quan-admin.html?v=cafe` |
 
 ## Cài đặt (Windows)
 
@@ -22,6 +25,21 @@ macOS / Linux: `npm install` rồi `npm start` (hoặc `./chay-game.sh`).
 - **OBS:** Browser source, dán link "OBS" của game trên trang chính, 1080 × 1920, bật *Control audio via OBS*.
 - **TikTok LIVE Studio:** Thêm nguồn → Liên kết → dán link "LIVE Studio" (127.0.0.1); không nhận thì dùng link mạng LAN; vẫn không được thì bấm **🪟 Cửa sổ riêng** rồi dùng Window Capture.
 - **LIVE bằng điện thoại:** điện thoại cùng Wi-Fi mở link "Điện thoại".
+
+## Bản 4.1.0 — thêm 3 game quán
+
+Ba game mới chạy chung một bộ máy, mỗi quán có hình vẽ, thực đơn, câu lệnh và lời MC riêng:
+
+- 🚪 **Bình luận là vào quán**: nhân vật mang ảnh + tên người xem bước vào ngồi (quán nhậu 16 ghế quanh 4 bàn nhựa, tiệm massage 8 giường, cà phê 12 ghế). Hết chỗ thì xếp hàng chờ; ai im lặng quá 6 phút thì về, nhường chỗ. Người tặng quà được ưu tiên chỗ ngồi.
+- 🎁 **Tặng quà là gọi món** theo thực đơn (sửa được): món cho mình, cho cả bàn hoặc mời cả quán — quà lớn có pháo bay, giấy màu, băng-rôn đại gia, MC hô.
+  - Quán nhậu: cụng ly, khô mực, két bia cho bàn, lẩu thái, bao cả quán, ban nhạc sống.
+  - Massage: trà gừng, đắp mặt nạ, massage chân, đá nóng, xông hơi cả tiệm, gói VIP.
+  - Cà phê: trà đá, cà phê sữa đá, bạc xỉu + bánh, bình trà hoa, mời cả quán, gọi cơn mưa.
+- 🗣 **Cả phòng cùng hô**: “dzô” / “đã quá” / “chill” — đủ 5, 12, 25 người trong 12 giây nổ combo (chữ lớn “1 2 3 DZÔ!”, pháo, giấy màu, tiếng reo), ai đang ngồi cũng được cộng cảm xúc.
+- 😴 **Thanh cảm xúc** từng người (độ say / thư giãn / chill): gọi món, hô, thả tim là tăng; đầy thì ngủ gật “Zzz” 1 phút rồi tỉnh.
+- ⚡ **Giờ nhân đôi** định kỳ, ❤️ **mục tiêu tim** (đủ tim quán mời mỗi khách một món), 🏡 **khách quen** lưu qua các buổi với danh hiệu (Khách quen → Bợm nhậu → Thánh nhậu; Hội viên bạc → vàng → kim cương; Cạ cứng → Chủ quán danh dự), khách quen vào phòng là tự vào quán.
+- 📌 **Cà phê: bảng lời nhắn** — bình luận “mh: lời nhắn” rồi tặng quà để dán giấy nhớ lên bảng, MC đọc lời nhắn; ☔ mưa ngoài cửa sổ (quà “gọi cơn mưa” hoặc nút bật).
+- Bảng **Thực đơn quà**, **Vừa gọi món**, **Đại gia đêm nay**, **Vua dzô / Thư giãn nhất / Chill nhất**; nhạc nền dùng chung hoặc tiếng nền tự tạo theo quán.
 
 ## Bản 4.0.0 — gom thành một phần mềm
 

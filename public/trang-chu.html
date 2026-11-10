@@ -34,8 +34,12 @@
   .game { border-radius:18px; padding:18px; border:1px solid var(--line); position:relative; overflow:hidden; }
   .game.neon { background:linear-gradient(160deg,#3a0f5e,#14123a 60%); }
   .game.map { background:linear-gradient(160deg,#5e3a0f,#1a1530 60%); }
+  .game.nhau { background:linear-gradient(160deg,#6a2a0a,#1e1010 60%); }
+  .game.massage { background:linear-gradient(160deg,#0f4a3a,#121e1a 60%); }
+  .game.cafe { background:linear-gradient(160deg,#4a2f4a,#16121e 60%); }
   .game h3 { margin:0; font-size:22px; }
-  .game p { color:var(--sub); margin:6px 0 10px; }
+  .game p { color:var(--sub); margin:6px 0 10px; padding-right:64px; }
+  .game h3 { padding-right:64px; }
   .game .ic { position:absolute; right:14px; top:8px; font-size:58px; opacity:.85; }
   .link { margin:6px 0; }
   .link .t { font-size:12px; color:var(--sub); }
@@ -80,7 +84,7 @@
   </section>
 
   <section class="wide">
-    <h2>2. Chọn game</h2>
+    <h2>2. Chọn game (5 game)</h2>
     <div class="games">
       <div class="game neon">
         <div class="ic">🪩</div>
@@ -98,8 +102,32 @@
         <div class="muted" data-msg="map"></div>
         <div data-links="map"></div>
       </div>
+      <div class="game nhau">
+        <div class="ic">🍻</div>
+        <h3>Quán Nhậu Chung</h3>
+        <p>Quán nhậu vỉa hè: bình luận để vào bàn, gõ “dzô” cả quán cụng ly, tặng quà gọi khô mực, két bia, lẩu, bao cả quán…</p>
+        <div class="btns"><a href="/quan-admin.html?v=nhau"><button class="pri">⚙️ Điều khiển</button></a><a href="/quan.html?v=nhau" target="_blank"><button>📺 Mở màn LIVE</button></a><button data-open="nhau">🪟 Cửa sổ riêng</button></div>
+        <div class="muted" data-msg="nhau"></div>
+        <div data-links="nhau"></div>
+      </div>
+      <div class="game massage">
+        <div class="ic">💆</div>
+        <h3>Tiệm Massage Thư Giãn</h3>
+        <p>Tiệm thư giãn: bình luận để vào giường, gõ “đã quá” cả tiệm thư giãn, tặng quà đặt trà gừng, massage chân, đá nóng, xông hơi…</p>
+        <div class="btns"><a href="/quan-admin.html?v=massage"><button class="pri">⚙️ Điều khiển</button></a><a href="/quan.html?v=massage" target="_blank"><button>📺 Mở màn LIVE</button></a><button data-open="massage">🪟 Cửa sổ riêng</button></div>
+        <div class="muted" data-msg="massage"></div>
+        <div data-links="massage"></div>
+      </div>
+      <div class="game cafe">
+        <div class="ic">☕</div>
+        <h3>Tiệm Cà Phê Chill</h3>
+        <p>Quán cà phê đêm mưa: bình luận để vào bàn, gõ “chill”, gọi cà phê, bánh, trà hoa; “mh: lời nhắn” + quà để dán lên bảng…</p>
+        <div class="btns"><a href="/quan-admin.html?v=cafe"><button class="pri">⚙️ Điều khiển</button></a><a href="/quan.html?v=cafe" target="_blank"><button>📺 Mở màn LIVE</button></a><button data-open="cafe">🪟 Cửa sổ riêng</button></div>
+        <div class="muted" data-msg="cafe"></div>
+        <div data-links="cafe"></div>
+      </div>
     </div>
-    <p class="muted">Cả hai game nhận bình luận / quà cùng lúc — chỉ cần đưa màn của game đang chơi lên LIVE.</p>
+    <p class="muted">Mọi game nhận bình luận / quà cùng lúc — chỉ cần đưa màn của game đang chơi lên LIVE.</p>
   </section>
 
   <section>
@@ -153,11 +181,12 @@ $('blockSwear').onchange = () => socket.emit('saveSettings', { blockSwear: $('bl
 // link cho từng game
 fetch('/api/info').then(r => r.json()).then(i => {
   $('ver').textContent = 'bản ' + i.version;
-  const p = i.port, pages = { game: 'game.html', map: 'ban-do.html' };
+  const p = i.port, pages = { game: 'game.html', map: 'ban-do.html', nhau: 'quan.html?v=nhau', massage: 'quan.html?v=massage', cafe: 'quan.html?v=cafe' };
   for (const [k, page] of Object.entries(pages)) {
-    const list = [['OBS (máy này)', `http://localhost:${p}/${page}?obs=1`], ['TikTok LIVE Studio (máy này)', `http://127.0.0.1:${p}/${page}?obs=1`]];
-    for (const ip of i.ips || []) list.push(['LIVE Studio nếu link trên không nhận (mạng LAN)', `http://${ip}:${p}/${page}?obs=1`], ['Điện thoại cùng Wi-Fi', `http://${ip}:${p}/${page}`]);
-    document.querySelector(`[data-links="${k}"]`).innerHTML = list.map(([t, u]) => `<div class="link"><div class="t">${t}</div><div class="r"><code>${u}</code><button data-copy="${u}">📋 Chép</button></div></div>`).join('');
+    const q = page.includes('?') ? '&' : '?', list = [['OBS (máy này)', `http://localhost:${p}/${page}${q}obs=1`], ['TikTok LIVE Studio (máy này)', `http://127.0.0.1:${p}/${page}${q}obs=1`]];
+    for (const ip of i.ips || []) list.push(['LIVE Studio nếu link trên không nhận (mạng LAN)', `http://${ip}:${p}/${page}${q}obs=1`], ['Điện thoại cùng Wi-Fi', `http://${ip}:${p}/${page}`]);
+    const row = ([t, u]) => `<div class="link"><div class="t">${t}</div><div class="r"><code>${u}</code><button data-copy="${u}">📋 Chép</button></div></div>`;
+    document.querySelector(`[data-links="${k}"]`).innerHTML = `<details><summary class="muted">🔗 Link OBS / LIVE Studio / điện thoại</summary>${list.map(row).join('')}</details>`;
   }
 });
 document.addEventListener('click', async e => {

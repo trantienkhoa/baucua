@@ -1,5 +1,5 @@
-BỘ GAME TIKTOK LIVE — Vũ Trường Neon + Thắp Sáng Quê Hương
-==========================================================
+BỘ GAME TIKTOK LIVE — 5 game trong 1 phần mềm
+============================================
 
 1. Cài Node.js bản LTS: https://nodejs.org  (chỉ làm 1 lần)
 2. Giải nén thư mục này ra ổ đĩa (đừng chạy trong file nén).
@@ -17,6 +17,9 @@ BỘ GAME TIKTOK LIVE — Vũ Trường Neon + Thắp Sáng Quê Hương
 Game:
 - 🪩 Vũ Trường Neon: sàn nhảy 3D, màn LIVE /game.html?obs=1
 - 🏮 Thắp Sáng Quê Hương: bản đồ 34 tỉnh, thành, màn LIVE /ban-do.html?obs=1
+- 🍻 Quán Nhậu Chung: màn LIVE /quan.html?v=nhau&obs=1
+- 💆 Tiệm Massage Thư Giãn: màn LIVE /quan.html?v=massage&obs=1
+- ☕ Tiệm Cà Phê Chill: màn LIVE /quan.html?v=cafe&obs=1
 
 Đang dùng bản Thắp Sáng Quê Hương chạy riêng? Đặt thư mục thap-sang-que-huong (có data/)
 cạnh thư mục này hoặc bên trong nó → lần chạy đầu tự chuyển điểm, người quen, chức vụ, key, nhạc sang.
