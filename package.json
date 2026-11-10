@@ -1,7 +1,7 @@
 {
-  "name": "vu-truong-neon",
-  "version": "3.0.0",
-  "description": "Game TikTok LIVE san nhay - tu host, khong can key ban quyen",
+  "name": "bo-game-tiktok-live",
+  "version": "4.0.0",
+  "description": "Bộ game TikTok LIVE: Vũ Trường Neon (sàn nhảy 3D) + Thắp Sáng Quê Hương (bản đồ Việt Nam) - tự host, không cần key bản quyền",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

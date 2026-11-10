@@ -99,6 +99,7 @@ const DEFAULT_SETTINGS = {
   tierKing: 299,
   tierEmperor: 999,
   bannedWords: '',
+  blockSwear: true,        // chặn sẵn từ chửi thề phổ biến (tên bị che ***)
   // MC giọng nói
   ttsEnabled: true, ttsWhere: 'game', ttsVoice: '', ttsVolume: 1, ttsRate: 1.05, ttsMinCoins: 1, ttsJoin: false, ttsFollow: true,
   // đấu đội
@@ -157,11 +158,15 @@ function cleanText(t, max = 60) {
   if (LINK_RE.test(t) || PHONE_RE.test(t) || ZALO_RE.test(t)) return null;
   const low = t.toLowerCase();
   for (const w of bannedList()) if (w && low.includes(w)) return null;
+  if (settings.blockSwear && cleanBad(t).hit) return null;
   return t.slice(0, max);
 }
+// tên chứa từ chửi thề: che bằng dấu * thay vì bỏ hẳn; tên có từ cấm → Khách ẩn danh
 function cleanName(u) {
-  const n = cleanText(u.nickname, 24) || cleanText(u.uniqueId, 24);
-  return n || 'Khách ẩn danh';
+  const raw = [u.nickname, u.uniqueId].map(x => String(x || '').replace(/[\u0000-\u001f]/g, '').trim()).find(Boolean) || '';
+  if (!raw || LINK_RE.test(raw) || PHONE_RE.test(raw) || ZALO_RE.test(raw)) return 'Khách ẩn danh';
+  const low = raw.toLowerCase(); for (const w of bannedList()) if (w && low.includes(w)) return 'Khách ẩn danh';
+  return (settings.blockSwear ? cleanBad(raw).text : raw).slice(0, 24) || 'Khách ẩn danh';
 }
 
 // ---------- trích dữ liệu sự kiện ----------
@@ -266,6 +271,19 @@ console.log('  Danh sách nhân vật:', roster.length);
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { maxHttpBufferSize: 1e6 });
+// chuyển dữ liệu từ bản Thắp Sáng Quê Hương chạy riêng (nếu để thư mục đó cạnh / trong phần mềm này)
+for (const dir of [path.join(__dirname, 'thap-sang-que-huong', 'data'), path.join(__dirname, '..', 'thap-sang-que-huong', 'data')]) {
+  try {
+    if (!fs.existsSync(dir)) continue;
+    for (const f of ['vnmap-settings.json', 'vnmap-state.json', 'vnmap-fans.json', 'vnmap-alltime.json']) {
+      const src = path.join(dir, f), dst = path.join(DATA, f);
+      if (fs.existsSync(src) && !fs.existsSync(dst)) { fs.copyFileSync(src, dst); console.log('  Đã chuyển dữ liệu bản đồ:', f); }
+    }
+    const old = readJSON(path.relative(DATA, path.join(dir, 'connection.json')), null);
+    if (old) { if (!settings.username && old.username) settings.username = old.username; if (!settings.apiKey && old.apiKey) settings.apiKey = old.apiKey; if (!settings.bannedWords && old.bannedWords) settings.bannedWords = old.bannedWords; saveSettings(); }
+    for (const f of fs.existsSync(path.join(dir, 'music')) ? fs.readdirSync(path.join(dir, 'music')) : []) { const d = path.join(MUSIC, f); if (!fs.existsSync(d)) fs.copyFileSync(path.join(dir, 'music', f), d); }
+  } catch (e) { console.error('Không chuyển được dữ liệu bản đồ cũ:', e.message); }
+}
 // chế độ Thắp Sáng Quê Hương (bản đồ Việt Nam) — dùng chung kết nối TikTok
 const vnmap = require('./vnmap-server.js')({ io, readJSON, writeJSON });
 app.use(express.json({ limit: '1mb' }));
@@ -273,7 +291,7 @@ app.use('/api/clips', express.raw({ type: () => true, limit: '300mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/music', express.static(MUSIC));
 app.use('/three', express.static(path.join(__dirname, 'node_modules', 'three')));
-app.get('/', (req, res) => res.redirect('/admin.html'));
+app.get('/', (req, res) => res.redirect('/trang-chu.html'));
 app.get('/game', (req, res) => res.sendFile(path.join(__dirname, 'public', 'game.html')));
 
 function lanIPs() {
@@ -722,8 +740,9 @@ app.post('/api/open-game', (req, res) => {
   if (!/^(::1|127\.|::ffff:127\.)/.test(ip)) return res.status(403).json({ ok: false, error: 'Chỉ mở được từ chính máy chạy game.' });
   const exe = findBrowser();
   if (!exe) return res.json({ ok: false, error: 'Không tìm thấy Chrome hoặc Edge trên máy.' });
-  const profile = path.join(DATA, 'browser-game');
-  const url = `http://localhost:${PORT}/game.html` + (req.body && req.body.obs ? '?obs=1' : '');
+  const map = req.body && req.body.page === 'map';
+  const profile = path.join(DATA, map ? 'browser-map' : 'browser-game');
+  const url = map ? `http://127.0.0.1:${PORT}/ban-do.html?obs=1` : `http://localhost:${PORT}/game.html` + (req.body && req.body.obs ? '?obs=1' : '');
   try {
     const child = require('child_process').spawn(exe, ['--autoplay-policy=no-user-gesture-required', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check', '--window-size=560,1000', `--app=${url}`], { detached: true, stdio: 'ignore' });
     child.on('error', () => {}); child.unref();
@@ -878,7 +897,8 @@ setInterval(() => {
 
 server.listen(PORT, '0.0.0.0', () => {
   const ips = lanIPs();
-  console.log('\n  Vũ Trường Neon đã chạy');
+  console.log('\n  🎮 Bộ Game TikTok LIVE đã chạy');
+  console.log(`  Trang chính      : http://localhost:${PORT}/`);
   console.log(`  Trang điều khiển : http://localhost:${PORT}/admin.html`);
   console.log(`  Màn hình game    : http://localhost:${PORT}/game.html`);
   console.log(`  Bản đồ quê hương : http://localhost:${PORT}/ban-do-admin.html  (màn LIVE: /ban-do.html?obs=1)`);

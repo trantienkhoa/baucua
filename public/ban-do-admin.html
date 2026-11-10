@@ -46,21 +46,22 @@
   <h1>🏮 Thắp Sáng Quê Hương</h1>
   <span id="conn" class="status">Chưa kết nối</span>
   <a href="/ban-do.html" target="_blank">Mở màn hình ↗</a>
-  <a href="/admin.html">← Game sàn nhảy</a>
+  <a href="/">← Trang chính</a>
+  <a href="/admin.html">🪩 Game sàn nhảy</a>
 </header>
 <main>
   <section>
     <h2>1. Kết nối TikTok LIVE</h2>
-    <label><span>Tên kênh (@)</span><input id="username" type="text" placeholder="tenkenh"></label>
-    <label><span>Key EulerStream (tuỳ chọn)</span><input id="apiKey" type="password" placeholder="để trống cũng được"></label>
-    <div class="btns"><button class="pri" id="btnConnect">Kết nối</button><button id="btnDisconnect">Ngắt</button></div>
-    <p class="muted">Dùng chung kết nối với game sàn nhảy: chạy cả hai cùng lúc cũng được.</p>
+    <p>Kết nối, key EulerStream, bộ lọc từ và nhạc nền <b>dùng chung</b> cho mọi game — chỉnh ở <a href="/" style="color:var(--acc)">Trang chính</a>.</p>
+    <div class="btns"><a href="/"><button class="pri">⚙️ Mở trang chính</button></a><button id="btnConnect">Kết nối lại</button><button id="btnDisconnect">Ngắt</button></div>
+    <input id="username" type="hidden"><input id="apiKey" type="hidden">
   </section>
 
   <section>
     <h2>2. Đưa lên LIVE</h2>
-    <p><b>OBS</b>: Browser source, 1080 × 1920, bật <i>Control audio via OBS</i><br><code id="obsUrl">http://localhost:3300/ban-do.html?obs=1</code></p>
-    <p><b>Điện thoại / LIVE Studio</b> (cùng Wi-Fi):<br><span id="lanUrls" class="muted">…</span></p>
+    <div id="links"></div>
+    <div class="btns"><button class="pri" id="btnOpenLive">🪟 Mở màn hình LIVE trong cửa sổ riêng</button></div>
+    <div class="muted" id="openMsg"></div>
     <div class="stats" id="stats"></div>
   </section>
 
@@ -143,7 +144,7 @@
     <label><span>🔔 Âm thanh hiệu ứng (cộng điểm, pháo hoa)</span><input type="checkbox" class="switch" data-k="sfxOn"></label>
     <label><span>Âm lượng hiệu ứng</span><input type="range" data-k="sfxVol" min="0" max="1.5" step="0.05"></label>
     <button type="button" id="sfxTest" style="margin-top:4px">🔊 Nghe thử (mở màn LIVE trước)</button>
-    <p class="muted">Nhạc nền lấy từ thư mục nhạc của game (trang điều khiển sàn nhảy → tải nhạc). Không có nhạc thì phát tiếng đàn nhẹ. Màn hình OBS không có giọng Việt thì trang này sẽ đọc thay — giữ trang mở (tốt nhất bằng Edge).</p>
+    <p class="muted">Nhạc nền dùng chung — tải nhạc ở Trang chính. Không có nhạc thì phát tiếng đàn nhẹ. Màn hình OBS không có giọng Việt thì trang này sẽ đọc thay — giữ trang mở (tốt nhất bằng Edge).</p>
   </section>
 
   <section>
@@ -174,12 +175,15 @@ let CFG = {};
 socket.on('connect', () => { socket.emit('hello', 'mapadmin'); socket.emit('vm:hello', 'ctl'); });
 socket.on('settings', s => { if (document.activeElement !== $('username')) $('username').value = s.username || ''; if (document.activeElement !== $('apiKey')) $('apiKey').value = s.apiKey || ''; });
 socket.on('connState', c => { $('conn').textContent = c.text; $('conn').className = 'status ' + c.status; });
-$('btnConnect').onclick = () => socket.emit('connect-tiktok', { username: $('username').value, apiKey: $('apiKey').value });
+$('btnConnect').onclick = () => socket.emit('connect-tiktok', {});
+$('btnOpenLive').onclick = async () => { const m = $('openMsg'); m.textContent = 'Đang mở…'; try { const r = await (await fetch('/api/open-game', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page: 'map' }) })).json(); m.textContent = r.ok ? '✓ Đã mở bằng ' + r.browser + ' — dùng Window Capture để thu cửa sổ này' : '⚠ ' + r.error; } catch (e) { m.textContent = '⚠ Không mở được'; } };
+document.addEventListener('click', e => { const u = e.target.dataset && e.target.dataset.copy; if (!u) return; const done = () => { e.target.textContent = '✓ Đã chép'; setTimeout(() => e.target.textContent = '📋 Chép', 1500); }; if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(u).then(done); else { const t = document.createElement('textarea'); t.value = u; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); done(); } });
 $('btnDisconnect').onclick = () => socket.emit('disconnect-tiktok');
 
 fetch('/api/info').then(r => r.json()).then(i => {
-  $('obsUrl').textContent = `http://localhost:${i.port}/ban-do.html?obs=1`;
-  $('lanUrls').innerHTML = (i.ips || []).map(ip => `<code>http://${ip}:${i.port}/ban-do.html</code>`).join('<br>') || 'Không tìm thấy mạng LAN';
+  const p = i.port, list = [['OBS (máy này)', `http://localhost:${p}/ban-do.html?obs=1`], ['TikTok LIVE Studio (máy này)', `http://127.0.0.1:${p}/ban-do.html?obs=1`]];
+  for (const ip of i.ips || []) list.push(['LIVE Studio nếu link trên không nhận (mạng LAN)', `http://${ip}:${p}/ban-do.html?obs=1`], ['Điện thoại cùng Wi-Fi', `http://${ip}:${p}/ban-do.html`]);
+  $('links').innerHTML = list.map(([t, u]) => `<div style="margin:8px 0"><div class="muted">${t}</div><div style="display:flex;gap:6px;align-items:center"><code style="flex:1">${u}</code><button data-copy="${u}" style="padding:4px 10px">📋 Chép</button></div></div>`).join('');
 });
 
 // giao diện

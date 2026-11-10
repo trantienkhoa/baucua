@@ -1,27 +1,24 @@
-VŨ TRƯỜNG NEON — game TikTok LIVE sàn nhảy 3D
-=============================================
+BỘ GAME TIKTOK LIVE — Vũ Trường Neon + Thắp Sáng Quê Hương
+==========================================================
 
 1. Cài Node.js bản LTS: https://nodejs.org  (chỉ làm 1 lần)
 2. Giải nén thư mục này ra ổ đĩa (đừng chạy trong file nén).
 3. Windows: bấm đúp ChayGame.bat
    macOS / Linux: mở Terminal trong thư mục, chạy ./chay-game.sh
-4. Trình duyệt tự mở trang điều khiển: http://localhost:3300/admin.html
+4. Trình duyệt tự mở TRANG CHÍNH: http://localhost:3300/
 
-Lên LIVE:
-- OBS: Sources → + → Browser → URL  http://localhost:3300/game.html?obs=1
-  Width 1080, Height 1920, bật "Control audio via OBS".
-- TikTok LIVE Studio: Thêm nguồn → Liên kết → dán đường dẫn LAN (có ở trang điều khiển).
-- Bật LIVE trên TikTok → ở trang điều khiển nhập tên kênh → Kết nối.
+Ở trang chính:
+- Nhập tên kênh, (tuỳ chọn) lưu key EulerStream → Kết nối. Dùng chung cho mọi game.
+- Bộ lọc từ, nhạc nền: dùng chung.
+- Chọn game: bấm "Điều khiển" để vào trang điều khiển của game đó.
+- Mỗi game có sẵn link cho OBS, TikTok LIVE Studio (127.0.0.1 / mạng LAN), điện thoại
+  và nút "Cửa sổ riêng" để dùng Window Capture.
 
-Không cần key bản quyền. Key EulerStream là tuỳ chọn.
-Cần máy có card đồ hoạ; máy yếu chọn "Kiểu nhân vật: Hoạt hình" hoặc "Mức hiệu ứng: Nhẹ".
-Thêm nhân vật riêng: trang điều khiển → mục 🧍 Nhân vật (hỗ trợ .vrm / .glb / .fbx).
-Sự kiện LIVE (trang điều khiển → 🎮 Sự kiện LIVE): đấu đội, solo, flash mob,
-đèn chiếu, MC giọng nói, mục tiêu phòng mở sân khấu mới, clip khoảnh khắc.
-Lệnh người xem: 1/2 (chọn đội, bình chọn solo), bài 1/2/3 (chọn nhạc).
-Chi tiết: xem README.md
+Game:
+- 🪩 Vũ Trường Neon: sàn nhảy 3D, màn LIVE /game.html?obs=1
+- 🏮 Thắp Sáng Quê Hương: bản đồ 34 tỉnh, thành, màn LIVE /ban-do.html?obs=1
 
-THẮP SÁNG QUÊ HƯƠNG (bản đồ Việt Nam) — chế độ mới bản 3.0
-- Trang điều khiển: http://localhost:3300/ban-do-admin.html
-- OBS: Browser source  http://localhost:3300/ban-do.html?obs=1  (1080 × 1920)
-- Người xem bình luận tên tỉnh (tên mới, tên cũ, thành phố, viết tắt) để thắp đèn quê.
+Đang dùng bản Thắp Sáng Quê Hương chạy riêng? Đặt thư mục thap-sang-que-huong (có data/)
+cạnh thư mục này hoặc bên trong nó → lần chạy đầu tự chuyển điểm, người quen, chức vụ, key, nhạc sang.
+
+Không cần key bản quyền. Chi tiết: xem README.md

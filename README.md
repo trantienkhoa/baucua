@@ -1,6 +1,33 @@
-# 🪩 Vũ Trường Neon — game TikTok LIVE sàn nhảy
+# 🎮 Bộ Game TikTok LIVE
 
-Sàn nhảy **3D** trong phòng LIVE (Three.js: nhân vật người 3D có tóc, mặt, quần áo/váy, sàn đèn LED 3D, sân khấu, màn LED, cầu disco, đèn quét, laser): người xem **bình luận** là có một nhân vật mang **ảnh đại diện + tên TikTok** của họ rơi xuống sàn và nhảy theo nhạc. Chạy trên máy bạn, **không cần key bản quyền**.
+Một phần mềm, nhiều game TikTok LIVE, dùng chung **một kết nối TikTok, một key, một bộ lọc từ, một thư mục nhạc**. Chạy trên máy bạn, **không cần key bản quyền**.
+
+| Game | Màn LIVE | Điều khiển |
+|---|---|---|
+| 🪩 **Vũ Trường Neon** — sàn nhảy 3D, người xem bình luận là lên sàn nhảy | `/game.html?obs=1` | `/admin.html` |
+| 🏮 **Thắp Sáng Quê Hương** — bản đồ 34 tỉnh, thành, bình luận tên quê để thắp đèn | `/ban-do.html?obs=1` | `/ban-do-admin.html` |
+
+## Cài đặt (Windows)
+
+1. Cài **Node.js** bản LTS: https://nodejs.org
+2. Tải thư mục này về, giải nén, bấm đúp **`ChayGame.bat`** (lần đầu sẽ tự cài thư viện).
+3. Trình duyệt mở **trang chính** `http://localhost:3300/`: kết nối TikTok, lưu key, bộ lọc từ, nhạc nền, chọn game, chép link cho OBS / TikTok LIVE Studio / điện thoại.
+
+macOS / Linux: `npm install` rồi `npm start` (hoặc `./chay-game.sh`).
+
+**Chuyển từ bản Thắp Sáng Quê Hương chạy riêng:** đặt thư mục `thap-sang-que-huong` (có `data/`) cạnh hoặc bên trong thư mục phần mềm này — lần chạy đầu tự chuyển điểm, người quen, chức vụ, key và nhạc sang.
+
+## Lên LIVE
+
+- **OBS:** Browser source, dán link "OBS" của game trên trang chính, 1080 × 1920, bật *Control audio via OBS*.
+- **TikTok LIVE Studio:** Thêm nguồn → Liên kết → dán link "LIVE Studio" (127.0.0.1); không nhận thì dùng link mạng LAN; vẫn không được thì bấm **🪟 Cửa sổ riêng** rồi dùng Window Capture.
+- **LIVE bằng điện thoại:** điện thoại cùng Wi-Fi mở link "Điện thoại".
+
+## Bản 4.0.0 — gom thành một phần mềm
+
+- **Trang chính** mới: kết nối TikTok + nút 💾 Lưu key / 👁 / Xoá, tự kết nối lại, số người xem / bình luận / tim / xu, bộ lọc từ + chặn chửi thề có sẵn, nhạc nền dùng chung, thẻ chọn từng game kèm link OBS / LIVE Studio / LAN / điện thoại và nút cửa sổ riêng.
+- Bộ lọc chửi thề áp dụng cho cả hai game: tên có từ chửi bị che `***`, bình luận có từ chửi bị bỏ qua.
+- Thư mục `thap-sang-que-huong` (bản chạy riêng) đã gộp vào đây và được gỡ; mọi tính năng của nó có trong game 🏮 của phần mềm này.
 
 ## Cài đặt (Windows)
 
