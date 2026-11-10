@@ -103,6 +103,14 @@
     ['Thánh địa Mỹ Sơn nay thuộc tỉnh, thành nào?', 'da-nang'],
   ].map(([q, a]) => ({ q, a }));
 
-  const api = { LIST, BY_ID, findProvince, deacc, QUIZ, COUNT: LIST.length };
+  // Đố vui: chỉ tính đúng khi gõ CHÍNH XÁC tên tỉnh mới (không tính tên tỉnh cũ đã gộp, tên thành phố…)
+  const EXACT_EXTRA = { 'tp-hcm': ['ho chi minh', 'tp hcm', 'tphcm', 'hcm', 'tp ho chi minh', 'thanh pho ho chi minh'], 'ha-noi': ['hanoi'], 'da-nang': ['danang'], 'hue': ['thua thien hue'], 'dak-lak': ['daklak', 'dac lac'] };
+  function isExactAnswer(text, id) {
+    const p = BY_ID[id]; if (!p) return false;
+    const s = norm(text);
+    return [deacc(p.name), deacc(p.short), ...(EXACT_EXTRA[id] || [])].some(n => s.includes(' ' + n + ' '));
+  }
+
+  const api = { LIST, BY_ID, findProvince, isExactAnswer, deacc, QUIZ, COUNT: LIST.length };
   if (typeof module === 'object' && module.exports) module.exports = api; else root.VN_PROV = api;
 })(typeof window !== 'undefined' ? window : globalThis);

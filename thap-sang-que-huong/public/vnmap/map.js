@@ -678,8 +678,8 @@
         else { banner('Kết quả đại chiến', 'Hòa!', `${e.sa} – ${e.sb}`, 3500); say('Đại chiến kết thúc với tỉ số hòa!', true); }
         break;
       case 'quizStart':
-        banner('Đố vui quê hương', '❓', `${esc(e.q)}<br><span style="font-size:24px">Trả lời đúng đầu tiên: <b>+${e.pts}</b> điểm cho <b>quê của bạn</b></span>`, 5500);
-        say(`Đố vui quê hương! ${e.q} Ai trả lời đúng đầu tiên được ${e.pts} điểm cộng cho quê của chính mình!`, true);
+        banner('Đố vui quê hương', '❓', `${esc(e.q)}<br><span style="font-size:24px">Gõ đúng tên tỉnh mới (tên cũ đã gộp không tính) · <b>+${e.pts}</b> điểm cho <b>quê của bạn</b></span>`, 5500);
+        say(`Đố vui quê hương! ${e.q} Gõ đúng tên tỉnh mới, tên tỉnh cũ đã gộp không được tính. Ai trả lời đúng đầu tiên được ${e.pts} điểm cộng cho quê của chính mình!`, true);
         break;
       case 'quizWin':
         if (e.prov) {

@@ -14,6 +14,8 @@ const DEFAULT_CFG = {
   tiers: [[1, 3], [5, 30], [30, 100], [100, 500], [1000, 2000]],   // [xu tối thiểu mỗi quà, điểm]
   likeEvery: 50,           // mỗi 50 tim của 1 người → +1 điểm cho quê người đó
   followPts: 5, sharePts: 3,
+  shareCooldown: 10,       // chống spam chia sẻ: mỗi người chỉ được cộng điểm chia sẻ 1 lần / 10 phút
+  shareMax: 3,             // và tối đa 3 lần mỗi phiên (theo dõi chỉ tính 1 lần / người / phiên)
   countryCoins: 10000,     // tổng xu cả buổi → cả nước rực sáng
   waveLikes: 1000,         // mỗi 1000 tim cả phòng → Sóng tim thắp 1 tỉnh còn tối
   battleEvery: 7, battleSec: 90, battleBonus: 100,
@@ -209,11 +211,12 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
     const now = Date.now();
     // đang đố vui (và 15 giây sau): gõ tên tỉnh là TRẢ LỜI, không đổi quê, không thắp tỉnh trong đáp án
     const quizOn = S.quiz && S.quiz.endsAt > now;
-    const guessing = prov && (quizOn || now < (S.quizLock || 0));
+    const exact = quizOn && VN.isExactAnswer(text, S.quiz.a);
+    const guessing = (prov || exact) && (quizOn || now < (S.quizLock || 0));
     const u = touchUser(user, guessing ? null : prov);
     firstSeen(user, u, false);
     if (guessing) {
-      if (quizOn && prov === S.quiz.a) {
+      if (exact) {
         const q = S.quiz; S.quiz = null; S.nextQuiz = now + cfg.quizEvery * 60000; S.quizLock = now + 15000;
         const home = u.prov;   // quê THẬT của người trả lời
         if (home) { const pts = addPts(home, cfg.quizPts, user, 'quiz'); fx('quizWin', { user: userCard(user), prov: home, answer: q.a, q: q.q, pts }); }
@@ -295,7 +298,16 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
     else if (!seenSession.has(user.id)) fx('join', { user: userCard(user) });
   }
 
+  const bonusLog = new Map();   // uid -> { share: [thời điểm…], follow: true }
   function onBonus(user, pts, why) {
+    const now = Date.now(), log = bonusLog.get(user.id) || { share: [], follow: false };
+    bonusLog.set(user.id, log);
+    if (why === 'follow') { if (log.follow) return; log.follow = true; }
+    if (why === 'share') {
+      const last = log.share[log.share.length - 1] || 0;
+      if (log.share.length >= cfg.shareMax || now - last < cfg.shareCooldown * 60000) return;   // spam chia sẻ: bỏ qua
+      log.share.push(now);
+    }
     const u = touchUser(user, null); firstSeen(user, u, false);
     if (u.prov) { const got = addPts(u.prov, pts, user, why); fx(why, { user: userCard(user), prov: u.prov, pts: got }); }
   }
@@ -525,7 +537,7 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
       else if (c.type === 'quiz') { if (!S.quiz) startQuiz(); }
       else if (c.type === 'country') { for (const p of VN.LIST) { const r = S.provs[p.id]; if (!r.lit) r.lit = now; r.energy = 100; r.warned = false; } S.country.times++; fx('country', { user: null, times: S.country.times }); setTimeout(checkSeason, 6000); dirty = true; }
       else if (c.type === 'summary') fx('summary', summary());
-      else if (c.type === 'reset') { S = freshState(); seenSession.clear(); chatAt.clear(); likeAcc.clear(); fx('reset'); dirty = true; }
+      else if (c.type === 'reset') { S = freshState(); seenSession.clear(); bonusLog.clear(); chatAt.clear(); likeAcc.clear(); fx('reset'); dirty = true; }
       else if (c.type === 'say' && typeof c.text === 'string') fx('say', { text: c.text.slice(0, 200) });
     });
     socket.on('vm:test', test);
