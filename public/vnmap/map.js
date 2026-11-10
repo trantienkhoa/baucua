@@ -11,6 +11,9 @@
   const pshort = id => (VN.BY_ID[id] || {}).short || '';
   const rnd = (a, b) => a + Math.random() * (b - a);
   const fmt = n => Math.round(n).toLocaleString('vi-VN');
+  // chức vụ: "🏮 Tri huyện Huế"
+  const rankTxt = (lv, prov) => lv > 1 ? `${VN.iconOf(lv)} ${VN.titleOf(lv)}${prov ? ' ' + pname(prov) : ''}` : '';
+  const rankHTML = (lv, prov) => lv > 1 ? `<span class="rank">${esc(rankTxt(lv, prov))}</span> ` : '';
 
   // ---------- co giãn sân khấu ----------
   function fit() {
@@ -528,7 +531,16 @@
     });
     for (const r of [...container.children]) if (!keep.has(r.dataset.id)) { r.style.opacity = 0; setTimeout(() => r.remove(), 400); r.dataset.id = '_gone' + Math.random(); }
   }
-  let lastGiftKey = '';
+  let lastGiftKey = '', tiersHTML = '', showRanks = false;
+  function renderTierPanel() {
+    const ph = $('tiers').previousElementSibling;
+    if (!showRanks) { ph.textContent = 'Bảng điểm thắp đèn'; $('tiers').innerHTML = tiersHTML; return; }
+    ph.textContent = 'Chức vụ của tỉnh';
+    const off = (S && S.officials) || [];
+    $('tiers').innerHTML = `<div class="ranks">${VN.TITLES.map((t, i) => `<div><span>${VN.iconOf(i + 1)} ${esc(t)}</span><b>${fmt(VN.xpFor(i + 1))}</b></div>`).join('')}</div>`
+      + (off.length ? `<div class="offs">${off.map(o => `<div>${avatarHTML(o)}<span><b>${esc(o.name)}</b><br>${esc(rankTxt(o.lv, o.prov))}</span></div>`).join('')}</div>` : `<div class="tr" style="font-size:16px;opacity:.8;margin-top:4px">Điểm tích luỹ qua các buổi LIVE</div>`);
+  }
+  setInterval(() => { showRanks = !showRanks; const el = $('tiers').parentNode; el.classList.remove('flip'); void el.offsetWidth; el.classList.add('flip'); renderTierPanel(); }, 12000);
   function onState() {
     if (!S) return;
     $('barFill').style.width = (S.lit / S.total * 100) + '%';
@@ -549,7 +561,8 @@
     }
     // bảng điểm
     const tiers = (CFG.tiers || []).map((t, i, a) => { const next = a[i + 1] ? a[i + 1][0] - 1 : null; return `<div class="tr"><span>🎁 ${fmt(t[0])}${next ? '–' + fmt(next) : '+'} xu</span><b>+${fmt(t[1])}</b></div>`; }).join('');
-    $('tiers').innerHTML = `<div class="tr"><span>💬 Mỗi bình luận</span><b>+${CFG.commentPts || 1}</b></div><div class="tr"><span>❤️ Mỗi ${CFG.likeEvery || 50} tim</span><b>+1</b></div>` + tiers;
+    tiersHTML = `<div class="tr"><span>💬 Mỗi bình luận</span><b>+${CFG.commentPts || 1}</b></div><div class="tr"><span>❤️ Mỗi ${CFG.likeEvery || 50} tim</span><b>+1</b></div>` + tiers;
+    renderTierPanel();
     $('cTxt').textContent = S.country.target ? `🎁 ${fmt(S.country.pool)} / ${fmt(S.country.target)} xu` : '';
     $('cFill').style.width = S.country.target ? Math.min(100, S.country.pool / S.country.target * 100) + '%' : '0';
     // vinh danh
@@ -619,7 +632,7 @@
     if (joinBusy || !joinQ.length) return; joinBusy = true;
     const j = joinQ.shift(), host = $('joins'), more = joinSkipped; joinSkipped = 0;
     const el = document.createElement('div'); el.className = 'jn';
-    el.innerHTML = avatarHTML(j.u) + `<span>👋 <b>${esc(j.u.name)}</b>${j.lv > 1 ? ` <small>Lv${j.lv}</small>` : ''} vừa vào phòng ${j.prov ? `<small>· người ${esc(pname(j.prov))}</small>` : '<small>· bình luận tên quê để thắp đèn</small>'}${more ? ` <small>+${more} người khác</small>` : ''}</span>`;
+    el.innerHTML = avatarHTML(j.u) + `<span>👋 <b>${esc(j.u.name)}</b>${j.lv > 1 ? ` <span class="rank">${esc(rankTxt(j.lv, j.prov))}</span>` : ''} vừa vào phòng ${j.prov ? `<small>· người ${esc(pname(j.prov))}</small>` : '<small>· bình luận tên quê để thắp đèn</small>'}${more ? ` <small>+${more} người khác</small>` : ''}</span>`;
     host.innerHTML = ''; host.appendChild(el);
     const ms = joinQ.length ? 1400 : 2600;
     setTimeout(() => { el.classList.add('out'); setTimeout(() => { el.remove(); joinBusy = false; pumpJoin(); }, 330); }, ms);
@@ -684,7 +697,7 @@
     switch (e.type) {
       case 'light':
         if (e.prov) comet(FEED_ORIGIN, e.prov, null, e.first);
-        if (u) feedAdd(u, `${e.lv > 1 ? `<span class="pt">Lv${e.lv}</span> ` : ''}<b>${esc(u.name)}</b> ${e.nth > 1 ? `người thứ ${e.nth} của` : 'thắp đèn'} ${esc(P)} <span class="pt">+${e.pts}</span>${e.mult > 1 ? ' ×' + e.mult : ''}`);
+        if (u) feedAdd(u, `${rankHTML(e.lv, null)}<b>${esc(u.name)}</b> ${e.nth > 1 ? `người thứ ${e.nth} của` : 'thắp đèn'} ${esc(P)} <span class="pt">+${e.pts}</span>${e.mult > 1 ? ' ×' + e.mult : ''}`);
         else if (e.why === 'wave') feedAdd(null, `Sóng tim thắp sáng <b>${esc(P)}</b>`);
         if (e.first && CFG.mcIntro) {
           const intro = (VN.BY_ID[e.prov] || {}).intro;
@@ -821,8 +834,9 @@
         } else { banner('Lộc rơi', 'Không ai nhận lộc', 'Lần sau gõ nhanh hơn nhé!', 3000); }
         break;
       case 'levelUp':
-        feedAdd(u, `⬆️ <b>${esc(u.name)}</b> lên <span class="pt">cấp ${e.level}</span>`);
-        if (e.level >= 3) say(`${nm(u)} đã lên cấp ${e.level}!`, false, 'lv', 8000);
+        feedAdd(u, `⬆️ <b>${esc(u.name)}</b> thăng chức <span class="rank">${esc(rankTxt(e.level, e.prov))}</span>`);
+        if (e.level >= 4) { banner('Thăng chức', `${VN.iconOf(e.level)} ${esc(e.title)}${e.prov ? ' ' + esc(pname(e.prov)) : ''}`, `Chúc mừng <b>${esc(u.name)}</b>`, 3500, [u]); sfx.fanfare(); }
+        say(`Chúc mừng ${nm(u)} được thăng chức ${e.title}${e.prov ? ' ' + pname(e.prov) : ''}!`, e.level >= 6, 'lv', e.level >= 6 ? 0 : 6000);
         break;
       case 'theme': {
         const th = THEMES[e.theme]; flashScreen();
@@ -838,11 +852,12 @@
   function showSummary(e) {
     const el = $('summary');
     const prov = (e.topProv || []).map((x, i) => `<div><div style="font-size:54px">${['🥇', '🥈', '🥉'][i]}</div>${esc(pname(x.id))}<br><span style="color:var(--accent)">${fmt(x.v)} điểm</span></div>`).join('');
+    const fansH = (e.topFans || []).filter(u => u.pts > 0).map(u => `<div>${avatarHTML(u)}${esc(u.name)}<br><span style="color:var(--accent)">${esc(rankTxt(u.lv, u.prov) || 'Dân làng')}</span></div>`).join('');
     const giv = (e.topGivers || []).map(u => `<div>${avatarHTML(u)}${esc(u.name)}<br><span style="color:var(--accent)">${fmt(u.coins)} xu</span></div>`).join('');
     el.innerHTML = `<div class="card"><h2>TỔNG KẾT PHIÊN LIVE</h2><div style="font-size:24px;color:var(--sub);margin-top:6px">${e.mins} phút · cảm ơn mọi người đã thắp đèn 🇻🇳</div>
       <div class="grid"><div class="st"><b>${e.seasons ? e.seasons + ' mùa' : e.lit + '/' + e.total}</b><span>${e.seasons ? 'sáng đủ 34 tỉnh' : 'tỉnh đã sáng'}</span></div><div class="st"><b>${fmt(e.people)}</b><span>người thắp đèn</span></div><div class="st"><b>${fmt(e.comments)}</b><span>bình luận</span></div>
       <div class="st"><b>${fmt(e.likes)}</b><span>lượt tim</span></div><div class="st"><b>${fmt(e.coins)}</b><span>xu quà tặng</span></div><div class="st"><b>${fmt(e.returning)}</b><span>người quen quay lại</span></div></div>
-      ${prov ? `<h3>Quê dẫn đầu</h3><div class="tops">${prov}</div>` : ''}${giv ? `<h3>Vinh danh người thắp đèn</h3><div class="tops">${giv}</div>` : ''}</div>`;
+      ${prov ? `<h3>Quê dẫn đầu</h3><div class="tops">${prov}</div>` : ''}${giv ? `<h3>Vinh danh người thắp đèn</h3><div class="tops">${giv}</div>` : ''}${fansH ? `<h3>Quan lại chăm chỉ nhất</h3><div class="tops">${fansH}</div>` : ''}</div>`;
     el.style.display = 'flex'; celebrate(4);
     say(`Tổng kết phiên LIVE: đã sáng ${e.lit} trên ${e.total} tỉnh thành, ${e.people} người cùng thắp đèn. Cảm ơn tất cả mọi người, hẹn gặp lại!`, true);
     clearTimeout(showSummary.t); showSummary.t = setTimeout(() => { el.style.display = 'none'; }, 20000);

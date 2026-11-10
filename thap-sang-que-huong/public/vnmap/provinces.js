@@ -111,6 +111,14 @@
     return [deacc(p.name), deacc(p.short), ...(EXACT_EXTRA[id] || [])].some(n => s.includes(' ' + n + ' '));
   }
 
-  const api = { LIST, BY_ID, findProvince, isExactAnswer, deacc, QUIZ, COUNT: LIST.length };
+  // Chức vụ của tỉnh theo điểm tích luỹ (lưu qua các phiên). Cấp n cần 6·(n−1)² điểm.
+  const TITLES = ['Dân làng', 'Trưởng xóm', 'Trưởng thôn', 'Lý trưởng', 'Chánh tổng', 'Tri huyện', 'Tri phủ', 'Án sát', 'Bố chính', 'Tuần phủ', 'Tổng đốc', 'Thượng thư', 'Tể tướng'];
+  const TITLE_ICON = ['🧑‍🌾', '🏡', '🛖', '📜', '🎋', '🏮', '🏯', '⚖️', '💰', '🛡️', '🐉', '👑', '🌟'];
+  const levelOf = xp => Math.min(TITLES.length, Math.floor(Math.sqrt(Math.max(0, xp) / 6)) + 1);
+  const xpFor = lv => 6 * (lv - 1) * (lv - 1);
+  const titleOf = lv => TITLES[Math.max(1, Math.min(TITLES.length, lv || 1)) - 1];
+  const iconOf = lv => TITLE_ICON[Math.max(1, Math.min(TITLES.length, lv || 1)) - 1];
+
+  const api = { LIST, BY_ID, findProvince, isExactAnswer, deacc, QUIZ, COUNT: LIST.length, TITLES, levelOf, xpFor, titleOf, iconOf };
   if (typeof module === 'object' && module.exports) module.exports = api; else root.VN_PROV = api;
 })(typeof window !== 'undefined' ? window : globalThis);

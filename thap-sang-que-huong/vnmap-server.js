@@ -111,11 +111,11 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
   }
 
   // cấp người thắp đèn (lưu qua các phiên → có lý do quay lại)
-  const levelOf = xp => Math.floor(Math.sqrt(Math.max(0, xp) / 6)) + 1;
+  const levelOf = VN.levelOf;
   function gainXp(user, pts, prov) {
     const f = fans[user.id]; if (!f) return;
     const before = levelOf(f.xp || 0); f.xp = (f.xp || 0) + pts; const after = levelOf(f.xp);
-    if (after > before && after >= 2) fx('levelUp', { user: userCard(user), level: after, prov });
+    if (after > before && after >= 2) fx('levelUp', { user: userCard(user), level: after, title: VN.titleOf(after), prov: (S.users[user.id] && S.users[user.id].prov) || prov });
     fansDirty = true;
   }
   const lvOf = uid => levelOf((fans[uid] && fans[uid].xp) || 0);
@@ -436,6 +436,7 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
       season: S.season, seasonDone: S.seasonDone, seasonWins: S.seasonWins.slice(0, 3),
       drop: S.drop ? { endsAt: S.drop.endsAt, sec: S.drop.sec, n: S.drop.users.length, word: cfg.dropWord || 'lộc' } : null,
       next: nextEvent(),
+      officials: Object.values(S.users).filter(u => u.prov).map(u => ({ name: u.name, avatar: u.avatar, prov: u.prov, lv: lvOf(u.id) })).filter(x => x.lv >= 2).sort((a, b) => b.lv - a.lv).slice(0, 3),
     };
   }
   // sự kiện sắp tới (hiện đếm ngược để người xem chờ)
@@ -478,7 +479,7 @@ module.exports = function setupVnMap({ io, readJSON, writeJSON }) {
       comments: S.comments, likes: S.likes, coins: S.coins, newPeople: S.newPeople, returning: S.returning,
       topProv: sortedBy('pts').slice(0, 3),
       topGivers: users.filter(u => u.coins > 0).sort((a, b) => b.coins - a.coins).slice(0, 3).map(u => ({ name: u.name, avatar: u.avatar, coins: u.coins, prov: u.prov })),
-      topFans: users.slice().sort((a, b) => b.pts - a.pts).slice(0, 3).map(u => ({ name: u.name, avatar: u.avatar, pts: u.pts, prov: u.prov })),
+      topFans: users.slice().sort((a, b) => b.pts - a.pts).slice(0, 3).map(u => ({ name: u.name, avatar: u.avatar, pts: u.pts, prov: u.prov, lv: lvOf(u.id) })),
     };
   }
 
