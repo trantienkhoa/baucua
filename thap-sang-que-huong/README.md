@@ -1,0 +1,55 @@
+# 🏮 Thắp Sáng Quê Hương — game TikTok LIVE bản đồ Việt Nam
+
+Bản đồ **34 tỉnh, thành** (sau sắp xếp 2025, có **quần đảo Hoàng Sa, Trường Sa**) hiện trên LIVE. Người xem **bình luận tên quê** là đèn quê họ sáng lên, tặng quà để quê mình dẫn đầu. Chạy trên máy bạn, **không cần key bản quyền**.
+
+## Cài đặt
+
+1. Cài **Node.js** bản LTS: https://nodejs.org (chỉ làm 1 lần).
+2. Giải nén thư mục này ra ổ đĩa (đừng chạy trong file nén).
+3. **Windows:** bấm đúp **`ChayGame.bat`** (lần đầu tự cài thư viện, đợi vài phút).
+   **macOS / Linux:** mở Terminal trong thư mục, chạy `./chay-game.sh`.
+4. Trình duyệt tự mở trang điều khiển: `http://localhost:3310/admin.html`
+
+## Lên LIVE
+
+- **OBS:** Sources → + → Browser → URL `http://localhost:3310/live.html?obs=1`, 1080 × 1920, bật *Control audio via OBS*.
+- **TikTok LIVE Studio:** Thêm nguồn → Liên kết → dán đường dẫn LAN (có trong trang điều khiển), hoặc Window Capture.
+- **LIVE bằng điện thoại:** điện thoại cùng Wi-Fi mở đường dẫn LAN ghi trong trang điều khiển.
+- Bật LIVE trên TikTok → ở trang điều khiển nhập tên kênh → **Kết nối**.
+
+Key EulerStream là tuỳ chọn, chỉ để giảm giới hạn số lần kết nối mỗi giờ.
+
+## Cách chơi
+
+- 💬 **Bình luận tên tỉnh** → +1 điểm (chống spam 4 giây / người / tỉnh). Nhận **tên mới, tên cũ đã gộp** (Bình Dương → TP HCM, Quảng Nam → Đà Nẵng, Hà Giang → Tuyên Quang…), **tên thành phố** (Đà Lạt, Nha Trang, Vũng Tàu, Phú Quốc, Sa Pa…), **viết tắt** (HN, SG, HCM, HP, BMT), có dấu hay không dấu.
+- 🎁 **Tặng quà** → cộng điểm cho quê người tặng theo bảng điểm (chỉnh được). Chưa nói quê thì điểm được giữ lại, bình luận tên quê là nhận.
+- ❤️ Mỗi 50 tim của một người → +1 điểm cho quê người đó.
+- 🇻🇳 Tổng xu cả buổi đủ 10.000 → **cả nước rực sáng**.
+- 🏁 **Đua theo vòng** (5 phút / vòng) · 👑 **Chủ tỉnh** (người tặng nhiều nhất cho tỉnh).
+
+## Tính năng giữ chân người xem
+
+- ⚔️ **Đại chiến tự động** giữa 2 tỉnh dẫn đầu, thanh kéo co, thắng được thưởng.
+- ❓ **Đố vui quê hương** (40 câu), ai trả lời đúng đầu tiên được điểm cho quê mình.
+- ⭐ **Tỉnh may mắn ×2** · 🔥 **Tỉnh hot ×2** (3 người cùng gọi 1 tỉnh trong 20 giây).
+- ❤️ **Sóng tim**: mỗi 1.000 tim cả phòng tự thắp một tỉnh còn tối.
+- 🏡 **Người quen quay lại** tự thắp đèn quê họ, MC chào tên.
+- 📅 **Điểm danh** nhiều ngày liên tiếp được thưởng tăng dần.
+- 🏆 **Cột mốc** 5 / 10 / 17 / 25 / 30 / 34 tỉnh · 📊 **Tổng kết phiên** một chạm.
+- 🎙 **MC giọng AI**: giới thiệu tỉnh khi đèn đầu tiên sáng, chào người mới, cảm ơn quà, hô đại chiến / đố vui, phòng im thì kể tên các tỉnh còn tối.
+- Điểm lưu trên máy: tải lại màn hình hay khởi động lại máy không mất điểm.
+
+## Giao diện
+
+10 giao diện đổi 1 chạm, mỗi cái có hiệu ứng riêng: Đêm Sao · Sơn Mài · Cực Quang · Neon · Đêm Trăng Hội An · Radar Chỉ Huy · Tết Rộn Ràng · Giấy Cổ · Biển Xanh · Hoa Sen.
+🧊 Bản đồ 3D nổi khối · ⚡ Hiệu ứng nhẹ cho máy yếu · 🎵 Tải nhạc nền ngay trong trang điều khiển.
+
+## Giọng MC
+
+Giọng hay nhất: mở trang điều khiển bằng **Microsoft Edge** (giọng NamMinh / HoaiMy, cần mạng). Nếu màn OBS không có giọng Việt, trang điều khiển sẽ đọc thay — giữ trang đó mở.
+Máy không có giọng Việt: Windows → Cài đặt → Thời gian & ngôn ngữ → Giọng nói → thêm Tiếng Việt.
+
+## Dữ liệu
+
+Điểm, cài đặt, người quen, nhạc nằm trong thư mục `data/`. Xoá thư mục này để làm lại từ đầu.
+Ranh giới tỉnh gộp từ bộ geoBoundaries (public domain) theo Nghị quyết 202/2025/QH15.
