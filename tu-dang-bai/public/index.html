@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tự Đăng Bài</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><img src="icon.svg" alt=""><b>Tự Đăng Bài</b></div>
+  <div id="pulse" class="pulse">Đang tải…</div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="compose"><span class="ic">✍️</span><span>Soạn bài</span></button>
+  <button data-tab="queue"><span class="ic">📅</span><span>Lịch đăng</span><i id="queueBadge" hidden></i></button>
+  <button data-tab="accounts"><span class="ic">👤</span><span>Tài khoản</span><i id="accBadge" hidden></i></button>
+  <button data-tab="settings"><span class="ic">⚙️</span><span>Cài đặt</span></button>
+</nav>
+
+<main>
+  <!-- ===================== SOẠN BÀI ===================== -->
+  <section id="tab-compose" class="tab">
+    <div id="setupHint" class="card hint" hidden></div>
+
+    <div class="card">
+      <h2><span class="num">1</span> Video / ảnh</h2>
+      <label class="drop" id="drop">
+        <input type="file" id="files" multiple accept=".mp4,.mov,.m4v,.webm,.jpg,.jpeg,.png,.webp,video/mp4,video/quicktime,video/webm,image/jpeg,image/png,image/webp">
+        <span class="drop-ic">📁</span>
+        <b>Bấm để chọn hoặc kéo thả vào đây</b>
+        <small>Video mp4 / mov / webm · ảnh jpg / png / webp (ảnh chỉ đăng Facebook).<br>Chọn nhiều video: mỗi video thành một bài, app tự xếp lịch lần lượt.</small>
+      </label>
+      <div id="previews" class="previews"></div>
+      <p id="mediaErr" class="err" hidden></p>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">2</span> Nội dung</h2>
+      <textarea id="caption" rows="5" placeholder="Viết caption, hashtag… ví dụ: Tối nay quẩy cực cháy 🔥 #xuhuong #fyp"></textarea>
+      <div class="row between">
+        <small id="capCount" class="muted"></small>
+        <button type="button" class="link" id="toggleCustom">Caption riêng cho từng nơi ▾</button>
+      </div>
+      <div id="customCaps" hidden>
+        <label class="field">Caption Facebook <textarea id="captionFb" rows="3" placeholder="Để trống = dùng caption chung"></textarea></label>
+        <label class="field">Caption TikTok <textarea id="captionTt" rows="3" placeholder="Để trống = dùng caption chung"></textarea></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">3</span> Đăng lên đâu</h2>
+      <div id="accountPick"></div>
+
+      <div id="fbOpts" class="opts" hidden>
+        <h3><span class="pf fb">f</span> Facebook</h3>
+        <label class="field">Kiểu đăng
+          <select id="fbType">
+            <option value="auto">Tự chọn (video → Reels, ảnh → bài ảnh, không file → bài chữ)</option>
+            <option value="reel">Reels</option>
+            <option value="video">Video thường</option>
+            <option value="photo">Bài ảnh</option>
+            <option value="text">Chỉ chữ / link</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="fbNative" checked>
+          <span>Gửi lịch lên Facebook luôn — Facebook tự đăng đúng giờ, <b>không cần để máy bật</b> (khi hẹn trước 20 phút – 29 ngày).</span></label>
+      </div>
+
+      <div id="ttOpts" class="opts" hidden>
+        <h3><span class="pf tt">♪</span> TikTok</h3>
+        <div class="choice">
+          <label class="check"><input type="radio" name="ttMode" value="draft" checked>
+            <span><b>Gửi vào nháp</b> — đúng giờ, video tự vào hộp thư TikTok của kênh; bạn mở app TikTok, dán caption, bấm Đăng. Dùng được ngay cả khi app TikTok chưa được audit.</span></label>
+          <label class="check" id="ttDirectLabel"><input type="radio" name="ttMode" value="direct">
+            <span><b>Đăng thẳng</b> — tự đăng hoàn toàn, có caption. <em id="ttDirectNote">Cần app TikTok được duyệt quyền video.publish (bật trong Cài đặt).</em></span></label>
+        </div>
+        <div id="ttDirect" hidden>
+          <label class="field">Ai được xem video
+            <select id="ttPrivacy">
+              <option value="">— Chọn —</option>
+              <option value="PUBLIC_TO_EVERYONE">Mọi người</option>
+              <option value="FOLLOWER_OF_CREATOR">Người theo dõi</option>
+              <option value="MUTUAL_FOLLOW_FRIENDS">Bạn bè</option>
+              <option value="SELF_ONLY">Chỉ mình tôi</option>
+            </select>
+          </label>
+          <div class="checks">
+            <label class="check"><input type="checkbox" id="ttComment" checked><span>Cho bình luận</span></label>
+            <label class="check"><input type="checkbox" id="ttDuet"><span>Cho Duet</span></label>
+            <label class="check"><input type="checkbox" id="ttStitch"><span>Cho Stitch</span></label>
+            <label class="check"><input type="checkbox" id="ttAigc"><span>Nội dung tạo bằng AI</span></label>
+            <label class="check"><input type="checkbox" id="ttBrandOrganic"><span>Quảng bá thương hiệu của bạn</span></label>
+            <label class="check"><input type="checkbox" id="ttBrandContent"><span>Nội dung có tài trợ</span></label>
+          </div>
+          <small class="muted">Khi đăng, bạn đồng ý với <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noopener">Xác nhận sử dụng nhạc</a>
+            và <a href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank" rel="noopener">Chính sách nội dung thương hiệu</a> của TikTok.</small>
+        </div>
+        <small class="muted" id="ttDraftNote">TikTok không cho app điền sẵn caption vào nháp. Trong <b>Lịch đăng</b> có nút 📋 chép caption để dán.</small>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">4</span> Thời gian</h2>
+      <div class="seg">
+        <label><input type="radio" name="when" value="now" checked><span>Đăng ngay</span></label>
+        <label><input type="radio" name="when" value="later"><span>Hẹn giờ</span></label>
+      </div>
+      <div id="whenLater" hidden>
+        <input type="datetime-local" id="at" class="full">
+        <div class="chips" id="quickTimes"></div>
+      </div>
+      <div id="bulkBox" hidden>
+        <label class="field inline">Mỗi video cách nhau
+          <select id="gap">
+            <option value="30">30 phút</option>
+            <option value="60">1 giờ</option>
+            <option value="120">2 giờ</option>
+            <option value="180" selected>3 giờ</option>
+            <option value="240">4 giờ</option>
+            <option value="360">6 giờ</option>
+            <option value="720">12 giờ</option>
+            <option value="1440">1 ngày</option>
+          </select>
+        </label>
+        <div id="bulkList" class="bulk"></div>
+      </div>
+      <p class="muted small" id="pcNote">Bài đăng ngay / hẹn giờ cần <b>để máy tính bật và cửa sổ app mở</b> lúc đến giờ (trừ bài Facebook đã gửi lịch lên Facebook).</p>
+    </div>
+
+    <div class="submitbar">
+      <div id="progress" class="progress" hidden><i></i><span></span></div>
+      <button id="submit" class="btn primary big">📮 Đăng ngay</button>
+    </div>
+  </section>
+
+  <!-- ===================== LỊCH ĐĂNG ===================== -->
+  <section id="tab-queue" class="tab" hidden>
+    <div class="chips filter" id="qFilter">
+      <button data-f="upcoming" class="on">Sắp đăng</button>
+      <button data-f="active">Đang xử lý</button>
+      <button data-f="done">Đã xong</button>
+      <button data-f="error">Lỗi</button>
+      <button data-f="all">Tất cả</button>
+    </div>
+    <div id="queueList"></div>
+  </section>
+
+  <!-- ===================== TÀI KHOẢN ===================== -->
+  <section id="tab-accounts" class="tab" hidden>
+    <div class="card">
+      <h2><span class="pf fb">f</span> Trang Facebook</h2>
+      <div id="fbList" class="acclist"></div>
+      <p class="muted small" id="fbSetupNote" hidden>Cần nhập App ID / App Secret của app Meta ở <a href="#settings">Cài đặt</a> trước.</p>
+      <div class="row wrap">
+        <a class="btn primary" href="/auth/facebook/start" id="fbConnect">Kết nối Facebook</a>
+        <button class="btn" id="fbPasteToggle" type="button">Dán token</button>
+      </div>
+      <div id="fbPaste" hidden>
+        <p class="muted small">Mở <a href="https://developers.facebook.com/tools/explorer/" target="_blank" rel="noopener">Graph API Explorer</a> → chọn app của bạn → <b>Get User Access Token</b> → tick
+          <code>pages_show_list</code>, <code>pages_read_engagement</code>, <code>pages_manage_posts</code> → Generate → chép token dán vào đây.</p>
+        <textarea id="fbToken" rows="3" placeholder="EAAB…"></textarea>
+        <button class="btn primary" id="fbTokenSave" type="button">Lấy danh sách Trang</button>
+      </div>
+      <p class="muted small">Facebook chỉ cho app đăng lên <b>Trang (Page)</b> bạn làm quản trị viên — không đăng được lên trang cá nhân hay nhóm.</p>
+    </div>
+
+    <div class="card">
+      <h2><span class="pf tt">♪</span> Kênh TikTok</h2>
+      <div id="ttList" class="acclist"></div>
+      <p class="muted small" id="ttSetupNote" hidden>Cần nhập Client key / Client secret của app TikTok ở <a href="#settings">Cài đặt</a> trước.</p>
+      <a class="btn primary" href="/auth/tiktok/start" id="ttConnect">+ Thêm kênh TikTok</a>
+      <p class="muted small">Thêm kênh thứ 2, 3, 4…: mở <a href="https://www.tiktok.com" target="_blank" rel="noopener">tiktok.com</a> trên trình duyệt này, <b>chuyển sang kênh đó</b> (hoặc đăng xuất), rồi bấm “Thêm kênh TikTok”.
+        Kết nối tài khoản trên <b>máy tính đang chạy app</b>.</p>
+    </div>
+  </section>
+
+  <!-- ===================== CÀI ĐẶT ===================== -->
+  <section id="tab-settings" class="tab" hidden>
+    <div class="card">
+      <h2>Bắt đầu thế nào?</h2>
+      <p class="small">App dùng <b>API chính thức</b> của Facebook và TikTok (không giả lập đăng nhập, không lưu mật khẩu kênh) và miễn phí. Bạn cần tạo một “app nhà phát triển” trên mỗi nền tảng (làm 1 lần):</p>
+      <details class="guide">
+        <summary><span class="pf fb">f</span> Tạo app Meta (Facebook) — khoảng 10 phút</summary>
+        <ol>
+          <li>Vào <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">developers.facebook.com/apps</a> → <b>Tạo ứng dụng</b> (Create App).</li>
+          <li>Trường hợp sử dụng: chọn <b>Quản lý mọi thứ trên Trang</b> (Manage everything on your Page). Nếu được hỏi loại app, chọn <b>Doanh nghiệp</b> (Business).</li>
+          <li>Trong phần trường hợp sử dụng → <b>Tuỳ chỉnh</b>: thêm quyền <code>pages_show_list</code>, <code>pages_read_engagement</code>, <code>pages_manage_posts</code>.</li>
+          <li>Phần <b>Đăng nhập bằng Facebook</b> → Cài đặt → <b>URI chuyển hướng OAuth hợp lệ</b>: dán <code class="copy" data-copy="fbRedirect"></code></li>
+          <li><b>Cài đặt ứng dụng → Thông tin cơ bản</b>: chép <b>ID ứng dụng</b> và <b>Khoá bí mật</b> dán vào ô bên dưới → Lưu.</li>
+          <li>Giữ app ở chế độ <b>Development</b> (không cần Meta duyệt). Sang tab <b>Tài khoản</b> bấm <b>Kết nối Facebook</b>, tick chọn các Trang.</li>
+        </ol>
+        <p class="muted small">Tên mục trên trang Meta có thể khác một chút tuỳ lúc. Nếu nút Kết nối báo lỗi chuyển hướng, dùng nút <b>Dán token</b> ở tab Tài khoản.</p>
+      </details>
+      <details class="guide">
+        <summary><span class="pf tt">♪</span> Tạo app TikTok — khoảng 20 phút + chờ TikTok duyệt</summary>
+        <ol>
+          <li>Vào <a href="https://developers.tiktok.com/apps" target="_blank" rel="noopener">developers.tiktok.com</a> → đăng nhập → <b>Manage apps → Connect an app</b>.</li>
+          <li>Điền icon, tên, mô tả, danh mục. Ô <b>Terms of Service URL</b> và <b>Privacy Policy URL</b>: dùng 2 trang mẫu trong thư mục <code>tu-dang-bai/docs</code> (đưa lên GitHub Pages — xem README).</li>
+          <li><b>Platforms</b>: chọn <b>Desktop</b>.</li>
+          <li><b>Add products</b>: thêm <b>Login Kit</b> và <b>Content Posting API</b> (muốn đăng thẳng thì bật thêm <b>Direct Post</b>).</li>
+          <li><b>Scopes</b>: <code>user.info.basic</code>, <code>video.upload</code> (và <code>video.publish</code> nếu đăng thẳng).</li>
+          <li>Login Kit → <b>Redirect URI</b> (Desktop): dán <code class="copy" data-copy="ttRedirect"></code></li>
+          <li>Chép <b>Client key</b> và <b>Client secret</b> dán vào ô bên dưới → Lưu.</li>
+          <li>Dùng thử ngay: tab <b>Sandbox</b> → tạo sandbox → thêm các kênh TikTok của bạn vào <b>Target users</b>. Dùng thật: bấm <b>Submit for review</b> (TikTok duyệt vài ngày, cần quay video demo app).</li>
+        </ol>
+        <p class="muted small">App chưa qua <b>audit</b> của TikTok: dùng cách <b>Gửi vào nháp</b>. Muốn tự đăng hoàn toàn công khai phải gửi audit — TikTok thường chỉ duyệt app phục vụ nhiều người, app cá nhân có thể bị từ chối.</p>
+      </details>
+    </div>
+
+    <form class="card" id="settingsForm" autocomplete="off">
+      <h2><span class="pf fb">f</span> App Meta (Facebook)</h2>
+      <label class="field">App ID <input id="sFbAppId" inputmode="numeric" placeholder="123456789012345"></label>
+      <label class="field">App Secret <input id="sFbAppSecret" type="password" placeholder="Dán App Secret"></label>
+      <label class="field">Phiên bản Graph API <input id="sFbApiVersion" placeholder="v25.0"></label>
+
+      <h2 class="mt"><span class="pf tt">♪</span> App TikTok</h2>
+      <label class="field">Client key <input id="sTtClientKey" placeholder="aw…"></label>
+      <label class="field">Client secret <input id="sTtClientSecret" type="password" placeholder="Dán Client secret"></label>
+      <label class="check"><input type="checkbox" id="sTtDirect"><span>App đã được TikTok duyệt quyền <code>video.publish</code> (đăng thẳng). Bật xong phải <b>kết nối lại</b> các kênh.</span></label>
+
+      <h2 class="mt">🔒 Mở trên điện thoại</h2>
+      <p class="small muted" id="lanInfo"></p>
+      <label class="field">Mật khẩu <input id="sPassword" type="password" placeholder="Ít nhất 6 ký tự" autocomplete="new-password"></label>
+      <div class="row wrap"><button type="button" class="link" id="clearPassword" hidden>Bỏ mật khẩu</button></div>
+
+      <details class="adv">
+        <summary>Nâng cao</summary>
+        <label class="field">Tự xoá file video/ảnh đã đăng xong sau (ngày, 0 = giữ mãi) <input id="sCleanup" type="number" min="0" max="365"></label>
+        <label class="field">Địa chỉ công khai (chỉ khi chạy trên máy chủ có tên miền https)
+          <input id="sPublicUrl" placeholder="https://dangbai.tenmien.com"></label>
+        <label class="field">Kiểu mã hoá PKCE của TikTok
+          <select id="sTtPkce"><option value="hex">hex (mặc định, theo tài liệu TikTok Desktop)</option><option value="base64url">base64url (chuẩn OAuth)</option></select></label>
+      </details>
+      <div class="row end"><button class="btn primary" type="submit">💾 Lưu cài đặt</button></div>
+    </form>
+
+    <div class="card">
+      <div class="row between"><h2>📜 Nhật ký</h2><button class="btn small" id="loadLogs" type="button">Tải lại</button></div>
+      <div id="logs" class="logs"></div>
+    </div>
+    <p class="muted small center" id="versionInfo"></p>
+  </section>
+</main>
+
+<dialog id="editDlg">
+  <form method="dialog" id="editForm">
+    <h2>Sửa bài</h2>
+    <p class="note" id="eNote" hidden>Bài trên Facebook đã gửi lịch lên Facebook — sửa ở đây không đổi bài đó (sửa trong Meta Business Suite).</p>
+    <label class="field">Thời gian <input type="datetime-local" id="eAt" class="full"></label>
+    <label class="field">Caption <textarea id="eCaption" rows="4"></textarea></label>
+    <label class="field">Caption Facebook (trống = caption chung) <textarea id="eCaptionFb" rows="2"></textarea></label>
+    <label class="field">Caption TikTok (trống = caption chung) <textarea id="eCaptionTt" rows="2"></textarea></label>
+    <div class="row end">
+      <button class="btn" value="cancel" formnovalidate>Huỷ</button>
+      <button class="btn primary" id="eSave" value="save">Lưu</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="app.js"></script>
+</body>
+</html>

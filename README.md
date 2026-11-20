@@ -2,6 +2,10 @@
 
 Sàn nhảy **3D** trong phòng LIVE (Three.js: nhân vật người 3D có tóc, mặt, quần áo/váy, sàn đèn LED 3D, sân khấu, màn LED, cầu disco, đèn quét, laser): người xem **bình luận** là có một nhân vật mang **ảnh đại diện + tên TikTok** của họ rơi xuống sàn và nhảy theo nhạc. Chạy trên máy bạn, **không cần key bản quyền**.
 
+## 📮 Công cụ kèm theo: Tự Đăng Bài
+
+Thư mục [`tu-dang-bai/`](tu-dang-bai/README.md) là app riêng để **tự đăng / hẹn giờ đăng video lên Trang Facebook và các kênh TikTok** (API chính thức, miễn phí). Bấm đúp `tu-dang-bai/TuDangBai.bat` → mở `http://localhost:3400`. Hướng dẫn đầy đủ trong [tu-dang-bai/README.md](tu-dang-bai/README.md).
+
 ## Cài đặt (Windows)
 
 1. Cài **Node.js** bản LTS: https://nodejs.org
