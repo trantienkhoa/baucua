@@ -209,6 +209,48 @@
     env(g, t, 0.1, peak, dur - 0.1); o.connect(bp); bp.connect(g); g.connect(dest); o.start(t); o.stop(t + dur + 0.05);
   }
 
+  // ---------- giọng kể VieNeu: hạ giọng, chậm lại, vang nhà hoang, tiếng vọng, lớp thì thầm ----------
+  // lvl: 0 = giọng gốc, 1 = hơi rợn, 2 = rợn, 3 = rất rợn
+  const VOICE_FX = [
+    { rate: 1, wet: 0, fb: 0, delay: 0, ghost: 0, trem: 0, low: 0, high: 0 },
+    { rate: 0.95, wet: 0.22, fb: 0.12, delay: 0.21, ghost: 0.05, trem: 0, low: 3, high: -3 },
+    { rate: 0.9, wet: 0.38, fb: 0.22, delay: 0.24, ghost: 0.11, trem: 0.07, low: 5, high: -5 },
+    { rate: 0.84, wet: 0.55, fb: 0.32, delay: 0.27, ghost: 0.18, trem: 0.14, low: 7, high: -7 },
+  ];
+  A.voiceBusy = false;
+  A.decode = buf => A.ctx.decodeAudioData(buf);
+  A.playVoice = function (buffer, lvl = 2, vol = 1) {
+    return new Promise(resolve => {
+      if (!A.ctx || A.ctx.state !== 'running') return resolve(false);
+      const c = A.ctx, P = VOICE_FX[Math.max(0, Math.min(3, lvl | 0))], t = c.currentTime + 0.03;
+      const bus = c.createGain(); bus.gain.value = Math.max(0, Math.min(1.5, vol)) * 1.6; bus.connect(A.master);
+      const src = c.createBufferSource(); src.buffer = buffer; src.playbackRate.value = P.rate;
+      const lo = c.createBiquadFilter(); lo.type = 'lowshelf'; lo.frequency.value = 220; lo.gain.value = P.low;
+      const hi = c.createBiquadFilter(); hi.type = 'highshelf'; hi.frequency.value = 4500; hi.gain.value = P.high;
+      const dry = c.createGain(); dry.gain.value = 1;
+      src.connect(lo); lo.connect(hi); hi.connect(dry); dry.connect(bus);
+      if (P.trem) { const l = c.createOscillator(), lg = c.createGain(); l.frequency.value = 5.5; lg.gain.value = P.trem; l.connect(lg); lg.connect(dry.gain); l.start(t); l.stop(t + buffer.duration / P.rate + 3); }
+      if (P.wet) { const w = c.createGain(); w.gain.value = P.wet; hi.connect(w); w.connect(A.verbIn); }
+      if (P.fb) {   // tiếng vọng
+        const d = c.createDelay(1), fb = c.createGain(), eg = c.createGain(), lp = c.createBiquadFilter();
+        d.delayTime.value = P.delay; fb.gain.value = P.fb; eg.gain.value = 0.35; lp.type = 'lowpass'; lp.frequency.value = 2200;
+        hi.connect(d); d.connect(lp); lp.connect(fb); fb.connect(d); lp.connect(eg); eg.connect(bus);
+      }
+      let src2 = null;
+      if (P.ghost) {   // lớp thì thầm lệch nhịp phía sau
+        src2 = c.createBufferSource(); src2.buffer = buffer; src2.playbackRate.value = P.rate * 0.985;
+        const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1600;
+        const g2 = c.createGain(); g2.gain.value = P.ghost;
+        src2.connect(hp); hp.connect(g2); g2.connect(A.verbIn); g2.connect(bus);
+      }
+      // hạ tiếng gió / ù nền khi đang kể
+      if (A.amb) { A.amb.wg.gain.setTargetAtTime(0.015, t, 0.3); }
+      A.voiceBusy = true;
+      src.onended = () => { A.voiceBusy = false; if (A.amb) A.amb.wg.gain.setTargetAtTime(0.05, c.currentTime, 1); resolve(true); };
+      src.start(t); if (src2) src2.start(t + 0.035);
+    });
+  };
+
   A.play = function (name, v = 1, delay = 0) {
     if (!A.ctx || A.ctx.state !== 'running') return;
     const f = FX[name]; if (!f) return;

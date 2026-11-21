@@ -22,6 +22,10 @@
     autoEvents: true, eventEvery: 4,    // tự mở sự kiện (nhập / búp bê / cầu cơ) mỗi N phút
     scare: 'vua',           // manh | vua | nhe | tat — mức hù (mặt ma bất ngờ)
     tts: true, ttsWhere: 'game', ttsVoice: '', ttsRate: 0.92, ttsVolume: 1,
+    ttsEngine: 'vieneu',    // vieneu: giọng VieNeu-TTS (chạy tools/vieneu) | browser: giọng có sẵn của trình duyệt
+    vnVoice: '',            // giọng VieNeu (để trống = giọng mặc định)
+    vieneuUrl: 'http://127.0.0.1:3399',
+    voiceScary: 2,          // 0 giọng gốc · 1 hơi rợn · 2 rợn · 3 rất rợn
     volume: 0.6,
     maxSeats: 70,           // số ghế quanh đèn
     idleSeconds: 420,       // im lặng quá lâu thì rời ghế

@@ -64,6 +64,7 @@
         <li><b>nam mô</b> / <b>a di đà phật</b> → xua bớt âm khí. Âm khí đầy → <b>MA HIỆN HÌNH</b>.</li>
         <li>Người bị bắt nằm trong <b>tấm gương</b>; bình luận của họ hiện thành lời thì thầm. Gõ <b>cứu 12</b> (đủ 3 người) để kéo ghế số 12 ra.</li>
         <li><b>Ai bị ma nhập?</b> gõ số ghế để tố · <b>Búp bê ma</b>: người cầm gõ bất kỳ để chuyền · <b>Cầu cơ</b>: <code>hỏi: …</code></li>
+        <li>Mỗi sự kiện đều hiện bảng <b>CÁCH CHƠI</b> đánh số trên màn hình; thẻ hướng dẫn chung tự hiện lại khoảng mỗi 100 giây.</li>
         <li>Bảng <b>Gan dạ</b>: ngồi lâu, nghe trọn chuyện, niệm Phật, tố đúng, cứu người → lên điểm (lưu qua các buổi LIVE).</li>
       </ul>
     </details>
@@ -157,8 +158,20 @@
   <div class="card">
     <h2>6. ⚙️ Cài đặt</h2>
     <div class="grid" id="setGrid"></div>
+    <div class="card" style="background:#140e0b;margin:12px 0">
+      <h2>🎙 Giọng kể VieNeu-TTS (rùng rợn)</h2>
+      <div class="muted">Bấm đúp <code>ChayGiongMa.bat</code> (macOS/Linux: <code>./chay-giong-ma.sh</code>) và giữ cửa sổ đó mở. Lần đầu sẽ tự cài <code>pip install vieneu</code> và tải mô hình. Máy yếu: <code>ChayGiongMa.bat --nano</code>.</div>
+      <div class="row">
+        <label>Giọng: <select id="vnVoice"><option value="">Mặc định</option></select></label>
+        <button id="vnReload">↻ Tải danh sách giọng</button>
+        <label>Độ rợn: <select id="voiceScary"><option value="0">Giọng gốc</option><option value="1">Hơi rợn</option><option value="2">Rợn (khuyên dùng)</option><option value="3">Rất rợn</option></select></label>
+        <button class="pri" id="vnTry">▶ Nghe thử giọng ma</button>
+      </div>
+      <div class="row"><span class="muted" id="vnInfo">…</span></div>
+      <div class="muted">Hiệu ứng: hạ giọng và chậm lại, vang như nhà hoang, tiếng vọng, thêm một lớp thì thầm lệch nhịp phía sau. Câu kế tiếp được đọc trước nên lời kể ít bị trễ; truyện chờ đọc xong mới sang câu mới.</div>
+    </div>
     <div class="row">
-      <label>🎙 Giọng kể: <select id="ttsVoice"></select></label>
+      <label>🎙 Giọng dự phòng (trình duyệt): <select id="ttsVoice"></select></label>
       <button id="ttsTry">▶ Nghe thử</button>
       <span class="muted" id="ttsInfo"></span>
     </div>
@@ -196,6 +209,9 @@
 <script src="/tts.js"></script>
 <script src="/ma-config.js"></script>
 <script src="/ma-stories.js"></script>
+<script src="/ma-stories-2.js"></script>
+<script src="/ma-stories-3.js"></script>
+<script src="/ma-audio.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 const socket = io();
@@ -281,6 +297,8 @@ const FIELDS = [
   ['eventEvery', 'Phút giữa hai sự kiện tự động', 'number', 0.5],
   ['scare', 'Mức hù (mặt ma bất ngờ)', 'select', [['manh', 'Mạnh — mặt ma to + chớp sáng'], ['vua', 'Vừa — mặt ma, không chớp'], ['nhe', 'Nhẹ — chỉ rung màn hình'], ['tat', 'Tắt — không hù']]],
   ['tts', '🎙 Đọc lời kể', 'check'],
+  ['ttsEngine', 'Bộ giọng đọc', 'select', [['vieneu', 'VieNeu-TTS (giọng ma, cần chạy ChayGiongMa)'], ['browser', 'Giọng có sẵn của trình duyệt']]],
+  ['vieneuUrl', 'Địa chỉ cầu nối VieNeu', 'text'],
   ['ttsWhere', 'Đọc ở đâu', 'select', [['game', 'Màn game (tự chuyển sang trang này nếu thiếu giọng)'], ['admin', 'Luôn đọc ở trang điều khiển này']]],
   ['ttsRate', 'Tốc độ đọc', 'number', 0.05],
   ['ttsVolume', 'Âm lượng giọng đọc (0–1)', 'number', 0.05],
@@ -320,7 +338,10 @@ socket.on('ma:settings', s => {
   if (!Array.isArray(MS.actions) || !MS.actions.length) MS.actions = DEF.actions;
   if (!document.activeElement || !$('setGrid').contains(document.activeElement)) renderSettings();
   renderActs(); fillVoices();
+  $('voiceScary').value = String(MS.voiceScary ?? 2);
+  if (!vnLoaded) { vnLoaded = true; loadVnVoices(); }
 });
+let vnLoaded = false;
 
 // ---------- giọng đọc ----------
 function fillVoices() {
@@ -343,6 +364,33 @@ socket.on('ma:say', m => {
   MC.setPref(MS.ttsVoice || ''); MC.enabled = true; MC.rate = Number(MS.ttsRate) || 0.92; MC.volume = Number(MS.ttsVolume) || 1;
   MC.say(m.text, m.prio);
 });
+
+// ---------- VieNeu ----------
+async function loadVnVoices() {
+  const info = $('vnInfo');
+  try {
+    const r = await fetch('/api/ma-tts/voices'); const j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.status);
+    $('vnVoice').innerHTML = '<option value="">Mặc định</option>' + j.map(n => `<option value="${esc(n)}"${n === MS.vnVoice ? ' selected' : ''}>${esc(n)}</option>`).join('');
+    info.innerHTML = `<span style="color:var(--ok)">✓ Đã kết nối VieNeu — ${j.length} giọng.</span> Gợi ý: chọn giọng nam trầm rồi để độ rợn "Rợn".`;
+  } catch (e) { info.innerHTML = `<span style="color:var(--err)">⚠ ${esc(e.message)}</span> — chưa chạy ChayGiongMa thì game tự dùng giọng trình duyệt (đã hạ giọng).`; }
+}
+$('vnReload').onclick = loadVnVoices;
+$('vnVoice').onchange = () => save({ vnVoice: $('vnVoice').value });
+$('voiceScary').onchange = () => save({ voiceScary: Number($('voiceScary').value) });
+$('vnTry').onclick = async () => {
+  const info = $('vnInfo'); info.textContent = 'Đang đọc… (lần đầu có thể mất vài giây)';
+  try {
+    MaAudio.init(); MaAudio.resume();
+    const text = 'Đêm rằm tháng Bảy… ngọn đèn dầu chập chờn. Có ai đó… đang ngồi ngay sau lưng bạn.';
+    const r = await fetch('/api/ma-tts?text=' + encodeURIComponent(text) + '&voice=' + encodeURIComponent($('vnVoice').value));
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.status);
+    const buf = await MaAudio.decode(await r.arrayBuffer());
+    info.textContent = '▶ Đang phát…';
+    await MaAudio.playVoice(buf, Number($('voiceScary').value), Number(MS.ttsVolume) || 1);
+    info.textContent = '✓ Xong. Chỉnh độ rợn rồi nghe lại.';
+  } catch (e) { info.innerHTML = `<span style="color:var(--err)">⚠ ${esc(e.message)}</span>`; }
+};
 
 // ---------- thử ----------
 const T = {

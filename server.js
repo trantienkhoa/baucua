@@ -779,6 +779,40 @@ function maSanitize(patch) {
   return out;
 }
 
+// giọng kể VieNeu-TTS: chuyển tiếp tới cầu nối Python (tools/vieneu/giong-ma.py), lưu đệm câu đã đọc
+const maTtsCache = new Map(), maTtsPending = new Map();
+const vieneuBase = () => String(maSettings.vieneuUrl || 'http://127.0.0.1:3399').replace(/\/+$/, '');
+async function vieneuGet(pathq, ms) {
+  const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), ms);
+  try { return await fetch(vieneuBase() + pathq, { signal: ctl.signal }); } finally { clearTimeout(to); }
+}
+app.get('/api/ma-tts', async (req, res) => {
+  const text = String(req.query.text || '').trim().slice(0, 400), voice = String(req.query.voice || '').slice(0, 60);
+  if (!text) return res.status(400).end();
+  const key = voice + '|' + text;
+  let hit = maTtsCache.get(key);
+  if (!hit) {
+    let p = maTtsPending.get(key);
+    if (!p) {
+      p = (async () => {
+        const r = await vieneuGet('/tts?text=' + encodeURIComponent(text) + '&voice=' + encodeURIComponent(voice), 90000);
+        if (!r.ok) throw new Error('vieneu ' + r.status);
+        return { buf: Buffer.from(await r.arrayBuffer()), type: r.headers.get('content-type') || 'audio/wav' };
+      })();
+      maTtsPending.set(key, p);
+      p.finally(() => maTtsPending.delete(key)).catch(() => {});
+    }
+    try { hit = await p; } catch (e) { return res.status(502).json({ error: 'Chưa chạy được giọng VieNeu: ' + (e.message || e) }); }
+    maTtsCache.set(key, hit);
+    if (maTtsCache.size > 300) maTtsCache.delete(maTtsCache.keys().next().value);
+  }
+  res.set('Content-Type', hit.type).set('Cache-Control', 'no-store').send(hit.buf);
+});
+app.get('/api/ma-tts/voices', async (req, res) => {
+  try { const r = await vieneuGet('/voices', 5000); if (!r.ok) throw new Error(r.status); res.json(await r.json()); }
+  catch (e) { res.status(502).json({ error: 'Chưa kết nối được cầu nối VieNeu tại ' + vieneuBase() }); }
+});
+
 io.on('connection', socket => {
   socket.on('hello', (role, info) => {
     if (role === 'ma' || role === 'ma-admin') {

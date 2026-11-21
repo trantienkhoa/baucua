@@ -20,6 +20,26 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 🕯 Ngọn Đèn Cuối Cùng: giọng ma VieNeu-TTS, 30 truyện, hướng dẫn từng sự kiện (bản 2.10.0)
+
+- **Giọng kể VieNeu-TTS** ([github.com/pnnbao97/VieNeu-TTS](https://github.com/pnnbao97/VieNeu-TTS)), chạy offline trên máy, dùng CPU được:
+  1. Cài Python 3.10 trở lên (Windows: nhớ tick "Add python.exe to PATH").
+  2. Bấm đúp **`ChayGiongMa.bat`** (macOS/Linux: `./chay-giong-ma.sh`). Lần đầu file sẽ tự chạy `pip install vieneu` và tải mô hình. Giữ cửa sổ đó mở khi LIVE.
+  3. Trang điều khiển game ma → mục **🎙 Giọng kể VieNeu-TTS**: chọn giọng (nên chọn giọng nam trầm), chọn **độ rợn**, rồi bấm **Nghe thử giọng ma**.
+  - Máy yếu: `ChayGiongMa.bat --nano`. CPU đời mới có VNNI: thêm `--int8` để đọc nhanh hơn.
+  - Độ rợn: *giọng gốc / hơi rợn / rợn / rất rợn*. Màn game hạ giọng và đọc chậm lại, thêm vang như nhà hoang, tiếng vọng, và một lớp thì thầm lệch nhịp phía sau. Tiếng gió nền nhỏ lại khi đang kể.
+  - Câu kế tiếp được đọc sẵn từ trước nên lời kể ít bị trễ. Truyện chờ đọc xong mới sang câu mới.
+  - Nếu chưa chạy cầu nối, game tự chuyển sang giọng trình duyệt (đã hạ cao độ cho rợn hơn) và thử lại VieNeu sau 60 giây.
+  - Cầu nối: `tools/vieneu/giong-ma.py` (cổng 3399). Máy chủ game gọi qua `/api/ma-tts` và lưu đệm các câu đã đọc.
+- **Hướng dẫn chơi trên màn hình:**
+  - Bảng *Ai bị ma nhập?*, *Búp bê ma* và *Cầu cơ* có mục **CÁCH CHƠI** đánh số từng bước.
+  - Thẻ hướng dẫn tự hiện khi: đèn tắt, ma hiện hình, có người bị kéo vào gương (cách gõ "cứu 12"), trừ tà, ma đứng sau lưng một người.
+  - Thẻ **CÁCH CHƠI** chung hiện lại khoảng mỗi 100 giây.
+- **30 truyện ma** (thêm 23 truyện): Khúc Sông Ma Da, Cái Đầu Bay Lúc Nửa Đêm, Cuốc Xe Ôm Lúc Hai Giờ, Cuộc Gọi Từ Số Máy Của Bà, Chải Tóc Trước Gương Lúc Nửa Đêm, Giường Số Chín Phòng 307, Ca Trực Nhà Xác, Toa Số Chín Chuyến Tàu Đêm, Ngôi Miếu Hoang Bên Đường Rừng, Bộ Áo Cưới Ở Chợ Đồ Cũ, Tấm Ảnh Thừa Một Người, Quán Cháo Đầu Nghĩa Địa, Tiếng Đàn Trong Phòng Nhạc, Bậc Thang Thứ Mười Ba, Biệt Thự Trên Đồi Thông, Con Mèo Đen Nhảy Qua Linh Cữu, Trò Gọi Hồn Bằng Đũa, Ông Lão Bán Vé Số, Đám Ma Đi Ngược Chiều, Ma Xó Nhà Từ Đường, Lạc Trong Rừng Tràm, Chuyến Đò Cuối Ngày, Cây Đa Đầu Làng.
+  - Mỗi truyện có 2 lần bình chọn và 4 kết thúc.
+  - Một số kết thúc tự mở sự kiện trực tiếp: *Tấm Ảnh Thừa Một Người* và *Con Mèo Đen* mở trò ai bị ma nhập; *Trò Gọi Hồn Bằng Đũa* mở bàn cầu cơ.
+  - Truyện nằm trong `public/ma-stories.js`, `ma-stories-2.js`, `ma-stories-3.js`.
+
 ## 🕯 Game kể chuyện ma "Ngọn Đèn Cuối Cùng" (bản 2.9.0)
 
 Game LIVE thứ hai, chạy chung máy chủ và chung kết nối TikTok với sàn nhảy.

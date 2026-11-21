@@ -32,7 +32,7 @@
     if (!T.voice) T.voice = pickVoice();   // giọng có thể tải chậm
     u.lang = 'vi-VN'; if (T.voice) try { u.voice = T.voice; } catch (e) {}
     // giọng tự nhiên như các bản trước: không kéo cao giọng / đọc nhanh khi hô (chỉ to hết cỡ và được chen lên trước)
-    u.volume = it.hype ? 1 : Math.max(0, Math.min(1, T.volume)); u.rate = Math.max(0.6, Math.min(1.6, T.rate)); u.pitch = 1;
+    u.volume = it.hype ? 1 : Math.max(0, Math.min(1, T.volume)); u.rate = Math.max(0.6, Math.min(1.6, T.rate)); u.pitch = T.pitch || 1;
     T.speaking = true;
     const done = () => { T.speaking = false; T.cur = null; setTimeout(pump, it.hype ? 60 : 150); };
     u.onend = done; u.onerror = done;

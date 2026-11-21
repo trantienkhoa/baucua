@@ -224,17 +224,62 @@
   // ======================================================================
   // giọng kể
   // ======================================================================
-  function narrate(text, prio) {
-    if (!S.tts) return;
-    const t = speakable(text);
-    if (!t) return;
+  // VieNeu-TTS (qua máy chủ game → cầu nối Python), không được thì dùng giọng trình duyệt
+  const VN = { q: [], playing: false, cache: new Map(), fails: 0, downUntil: 0 };
+  const vnKey = t => (S.vnVoice || '') + '|' + t;
+  function vnFetch(text) {
+    const k = vnKey(text);
+    let p = VN.cache.get(k);
+    if (!p) {
+      p = fetch('/api/ma-tts?text=' + encodeURIComponent(text) + '&voice=' + encodeURIComponent(S.vnVoice || ''))
+        .then(r => { if (!r.ok) throw new Error('tts ' + r.status); return r.arrayBuffer(); })
+        .then(b => MaAudio.decode(b));
+      p.catch(() => VN.cache.delete(k));
+      VN.cache.set(k, p);
+      if (VN.cache.size > 40) VN.cache.delete(VN.cache.keys().next().value);
+    }
+    return p;
+  }
+  const vnReady = () => S.ttsEngine === 'vieneu' && window.MaAudio && MaAudio.ctx && MaAudio.ctx.state === 'running' && now() > VN.downUntil;
+  function vnPrefetch(text) { const t = speakable(text); if (t && vnReady()) vnFetch(t).catch(() => {}); }
+  async function vnPump() {
+    if (VN.playing || !VN.q.length) return;
+    const it = VN.q.shift();
+    VN.playing = true;
+    try {
+      const buf = await vnFetch(it.text);
+      VN.fails = 0;
+      await MaAudio.playVoice(buf, +S.voiceScary, +S.ttsVolume || 1);
+    } catch (e) {
+      // cầu nối VieNeu chưa chạy → nghỉ 60 giây, đọc bằng giọng trình duyệt
+      if (++VN.fails >= 2) VN.downUntil = now() + 60;
+      browserSay(it.text, it.prio);
+    }
+    VN.playing = false;
+    vnPump();
+  }
+  function browserSay(t, prio) {
     const local = window.MC && MC.available() && MC.hasVietnamese() && (!S.ttsVoice || MC.list().includes(S.ttsVoice));
     if (S.ttsWhere === 'game' && local) { MC.say(t, prio); return; }
     if (isPrimary) socket.emit('ma:say', { text: t, prio: !!prio });
   }
+  function narrate(text, prio) {
+    if (!S.tts) return;
+    const t = speakable(text);
+    if (!t) return;
+    if (vnReady()) {
+      if (prio) VN.q.unshift({ text: t, prio }); else VN.q.push({ text: t, prio });
+      if (VN.q.length > 5) VN.q.splice(prio ? 5 : 0, VN.q.length - 5);
+      vnPump();
+      return;
+    }
+    browserSay(t, prio);
+  }
+  const narrating = () => VN.playing || VN.q.length > 0;
   function applyTTS() {
     if (!window.MC) return;
     MC.enabled = !!S.tts; MC.rate = +S.ttsRate || 0.92; MC.volume = +S.ttsVolume || 1; MC.setPref(S.ttsVoice || '');
+    MC.pitch = [1, 0.85, 0.72, 0.6][+S.voiceScary | 0] || 1;   // giọng trình duyệt: chỉ hạ được cao độ
   }
 
   // ======================================================================
@@ -255,7 +300,7 @@
         ghost.nextMove = t + rand(9, 16);
         const as = alive().filter(v => v.seat.ring >= 2 && !isThay(v));
         if (lvl > 0.7 && as.length) {
-          ghost.mode = 'behind'; ghost.behind = pick(as);
+          ghost.mode = 'behind'; ghost.behind = pick(as); showGuide('behind', 150);
         } else if (lvl > 0.3 || t < ghost.glimpse) {
           ghost.mode = 'lurk'; ghost.behind = null;
           const side = Math.random() < 0.5;
@@ -513,6 +558,8 @@
       const dur = clamp(1.8 + [...r.plain].length / 13, 3.6, 13) / (+S.storySpeed || 1);
       story.nextAt = story.clock + dur + 0.5;
       for (const f of fx) runStoryFx(f);
+      // đọc trước câu kế tiếp cho giọng VieNeu khỏi trễ
+      if (story.li < node.lines.length) vnPrefetch(subst(parseLine(node.lines[story.li]).text).plain);
       return;
     }
     if (node.choice) {
@@ -559,7 +606,7 @@
       case 'wait': if (story.clock > 4) startIntermission(); break;
       case 'inter': if (story.pending && story.clock >= story.waitUntil) { const p = story.pending; story.pending = null; startStory(p); } break;
       case 'cast': if (story.clock >= story.waitUntil) goNode(story.st.start); break;
-      case 'tell': if (story.clock >= story.nextAt) nextLine(); break;
+      case 'tell': if (story.clock >= story.nextAt && (!narrating() || story.clock > story.nextAt + 15)) nextLine(); break;
       case 'end': if (story.clock >= story.waitUntil) startIntermission(); break;
     }
   }
@@ -695,6 +742,7 @@
         const cand = al.filter(v => !isThay(v) && (!byV || v !== byV));
         const victim = cand.length ? pick(cand.filter(v => v.seat.ring >= 1).length ? cand.filter(v => v.seat.ring >= 1) : cand) : null;
         ev = { type, block: true, t0: t, dur: 6.5, victim, step: 0, by };
+        showGuide('ghost', 30);
         ghost.mode = 'rush'; ghost.x = victim ? (victim.x < LX ? 40 : 1040) : 60; ghost.y = 900; ghost.a = 0.2;
         sfx('ghost', 1); lampFlickUntil = t + 1.4;
         showBanner(type === 'goihon' ? 'GỌI HỒN' : 'MA HIỆN HÌNH', by ? `${by.name} đã gọi hồn…` : 'Âm khí đã đầy…', '#ff4a3a', 2.2);
@@ -702,6 +750,7 @@
       }
       case 'blackout': {
         ev = { type, block: true, t0: t, dur: 8, step: 0, victims: [] };
+        showGuide('blackout', 30);
         sfx('lampout'); showBanner('ĐÈN TẮT!', 'Dầu cạn rồi… đừng ai cử động', '#ff4a3a', 3);
         narrate('Đèn tắt rồi. Đừng ai cử động.', true);
         return;
@@ -709,6 +758,7 @@
       case 'trura': {
         if (by) thayId = by.id;
         ev = { type, block: true, t0: t, dur: 6, by };
+        showGuide('trura', 30);
         const freed = seated().filter(v => v.taken);
         for (const v of freed) returnViewer(v, true);
         oil = 100; yin = 0; eyes.length = 0; ghost.mode = 'hide'; ghost.ta = 0; ghost.a = 0;
@@ -902,6 +952,7 @@
     if (!v || v.taken || !viewers.has(v.id)) return;
     v.taken = true; v.takenAt = now(); v.rescue = new Set();
     v.anim = { type: 'take', t0: now(), fx: v.x, fy: v.y };
+    showGuide('rescue', 60);
     sfx('taken', 0.9); shake = Math.max(shake, 6);
     toast(`🪞 ${v.name} bị kéo vào gương — gõ "cứu ${v.seat.n}" để cứu`, '#ff8a7a');
     if (ev && ev.type === 'bupbe' && ev.holder === v) { /* búp bê đi theo */ }
@@ -1101,6 +1152,7 @@
   // ======================================================================
   // CẬP NHẬT
   // ======================================================================
+  let lastGeneralAt = now() - 80;
   let lastT = now(), minuteAt = now(), sweepAt = now(), braveSendAt = now();
   function update(dt, t) {
     // dầu đèn cạn dần, âm khí dâng dần
@@ -1122,6 +1174,7 @@
     ghostTick(dt, t);
     takenTick(t);
 
+    if (story.phase === 'tell' && !ev && !vote && t - lastGeneralAt > 100) { lastGeneralAt = t; showGuide('general', 90); }
     if (t - minuteAt > 60) { minuteAt = t; for (const v of alive()) if (t - v.active < S.idleSeconds) addBrave(v, 1); }
     if (t - sweepAt > 3) { sweepAt = t; idleSweep(); }
     if (t - braveSendAt > 15 && braveDelta.size) { braveSendAt = t; if (isPrimary) socket.emit('ma:brave', [...braveDelta.values()]); braveDelta.clear(); }
@@ -1668,10 +1721,11 @@
     // ---- dòng bảng xếp hạng / gợi ý ----
     drawTicker(t);
     // ---- bảng bình chọn & sự kiện ----
-    if (ev) drawEventPanel(t);
+    if (ev && drawEventPanel(t)) { /* bảng sự kiện có sẵn cách chơi */ }
     else if (vote) drawVotePanel(t);
     else if (story.phase === 'cast' && story.cast) drawCast(t);
     else if (lastVoteResult && t - lastVoteResult.t0 < 3) drawVoteResult(t);
+    else drawGuide(t);
     // búp bê (vẽ trên tất cả)
     if (ev && (ev.type === 'bupbe' || ev.type === 'bupbe-end') && ev.holder) {
       const hv = ev.holder, fly = clamp((t - ev.flyT) / 0.8, 0, 1);
@@ -1846,40 +1900,96 @@
     });
     ctx.restore();
   }
+  // bước chơi đánh số trong bảng sự kiện
+  function drawSteps(x, y, w, steps, color, fs = 22) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,.06)'; rr(x, y, w, 30 + steps.length * (fs + 12), 12); ctx.fill();
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.font = `800 ${fs - 4}px ${FONT}`; ctx.fillStyle = color; ctx.fillText('CÁCH CHƠI', x + 16, y + 15);
+    steps.forEach((st, i) => {
+      const yy = y + 30 + i * (fs + 12) + (fs + 12) / 2;
+      ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x + 28, yy, 13, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#1a0a06'; ctx.font = `900 ${fs - 6}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(String(i + 1), x + 28, yy + 1);
+      ctx.textAlign = 'left'; ctx.font = `700 ${fs}px ${FONT}`; ctx.fillStyle = '#f6ead6';
+      ctx.fillText(short(st, 70), x + 52, yy + 1);
+    });
+    ctx.restore();
+    return 30 + steps.length * (fs + 12);
+  }
   function drawEventPanel(t) {
     const e = ev;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     if (e.type === 'nhap' || e.type === 'nhap-end') {
-      const x = 60, y = 630, w = 960, h = 270;
-      panel(x, y, w, h, 0.9, 'rgba(255,80,60,.8)');
-      ctx.font = `900 34px ${SERIF}`; ctx.fillStyle = '#ff5a4a'; ctx.fillText('👁 AI ĐÃ BỊ MA NHẬP?', W / 2, y + 40);
+      const x = 50, y = 626, w = 980, h = e.type === 'nhap' ? 340 : 200;
+      panel(x, y, w, h, 0.92, 'rgba(255,80,60,.8)');
+      ctx.font = `900 34px ${SERIF}`; ctx.fillStyle = '#ff5a4a'; ctx.fillText('👁 AI ĐÃ BỊ MA NHẬP?', W / 2, y + 36);
       if (e.type === 'nhap') {
         const left = Math.max(0, e.dur - (t - e.t0));
-        ctx.font = `800 26px ${FONT}`; ctx.fillStyle = left < 10 ? '#ff4a3a' : '#ffd27a'; ctx.fillText(`⏳ ${Math.ceil(left)} giây · gõ SỐ GHẾ để tố`, W / 2, y + 80);
-        ctx.textAlign = 'left'; ctx.font = `700 25px ${FONT}`;
-        const clues = e.clues.length ? e.clues : ['Đang dò tìm dấu vết…'];
-        clues.slice(-4).forEach((c, i) => { ctx.fillStyle = '#f6ead6'; ctx.fillText('• ' + c, x + 34, y + 122 + i * 34); });
-        // bảng tố cáo
-        const ranked = [...e.tally.entries()].filter(r => r[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, 3);
-        ctx.textAlign = 'right'; ctx.font = `800 22px ${FONT}`; ctx.fillStyle = '#ffb3a6';
-        ctx.fillText('BỊ TỐ NHIỀU NHẤT', x + w - 30, y + 122);
-        ranked.forEach(([n, c], i) => { const sv = (seatByN(n) || {}).v; ctx.fillStyle = '#fff'; ctx.fillText(`ghế ${n} ${sv ? short(sv.name, 9) : ''} · ${c}`, x + w - 30, y + 158 + i * 32); });
+        ctx.font = `800 25px ${FONT}`; ctx.fillStyle = left < 10 ? '#ff4a3a' : '#ffd27a'; ctx.fillText(`⏳ còn ${Math.ceil(left)} giây`, W / 2, y + 70);
+        const sh = drawSteps(x + 20, y + 88, w - 40, ['Một người quanh đèn đã bị ma nhập — chính họ cũng không biết!', 'Gõ SỐ GHẾ của kẻ đó, ví dụ: 12 (gõ số khác để đổi ý)', 'Tố đúng: +3 gan dạ · Tố nhầm: người bị oan bị kéo vào gương'], '#ff8a7a', 21);
+        const cy = y + 88 + sh + 26;
+        ctx.textAlign = 'left'; ctx.font = `800 19px ${FONT}`; ctx.fillStyle = '#ffb3a6'; ctx.fillText('GỢI Ý', x + 30, cy);
+        ctx.font = `700 22px ${FONT}`;
+        const clues = e.clues.length ? e.clues : ['Đang dò tìm dấu vết… (gợi ý hiện dần)'];
+        clues.slice(-2).forEach((c, i) => { ctx.fillStyle = '#fff2c8'; ctx.fillText('🔎 ' + short(c, 40), x + 30, cy + 30 + i * 30); });
+        const ranked = [...e.tally.entries()].filter(r => r[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, 2);
+        ctx.textAlign = 'right'; ctx.font = `800 19px ${FONT}`; ctx.fillStyle = '#ffb3a6';
+        ctx.fillText('BỊ TỐ NHIỀU NHẤT', x + w - 30, cy);
+        ctx.font = `800 21px ${FONT}`;
+        if (!ranked.length) { ctx.fillStyle = '#c9b8a0'; ctx.fillText('chưa ai tố', x + w - 30, cy + 30); }
+        ranked.forEach(([n, c], i) => { const sv = (seatByN(n) || {}).v; ctx.fillStyle = '#fff'; ctx.fillText(`ghế ${n} ${sv ? short(sv.name, 9) : ''} · ${c} phiếu`, x + w - 30, cy + 30 + i * 30); });
       } else {
-        ctx.font = `700 26px ${FONT}`; ctx.fillStyle = '#f6ead6'; ctx.fillText(`Kẻ bị nhập: ${e.target.name} — ghế ${e.target.seat.n}`, W / 2, y + 150);
+        ctx.font = `700 27px ${FONT}`; ctx.fillStyle = '#f6ead6'; ctx.fillText(`Kẻ bị nhập: ${e.target.name} — ghế ${e.target.seat.n}`, W / 2, y + 100);
+        ctx.font = `600 21px ${FONT}`; ctx.fillStyle = '#c9b8a0'; ctx.fillText('Lần sau: đọc gợi ý, nhìn kỹ mắt ai loé đỏ rồi gõ số ghế', W / 2, y + 145);
       }
-      return;
+      return true;
     }
     if (e.type === 'bupbe' || e.type === 'bupbe-end') {
-      const x = 90, y = 640, w = 900, h = 150;
-      panel(x, y, w, h, 0.88, 'rgba(255,110,140,.8)');
-      ctx.font = `900 32px ${SERIF}`; ctx.fillStyle = '#ff7a9a'; ctx.fillText('🪆 BÚP BÊ MA CHUYỀN TAY', W / 2, y + 38);
+      const x = 50, y = 626, w = 980, h = e.type === 'bupbe' ? 280 : 130;
+      panel(x, y, w, h, 0.92, 'rgba(255,110,140,.8)');
+      ctx.font = `900 32px ${SERIF}`; ctx.fillStyle = '#ff7a9a'; ctx.fillText('🪆 BÚP BÊ MA CHUYỀN TAY', W / 2, y + 36);
       ctx.font = `800 26px ${FONT}`; ctx.fillStyle = '#fff';
-      ctx.fillText(e.holder ? `Đang ở: ${short(e.holder.name, 16)} (ghế ${e.holder.seat.n})` : '…', W / 2, y + 80);
-      ctx.font = `600 21px ${FONT}`; ctx.fillStyle = '#ffd0da';
-      ctx.fillText(e.type === 'bupbe' ? 'Người cầm: gõ bất kỳ để chuyền (gõ số ghế để chọn người) · nhạc dừng là bị bắt!' : 'Tiếng nhạc đã dừng…', W / 2, y + 118);
-      return;
+      ctx.fillText(e.holder ? `Búp bê đang ở: ${short(e.holder.name, 16)} (ghế ${e.holder.seat.n})` : '…', W / 2, y + 76);
+      if (e.type === 'bupbe') drawSteps(x + 20, y + 98, w - 40, ['Ai đang CẦM búp bê: gõ bất kỳ để chuyền sang người khác', 'Muốn ném cho ai thì gõ số ghế người đó, ví dụ: 25', 'Nhạc hộp dừng lúc nào không ai biết — ai cầm lúc đó bị bắt!'], '#ff9ab0', 21);
+      else { ctx.font = `600 22px ${FONT}`; ctx.fillStyle = '#ffd0da'; ctx.fillText('Tiếng nhạc đã dừng…', W / 2, y + 108); }
+      return true;
     }
-    if (e.type === 'cauco') { drawOuija(t, e); return; }
+    if (e.type === 'cauco') { drawOuija(t, e); return true; }
+    return false;
+  }
+
+  // ---------- thẻ hướng dẫn ----------
+  const GUIDES = {
+    blackout: { icon: '🪔', title: 'ĐÈN TẮT VÌ HẾT DẦU', color: '#ffb36a', steps: () => ['Trong bóng tối, ma bắt 1–2 người vào gương', 'THẢ TIM liên tục để thêm dầu (thanh 🪔 DẦU ĐÈN)', 'Tặng 🕯️ Thắp nhang để đổ thêm nhiều dầu'] },
+    ghost: { icon: '👻', title: 'MA HIỆN HÌNH', color: '#ff7a6a', steps: () => ['Âm khí đầy (hoặc ai đó Gọi hồn) → ma bắt một người', 'Gõ "nam mô" hoặc tặng 🧂 Rắc muối để hạ ÂM KHÍ', 'Người bị bắt nằm trong gương — gõ "cứu + số ghế" để cứu'] },
+    rescue: { icon: '🪞', title: 'CỨU NGƯỜI TRONG GƯƠNG', color: '#9fc0ff', steps: () => ['Người bị bắt hiện trong TẤM GƯƠNG, có số ghế trên mặt', 'Gõ: cứu 12  (thay 12 bằng số ghế người đó)', `Đủ ${S.rescueNeed} người gõ là cứu được · người cứu +2 gan dạ`] },
+    trura: { icon: '☯️', title: 'TRỪ TÀ', color: '#ffd27a', steps: () => ['Người tặng ☯️ Trừ tà trở thành THẦY PHÁP của phòng', 'Cứu hết người trong gương · dầu đầy · âm khí về 0', 'Thầy pháp không bị ma bắt, cầm búp bê thì trấn yểm được'] },
+    behind: { icon: '⚠️', title: 'MA ĐANG ĐỨNG SAU LƯNG', color: '#ff6a5a', steps: () => ['Tìm chữ đỏ "⚠ SAU LƯNG BẠN" trên đầu một người', 'Người đó (hoặc ai cũng được) gõ "nam mô" để đuổi ma', 'Hoặc tặng 🧂 Rắc muối — âm khí cao quá là ma bắt người'] },
+    general: { icon: '🕯', title: 'CÁCH CHƠI', color: '#ffd27a', steps: () => ['Bình luận bất kỳ → ngồi một ghế có số, tên bạn có thể vào truyện', 'Thả tim = thêm dầu cho đèn · gõ "nam mô" = xua âm khí', 'Khi bình chọn gõ 1 hoặc 2 · gõ "cứu 12" để cứu người trong gương', 'Tặng quà để mở sự kiện (bảng "Tặng quà để…" bên phải)'] },
+  };
+  let guide = null; const guideQ = []; const guideAt = {};
+  function showGuide(key, cooldown = 90) {
+    const t = now();
+    if (t - (guideAt[key] || -999) < cooldown || guideQ.includes(key) || (guide && guide.key === key)) return;
+    guideAt[key] = t; guideQ.push(key);
+  }
+  function drawGuide(t) {
+    if (guide && t - guide.t0 > guide.dur) guide = null;
+    if (!guide && guideQ.length) { const k = guideQ.shift(); guide = { key: k, t0: t, dur: k === 'general' ? 10 : 8 }; }
+    if (!guide) return;
+    const g = GUIDES[guide.key], steps = g.steps(), p = (t - guide.t0) / guide.dur;
+    ctx.save(); ctx.globalAlpha = clamp(Math.min(p * 8, (1 - p) * 6), 0, 1);
+    const x = 50, y = 626, w = 980, h = 70 + steps.length * 44 + 18;
+    panel(x, y, w, h, 0.92, g.color);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `900 32px ${SERIF}`; ctx.fillStyle = g.color; ctx.fillText(`${g.icon} ${g.title}`, W / 2, y + 38);
+    steps.forEach((st, i) => {
+      const yy = y + 86 + i * 44;
+      ctx.fillStyle = g.color; ctx.beginPath(); ctx.arc(x + 48, yy, 16, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#1a0a06'; ctx.font = `900 19px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(String(i + 1), x + 48, yy + 1);
+      ctx.textAlign = 'left'; ctx.font = `700 25px ${FONT}`; ctx.fillStyle = '#f6ead6'; ctx.fillText(short(st, 62), x + 78, yy + 1);
+    });
+    ctx.restore();
   }
   function drawOuija(t, e) {
     const { cx, cy, w, h } = OUIJA;
@@ -1898,6 +2008,11 @@
     ctx.fillText('CÓ', OUIJA_POS.YES.x, OUIJA_POS.YES.y); ctx.fillText('KHÔNG', OUIJA_POS.NO.x, OUIJA_POS.NO.y);
     ctx.font = `700 30px ${SERIF}`; ctx.fillText('TẠM BIỆT', OUIJA_POS.BYE.x, OUIJA_POS.BYE.y);
     ctx.font = `20px ${SERIF}`; ctx.fillText('☾', OUIJA_POS.YES.x, OUIJA_POS.YES.y + 34); ctx.fillText('☀', OUIJA_POS.NO.x, OUIJA_POS.NO.y + 34);
+    if (e.phase === 'ask') {
+      ctx.fillStyle = 'rgba(12,6,4,.9)'; rr(cx - 435, cy + 14, 870, 152, 16); ctx.fill();
+      drawSteps(cx - 420, cy + 24, 840, ['Gõ:  hỏi: câu hỏi của bạn   (ví dụ: hỏi: ai sẽ bị bắt?)', 'Người tặng 🔮 được hỏi trước · hết giờ hồn ma tự chọn câu', 'Hỏi "ai…" → hồn ma đánh vần TÊN một người trong phòng!'], '#c9a8ff', 22);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    }
     // con trỏ
     if (e.phase !== 'ask') {
       const px = e.planch.x + Math.sin(t * 8) * 1.5, py = e.planch.y + 34;
