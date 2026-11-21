@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Điều khiển Ngọn Đèn Cuối Cùng</title>
+<style>
+  :root{--bg:#120c0a;--card:#1d1411;--line:#3a2a20;--text:#f1e4d2;--mut:#a8927a;--pri:#c8641e;--ok:#5fc48a;--err:#ff6a5a;--gold:#ffcf7a}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Segoe UI",system-ui,Arial,sans-serif}
+  .wrap{max-width:1040px;margin:0 auto;padding:20px 16px 60px}
+  h1{font-size:24px;margin:0 0 4px;color:var(--gold)}
+  .sub{color:var(--mut);margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+  .card h2{font-size:17px;margin:0 0 12px;color:var(--gold)}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+  input[type=text],input[type=number],input[type=password],select,textarea{border:1px solid var(--line);border-radius:9px;padding:8px 10px;font:inherit;background:#140e0b;color:var(--text);min-width:0}
+  button{border:1px solid var(--line);background:#2a1d17;color:var(--text);border-radius:9px;padding:8px 14px;font:inherit;cursor:pointer}
+  button:hover{background:#3a281f}
+  button.pri{background:var(--pri);border-color:var(--pri);color:#fff;font-weight:600}
+  button.red{background:#a8262f;border-color:#a8262f;color:#fff}
+  .status{font-weight:600}
+  .status.connected{color:var(--ok)} .status.error,.status.ended{color:var(--err)} .status.connecting,.status.reconnecting{color:#e0a040}
+  .stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+  .stat{border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+  .stat b{display:block;font-size:21px;color:var(--gold)}
+  .stat span{color:var(--mut);font-size:13px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px 22px}
+  .field{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .field input[type=number]{width:96px}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:6px;border-bottom:1px solid var(--line);vertical-align:middle}
+  th{font-size:13px;color:var(--mut);font-weight:600}
+  td select{width:100%} td input[type=number]{width:80px}
+  code{background:#2a1d17;padding:1px 6px;border-radius:5px}
+  .url{flex:1;min-width:240px;font-family:monospace}
+  .muted{color:var(--mut);font-size:13px}
+  .line{background:#140e0b;border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:48px}
+  .bar{height:12px;border-radius:6px;background:#2a1d17;overflow:hidden}
+  .bar i{display:block;height:100%}
+  ol li{margin:4px 0}
+  .evbtns button{min-width:150px}
+  @media (max-width:600px){.field{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🕯 Ngọn Đèn Cuối Cùng — game kể chuyện ma</h1>
+  <div class="sub">Người xem ngồi quanh ngọn đèn dầu, <b>tên của họ được ghép vào truyện</b>, cùng bình chọn hướng đi, đi tìm kẻ bị ma nhập, chuyền búp bê ma, cầu cơ… · <a href="/admin.html" style="color:var(--gold)">← về game sàn nhảy</a></div>
+
+  <div class="card">
+    <details>
+      <summary style="cursor:pointer;font-weight:600">📖 Cách chơi & cách lên LIVE (bấm để xem)</summary>
+      <ol>
+        <li><b>OBS:</b> Sources → + → Browser → dán URL ở mục 1, Width <b>1080</b>, Height <b>1920</b>, bật <b>Control audio via OBS</b>. <b>TikTok LIVE Studio:</b> Thêm nguồn → Liên kết.</li>
+        <li>Bật LIVE trên TikTok → nhập tên kênh → <b>Kết nối</b>. (Dùng chung kết nối với game sàn nhảy.)</li>
+        <li>Chỉ mở <b>một</b> màn hình game cho LIVE. Màn có <code>?obs=1</code> được ưu tiên làm màn chính.</li>
+      </ol>
+      <b>Người xem làm gì?</b>
+      <ul>
+        <li>Bình luận bất kỳ → được <b>ngồi một ghế có số</b> quanh đèn. Người vừa bình luận dễ được chọn <b>vào vai</b> trong truyện.</li>
+        <li><b>1 / 2</b> chọn hướng đi của truyện · <b>1 / 2 / 3</b> chọn chuyện tiếp theo. Đã chọn mà tặng quà → phiếu nặng thêm.</li>
+        <li><b>Thả tim</b> = thêm dầu cho đèn. Đèn cạn → <b>ĐÈN TẮT</b>, ma bắt người.</li>
+        <li><b>nam mô</b> / <b>a di đà phật</b> → xua bớt âm khí. Âm khí đầy → <b>MA HIỆN HÌNH</b>.</li>
+        <li>Người bị bắt nằm trong <b>tấm gương</b>; bình luận của họ hiện thành lời thì thầm. Gõ <b>cứu 12</b> (đủ 3 người) để kéo ghế số 12 ra.</li>
+        <li><b>Ai bị ma nhập?</b> gõ số ghế để tố · <b>Búp bê ma</b>: người cầm gõ bất kỳ để chuyền · <b>Cầu cơ</b>: <code>hỏi: …</code></li>
+        <li>Bảng <b>Gan dạ</b>: ngồi lâu, nghe trọn chuyện, niệm Phật, tố đúng, cứu người → lên điểm (lưu qua các buổi LIVE).</li>
+      </ul>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>1. Kết nối TikTok & màn hình</h2>
+    <div class="row">
+      <input id="username" type="text" placeholder="Tên kênh TikTok (không cần @)" style="flex:1;min-width:200px">
+      <input id="apiKey" type="password" placeholder="Key EulerStream (tuỳ chọn)" autocomplete="off" style="flex:1;min-width:200px">
+      <button class="pri" id="btnConnect">Kết nối</button>
+      <button id="btnDisconnect">Ngắt</button>
+    </div>
+    <div class="row"><span class="status" id="connStatus">…</span></div>
+    <div id="links"></div>
+    <div class="row">
+      <button id="btnOpen">🖥 Mở màn game (tự phát tiếng)</button>
+      <a href="/ma.html" target="_blank"><button>Xem thử trong tab mới</button></a>
+      <span class="muted" id="openMsg"></span>
+      <span class="muted" id="screens"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2. Đang diễn ra</h2>
+    <div class="stats">
+      <div class="stat"><b id="sSeated">0</b><span>quanh đèn</span></div>
+      <div class="stat"><b id="sTaken">0</b><span>trong gương</span></div>
+      <div class="stat"><b id="sWait">0</b><span>chờ ghế</span></div>
+      <div class="stat"><b id="sThay">—</b><span>thầy pháp</span></div>
+      <div class="stat"><b id="sEvent">—</b><span>sự kiện</span></div>
+      <div class="stat"><b id="sFps">—</b><span>khung hình/giây</span></div>
+    </div>
+    <div class="row" style="gap:16px">
+      <div style="flex:1;min-width:220px">🪔 Dầu đèn <b id="sOil">0</b><div class="bar"><i id="bOil" style="background:linear-gradient(90deg,#ff9a2a,#ffd27a);width:0"></i></div></div>
+      <div style="flex:1;min-width:220px">👻 Âm khí <b id="sYin">0</b><div class="bar"><i id="bYin" style="background:linear-gradient(90deg,#7a2aff,#ff2a4a);width:0"></i></div></div>
+    </div>
+    <div class="muted" id="sStory">—</div>
+    <div class="line" id="sLine">…</div>
+    <div class="muted" id="sVote"></div>
+  </div>
+
+  <div class="card">
+    <h2>3. Điều khiển truyện</h2>
+    <div class="row">
+      <select id="storySel" style="min-width:260px"></select>
+      <button class="pri" id="btnStart">▶ Kể chuyện này ngay</button>
+      <button id="btnNext">⏭ Câu tiếp</button>
+      <button id="btnPause">⏸ Tạm dừng</button>
+      <button id="btnResume">▶ Tiếp tục</button>
+      <button id="btnStop">⏹ Kết thúc, chọn chuyện khác</button>
+    </div>
+    <div class="row">
+      <input id="sayText" type="text" placeholder="Tự kể một câu lên màn hình (máy đọc luôn)…" style="flex:1;min-width:260px">
+      <button id="btnSay">💬 Kể</button>
+    </div>
+    <div class="muted">Phím tắt khi mở màn game trên máy: <code>Space</code> tạm dừng, <code>N</code> câu tiếp.</div>
+  </div>
+
+  <div class="card">
+    <h2>4. Sự kiện (bấm là chạy, hoặc chờ người xem tặng quà)</h2>
+    <div class="row evbtns">
+      <button data-ev="possess">👁 Ai bị ma nhập?</button>
+      <button data-ev="doll">🪆 Búp bê ma</button>
+      <button data-ev="ouija">🔮 Cầu cơ</button>
+      <button data-ev="ghost">👻 Ma hiện hình</button>
+      <button data-ev="blackout">🪔 Đèn tắt</button>
+      <button data-ev="exorcise">☯️ Trừ tà</button>
+      <button data-ev="knock">🚪 Gõ cửa</button>
+      <button data-ev="scare">🫣 Hù một người</button>
+      <button data-ev="salt">🧂 Rắc muối</button>
+      <button id="btnJump">😱 Mặt ma (thử mức hù)</button>
+    </div>
+    <div class="row">
+      <button id="btnOilFull">🪔 Đổ đầy dầu</button>
+      <button id="btnYin0">🙏 Âm khí về 0</button>
+      <button id="btnYin90">👻 Âm khí 90</button>
+      <button id="btnFree">✨ Thả hết người trong gương</button>
+      <button id="btnEndEv">✖ Dừng sự kiện đang chạy</button>
+      <button id="btnClear" class="red">Xoá hết ghế</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>5. 🎁 Quà → hành động</h2>
+    <div class="muted">Quà có giá ≥ mức xu sẽ chạy hành động cao nhất đủ điều kiện. Có thể gán đúng một món quà cho một hành động (danh sách quà tự học khi có người tặng).</div>
+    <table><thead><tr><th>Hành động</th><th>Từ (xu)</th><th>Gán đúng quà</th></tr></thead><tbody id="actRows"></tbody></table>
+    <div class="row"><button class="pri" id="btnSaveActs">💾 Lưu</button><span class="muted" id="actMsg"></span></div>
+  </div>
+
+  <div class="card">
+    <h2>6. ⚙️ Cài đặt</h2>
+    <div class="grid" id="setGrid"></div>
+    <div class="row">
+      <label>🎙 Giọng kể: <select id="ttsVoice"></select></label>
+      <button id="ttsTry">▶ Nghe thử</button>
+      <span class="muted" id="ttsInfo"></span>
+    </div>
+    <div class="muted">Màn game trong OBS thường không có giọng tiếng Việt — khi đó <b>trang này sẽ đọc thay</b>: giữ trang này mở (tốt nhất bằng Microsoft Edge) và cho OBS / LIVE Studio thu âm thanh máy tính.</div>
+  </div>
+
+  <div class="card">
+    <h2>7. 🧪 Thử không cần LIVE</h2>
+    <div class="row">
+      <button data-t="join10">+10 người vào</button>
+      <button data-t="join30">+30 người vào</button>
+      <button data-t="v1">Bình luận "1"</button>
+      <button data-t="v2">Bình luận "2"</button>
+      <button data-t="v3">Bình luận "3"</button>
+      <button data-t="pray">"nam mô"</button>
+      <button data-t="scared">"sợ quá"</button>
+      <button data-t="like">+300 tim</button>
+    </div>
+    <div class="row">
+      <input id="tText" type="text" placeholder='Bình luận thử (vd: "cứu 5", "12", "hỏi: ai sẽ bị bắt?")' style="flex:1;min-width:240px">
+      <input id="tRep" type="number" value="1" min="1" max="30" style="width:70px" title="số người gõ">
+      <button id="tSend">Gửi</button>
+    </div>
+    <div class="row" id="giftTests"></div>
+  </div>
+
+  <div class="card">
+    <h2>8. 🏆 Bảng Gan Dạ (mọi buổi LIVE)</h2>
+    <table><thead><tr><th>#</th><th>Người xem</th><th>Điểm</th></tr></thead><tbody id="braveRows"></tbody></table>
+    <div class="row"><button class="red" id="btnResetBrave">Xoá bảng gan dạ</button></div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/tts.js"></script>
+<script src="/ma-config.js"></script>
+<script src="/ma-stories.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const socket = io();
+const ACTIONS = window.MA_ACTIONS, DEF = window.MA_DEFAULTS;
+let MS = Object.assign({}, DEF), GIFTS = {}, SET = {};
+socket.on('connect', () => socket.emit('hello', 'ma-admin'));
+const cmd = c => socket.emit('ma:cmd', c);
+const save = patch => { Object.assign(MS, patch); socket.emit('ma:saveSettings', patch); };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// ---------- kết nối ----------
+socket.on('connState', c => { const el = $('connStatus'); el.textContent = c.text; el.className = 'status ' + c.status; });
+socket.on('settings', s => { SET = s || {}; if (document.activeElement !== $('username')) $('username').value = SET.username || ''; if (document.activeElement !== $('apiKey')) $('apiKey').value = SET.apiKey || ''; });
+$('btnConnect').onclick = () => socket.emit('connect-tiktok', { username: $('username').value, apiKey: $('apiKey').value });
+$('btnDisconnect').onclick = () => socket.emit('disconnect-tiktok');
+$('btnOpen').onclick = async () => {
+  const m = $('openMsg'); m.textContent = 'Đang mở…';
+  try { const r = await (await fetch('/api/open-game', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page: 'ma' }) })).json(); m.textContent = r.ok ? '✓ Đã mở bằng ' + r.browser : '⚠ ' + r.error; } catch (e) { m.textContent = '⚠ Không mở được'; }
+};
+socket.on('ma:screens', n => { $('screens').textContent = n ? `· ${n} màn game đang mở` : '· chưa mở màn game nào'; });
+fetch('/api/info').then(r => r.json()).then(info => {
+  const p = info.port, list = [['Cho OBS / LIVE Studio (máy này)', `http://localhost:${p}/ma.html?obs=1`]];
+  for (const ip of info.ips || []) list.push(['Điện thoại / máy khác cùng Wi-Fi', `http://${ip}:${p}/ma.html`], ['LIVE Studio (nếu localhost không chạy)', `http://${ip}:${p}/ma.html?obs=1`]);
+  $('links').innerHTML = list.map(([l, u]) => `<div class="row"><span class="muted" style="min-width:230px">${esc(l)}</span><input class="url" type="text" readonly value="${esc(u)}" onclick="this.select()"><button onclick="navigator.clipboard.writeText('${esc(u)}');this.textContent='✓ Đã chép'">Chép</button></div>`).join('');
+}).catch(() => {});
+
+// ---------- trạng thái ----------
+socket.on('ma:status', s => {
+  if (!s || !s.phase) return;
+  $('sSeated').textContent = s.alive ?? 0; $('sTaken').textContent = s.taken ?? 0; $('sWait').textContent = s.waiting ?? 0;
+  $('sThay').textContent = s.thay || '—'; $('sEvent').textContent = s.event || (s.queue && s.queue.length ? 'chờ: ' + s.queue.join(', ') : '—'); $('sFps').textContent = s.fps ?? '—';
+  $('sOil').textContent = s.oil; $('bOil').style.width = s.oil + '%'; $('sYin').textContent = s.yin; $('bYin').style.width = s.yin + '%';
+  const ph = { wait: 'chuẩn bị', inter: 'chọn chuyện', cast: 'giới thiệu vai', tell: 'đang kể', vote: 'đang bình chọn', end: 'kết truyện' }[s.phase] || s.phase;
+  $('sStory').textContent = `${s.paused ? '⏸ ĐANG TẠM DỪNG · ' : ''}${s.story ? '📖 ' + s.story + ' · đoạn ' + s.part : 'Chưa kể'} · ${ph}${s.roles && s.roles.length ? ' · vai: ' + s.roles.join(', ') : ''}`;
+  $('sLine').textContent = s.line || '…';
+  $('sVote').textContent = s.vote ? `🗳 ${s.vote.q} — ${s.vote.opts.map((o, i) => `${i + 1}. ${o.label}: ${o.w}`).join(' · ')} (còn ${s.vote.left}s)` : '';
+});
+
+// ---------- truyện ----------
+$('storySel').innerHTML = (window.MA_STORIES || []).map(s => `<option value="${esc(s.id)}">${esc(s.title)}</option>`).join('');
+$('btnStart').onclick = () => cmd({ type: 'start', story: $('storySel').value });
+$('btnNext').onclick = () => cmd({ type: 'next' });
+$('btnPause').onclick = () => cmd({ type: 'pause' });
+$('btnResume').onclick = () => cmd({ type: 'resume' });
+$('btnStop').onclick = () => cmd({ type: 'stop' });
+$('btnSay').onclick = () => { const t = $('sayText').value.trim(); if (t) { cmd({ type: 'say', text: t }); $('sayText').value = ''; } };
+$('sayText').onkeydown = e => { if (e.key === 'Enter') $('btnSay').click(); };
+
+// ---------- sự kiện ----------
+document.querySelectorAll('[data-ev]').forEach(b => b.onclick = () => cmd({ type: 'event', name: b.dataset.ev }));
+$('btnJump').onclick = () => cmd({ type: 'jumpscare' });
+$('btnOilFull').onclick = () => cmd({ type: 'oil', v: 100 });
+$('btnYin0').onclick = () => cmd({ type: 'yin', v: 0 });
+$('btnYin90').onclick = () => cmd({ type: 'yin', v: 90 });
+$('btnFree').onclick = () => cmd({ type: 'freeAll' });
+$('btnEndEv').onclick = () => cmd({ type: 'endEvent' });
+$('btnClear').onclick = () => { if (confirm('Xoá hết người đang ngồi quanh đèn?')) cmd({ type: 'clearSeats' }); };
+
+// ---------- quà ----------
+function renderActs() {
+  const names = Object.keys(GIFTS).sort((a, b) => (GIFTS[a].diamonds || 0) - (GIFTS[b].diamonds || 0));
+  $('actRows').innerHTML = ACTIONS.map(a => {
+    const cur = (MS.actions || []).find(x => x.id === a.id) || { min: a.min, gift: '' };
+    return `<tr data-id="${a.id}"><td>${a.icon} <b>${esc(a.label)}</b> <span class="muted">${esc(a.desc)}</span></td>
+      <td><input type="number" min="0" value="${Number(cur.min) || a.min}"></td>
+      <td><select><option value="">— theo mức xu —</option>${names.map(n => `<option value="${esc(n)}"${n === cur.gift ? ' selected' : ''}>${esc(n)} (${GIFTS[n].diamonds || 0} xu)</option>`).join('')}</select></td></tr>`;
+  }).join('');
+}
+$('btnSaveActs').onclick = () => {
+  const acts = [...$('actRows').querySelectorAll('tr')].map(tr => ({ id: tr.dataset.id, min: Number(tr.querySelector('input').value) || 0, gift: tr.querySelector('select').value }));
+  save({ actions: acts }); $('actMsg').textContent = '✓ Đã lưu';
+};
+socket.on('gifts', g => { GIFTS = g || {}; renderActs(); });
+
+// ---------- cài đặt ----------
+const FIELDS = [
+  ['storyMode', 'Chọn chuyện tiếp theo', 'select', [['vote', 'Người xem bình chọn'], ['random', 'Ngẫu nhiên'], ['order', 'Lần lượt']]],
+  ['storySpeed', 'Nhịp kể (1 = vừa, 1.3 = nhanh)', 'number', 0.1],
+  ['voteSeconds', 'Giây bình chọn hướng đi', 'number', 1],
+  ['storyVoteSeconds', 'Giây bình chọn chuyện', 'number', 1],
+  ['voteGiftWeight', 'Tặng quà để phiếu nặng thêm', 'check'],
+  ['autoEvents', 'Tự mở sự kiện (nhập / búp bê / cầu cơ)', 'check'],
+  ['eventEvery', 'Phút giữa hai sự kiện tự động', 'number', 0.5],
+  ['scare', 'Mức hù (mặt ma bất ngờ)', 'select', [['manh', 'Mạnh — mặt ma to + chớp sáng'], ['vua', 'Vừa — mặt ma, không chớp'], ['nhe', 'Nhẹ — chỉ rung màn hình'], ['tat', 'Tắt — không hù']]],
+  ['tts', '🎙 Đọc lời kể', 'check'],
+  ['ttsWhere', 'Đọc ở đâu', 'select', [['game', 'Màn game (tự chuyển sang trang này nếu thiếu giọng)'], ['admin', 'Luôn đọc ở trang điều khiển này']]],
+  ['ttsRate', 'Tốc độ đọc', 'number', 0.05],
+  ['ttsVolume', 'Âm lượng giọng đọc (0–1)', 'number', 0.05],
+  ['volume', 'Âm lượng hiệu ứng (0–1)', 'number', 0.05],
+  ['maxSeats', 'Số ghế quanh đèn (tối đa 73)', 'number', 1],
+  ['idleSeconds', 'Im lặng bao nhiêu giây thì rời ghế', 'number', 10],
+  ['joinOnLike', 'Thả tim cũng được ngồi vào vòng', 'check'],
+  ['likeOil', 'Dầu thêm cho mỗi tim', 'number', 0.01],
+  ['lampDecay', 'Tốc độ cạn dầu (1 = vừa)', 'number', 0.1],
+  ['yinRise', 'Tốc độ tăng âm khí (1 = vừa)', 'number', 0.1],
+  ['thayMin', 'Xu tối thiểu để thành thầy pháp', 'number', 1],
+  ['rescueNeed', 'Số người gõ "cứu N" để cứu', 'number', 1],
+  ['takenReturnSec', 'Người trong gương tự về sau (giây)', 'number', 10],
+  ['showGiftGuide', 'Hiện bảng "Tặng quà để…"', 'check'],
+  ['showBubbles', 'Hiện bong bóng bình luận', 'check'],
+  ['showHints', 'Hiện dòng gợi ý lệnh', 'check'],
+  ['title', 'Tên phòng (hiện trên đầu màn)', 'text'],
+];
+function renderSettings() {
+  $('setGrid').innerHTML = FIELDS.map(([k, label, type, opt]) => {
+    const v = MS[k];
+    let input;
+    if (type === 'check') input = `<input type="checkbox" data-k="${k}" ${v ? 'checked' : ''}>`;
+    else if (type === 'select') input = `<select data-k="${k}">${opt.map(([val, l]) => `<option value="${val}"${val === v ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+    else if (type === 'number') input = `<input type="number" step="${opt}" data-k="${k}" value="${esc(v)}">`;
+    else input = `<input type="text" data-k="${k}" value="${esc(v)}">`;
+    return `<label class="field"><span>${esc(label)}</span>${input}</label>`;
+  }).join('');
+  $('setGrid').querySelectorAll('[data-k]').forEach(el => el.onchange = () => {
+    const k = el.dataset.k, f = FIELDS.find(x => x[0] === k);
+    const val = f[2] === 'check' ? el.checked : f[2] === 'number' ? Number(el.value) : el.value;
+    save({ [k]: val });
+  });
+}
+socket.on('ma:settings', s => {
+  MS = Object.assign({}, DEF, s || {});
+  if (!Array.isArray(MS.actions) || !MS.actions.length) MS.actions = DEF.actions;
+  if (!document.activeElement || !$('setGrid').contains(document.activeElement)) renderSettings();
+  renderActs(); fillVoices();
+});
+
+// ---------- giọng đọc ----------
+function fillVoices() {
+  if (!window.MC) return;
+  const list = MC.list(), cur = MS.ttsVoice || '';
+  $('ttsVoice').innerHTML = `<option value="">Tự chọn giọng hay nhất</option>` + list.map(n => `<option value="${esc(n)}"${n === cur ? ' selected' : ''}>${/natural|online/i.test(n) ? '⭐ ' : ''}${esc(n)}</option>`).join('');
+  ttsInfo();
+}
+function ttsInfo() {
+  const el = $('ttsInfo');
+  if (!window.MC || !MC.available()) el.textContent = 'Trình duyệt này không có giọng đọc.';
+  else el.textContent = MC.hasVietnamese() ? '✓ ' + MC.voiceName() : '⚠️ Máy này chưa có giọng tiếng Việt — mở trang này bằng Microsoft Edge hoặc Chrome.';
+}
+if (window.MC) MC.onVoices = fillVoices;
+$('ttsVoice').onchange = () => { save({ ttsVoice: $('ttsVoice').value }); MC.setPref($('ttsVoice').value); ttsInfo(); };
+$('ttsTry').onclick = () => { MC.setPref($('ttsVoice').value); MC.enabled = true; MC.rate = Number(MS.ttsRate) || 0.92; MC.volume = Number(MS.ttsVolume) || 1; MC.say('Đêm rằm tháng Bảy… ngọn đèn dầu chập chờn. Có ai đó đang ngồi ngay sau lưng bạn.', true); };
+socket.on('ma:say', m => {
+  if (!window.MC || !m || !m.text || !MS.tts) return;
+  if (!MC.hasVietnamese()) return;   // không đọc tiếng Việt bằng giọng tây
+  MC.setPref(MS.ttsVoice || ''); MC.enabled = true; MC.rate = Number(MS.ttsRate) || 0.92; MC.volume = Number(MS.ttsVolume) || 1;
+  MC.say(m.text, m.prio);
+});
+
+// ---------- thử ----------
+const T = {
+  join10: () => socket.emit('test', { kind: 'join', n: 10 }), join30: () => socket.emit('test', { kind: 'join', n: 30 }),
+  v1: () => socket.emit('test', { kind: 'chat', text: '1', repeat: 5 }), v2: () => socket.emit('test', { kind: 'chat', text: '2', repeat: 5 }), v3: () => socket.emit('test', { kind: 'chat', text: '3', repeat: 5 }),
+  pray: () => socket.emit('test', { kind: 'chat', text: 'nam mô a di đà phật', repeat: 8 }), scared: () => socket.emit('test', { kind: 'chat', text: 'sợ quá', repeat: 6 }),
+  like: () => socket.emit('test', { kind: 'like', n: 300 }),
+};
+document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => T[b.dataset.t]());
+$('tSend').onclick = () => { const t = $('tText').value.trim(); if (t) socket.emit('test', { kind: 'chat', text: t, repeat: Math.max(1, Number($('tRep').value) || 1) }); };
+$('tText').onkeydown = e => { if (e.key === 'Enter') $('tSend').click(); };
+$('giftTests').innerHTML = '<span class="muted">Quà thử:</span> ' + ACTIONS.map(a => `<button data-g="${a.min}">${a.icon} ${a.min} xu</button>`).join('');
+$('giftTests').querySelectorAll('[data-g]').forEach(b => b.onclick = () => {
+  const act = (MS.actions || []).find(x => x.min == b.dataset.g) || {};
+  socket.emit('test', { kind: 'biggift', value: Number(act.min || b.dataset.g) });
+});
+
+// ---------- gan dạ ----------
+socket.on('ma:braveTop', list => {
+  $('braveRows').innerHTML = (list || []).length ? list.map((b, i) => `<tr><td>${i + 1}</td><td>${esc(b.name)}</td><td><b>${b.pts}</b></td></tr>`).join('') : '<tr><td colspan="3" class="muted">Chưa có ai.</td></tr>';
+});
+$('btnResetBrave').onclick = () => { if (confirm('Xoá toàn bộ bảng gan dạ?')) socket.emit('ma:resetBrave'); };
+</script>
+</body>
+</html>

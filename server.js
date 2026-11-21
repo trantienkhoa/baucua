@@ -273,6 +273,7 @@ app.use('/music', express.static(MUSIC));
 app.use('/three', express.static(path.join(__dirname, 'node_modules', 'three')));
 app.get('/', (req, res) => res.redirect('/admin.html'));
 app.get('/game', (req, res) => res.sendFile(path.join(__dirname, 'public', 'game.html')));
+app.get('/ma', (req, res) => res.sendFile(path.join(__dirname, 'public', 'ma.html')));
 
 function lanIPs() {
   const out = [];
@@ -396,7 +397,7 @@ function setState(status, text) {
   console.log('[TikTok]', text);
 }
 
-function broadcast(ev) { session.lastEvent = Date.now(); io.to('game').emit('ev', ev); try { textHook(ev); } catch (e) { console.error('text', e); } }
+function broadcast(ev) { session.lastEvent = Date.now(); io.to('game').to('ma').emit('ev', ev); try { textHook(ev); } catch (e) { console.error('text', e); } }
 
 // ---------- lời nhắn lên màn hình LCD: bình luận "mh: …" + tặng quà ----------
 const TEXT_PREFIX = /^\s*(mh|màn hình|man hinh|manhinh|lcd|chữ|chu|text|tn|lời nhắn|loi nhan)\s*[:：\-–>]\s*/i;
@@ -721,7 +722,8 @@ app.post('/api/open-game', (req, res) => {
   const exe = findBrowser();
   if (!exe) return res.json({ ok: false, error: 'Không tìm thấy Chrome hoặc Edge trên máy.' });
   const profile = path.join(DATA, 'browser-game');
-  const url = `http://localhost:${PORT}/game.html` + (req.body && req.body.obs ? '?obs=1' : '');
+  const page = req.body && req.body.page === 'ma' ? 'ma.html' : 'game.html';
+  const url = `http://localhost:${PORT}/${page}` + (req.body && req.body.obs ? '?obs=1' : '');
   try {
     const child = require('child_process').spawn(exe, ['--autoplay-policy=no-user-gesture-required', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check', '--window-size=560,1000', `--app=${url}`], { detached: true, stdio: 'ignore' });
     child.on('error', () => {}); child.unref();
@@ -748,8 +750,56 @@ function testUser(i) {
   return { id: 'test' + n, name: (TEST_NAMES[n % TEST_NAMES.length]) + ' ' + n, avatar: '' };
 }
 
+// ---------- game kể chuyện ma "Ngọn Đèn Cuối Cùng" ----------
+let maSettings = readJSON('ma-settings.json', {});
+let maBrave = readJSON('ma-brave.json', {});   // id -> { name, avatar, pts, last }
+let maBraveDirty = false;
+let maStatus = {};
+const maScreens = new Map();   // socket.id -> { obs }
+let maPrimaryId = null;
+function maPickPrimary() {
+  if (maPrimaryId && maScreens.has(maPrimaryId)) return;
+  let best = null;
+  for (const [id, s] of maScreens) { if (!best || (s.obs && !maScreens.get(best).obs)) best = id; }
+  maPrimaryId = best;
+  for (const id of maScreens.keys()) io.to(id).emit('ma:primary', id === maPrimaryId);
+  io.to('ma-admin').emit('ma:screens', maScreens.size);
+}
+function maBraveTop(n = 20) {
+  return Object.entries(maBrave).map(([id, b]) => ({ id, name: b.name, avatar: b.avatar || '', pts: b.pts || 0 })).sort((a, b) => b.pts - a.pts).slice(0, n);
+}
+setInterval(() => { if (maBraveDirty) { maBraveDirty = false; writeJSON('ma-brave.json', maBrave); io.to('ma').to('ma-admin').emit('ma:braveTop', maBraveTop()); } }, 10000);
+function maSanitize(patch) {
+  const out = {};
+  for (const [k, v] of Object.entries(patch || {})) {
+    if (!/^[a-zA-Z]{1,40}$/.test(k)) continue;
+    if (['string', 'number', 'boolean'].includes(typeof v)) out[k] = typeof v === 'string' ? v.slice(0, 200) : v;
+    else if (k === 'actions' && Array.isArray(v)) out.actions = v.slice(0, 30).filter(a => a && typeof a.id === 'string').map(a => ({ id: String(a.id).slice(0, 20), gift: String(a.gift || '').slice(0, 60), min: Math.max(0, Number(a.min) || 0) }));
+  }
+  return out;
+}
+
 io.on('connection', socket => {
   socket.on('hello', (role, info) => {
+    if (role === 'ma' || role === 'ma-admin') {
+      if (role === 'ma') {
+        socket.join('ma');
+        const obs = !!(info && info.obs);
+        maScreens.set(socket.id, { obs });
+        // màn OBS luôn được ưu tiên làm màn chính (đọc lời kể, lưu điểm gan dạ)
+        if (obs && maPrimaryId && maScreens.has(maPrimaryId) && !maScreens.get(maPrimaryId).obs) maPrimaryId = null;
+        maPickPrimary();
+        socket.emit('ma:primary', socket.id === maPrimaryId);
+      }
+      else { socket.join('ma-admin'); socket.emit('ma:status', maStatus); socket.emit('ma:screens', maScreens.size); }
+      socket.emit('ma:settings', maSettings);
+      socket.emit('ma:braveTop', maBraveTop());
+      socket.emit('settings', settings);
+      socket.emit('gifts', gifts);
+      socket.emit('top', topList());
+      socket.emit('connState', connState);
+      return;
+    }
     if (role === 'game') { socket.join('game'); screens.set(socket.id, { obs: !!(info && info.obs) }); pickPrimary(); socket.emit('goalState', goalState); }
     else if (role === 'screen') { socket.join('screenctl'); socket.emit('screenMedia', screenMedia()); socket.emit('screenStatus', screenStatus); socket.emit('textQueue', textPending); socket.emit('textHistory', textHistory); }
     else { socket.join('admin'); socket.emit('clips', clipList()); }
@@ -762,7 +812,37 @@ io.on('connection', socket => {
     socket.emit('connState', connState);
   });
   socket.on('status', s => { if (screens.has(socket.id)) screens.set(socket.id, Object.assign(screens.get(socket.id) || {}, s || {})); });
-  socket.on('disconnect', () => { if (screens.delete(socket.id)) pickPrimary(); });
+  socket.on('disconnect', () => {
+    if (screens.delete(socket.id)) pickPrimary();
+    if (maScreens.delete(socket.id)) { if (maPrimaryId === socket.id) maPrimaryId = null; maPickPrimary(); }
+  });
+  // game kể chuyện ma
+  socket.on('ma:saveSettings', patch => {
+    if (!patch || typeof patch !== 'object') return;
+    Object.assign(maSettings, maSanitize(patch));
+    writeJSON('ma-settings.json', maSettings);
+    io.to('ma').to('ma-admin').emit('ma:settings', maSettings);
+  });
+  socket.on('ma:cmd', c => { if (c && typeof c.type === 'string') io.to('ma').emit('ma:cmd', c); });
+  socket.on('ma:say', m => {   // màn game không có giọng Việt → trang điều khiển đọc thay
+    if (socket.id !== maPrimaryId || !m || typeof m.text !== 'string') return;
+    io.to('ma-admin').emit('ma:say', { text: m.text.slice(0, 300), prio: !!m.prio });
+  });
+  socket.on('ma:status', st => {
+    if (socket.id !== maPrimaryId || !st || typeof st !== 'object') return;
+    maStatus = st; io.to('ma-admin').emit('ma:status', st);
+  });
+  socket.on('ma:brave', list => {
+    if (socket.id !== maPrimaryId || !Array.isArray(list)) return;
+    for (const d of list.slice(0, 300)) {
+      if (!d || typeof d.id !== 'string' || !(Number(d.add) > 0)) continue;
+      const b = maBrave[d.id] || (maBrave[d.id] = { name: '', avatar: '', pts: 0 });
+      b.name = String(d.name || b.name).slice(0, 40); if (d.avatar) b.avatar = String(d.avatar).slice(0, 500);
+      b.pts += Math.min(500, Number(d.add)); b.last = Date.now();
+    }
+    maBraveDirty = true;
+  });
+  socket.on('ma:resetBrave', () => { maBrave = {}; writeJSON('ma-brave.json', maBrave); io.to('ma').to('ma-admin').emit('ma:braveTop', []); });
   socket.on('goalState', gs => { if (gs && typeof gs === 'object' && socket.id === primaryId) goalState = { likes: +gs.likes || 0, coins: +gs.coins || 0, idx: +gs.idx || 0, theme: String(gs.theme || 'club'), partyLikes: +gs.partyLikes || 0, partyTarget: +gs.partyTarget || 0 }; });
   socket.on('screen:set', patch => {
     if (!patch || typeof patch !== 'object') return;
@@ -878,6 +958,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('\n  Vũ Trường Neon đã chạy');
   console.log(`  Trang điều khiển : http://localhost:${PORT}/admin.html`);
   console.log(`  Màn hình game    : http://localhost:${PORT}/game.html`);
+  console.log(`  Game kể chuyện ma: http://localhost:${PORT}/ma-dieu-khien.html  (màn hình: /ma.html)`);
   for (const ip of ips) console.log(`  Trong mạng LAN   : http://${ip}:${PORT}/game.html`);
   console.log('');
   if (settings.username && settings.autoReconnect && process.env.AUTOCONNECT !== '0') connectTikTok();

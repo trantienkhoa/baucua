@@ -20,3 +20,9 @@ Sự kiện LIVE (trang điều khiển → 🎮 Sự kiện LIVE): đấu độ
 đèn chiếu, MC giọng nói, mục tiêu phòng mở sân khấu mới, clip khoảnh khắc.
 Lệnh người xem: 1/2 (chọn đội, bình chọn solo), bài 1/2/3 (chọn nhạc).
 Chi tiết: xem README.md
+
+GAME KỂ CHUYỆN MA "Ngọn Đèn Cuối Cùng" (bản 2.9.0):
+- Trang điều khiển: http://localhost:3300/ma-dieu-khien.html
+- OBS: http://localhost:3300/ma.html?obs=1 (1080 x 1920)
+- Lệnh người xem: 1/2 chọn hướng truyện, "nam mô" xua ma, "cứu 12" cứu người trong gương,
+  số ghế để tố kẻ bị ma nhập, "hỏi: ..." khi cầu cơ. Thả tim = thêm dầu cho đèn.

@@ -20,6 +20,39 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 🕯 Game kể chuyện ma "Ngọn Đèn Cuối Cùng" (bản 2.9.0)
+
+Game LIVE thứ hai, chạy chung máy chủ và chung kết nối TikTok với sàn nhảy.
+
+- **Trang điều khiển:** `http://localhost:3300/ma-dieu-khien.html`
+- **Màn hình cho OBS / LIVE Studio:** `http://localhost:3300/ma.html?obs=1` (1080 × 1920). Chỉ mở **một** màn cho LIVE.
+
+Người xem ngồi quanh một ngọn đèn dầu trong nhà cổ. Bình luận là được một **ghế có số**. Máy kể truyện ma từng câu, có phụ đề và giọng đọc.
+
+**Điểm khác các game kể chuyện ma khác:**
+
+| Tính năng | Cách chơi |
+|---|---|
+| 🎭 **Người xem làm nhân vật** | Tên người vừa bình luận được ghép vào truyện (vai A/B/C). Người tặng nhiều nhất làm **thầy pháp** trong truyện. Khi tên được nhắc, ghế của người đó sáng lên. |
+| 🗳 **Truyện rẽ nhánh** | Gõ **1 / 2** để chọn hướng đi; mỗi truyện có 4 kết thúc. Gõ **1 / 2 / 3** để chọn chuyện tiếp theo. Đã chọn mà tặng quà thì phiếu nặng thêm (1 xu = 1 phiếu). |
+| 🪔 **Dầu đèn ↔ bóng tối** | Thả tim để thêm dầu. Dầu ít thì vòng sáng thu hẹp, ghế ngoài chìm vào bóng tối, mắt đỏ hiện ra. Hết dầu thì **ĐÈN TẮT**: ma bắt người. |
+| 👻 **Âm khí** | Âm khí tăng dần. Khi cao, hồn ma **đứng sau lưng** một người xem (hiện chữ "⚠ SAU LƯNG BẠN"). Gõ **nam mô / a di đà phật** để xua. Âm khí đầy thì **MA HIỆN HÌNH**. |
+| 🪞 **Cõi âm trong gương** | Người bị bắt nằm trong tấm gương. Bình luận của họ hiện thành **lời thì thầm**. Đủ 3 người gõ **cứu 12** thì ghế 12 được kéo ra. |
+| 👁 **Ai bị ma nhập?** | Máy bí mật chọn một người. Gợi ý hiện dần: vòng ghế, ghế chẵn/lẻ, mắt loé đỏ, chữ cái đầu của tên. Cả phòng gõ **số ghế** để tố. Tố đúng được điểm; tố nhầm thì người bị oan bị kéo đi. |
+| 🪆 **Búp bê ma chuyền tay** | Người đang cầm búp bê gõ bất kỳ để chuyền đi (gõ số ghế để chọn người nhận). Nhạc hộp dừng lúc nào không biết; ai đang cầm thì bị bắt. |
+| 🔮 **Cầu cơ** | Gõ `hỏi: …`. Con trỏ chạy trên bàn cơ đánh vần câu trả lời. Hỏi "ai" thì nó đánh vần **tên một người trong phòng**. |
+| 🏆 **Bảng Gan Dạ** | Điểm cho người **ở lại**: ngồi lâu, nghe trọn chuyện, niệm Phật, tố đúng, cứu người. Lưu qua các buổi LIVE. Người đứng đầu có huy hiệu 👑 khi vào phòng. |
+
+Một số kết truyện tự mở sự kiện: truyện "Búp Bê Dưới Đáy Giếng" có thể kết bằng trò búp bê ma, truyện "Người Thứ Mười Ba" có thể kết bằng trò ai bị ma nhập.
+
+**Quà → hành động** (đổi mức xu hoặc gán đúng món quà ở trang điều khiển): 🕯 Thắp nhang 1 · 🧂 Rắc muối 5 · 🚪 Gõ cửa 10 · 🫣 Hù một người 30 (gõ `hù 12` trước để chọn ghế) · 🔮 Cầu cơ 99 · 🪆 Búp bê ma 199 · 👁 Ai bị nhập? 299 · 👻 Gọi hồn 499 · ☯️ Trừ tà 999 (cắt ngang mọi sự kiện, cứu hết người trong gương, người tặng làm thầy pháp).
+
+**Mức hù:** Cài đặt → "Mức hù": mạnh / vừa / nhẹ / tắt. Không dùng chớp sáng liên tục.
+
+**Giọng đọc:** màn OBS thường không có giọng tiếng Việt, nên trang điều khiển sẽ đọc thay. Giữ trang điều khiển mở bằng Edge và cho OBS thu âm thanh máy tính. Âm thanh hiệu ứng (gió, dế, tim đập, gõ cửa, chuông chùa, hộp nhạc…) được máy tự tạo, không cần file.
+
+**Viết thêm truyện:** sửa `public/ma-stories.js`. Đầu file có hướng dẫn: `{A}` `{B}` `{C}` `{THAY}` là tên người xem, `@knock|…` là hiệu ứng, `choice` là bình chọn, `take: 'A'` là kéo người đó vào gương khi kết.
+
 ## Chọn giọng MC (bản 2.8.3)
 
 - Mục **Sự kiện LIVE** có ô **🎙 Giọng MC** liệt kê mọi giọng tiếng Việt của trình duyệt, nút **▶ Nghe thử**. Giọng có ⭐ là giọng tự nhiên (Natural).
