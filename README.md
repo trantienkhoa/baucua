@@ -20,31 +20,46 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
-## 🎨 Game Họa Sĩ — họa sĩ 3D vẽ chân dung người xem (bản 2.9.0)
+## 🎨 Game Họa Sĩ — họa sĩ 3D vẽ chân dung người xem (bản 2.10.0)
 
-Màn game thứ hai, chạy chung máy chủ, kết nối TikTok, nhạc, giọng MC và **nhân vật 3D** của Vũ Trường Neon. Một họa sĩ 3D (nhân vật trong roster, đội mũ nồi, quàng khăn, tay cầm bảng màu và cọ) đứng giữa phố đi bộ vẽ chân dung người xem lên giá vẽ.
+Màn game thứ hai, chạy chung máy chủ, kết nối TikTok, nhạc và **nhân vật 3D** của Vũ Trường Neon. Một họa sĩ 3D (nhân vật trong roster, đội mũ nồi, quàng khăn, tay cầm bảng màu và cọ) đứng giữa phố đi bộ vẽ chân dung người xem lên giá vẽ. **Không có MC** — chỉ có nhạc và âm thanh game.
 
-**Lên LIVE:** OBS → Browser → `http://localhost:3300/hoa-si.html?obs=1` (1080 × 1920, bật *Control audio via OBS*), hoặc bấm **🖥️ Mở game Họa Sĩ** ở trang điều khiển. Chỉ thêm **một** trong hai màn (sàn nhảy hoặc họa sĩ) khi LIVE, mở cả hai thì MC đọc hai lần.
+**Lên LIVE:** OBS → Browser → `http://localhost:3300/hoa-si.html?obs=1` (1080 × 1920, bật *Control audio via OBS*), hoặc bấm **🖥️ Mở game Họa Sĩ** ở trang điều khiển. Chỉ thêm **một** trong hai màn (sàn nhảy hoặc họa sĩ) khi LIVE.
 
-**Người xem chơi thế nào**
+### Quà càng lớn, tranh càng giống ảnh đại diện
 
-| Người xem làm | Trong game |
+| Người xem | Được vẽ |
 |---|---|
-| 💬 Bình luận | Nhân vật 3D của họ vào **hàng chờ** sau ghế mẫu, ảnh đại diện + tên trên đầu, vẫy tay khi bình luận. Hàng dài hơn 9 người hiện số `+N`. |
-| 🎁 Tặng quà | Được **ưu tiên** lên đầu hàng (quà càng nhiều càng đứng trước), lên **ghế mẫu**, họa sĩ vẽ chân dung từ **ảnh đại diện TikTok**: phác thảo chì → tô màu từng nét cọ → ký tên. |
-| 1 xu / 30 xu / 99 xu / 299 xu | Tranh màu / khung bạc / **khung vàng** + pháo giấy / **kiệt tác** (khung vàng đính đá, vẽ kín toan). Mốc 99 và 299 lấy theo cài đặt *Quý Tộc* và *Vua*. |
-| Tặng thêm khi đang được vẽ | Họa sĩ vẽ nhanh hơn và **nâng khung** tranh đang vẽ. |
-| ❤️ Thả tim, quà, follow, chia sẻ | Đổ đầy **thanh cầu vồng** trên đầu màn (1 tim = 1 điểm, 1 xu = 5, follow = 20, chia sẻ = 15). Đầy thanh → **DANCE PARTY**: trời chuyển đêm, quả cầu disco hạ xuống, đèn quét, cả họa sĩ, người mẫu và hàng chờ cùng nhảy. |
+| 💬 Bình luận / ❤️ thả tim | **Tranh biếm họa** 🤪: ảnh đại diện bị bóp méo (đầu to, mặt dài, mặt bè…), nét bút lông đen, màu phẳng như truyện tranh, thêm vương miện / mũ tiệc / sừng / chồi cây…, lời bình hài hước (*“Nhan sắc: chưa nạp 🌹”, “Tặng quà để ra bản HD 📸”*) và dấu **BẢN FREE**. Lộ tranh có tiếng kèn “oa oa” và người mẫu ôm đầu. |
+| 🌹 1 xu | **Vẽ nhanh**: vài lớp nét cọ, na ná ảnh, viền tranh còn trống. |
+| 💎 30 xu | **Sơn dầu**: thêm lớp nét nhỏ và nét viền, khung bạc. |
+| 👑 99 xu (*Quý Tộc*) | **Chân dung** vẽ kín toan, láng màu theo ảnh thật, khung vàng, pháo giấy. |
+| 🏆 299 xu (*Vua*) | **Kiệt tác giống y ảnh**: thêm lớp nét siêu nhỏ, láng màu đậm theo ảnh gốc rồi phủ lại thớ vải, khung vàng đính đá. |
 
-- Vẽ xong, họa sĩ khoe tranh rồi ném lên **dây phơi tranh** trên đầu phố (giữ 5 tranh mới nhất, kèm tên người được vẽ). Người mẫu nhảy cẫng lên, vỗ tay rồi đi về.
-- Không ai tặng quà thì họa sĩ **vẽ phác thảo chì miễn phí** cho người bình luận lâu nhất (tắt được). Không ai chờ thì trên toan hiện lời mời *“Tặng quà để được vẽ chân dung”*.
-- Người không có ảnh đại diện: họa sĩ vẽ theo **mặt nhân vật 3D** của họ (máy chụp lại khuôn mặt nhân vật đang ngồi ghế mẫu).
-- Đầu màn có dòng **cảm ơn** người tặng quà / thả tim / follow, bong bóng lời của họa sĩ, MC giọng nói đọc tên.
+- Đang ngồi vẽ mà tặng thêm: biếm họa → họa sĩ **bỏ bản biếm họa, vẽ lại bản đẹp**; tranh đẹp → thêm lớp chi tiết, khung xịn hơn, vẽ nhanh hơn.
+- Một người được vẽ biếm họa miễn phí lại sau 5 phút (chỉnh được); tặng quà thì không phải chờ.
+- Không có ảnh đại diện: họa sĩ vẽ theo mặt nhân vật 3D của người đó.
 
-**Trang điều khiển → 🎨 Game Họa Sĩ**
+### Thu hút và giữ chân người xem
+
+- **Chọn kiểu tranh**: gõ `pop art`, `màu nước`, `neon` (hoặc `sơn dầu`) — áp dụng cho tranh vẽ bằng quà. Pop Art chấm bi màu rực, Màu nước loang nhẹ giữ nét chì, Neon nền tối phát sáng.
+- **Số thứ tự trên đầu** từng người trong hàng, người kế tiếp sáng nhấp nháy. Gõ `thứ mấy` → họa sĩ trả lời *“thứ #7 ⏳ ~2 phút”*.
+- **Chấm điểm tranh**: vẽ xong, cả phòng gõ `1`–`5` trong 12 giây. Điểm ghi dưới tranh trên dây phơi; bức điểm cao nhất thành **🏅 Tranh đẹp nhất đêm**.
+- **🍀 Vẽ tặng may mắn**: cứ 4 phút quay số giữa những người bình luận đang chờ, người trúng được vẽ **sơn dầu miễn phí**, chen lên đầu hàng. Có đếm ngược trên màn để mọi người ở lại chờ.
+- **Thả tim → họa sĩ vẽ nhanh hơn** (tối đa ×1.8, có chỉ báo ⚡) và đổ đầy thanh **DANCE PARTY**.
+- **Trong Dance Party, quà được nâng 1 hạng tranh** (1 xu thành sơn dầu, 99 xu thành kiệt tác…).
+- **Chia sẻ / follow → chen lên trước** những người chỉ bình luận.
+- Họa sĩ **chào tên** người mới vào hàng; bảng **🏆 Bảng vàng** top tặng quà.
+- **Bảng thông tin xoay vòng** góc phải: Cách chơi → Sắp tới lượt → Bảng vàng → Vẽ tặng may mắn + Tranh đẹp nhất đêm.
+
+### Âm thanh game (thay cho MC)
+
+Tạo bằng Web Audio, không cần tệp: bút chì sột soạt khi phác thảo, cọ quẹt khi tô, bút dạ kin kít khi vẽ biếm họa, “bụp” khi đặt toan mới, vút khi ném tranh lên dây, xu rơi khi có quà, trống dồn + chũm chọe trước kiệt tác, vỗ tay khi lộ tranh, kèn hài cho tranh biếm họa, tiếng tích tắc khi quay số may mắn, kèn khi mở Dance Party. Chỉnh âm lượng ở *🔊 Âm lượng hiệu ứng*.
+
+### Trang điều khiển → 🎨 Game Họa Sĩ
 - Đường dẫn cho OBS / LIVE Studio / máy khác cùng Wi-Fi, nút mở game tự có tiếng.
-- Tên họa sĩ (ký trên tranh), **nhân vật làm họa sĩ** (chọn trong 98 vai, mặc định `char08`), thời gian vẽ mỗi tranh, bật/tắt vẽ phác thảo miễn phí, điểm mở Dance party, thời gian Dance party, bảng “Cách chơi”, số người tối đa trong hàng chờ.
-- Nút **⏭ Vẽ xong tranh này ngay**, **💃 Dance party ngay**, **🧹 Xoá hàng chờ** và các nút thử (khách bình luận, quà 1 / 30 / 99 / 299 xu, 300 tim).
+- Tên họa sĩ (ký trên tranh), **nhân vật làm họa sĩ** (chọn trong 98 vai, mặc định `char08`), thời gian vẽ, bật/tắt biếm họa miễn phí và thời gian chờ vẽ lại, chu kỳ **vẽ tặng may mắn**, thời gian **chấm điểm**, **âm lượng hiệu ứng**, điểm mở Dance party, thời gian Dance party, bảng thông tin, số người tối đa trong hàng.
+- Nút **⏭ Vẽ xong tranh này ngay**, **💃 Dance party ngay**, **🧹 Xoá hàng chờ**, **🍀 Quay số vẽ tặng ngay** và các nút thử (khách bình luận, quà 1 / 30 / 99 / 299 xu, 300 tim, 10 phiếu chấm điểm, khách gõ “pop art”).
 - Nút *🧹 Dọn sàn* ở mục 2 cũng xoá hàng chờ vẽ; *🔥 Đốt sàn ngay* mở Dance party.
 
 Tệp: `public/hoa-si.html`, `public/painter.js`.

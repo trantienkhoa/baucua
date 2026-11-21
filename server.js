@@ -124,11 +124,15 @@ const DEFAULT_SETTINGS = {
   painterName: 'Họa sĩ Neon',   // tên ký trên tranh
   painterChar: 'char08',        // nhân vật trong roster làm họa sĩ
   paintSeconds: 14,             // thời gian vẽ mỗi tranh (giây)
-  paintFree: true,              // không ai tặng quà → vẽ phác thảo chì miễn phí cho người bình luận
+  paintFree: true,              // không ai tặng quà → vẽ biếm họa miễn phí cho người bình luận / thả tim
   partyGoal: 1500,              // điểm mở Dance party (1 tim = 1, 1 xu = 5, follow = 20)
   partySeconds: 20,             // Dance party kéo dài (giây)
   painterLegend: true,          // bảng "Cách chơi" trên màn
   painterQueueMax: 300,         // số người tối đa trong hàng chờ
+  painterSfx: 0.8,              // âm lượng hiệu ứng (bút chì, cọ, vỗ tay…) — game Họa Sĩ không có MC
+  luckyEvery: 4,                // vẽ tặng may mắn: mỗi N phút quay số một người bình luận (0 = tắt)
+  voteSeconds: 12,              // chấm điểm tranh vừa vẽ (gõ 1–5) trong bao nhiêu giây (0 = tắt)
+  freeCooldown: 5,              // vẽ biếm họa miễn phí lại sau bao nhiêu phút
 };
 
 const savedSettings = readJSON('settings.json', {});

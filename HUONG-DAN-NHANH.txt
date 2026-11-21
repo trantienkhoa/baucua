@@ -21,8 +21,10 @@ Sự kiện LIVE (trang điều khiển → 🎮 Sự kiện LIVE): đấu độ
 Lệnh người xem: 1/2 (chọn đội, bình chọn solo), bài 1/2/3 (chọn nhạc).
 Chi tiết: xem README.md
 
-GAME HỌA SĨ (vẽ chân dung người xem, bản 2.9.0)
+GAME HỌA SĨ (vẽ chân dung người xem, bản 2.10.0 — không có MC, chỉ âm thanh game)
 - OBS: Browser → http://localhost:3300/hoa-si.html?obs=1 (1080 × 1920), hoặc trang điều khiển → 🎨 Game Họa Sĩ → Mở game.
-- Bình luận = xếp hàng. Tặng quà = được họa sĩ vẽ chân dung từ ảnh đại diện (1 xu tranh màu, 30 xu khung bạc,
-  99 xu khung vàng, 299 xu kiệt tác). Thả tim đầy thanh cầu vồng = DANCE PARTY.
+- Bình luận / thả tim = xếp hàng, được vẽ biếm họa. Tặng quà = quà càng lớn tranh càng giống ảnh đại diện
+  (1 xu vẽ nhanh, 30 xu sơn dầu, 99 xu chân dung khung vàng, 299 xu kiệt tác giống y ảnh).
+- Người xem gõ: "pop art" / "màu nước" / "neon" (kiểu tranh), "thứ mấy" (xem lượt), 1–5 (chấm điểm tranh).
+- Vẽ tặng may mắn mỗi 4 phút, chia sẻ / follow để chen hàng, thả tim để họa sĩ vẽ nhanh hơn và mở DANCE PARTY.
 - Khi LIVE chỉ thêm một trong hai màn (sàn nhảy hoặc họa sĩ).

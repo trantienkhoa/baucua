@@ -84,7 +84,7 @@ document.getElementById('openGame').onclick = async () => {
 
   <div class="card" style="border:2px solid #f2c14e;background:#fffaf0">
     <h2>🎨 Game Họa Sĩ — họa sĩ 3D vẽ chân dung người xem</h2>
-    <div class="muted">Màn game thứ hai, dùng chung kết nối TikTok, nhạc, giọng MC và nhân vật 3D của bạn. <b>Bình luận</b> → vào hàng chờ · <b>tặng quà</b> → được ưu tiên vẽ chân dung từ ảnh đại diện (quà càng lớn khung càng xịn: 1 xu tranh màu, 30 xu khung bạc, 99 xu khung vàng, 299 xu kiệt tác) · <b>thả tim</b> đầy thanh cầu vồng → <b>DANCE PARTY</b>. Khi LIVE chỉ thêm <b>một</b> trong hai màn (sàn nhảy hoặc họa sĩ) vào OBS.</div>
+    <div class="muted">Màn game thứ hai, dùng chung kết nối TikTok, nhạc và nhân vật 3D của bạn — <b>không có MC</b>, chỉ có âm thanh game. <b>Bình luận / thả tim</b> → vào hàng chờ, được vẽ <b>biếm họa</b> 🤪 · <b>tặng quà</b> → được ưu tiên, <b>quà càng lớn tranh càng giống ảnh đại diện</b> (1 xu vẽ nhanh, 30 xu sơn dầu, 99 xu chân dung khung vàng, 299 xu kiệt tác giống y ảnh) · thanh cầu vồng đầy → <b>DANCE PARTY</b>. Giữ chân người xem: số thứ tự hàng chờ, gõ <code>thứ mấy</code>, chọn kiểu tranh (<code>pop art</code>, <code>màu nước</code>, <code>neon</code>), chấm điểm tranh <code>1–5</code>, vẽ tặng may mắn, bảng vàng, chia sẻ / follow để chen hàng. Khi LIVE chỉ thêm <b>một</b> trong hai màn (sàn nhảy hoặc họa sĩ) vào OBS.</div>
     <div id="pUrls" style="margin-top:8px"></div>
     <div class="row"><button class="pri" id="pOpen" title="Mở game Họa Sĩ bằng Chrome/Edge, tự phát tiếng không cần bấm vào trang">🖥️ Mở game Họa Sĩ (tự có tiếng)</button><span class="muted" id="pOpenMsg"></span></div>
     <div class="grid" id="pGrid" style="margin-top:8px"></div>
@@ -93,6 +93,7 @@ document.getElementById('openGame').onclick = async () => {
       <button id="pSkip">⏭ Vẽ xong tranh này ngay</button>
       <button id="pParty">💃 Dance party ngay</button>
       <button id="pClear">🧹 Xoá hàng chờ</button>
+      <button id="pLucky">🍀 Quay số vẽ tặng ngay</button>
     </div>
     <div class="row"><b>Thử:</b>
       <button id="pJoin">💬 +10 khách bình luận</button>
@@ -101,6 +102,8 @@ document.getElementById('openGame').onclick = async () => {
       <button data-pg="99">👑 Quà 99 xu</button>
       <button data-pg="299">🏆 Quà 299 xu</button>
       <button id="pLike">❤️ 300 tim</button>
+      <button id="pVote">⭐ 10 phiếu chấm điểm</button>
+      <button id="pStyle">🖌️ Khách gõ “pop art”</button>
     </div>
     <div class="muted">Khách thử không có ảnh đại diện nên họa sĩ vẽ theo mặt nhân vật 3D của họ. Khi LIVE thật, tranh vẽ từ ảnh đại diện TikTok.</div>
   </div>
@@ -571,10 +574,14 @@ const PFIELDS = [
   ['painterName', '🎨 Tên họa sĩ (ký trên tranh)', 'text'],
   ['painterChar', '🧍 Nhân vật làm họa sĩ', 'select', () => [['', '— nhân vật nam mặc định —'], ...PROSTER.map(r => [r.id, `${r.id} · ${r.name} (${r.female ? 'nữ' : 'nam'}) — ${r.outfit}`.slice(0, 90)])]],
   ['paintSeconds', '⏱️ Thời gian vẽ mỗi tranh (giây, 6–60)', 'num', 1],
-  ['paintFree', '✏️ Không ai tặng quà → vẽ phác thảo chì miễn phí cho người bình luận', 'check'],
+  ['paintFree', '🤪 Không ai tặng quà → vẽ biếm họa miễn phí cho người bình luận / thả tim', 'check'],
+  ['freeCooldown', '🤪 Một người được vẽ biếm họa lại sau (phút)', 'num', 1],
+  ['luckyEvery', '🍀 Vẽ tặng may mắn: quay số mỗi (phút, 0 = tắt)', 'num', 1],
+  ['voteSeconds', '⭐ Thời gian chấm điểm tranh (giây, 0 = tắt)', 'num', 1],
+  ['painterSfx', '🔊 Âm lượng hiệu ứng (bút chì, cọ, vỗ tay…) 0–1.5', 'num', 0.1],
   ['partyGoal', '💃 Điểm mở Dance party (1 tim = 1 · 1 xu = 5 · follow = 20)', 'num', 50],
   ['partySeconds', '💃 Dance party kéo dài (giây)', 'num', 1],
-  ['painterLegend', '📋 Hiện bảng “Cách chơi” trên màn', 'check'],
+  ['painterLegend', '📋 Hiện bảng thông tin (cách chơi, hàng chờ, bảng vàng)', 'check'],
   ['painterQueueMax', '👥 Số người tối đa trong hàng chờ', 'num', 10],
 ];
 function renderPainter() {
@@ -618,6 +625,9 @@ $('pParty').onclick = () => socket.emit('cmd', { type: 'painterParty' });
 $('pClear').onclick = () => { if (confirm('Xoá hết người trong hàng chờ vẽ?')) socket.emit('cmd', { type: 'painterClear' }); };
 $('pJoin').onclick = () => socket.emit('test', { kind: 'join', n: 10 });
 $('pLike').onclick = () => socket.emit('test', { kind: 'like', n: 300 });
+$('pLucky').onclick = () => socket.emit('cmd', { type: 'painterLucky' });
+$('pVote').onclick = () => socket.emit('test', { kind: 'chat', text: ['5', '4', '5', '3', '5'], repeat: 10 });
+$('pStyle').onclick = () => socket.emit('test', { kind: 'chat', text: 'pop art' });
 for (const b of document.querySelectorAll('[data-pg]')) b.onclick = () => socket.emit('test', { kind: 'biggift', value: Number(b.dataset.pg) });
 $('tJoin').onclick = () => socket.emit('test', { kind: 'join', n: 10 });
 $('tJoin50').onclick = () => socket.emit('test', { kind: 'join', n: 50 });
