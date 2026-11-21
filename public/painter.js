@@ -8,6 +8,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { rosterOutfit, shapeFor } from './roster.js';
 import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, avatarTemplates, templateForChar, costumeTime, outfitTime, setOutfitMix } from './avatars.js';
@@ -103,6 +104,12 @@ let composer = null, bloom = null;
 function setupComposer() {
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
+  // lọc điểm ảnh lỗi (NaN/vô cực) trước khi toả sáng: chỉ một điểm lỗi cũng bị bloom lan ra làm đen cả màn
+  composer.addPass(new ShaderPass({
+    uniforms: { tDiffuse: { value: null } },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform sampler2D tDiffuse; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); bool bad = any(isnan(c)) || any(isinf(c)) || any(greaterThan(abs(c), vec4(6e4))); gl_FragColor = bad ? vec4(0.0, 0.0, 0.0, 1.0) : c; }',
+  }));
   bloom = new UnrealBloomPass(new THREE.Vector2(W, H), 0.12, 0.35, 1.0);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
@@ -335,7 +342,7 @@ const FRAME_MATS = {
 };
 let frameTier = -1;
 function setFrame(tier, k = 1) {
-  frameGroup.scale.setScalar(Math.max(0.001, k));
+  frameGroup.scale.setScalar(Math.max(0.05, k));
   if (tier === frameTier) return;
   frameTier = tier;
   while (frameGroup.children.length) { const c = frameGroup.children[0]; frameGroup.remove(c); c.geometry.dispose(); }
@@ -1426,7 +1433,7 @@ function frameActors(t, dt) {
     if (!p.bodied) continue;
     pollChar(p, t);
     moveActor(p, dt, yawTo(p.pos, V3(0.4, 0, 1.0)));
-    const alpha = clamp((t - p.born) / 0.4, 0.01, 1);
+    const alpha = clamp((t - p.born) / 0.4, 0.35, 1);   // không co nhân vật quá nhỏ (khung xương gần suy biến)
     driveActor(p, crowdPose(p, t), V3(p.pos.x, 0, p.pos.z), { alpha });
   }
   for (const w of walkers) {
@@ -2046,7 +2053,7 @@ function frame() {
   // lắc lư: đèn lồng, bóng bay, toan mới bật lên
   for (const s of swingers) s.rotation.z = Math.sin(t * 1.4 + s.userData.sw) * 0.07;
   for (const b of balloons) { b.b.position.y = b.y0 + Math.sin(t * 1.2 + b.ph) * 0.06; b.b.rotation.z = Math.sin(t * 0.9 + b.ph) * 0.08; }
-  const pk = clamp((t - canvasPop) / 0.45, 0, 1); canvasMesh.scale.set(1, pk < 1 ? backOut(pk) : 1, 1);
+  const pk = clamp((t - canvasPop) / 0.45, 0, 1); canvasMesh.scale.set(1, pk < 1 ? Math.max(0.05, backOut(pk)) : 1, 1);   // không bao giờ co về 0 (ma trận suy biến → màn đen 1 khung hình)
   costumeTime.value = t; outfitTime.value = t;
   updateCam(t, dt);
   if (snapReq.length) doSnapshots();

@@ -62,6 +62,8 @@ Tạo bằng Web Audio, không cần tệp: bút chì sột soạt khi phác th�
 - Nút **⏭ Vẽ xong tranh này ngay**, **💃 Dance party ngay**, **🧹 Xoá hàng chờ**, **🍀 Quay số vẽ tặng ngay** và các nút thử (khách bình luận, quà 1 / 30 / 99 / 299 xu, 300 tim, 10 phiếu chấm điểm, khách gõ “pop art”).
 - Nút *🧹 Dọn sàn* ở mục 2 cũng xoá hàng chờ vẽ; *🔥 Đốt sàn ngay* mở Dance party.
 
+- **Bản 2.10.1:** sửa lỗi màn game Họa Sĩ thỉnh thoảng **nháy đen một khung hình** (lúc đổi tranh) khi *Mức hiệu ứng: Mạnh* — một điểm ảnh lỗi bị hiệu ứng toả sáng lan ra cả màn; nay được lọc trước khi toả sáng. Đã chạy thử với đủ 98 nhân vật.
+
 Tệp: `public/hoa-si.html`, `public/painter.js`.
 
 ## Chọn giọng MC (bản 2.8.3)
