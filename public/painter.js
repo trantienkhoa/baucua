@@ -335,6 +335,7 @@ const canvasSide = std(0xf2ede2), canvasBack = std(0xd8c8a8);
 const canvasMesh = mesh(new THREE.BoxGeometry(CW, CH, CD), [canvasSide, canvasSide, canvasSide, canvasSide, canvasMatFront, canvasBack], 0, 0.95 + CH / 2, 0.1, easel);
 const frameGroup = new THREE.Group(); canvasMesh.add(frameGroup);
 const FRAME_MATS = {
+  0: std(0xff7ab8, { roughness: 0.45, emissive: 0x5a1030, emissiveIntensity: 0.4 }),   // khung hồng cho tranh biếm họa
   1: std(0x8a5a36, { roughness: 0.6 }),
   2: std(0xe4e8ee, { metalness: 0.6, roughness: 0.3, emissive: 0x3a3f48, emissiveIntensity: 0.5 }),
   3: std(0xffc93d, { metalness: 0.65, roughness: 0.3, emissive: 0x8a5e00, emissiveIntensity: 0.55 }),
@@ -346,8 +347,8 @@ function setFrame(tier, k = 1) {
   if (tier === frameTier) return;
   frameTier = tier;
   while (frameGroup.children.length) { const c = frameGroup.children[0]; frameGroup.remove(c); c.geometry.dispose(); }
-  if (!tier) return;
-  const t = tier >= 3 ? 0.11 : 0.07, m = FRAME_MATS[Math.min(4, tier)];
+  if (tier == null) return;
+  const t = tier >= 3 ? 0.11 : tier ? 0.07 : 0.05, m = FRAME_MATS[Math.min(4, tier)];
   for (const [x, y, w, h] of [[0, CH / 2 + t / 2, CW + t * 2, t], [0, -CH / 2 - t / 2, CW + t * 2, t], [-CW / 2 - t / 2, 0, t, CH], [CW / 2 + t / 2, 0, t, CH]]) mesh(new THREE.BoxGeometry(w, h, CD + 0.05), m, x, y, 0.01, frameGroup);
   if (tier >= 4) for (const [x, y] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) mesh(new THREE.OctahedronGeometry(0.07), m, x * (CW / 2 + t / 2), y * (CH / 2 + t / 2), 0.06, frameGroup);
 }
@@ -893,17 +894,35 @@ function drawStroke(s) {
 }
 // láng màu theo ảnh thật (chỉ quà lớn): phủ dần ảnh gốc lên tranh cho ra giống y ảnh
 function glazeStep(j, k) {
-  if (!j.srcImg) return;
+  const im = j.glazeImg || j.srcImg; if (!im) return;
   const want = j.strokes.glaze * smooth(k);
   if (want <= j.glazeC + 0.004) return;
   const a = 1 - (1 - want) / (1 - j.glazeC); j.glazeC = want;
-  const im = j.srcImg, sw = im.naturalWidth || im.width, sh = im.naturalHeight || im.height, s = Math.min(sw, sh);
+  const sw = im.naturalWidth || im.width, sh = im.naturalHeight || im.height, s = Math.min(sw, sh);
   P.save(); P.globalAlpha = clamp(a, 0, 1); P.imageSmoothingQuality = 'high';
   P.drawImage(im, (sw - s) / 2, (sh - s) / 2, s, s, 0, 0, PAINT_PX, PAINT_PX);
   P.restore(); paintTex.needsUpdate = true;
 }
+// ảnh đã bóp méo → màu phẳng kiểu hoạt hình (làm mịn rồi giảm số màu)
+function cartoonImage(data) {
+  const c = document.createElement('canvas'); c.width = c.height = AN;
+  const g = c.getContext('2d'), out = g.createImageData(AN, AN), o = out.data;
+  for (let y = 0; y < AN; y++) for (let x = 0; x < AN; x++) {
+    let r = 0, gg = 0, b = 0, n = 0;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const xx = clamp(x + dx, 0, AN - 1), yy = clamp(y + dy, 0, AN - 1), i = (yy * AN + xx) * 4; r += data[i]; gg += data[i + 1]; b += data[i + 2]; n++; }
+    const col = poster(contrast(satur([r / n, gg / n, b / n], 1.35), 1.08).map(v => clamp(v + 10, 0, 255)), 6), i = (y * AN + x) * 4;
+    o[i] = col[0]; o[i + 1] = col[1]; o[i + 2] = col[2]; o[i + 3] = 255;
+  }
+  g.putImageData(out, 0, 0);
+  // viền mềm hình tròn để giữ kiểu "sticker" trên giấy vở
+  const m = document.createElement('canvas'); m.width = m.height = AN; const mg = m.getContext('2d');
+  const gr = mg.createRadialGradient(AN / 2, AN / 2, AN * 0.36, AN / 2, AN / 2, AN * 0.5); gr.addColorStop(0, '#000'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  mg.fillStyle = gr; mg.fillRect(0, 0, AN, AN); mg.globalCompositeOperation = 'source-in'; mg.drawImage(c, 0, 0);
+  return m;
+}
 function finishTexture(j) {   // giữ chất tranh sau khi láng: thớ vải + vài nét viền
   if (!j.strokes.glaze) return;
+  if (!j.tier) { for (const s of j.strokes.sketch) drawStroke(Object.assign({}, s, { a: 0.9 })); paintTex.needsUpdate = true; return; }   // biếm họa: đi lại nét viền đen
   P.save(); P.globalAlpha = 0.045; P.strokeStyle = '#6a5a40'; P.lineWidth = 1;
   for (let i = 0; i < PAINT_PX; i += 4) { P.beginPath(); P.moveTo(i, 0); P.lineTo(i, PAINT_PX); P.stroke(); P.beginPath(); P.moveTo(0, i); P.lineTo(PAINT_PX, i); P.stroke(); }
   P.restore();
@@ -975,7 +994,7 @@ function startJob(p) {
   const D = clamp(Number(S.paintSeconds) || 14, 6, 60) * clamp(1 - Math.max(0, giftersWaiting - 2) * 0.06, 0.55, 1);
   job = { p, tier, style: tier ? (p.artStyle || 'sondau') : 'cartoon', lucky, t: 0, phase: 'intro', D, src: null, srcImg: null, A: null, strokes: null, si: 0, sk: 0, ci: 0, pc: 0, glazeK: 0, glazeC: 0, boost: 0, brushU: 0.5, brushV: 0.3, seated: false, wantSnap: false, t0: now() };
   drawPlate(p.name, plateSub(job));
-  setFrame(0);
+  setFrame(null);
   bubble(tier ? pick([`Mời ${short(p.name)} ngồi!`, 'Ngồi yên nha!', 'Cười lên nào!', 'Tạo dáng đi!']) : pick([`${short(p.name)} ơi, vẽ vui nha 😆`, 'Bản free nè! 🤪', 'Ngồi đi, vẽ lẹ!']), 2.4);
   // nguồn ảnh: ảnh đại diện TikTok, không có thì chụp nhân vật 3D của người đó
   const myJob = job;
@@ -992,6 +1011,7 @@ function prepareJob(j) {
   if (!j.tier) { j.warp = pick(WARPS); data = warpCaricature(data, j.warp); }
   j.A = analyse(data);
   j.strokes = j.tier ? buildPortrait(j.A, j.tier, j.style) : buildCaricature(j.A);
+  if (!j.tier) { j.glazeImg = cartoonImage(data); j.strokes.glaze = 0.78; } else j.glazeImg = null;   // biếm họa vẫn phải nhìn ra mặt: láng ảnh hoạt hình hoá
   paperBg(j.tier ? ART[j.style].paper : 'notebook', j.strokes.pal);
   sfx.pop();
 }
@@ -1037,7 +1057,7 @@ function updateJob(t, dt) {
     if (party.on || (lucky.spin && !lucky.spin.done)) return;
     const next = queue[0];
     if (next && (next.coins > 0 || next.lucky || S.paintFree !== false)) { startJob(next); return; }
-    if (!idleInvite) { idleInvite = true; drawInvite(); drawPlate(S.painterName || 'Họa sĩ Neon', 'Tặng quà để được vẽ'); setFrame(0); }
+    if (!idleInvite) { idleInvite = true; drawInvite(); drawPlate(S.painterName || 'Họa sĩ Neon', 'Tặng quà để được vẽ'); setFrame(null); }
     if (t > nextInviteBubble) { nextInviteBubble = t + rand(14, 22); bubble(pick(['Tặng 🌹 để được vẽ nha!', 'Ai muốn vẽ chân dung nào?', 'Thả tim là vẽ biếm họa nè 🤪', 'Quà càng to càng giống!']), 3); }
     return;
   }
@@ -1091,7 +1111,7 @@ function updateJob(t, dt) {
     return;
   }
   if (j.phase === 'throw') {
-    if (j.t > 0.35 && !j.cleared) { j.cleared = true; setFrame(0); canvasMesh.visible = false; finishSitter(); }
+    if (j.t > 0.35 && !j.cleared) { j.cleared = true; setFrame(null); canvasMesh.visible = false; finishSitter(); }
     if (j.t > 1.3) {
       canvasMesh.visible = true; canvasPop = t; job = null; idleInvite = false; paperBg('canvas'); drawPlate('…', ''); sfx.pop();
       avgJob = avgJob * 0.8 + clamp(now() - j.t0, 6, 120) * 0.2;
