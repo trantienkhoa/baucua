@@ -82,6 +82,29 @@ document.getElementById('openGame').onclick = async () => {
 };
 </script>
 
+  <div class="card" style="border:2px solid #f2c14e;background:#fffaf0">
+    <h2>🎨 Game Họa Sĩ — họa sĩ 3D vẽ chân dung người xem</h2>
+    <div class="muted">Màn game thứ hai, dùng chung kết nối TikTok, nhạc, giọng MC và nhân vật 3D của bạn. <b>Bình luận</b> → vào hàng chờ · <b>tặng quà</b> → được ưu tiên vẽ chân dung từ ảnh đại diện (quà càng lớn khung càng xịn: 1 xu tranh màu, 30 xu khung bạc, 99 xu khung vàng, 299 xu kiệt tác) · <b>thả tim</b> đầy thanh cầu vồng → <b>DANCE PARTY</b>. Khi LIVE chỉ thêm <b>một</b> trong hai màn (sàn nhảy hoặc họa sĩ) vào OBS.</div>
+    <div id="pUrls" style="margin-top:8px"></div>
+    <div class="row"><button class="pri" id="pOpen" title="Mở game Họa Sĩ bằng Chrome/Edge, tự phát tiếng không cần bấm vào trang">🖥️ Mở game Họa Sĩ (tự có tiếng)</button><span class="muted" id="pOpenMsg"></span></div>
+    <div class="grid" id="pGrid" style="margin-top:8px"></div>
+    <div class="row"><button class="pri" id="pSave">Lưu cài đặt họa sĩ</button><span id="pSaved" class="ok"></span></div>
+    <div class="row"><b>Điều khiển:</b>
+      <button id="pSkip">⏭ Vẽ xong tranh này ngay</button>
+      <button id="pParty">💃 Dance party ngay</button>
+      <button id="pClear">🧹 Xoá hàng chờ</button>
+    </div>
+    <div class="row"><b>Thử:</b>
+      <button id="pJoin">💬 +10 khách bình luận</button>
+      <button data-pg="1">🌹 Quà 1 xu</button>
+      <button data-pg="30">💎 Quà 30 xu</button>
+      <button data-pg="99">👑 Quà 99 xu</button>
+      <button data-pg="299">🏆 Quà 299 xu</button>
+      <button id="pLike">❤️ 300 tim</button>
+    </div>
+    <div class="muted">Khách thử không có ảnh đại diện nên họa sĩ vẽ theo mặt nhân vật 3D của họ. Khi LIVE thật, tranh vẽ từ ảnh đại diện TikTok.</div>
+  </div>
+
   <div class="card">
     <h2>1. Kết nối TikTok LIVE</h2>
     <div class="row">
@@ -542,6 +565,60 @@ $('btnEndZoom').onclick = () => socket.emit('cmd', { type: 'endZoom' });
 $('btnFire').onclick = () => socket.emit('cmd', { type: 'fire' });
 $('btnClear').onclick = () => { if (confirm('Dọn hết nhân vật trên sàn?')) socket.emit('cmd', { type: 'clear' }); };
 $('btnResetTop').onclick = () => { if (confirm('Xoá bảng top tặng quà?')) socket.emit('resetTop'); };
+// ---------- game Họa Sĩ ----------
+let PROSTER = [];
+const PFIELDS = [
+  ['painterName', '🎨 Tên họa sĩ (ký trên tranh)', 'text'],
+  ['painterChar', '🧍 Nhân vật làm họa sĩ', 'select', () => [['', '— nhân vật nam mặc định —'], ...PROSTER.map(r => [r.id, `${r.id} · ${r.name} (${r.female ? 'nữ' : 'nam'}) — ${r.outfit}`.slice(0, 90)])]],
+  ['paintSeconds', '⏱️ Thời gian vẽ mỗi tranh (giây, 6–60)', 'num', 1],
+  ['paintFree', '✏️ Không ai tặng quà → vẽ phác thảo chì miễn phí cho người bình luận', 'check'],
+  ['partyGoal', '💃 Điểm mở Dance party (1 tim = 1 · 1 xu = 5 · follow = 20)', 'num', 50],
+  ['partySeconds', '💃 Dance party kéo dài (giây)', 'num', 1],
+  ['painterLegend', '📋 Hiện bảng “Cách chơi” trên màn', 'check'],
+  ['painterQueueMax', '👥 Số người tối đa trong hàng chờ', 'num', 10],
+];
+function renderPainter() {
+  const g = $('pGrid'); if (!g || !S || S.paintSeconds === undefined) return;
+  if (g.contains(document.activeElement)) return;
+  g.innerHTML = '';
+  for (const [k, label, type, opt] of PFIELDS) {
+    const div = document.createElement('label'); div.className = 'field';
+    let input;
+    if (type === 'check') { input = document.createElement('input'); input.type = 'checkbox'; input.checked = !!S[k]; }
+    else if (type === 'num') { input = document.createElement('input'); input.type = 'number'; input.step = opt; input.value = S[k]; }
+    else if (type === 'text') { input = document.createElement('input'); input.type = 'text'; input.value = S[k] || ''; input.maxLength = 30; }
+    else { input = document.createElement('select'); input.style.maxWidth = '260px'; for (const [v, t] of opt()) { const o = document.createElement('option'); o.value = v; o.textContent = t; input.appendChild(o); } input.value = S[k] || ''; }
+    input.dataset.pkey = k; input.dataset.type = type;
+    div.append(document.createTextNode(label), input);
+    g.appendChild(div);
+  }
+}
+function renderPainterUrls(info) {
+  const p = info.port || location.port;
+  const list = [['Cho OBS / LIVE Studio (máy này)', `http://localhost:${p}/hoa-si.html?obs=1`]];
+  for (const ip of info.ips || []) list.push(['LIVE Studio / máy khác cùng Wi-Fi', `http://${ip}:${p}/hoa-si.html?obs=1`]);
+  list.push(['Xem thử trong trình duyệt', `http://localhost:${p}/hoa-si.html`]);
+  $('pUrls').innerHTML = list.map(([l, u]) => `<div class="row"><span class="muted" style="width:260px">${l}</span><input class="url" type="text" readonly value="${u}"><button data-copy="${u}">Sao chép</button><a href="${u}" target="_blank"><button>Mở</button></a></div>`).join('');
+  for (const b of $('pUrls').querySelectorAll('[data-copy]')) b.onclick = () => { navigator.clipboard.writeText(b.dataset.copy).then(() => { b.textContent = '✓ Đã chép'; setTimeout(() => b.textContent = 'Sao chép', 1500); }); };
+}
+socket.on('settings', () => renderPainter());
+socket.on('roster', list => { PROSTER = Array.isArray(list) ? list : []; renderPainter(); });
+fetch('/api/info').then(r => r.json()).then(renderPainterUrls).catch(() => {});
+$('pSave').onclick = () => {
+  const out = {};
+  for (const el of $('pGrid').querySelectorAll('[data-pkey]')) out[el.dataset.pkey] = el.dataset.type === 'check' ? el.checked : el.dataset.type === 'num' ? Number(el.value) : el.value;
+  socket.emit('saveSettings', out); $('pSaved').textContent = '✓ Đã lưu'; setTimeout(() => $('pSaved').textContent = '', 2000);
+};
+$('pOpen').onclick = async () => {
+  const m = $('pOpenMsg'); m.textContent = 'Đang mở…';
+  try { const r = await (await fetch('/api/open-game', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page: 'hoa-si' }) })).json(); m.textContent = r.ok ? '✓ Đã mở bằng ' + r.browser : '⚠ ' + r.error; } catch (e) { m.textContent = '⚠ Không mở được'; }
+};
+$('pSkip').onclick = () => socket.emit('cmd', { type: 'painterSkip' });
+$('pParty').onclick = () => socket.emit('cmd', { type: 'painterParty' });
+$('pClear').onclick = () => { if (confirm('Xoá hết người trong hàng chờ vẽ?')) socket.emit('cmd', { type: 'painterClear' }); };
+$('pJoin').onclick = () => socket.emit('test', { kind: 'join', n: 10 });
+$('pLike').onclick = () => socket.emit('test', { kind: 'like', n: 300 });
+for (const b of document.querySelectorAll('[data-pg]')) b.onclick = () => socket.emit('test', { kind: 'biggift', value: Number(b.dataset.pg) });
 $('tJoin').onclick = () => socket.emit('test', { kind: 'join', n: 10 });
 $('tJoin50').onclick = () => socket.emit('test', { kind: 'join', n: 50 });
 $('tLike').onclick = () => socket.emit('test', { kind: 'like', n: 50 });

@@ -120,6 +120,15 @@ const DEFAULT_SETTINGS = {
   costumeLevels: { wukong: 5, angel: 8, king: 10 },
   actions: ACTIONS.map(a => ({ id: a.id, gift: '', min: a.min })),
   actionsVersion: 2,
+  // game Họa Sĩ (hoa-si.html): họa sĩ 3D vẽ chân dung người xem
+  painterName: 'Họa sĩ Neon',   // tên ký trên tranh
+  painterChar: 'char08',        // nhân vật trong roster làm họa sĩ
+  paintSeconds: 14,             // thời gian vẽ mỗi tranh (giây)
+  paintFree: true,              // không ai tặng quà → vẽ phác thảo chì miễn phí cho người bình luận
+  partyGoal: 1500,              // điểm mở Dance party (1 tim = 1, 1 xu = 5, follow = 20)
+  partySeconds: 20,             // Dance party kéo dài (giây)
+  painterLegend: true,          // bảng "Cách chơi" trên màn
+  painterQueueMax: 300,         // số người tối đa trong hàng chờ
 };
 
 const savedSettings = readJSON('settings.json', {});
@@ -273,6 +282,7 @@ app.use('/music', express.static(MUSIC));
 app.use('/three', express.static(path.join(__dirname, 'node_modules', 'three')));
 app.get('/', (req, res) => res.redirect('/admin.html'));
 app.get('/game', (req, res) => res.sendFile(path.join(__dirname, 'public', 'game.html')));
+app.get('/hoa-si', (req, res) => res.sendFile(path.join(__dirname, 'public', 'hoa-si.html')));
 
 function lanIPs() {
   const out = [];
@@ -721,7 +731,8 @@ app.post('/api/open-game', (req, res) => {
   const exe = findBrowser();
   if (!exe) return res.json({ ok: false, error: 'Không tìm thấy Chrome hoặc Edge trên máy.' });
   const profile = path.join(DATA, 'browser-game');
-  const url = `http://localhost:${PORT}/game.html` + (req.body && req.body.obs ? '?obs=1' : '');
+  const page = req.body && req.body.page === 'hoa-si' ? 'hoa-si.html' : 'game.html';   // game Họa Sĩ hoặc sàn nhảy
+  const url = `http://localhost:${PORT}/${page}` + (req.body && req.body.obs ? '?obs=1' : '');
   try {
     const child = require('child_process').spawn(exe, ['--autoplay-policy=no-user-gesture-required', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check', '--window-size=560,1000', `--app=${url}`], { detached: true, stdio: 'ignore' });
     child.on('error', () => {}); child.unref();
@@ -878,6 +889,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('\n  Vũ Trường Neon đã chạy');
   console.log(`  Trang điều khiển : http://localhost:${PORT}/admin.html`);
   console.log(`  Màn hình game    : http://localhost:${PORT}/game.html`);
+  console.log(`  Game Họa Sĩ      : http://localhost:${PORT}/hoa-si.html`);
   for (const ip of ips) console.log(`  Trong mạng LAN   : http://${ip}:${PORT}/game.html`);
   console.log('');
   if (settings.username && settings.autoReconnect && process.env.AUTOCONNECT !== '0') connectTikTok();
