@@ -20,6 +20,24 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 🌾 Ngọn Đèn Cuối Cùng: cảnh 3D ngoài đồng và bụi chuối (bản 2.11.0)
+
+- **Nhân vật 3D:** mỗi người xem là một nhân vật 3D ngồi bó gối quanh ngọn đèn dầu.
+  - Dùng chung bộ mô hình người với game sàn nhảy (`public/models`, mục 🧍 Nhân vật). Nếu có bộ 98 nhân vật riêng, mỗi người xem được gán một vai cố định.
+  - Quần áo được đổi màu ngẫu nhiên. Que phát sáng (đồ đi bar) bị bỏ đi.
+  - Người xem ngồi co lại khi sợ hoặc khi âm khí cao, và giật nảy khi bị hù.
+  - Ảnh đại diện TikTok hiện cạnh tên, số ghế hiện trên đầu. Thầy pháp đội mũ vàng; kẻ bị nhập loé mắt đỏ.
+- **Hai cảnh 3D ban đêm**, có sương mù, ánh trăng và ánh đèn dầu thật (đèn cạn dầu thì vòng sáng tắt dần):
+  - **Giữa đồng lúa:** lúa đung đưa theo gió, bù nhìn đội nón lá (âm khí cao thì nó quay đầu nhìn, mắt đỏ), mả đất cắm nhang bên bờ ruộng, đống rơm, cây chết, bụi chuối xa.
+  - **Bụi chuối sau nhà:** chuối mọc dày quanh vòng với lá rách đung đưa, giếng cạn, hàng rào tre, căn chòi tối (âm khí cao thì cửa sổ loé đỏ), một nấm mộ.
+  - **Chung cả hai cảnh:** ma trơi xanh lượn quanh (âm khí càng cao càng nhiều), đom đóm (tắt dần khi âm khí cao), ánh ma lạnh hắt từ sau lưng. Tấm gương cõi âm được dựng trên cọc gỗ.
+- **Chọn cảnh:** trang điều khiển → Cài đặt → **🌾 Cảnh 3D**.
+  - *Tự đổi mỗi chuyện* (mặc định): luân phiên đồng lúa và bụi chuối.
+  - Có thể giữ cố định một cảnh.
+  - *Nhà cổ 2D* dành cho máy yếu.
+- **Máy cần card đồ hoạ:** trang điều khiển hiện số khung hình/giây. Dưới khoảng 25 thì chọn cảnh *Nhà cổ 2D*.
+- Mã cảnh 3D: `public/ma3d.js`. Bảng, chữ, hồn ma, mặt ma vẫn vẽ 2D phía trên nên mọi sự kiện cũ giữ nguyên.
+
 ## 🕯 Ngọn Đèn Cuối Cùng: giọng ma VieNeu-TTS, 30 truyện, hướng dẫn từng sự kiện (bản 2.10.0)
 
 - **Giọng kể VieNeu-TTS** ([github.com/pnnbao97/VieNeu-TTS](https://github.com/pnnbao97/VieNeu-TTS)), chạy offline trên máy, dùng CPU được:

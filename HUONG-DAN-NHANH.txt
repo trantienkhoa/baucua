@@ -27,3 +27,4 @@ GAME KỂ CHUYỆN MA "Ngọn Đèn Cuối Cùng" (bản 2.9.0):
 - Lệnh người xem: 1/2 chọn hướng truyện, "nam mô" xua ma, "cứu 12" cứu người trong gương,
   số ghế để tố kẻ bị ma nhập, "hỏi: ..." khi cầu cơ. Thả tim = thêm dầu cho đèn.
 - Giọng ma VieNeu-TTS: cài Python 3.10+, bấm đúp ChayGiongMa.bat, giữ cửa sổ mở. Chọn giọng và độ rợn ở trang điều khiển game ma.
+- Cảnh 3D (đồng lúa / bụi chuối): chọn ở Cài đặt → "Cảnh 3D". Máy yếu chọn "Nhà cổ 2D".

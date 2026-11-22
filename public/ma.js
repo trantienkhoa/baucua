@@ -8,7 +8,7 @@
   const OBS = params.has('obs');
   const cv = document.getElementById('c'), ctx = cv.getContext('2d');
   cv.width = W; cv.height = H;
-  function fit() { const k = Math.min(innerWidth / W, innerHeight / H); cv.style.width = W * k + 'px'; cv.style.height = H * k + 'px'; }
+  function fit() { const k = Math.min(innerWidth / W, innerHeight / H); for (const c of [cv, document.getElementById('gl')]) if (c) { c.style.width = W * k + 'px'; c.style.height = H * k + 'px'; } }
   addEventListener('resize', fit); fit();
 
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -522,6 +522,7 @@
   function startStory(st) {
     if (!st) return;
     vote = null;
+    pickMap(true);
     story.st = st; story.played.push(st.id); if (story.played.length > 20) story.played.shift();
     story.roles = pickRoles();
     story.part = 0;
@@ -1209,6 +1210,27 @@
   // ======================================================================
   // VẼ — nền tĩnh (vẽ một lần)
   // ======================================================================
+  function paintMirrorFrame(g, cx, cy) {
+    g.save();
+    g.translate(cx, cy);
+    const fr = g.createLinearGradient(-110, -150, 110, 150); fr.addColorStop(0, '#7a5a2a'); fr.addColorStop(0.5, '#3d2a12'); fr.addColorStop(1, '#6b4c22');
+    g.fillStyle = fr; g.beginPath(); g.ellipse(0, 0, MIRROR.rx + 20, MIRROR.ry + 22, 0, 0, TAU); g.fill();
+    g.strokeStyle = 'rgba(200,160,80,.45)'; g.lineWidth = 3; g.beginPath(); g.ellipse(0, 0, MIRROR.rx + 12, MIRROR.ry + 13, 0, 0, TAU); g.stroke();
+    for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; g.fillStyle = 'rgba(210,170,90,.6)'; g.beginPath(); g.arc(Math.cos(a) * (MIRROR.rx + 16), Math.sin(a) * (MIRROR.ry + 17), 4, 0, TAU); g.fill(); }
+    g.fillStyle = '#5a401c'; g.beginPath(); g.moveTo(-26, -MIRROR.ry - 20); g.quadraticCurveTo(0, -MIRROR.ry - 56, 26, -MIRROR.ry - 20); g.fill();
+    g.restore();
+  }
+  const mirrorCv = document.createElement('canvas'); mirrorCv.width = 260; mirrorCv.height = 360;
+  paintMirrorFrame(mirrorCv.getContext('2d'), 130, 190);
+  // cảnh 3D (ma3d.js): đồng lúa / bụi chuối; 'nhacu' = nhà cổ 2D
+  let curMap = 'dong', mapFlip = 0;
+  function pickMap(next) {
+    const m = S.map || 'auto';
+    if (m !== 'auto') curMap = m;
+    else if (next) curMap = ['dong', 'chuoi'][mapFlip++ % 2];
+    const gl = document.getElementById('gl'); if (gl) gl.style.display = curMap === 'nhacu' ? 'none' : 'block';
+  }
+  const use3D = () => !!(window.MA3D && MA3D.ready) && curMap !== 'nhacu';
   const bg = document.createElement('canvas'); bg.width = W; bg.height = H;
   const WALL_TOP = 600, FLOOR_Y = 940;
   (function paintBG() {
@@ -1269,14 +1291,7 @@
     // bậu cửa
     g.fillStyle = '#2c1b10'; g.fillRect(wx - 18, wy + wh + 6, ww + 36, 14);
     // gương cổ (khung)
-    g.save();
-    g.translate(MIRROR.x, MIRROR.y);
-    const fr = g.createLinearGradient(-110, -150, 110, 150); fr.addColorStop(0, '#7a5a2a'); fr.addColorStop(0.5, '#3d2a12'); fr.addColorStop(1, '#6b4c22');
-    g.fillStyle = fr; g.beginPath(); g.ellipse(0, 0, MIRROR.rx + 20, MIRROR.ry + 22, 0, 0, TAU); g.fill();
-    g.strokeStyle = 'rgba(200,160,80,.45)'; g.lineWidth = 3; g.beginPath(); g.ellipse(0, 0, MIRROR.rx + 12, MIRROR.ry + 13, 0, 0, TAU); g.stroke();
-    for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; g.fillStyle = 'rgba(210,170,90,.6)'; g.beginPath(); g.arc(Math.cos(a) * (MIRROR.rx + 16), Math.sin(a) * (MIRROR.ry + 17), 4, 0, TAU); g.fill(); }
-    g.fillStyle = '#5a401c'; g.beginPath(); g.moveTo(-26, -MIRROR.ry - 20); g.quadraticCurveTo(0, -MIRROR.ry - 56, 26, -MIRROR.ry - 20); g.fill();
-    g.restore();
+    paintMirrorFrame(g, MIRROR.x, MIRROR.y);
     // bàn thờ + di ảnh
     const ax = 690, aw = 330;
     const px = 790, py = 640, pw = 130, ph = 160;
@@ -1348,6 +1363,12 @@
   }
 
   function drawScene(t) {
+    const D3 = use3D();
+    if (D3) { ctx.drawImage(mirrorCv, MIRROR.x - 130, MIRROR.y - 190); drawMirror(t); }
+    else drawRoom(t);
+    sceneRest(t, D3);
+  }
+  function drawRoom(t) {
     ctx.drawImage(bg, 0, 0);
     // cửa ra vào (rung khi gõ)
     const ds = doorShake > 0 ? Math.sin(t * 60) * 4 * doorShake : 0;
@@ -1376,6 +1397,8 @@
     ctx.strokeStyle = '#7a1f14'; ctx.lineWidth = 2; for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.moveTo(855, 834); ctx.lineTo(855 + k * 8, 812); ctx.stroke(); }
     // mắt trên di ảnh khi âm khí cao
     if (yin > 60 && Math.sin(t * 0.5) > 0.3) { ctx.fillStyle = `rgba(255,40,30,${0.5 + Math.sin(t * 4) * 0.3})`; ctx.beginPath(); ctx.arc(844, 702, 3, 0, TAU); ctx.arc(866, 702, 3, 0, TAU); ctx.fill(); }
+  }
+  function sceneRest(t, D3) {
 
     // sương sàn
     for (const f of fog) {
@@ -1414,7 +1437,8 @@
       ctx.fillStyle = `rgba(${p.color},${a})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, TAU); ctx.fill();
     }
     // ===== bóng tối =====
-    const base = ev && ev.type === 'trura' ? lerp(0.5, 0.93, clamp((now() - ev.t0) / ev.dur, 0, 1)) : oil <= 0 || lampFlick === 0 ? 0.975 : 0.93;
+    const dmax = D3 ? 0.5 : 0.93;   // cảnh 3D đã có ánh trăng / ánh đèn thật, chỉ phủ tối nhẹ
+    const base = ev && ev.type === 'trura' ? lerp(0.35, dmax, clamp((now() - ev.t0) / ev.dur, 0, 1)) : oil <= 0 || lampFlick === 0 ? (D3 ? 0.9 : 0.975) : dmax;
     dctx.globalCompositeOperation = 'source-over';
     dctx.clearRect(0, 0, dk.width, dk.height);
     dctx.fillStyle = `rgba(3,2,6,${base})`; dctx.fillRect(0, 0, dk.width, dk.height);
@@ -1428,8 +1452,7 @@
     };
     hole(LX, LY - 60, R, 1, 0.8);
     hole(LX, LY - 230, R * 0.55, 0.5);
-    for (const cx of [720, 990]) hole(cx, 790, 120 + Math.sin(t * 9 + cx) * 6, 0.8);
-    hole(325, 752, 190, 0.55);
+    if (!D3) { for (const cx of [720, 990]) hole(cx, 790, 120 + Math.sin(t * 9 + cx) * 6, 0.8); hole(325, 752, 190, 0.55); }
     hole(MIRROR.x, MIRROR.y, 210, seated().some(v => v.taken) ? 0.55 : 0.25);
     for (const v of viewers.values()) if (v.incense > t) hole(v.x + 22 * v.seat.sc, v.y - 30 * v.seat.sc, 70, 0.5);
     if (ev && ev.type === 'cauco') hole(OUIJA.cx, OUIJA.cy, 900, 0.7, 0.6);
@@ -1444,7 +1467,7 @@
     }
     // ===== các thứ phát sáng (vẽ trên bóng tối) =====
     drawFlame(LX, LY - 74 * LAMP, LAMP * 0.95, t, R > 0 ? lampFlick : 0);
-    for (const cx of [720, 990]) drawFlame(cx, 796, 0.45, t + cx, 1);
+    if (!D3) for (const cx of [720, 990]) drawFlame(cx, 796, 0.45, t + cx, 1);
     for (const v of viewers.values()) if (v.incense > t) { ctx.fillStyle = `rgba(255,120,40,${0.7 + Math.sin(t * 6 + v.seat.n) * 0.3})`; ctx.beginPath(); ctx.arc(v.x + 22 * v.seat.sc, v.y - 50 * v.seat.sc, 3, 0, TAU); ctx.fill(); }
     // mắt trong bóng tối
     for (const e of eyes) {
@@ -1540,6 +1563,21 @@
   }
   function drawViewer(v, t) {
     const { x, y, sc, a } = viewerPos(v, t);
+    if (use3D() && v.has3d && !v.anim && !v.taken) {   // nhân vật 3D: chỉ vẽ mũ thầy pháp / mắt đỏ lên đầu
+      const hx = v.hx, hy = v.hy + HEAD3D * sc;
+      if (isThay(v)) {
+        const gg = ctx.createRadialGradient(hx, hy, 6, hx, hy, 80 * sc); gg.addColorStop(0, 'rgba(255,210,100,.4)'); gg.addColorStop(1, 'rgba(255,200,80,0)');
+        ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(hx, hy, 80 * sc, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#c9962a'; ctx.beginPath(); ctx.moveTo(hx - 26 * sc, hy - 24 * sc); ctx.lineTo(hx, hy - 58 * sc); ctx.lineTo(hx + 26 * sc, hy - 24 * sc); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#8a1a14'; ctx.fillRect(hx - 28 * sc, hy - 28 * sc, 56 * sc, 6 * sc);
+      }
+      if (v.eyes > 0) {
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        for (const sx of [-1, 1]) { const ex = hx + sx * 7 * sc, ey = hy + 2 * sc; const gl = ctx.createRadialGradient(ex, ey, 0, ex, ey, 11 * sc); gl.addColorStop(0, 'rgba(255,60,40,1)'); gl.addColorStop(1, 'rgba(255,0,0,0)'); ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(ex, ey, 11 * sc, 0, TAU); ctx.fill(); }
+        ctx.restore();
+      }
+      return;
+    }
     if (v.taken && !(v.anim && v.anim.type === 'take')) {
       // ghế trống còn hơi lạnh
       ctx.fillStyle = 'rgba(160,190,255,.12)'; ctx.beginPath(); ctx.ellipse(v.seat.x, v.seat.y + 10, 40 * v.seat.sc, 10 * v.seat.sc, 0, 0, TAU); ctx.fill();
@@ -1566,9 +1604,12 @@
     ctx.restore();
   }
   let bubbleSet = new Set();
+  const HEAD3D = 22;   // điểm chiếu (trên đỉnh đầu 3D) → tâm đầu, theo đơn vị sc
   function drawViewerLabel(v, t) {
     if (v.taken || !v.da || v.da < 0.05) return;
     const x = v.x, y = v.y, sc = v.dsc;
+    const D3 = use3D() && v.has3d && v.hx != null && !v.anim;
+    const HX = D3 ? v.hx : x, HY = D3 ? v.hy + HEAD3D * sc : y - 82 * sc;   // tâm đầu
     const l = lightAt(v.seat.x, v.seat.y);
     const a = v.da * (0.45 + 0.55 * Math.max(l, v.glow > 0 ? 1 : 0));
     ctx.save(); ctx.globalAlpha = a;
@@ -1576,17 +1617,17 @@
     if (v.glow > 0) {
       ctx.globalAlpha = Math.min(1, v.glow) * v.da;
       ctx.strokeStyle = 'rgba(255,215,120,.95)'; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.arc(x, y - 82 * sc, 38 * sc + Math.sin(t * 6) * 2, 0, TAU); ctx.stroke();
+      ctx.beginPath(); ctx.arc(HX, HY, (D3 ? 30 : 38) * sc + Math.sin(t * 6) * 2, 0, TAU); ctx.stroke();
       ctx.globalAlpha = a;
     }
     if (ev && ev.type === 'nhap' && ev.tally.get(v.seat.n)) {
-      ctx.strokeStyle = 'rgba(255,60,50,.9)'; ctx.lineWidth = 3.5; ctx.beginPath(); ctx.arc(x, y - 82 * sc, 40 * sc, 0, TAU); ctx.stroke();
-      ctx.fillStyle = '#ff5a4a'; ctx.font = `800 ${22 * sc + 6}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(`👆${ev.tally.get(v.seat.n)}`, x, y - 128 * sc);
+      ctx.strokeStyle = 'rgba(255,60,50,.9)'; ctx.lineWidth = 3.5; ctx.beginPath(); ctx.arc(HX, HY, (D3 ? 32 : 40) * sc, 0, TAU); ctx.stroke();
+      ctx.fillStyle = '#ff5a4a'; ctx.font = `800 ${22 * sc + 6}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(`👆${ev.tally.get(v.seat.n)}`, HX, HY - 46 * sc);
     }
     // số ghế
     const fs = Math.round(13 + 7 * sc);
     ctx.font = `800 ${fs}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const bx = x - 30 * sc, by = y - 112 * sc;
+    const bx = HX - (D3 ? 26 : 30) * sc, by = HY - 30 * sc;
     ctx.fillStyle = 'rgba(120,10,10,.92)'; ctx.beginPath(); ctx.arc(bx, by, fs * 0.72, 0, TAU); ctx.fill();
     ctx.strokeStyle = 'rgba(255,200,150,.8)'; ctx.lineWidth = 1.5; ctx.stroke();
     ctx.fillStyle = '#fff'; ctx.fillText(String(v.seat.n), bx, by + 1);
@@ -1598,12 +1639,17 @@
     ctx.fillStyle = isThay(v) ? 'rgba(120,80,10,.85)' : 'rgba(0,0,0,.62)';
     rr(x - tw / 2, ny - nfs * 0.62, tw, nfs * 1.25, nfs * 0.6); ctx.fill();
     ctx.fillStyle = isThay(v) ? '#ffe08a' : '#f3e6d6'; ctx.fillText(v.nameShort, x, ny + 1);
+    if (D3) {   // ảnh đại diện cạnh tên (nhân vật 3D không mang ảnh trên mặt)
+      const r = nfs * 0.78, px = x - tw / 2 - r * 0.55;
+      ctx.save(); ctx.beginPath(); ctx.arc(px, ny, r, 0, TAU); ctx.clip(); ctx.drawImage(v.spr, 28, 10, 64, 64, px - r, ny - r, r * 2, r * 2); ctx.restore();
+      ctx.strokeStyle = 'rgba(255,236,200,.85)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(px, ny, r, 0, TAU); ctx.stroke();
+    }
     if (isThay(v)) { ctx.font = `800 ${nfs - 4}px ${FONT}`; ctx.fillStyle = '#ffd27a'; ctx.fillText('☯ THẦY PHÁP', x, ny + nfs * 1.15); }
     else if (BRAVE_TOP[0] && BRAVE_TOP[0].id === v.id) { ctx.font = `800 ${nfs - 5}px ${FONT}`; ctx.fillStyle = '#ffb36a'; ctx.fillText('👑 GAN NHẤT KÊNH', x, ny + nfs * 1.1); }
     // ma đứng sau lưng
     if (ghost.mode === 'behind' && ghost.behind === v && ghost.a > 0.2) {
       ctx.globalAlpha = 0.6 + Math.sin(t * 5) * 0.4;
-      ctx.font = `800 ${nfs}px ${FONT}`; ctx.fillStyle = '#ff5a4a'; ctx.fillText('⚠ SAU LƯNG BẠN', x, y - 150 * sc);
+      ctx.font = `800 ${nfs}px ${FONT}`; ctx.fillStyle = '#ff5a4a'; ctx.fillText('⚠ SAU LƯNG BẠN', HX, HY - 68 * sc);
       ctx.globalAlpha = a;
     }
     // bong bóng bình luận
@@ -1611,10 +1657,10 @@
       const ba = Math.min(1, (3.4 - (t - v.bubble.t0)) / 0.5);
       ctx.globalAlpha = ba * v.da;
       ctx.font = `600 ${nfs}px ${FONT}`;
-      const w2 = ctx.measureText(v.bubble.text).width + 24, bh = nfs + 16, by2 = y - 130 * sc - bh - (ghost.behind === v ? 26 : 0);
-      ctx.fillStyle = 'rgba(245,238,225,.94)'; rr(x - w2 / 2, by2, w2, bh, 12); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(x - 8, by2 + bh - 1); ctx.lineTo(x, by2 + bh + 10); ctx.lineTo(x + 8, by2 + bh - 1); ctx.fill();
-      ctx.fillStyle = '#2a1a12'; ctx.fillText(v.bubble.text, x, by2 + bh / 2 + 1);
+      const w2 = ctx.measureText(v.bubble.text).width + 24, bh = nfs + 16, by2 = HY - 48 * sc - bh - (ghost.behind === v ? 26 : 0);
+      ctx.fillStyle = 'rgba(245,238,225,.94)'; rr(HX - w2 / 2, by2, w2, bh, 12); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(HX - 8, by2 + bh - 1); ctx.lineTo(HX, by2 + bh + 10); ctx.lineTo(HX + 8, by2 + bh - 1); ctx.fill();
+      ctx.fillStyle = '#2a1a12'; ctx.fillText(v.bubble.text, HX, by2 + bh / 2 + 1);
     } else if (v.bubble && t - v.bubble.t0 >= 3.4) v.bubble = null;
     ctx.restore();
   }
@@ -2094,8 +2140,12 @@
     try {
       update(dt, t);
       ctx.save();
-      if (shake > 0) ctx.translate(rand(-shake, shake), rand(-shake, shake));
-      ctx.fillStyle = '#000'; ctx.fillRect(-30, -30, W + 60, H + 60);
+      const sx = shake > 0 ? rand(-shake, shake) : 0, sy = shake > 0 ? rand(-shake, shake) : 0;
+      if (shake > 0) ctx.translate(sx, sy);
+      if (use3D()) {
+        MA3D.frame({ t, dt, viewers: [...viewers.values()], oil, flick: lampFlick, yin, map: curMap, shake: shake > 0 ? { x: -sx, y: -sy } : null, trura: !!(ev && ev.type === 'trura') });
+        ctx.clearRect(-30, -30, W + 60, H + 60);
+      } else { ctx.fillStyle = '#000'; ctx.fillRect(-30, -30, W + 60, H + 60); }
       drawScene(t);
       drawHUD(t);
       drawJumpscare(t);
@@ -2118,6 +2168,7 @@
     for (const a of ACTIONS) if (!S.actions.find(x => x.id === a.id)) S.actions.push({ id: a.id, gift: '', min: a.min });
     if (window.MaAudio) MaAudio.setVolume(S.volume);
     applyTTS();
+    pickMap(false);
   });
   socket.on('gifts', g => { GIFTS = g || {}; });
   socket.on('top', list => { TOP = list || []; for (const u of TOP) { const c = coinsOf.get(u.id) || { c: 0, name: u.name }; c.c = Math.max(c.c, +u.coins || 0); c.name = u.name; coinsOf.set(u.id, c); } });
@@ -2174,6 +2225,8 @@
   });
 
   window.__seats = SEATS.length;
+  window.__maShared = { SEATS, LX, LY, MIRROR, S };
+  pickMap(false);
   window.__ma = { S, viewers, story, get ev() { return ev; }, get vote() { return vote; }, get oil() { return oil; }, set oil(v) { oil = v; }, get yin() { return yin; }, set yin(v) { yin = v; }, onEvent, queueEvent };
   requestAnimationFrame(frame);
 })();

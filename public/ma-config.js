@@ -14,6 +14,7 @@
   ];
 
   window.MA_DEFAULTS = {
+    map: 'auto',            // cảnh: auto (đổi luân phiên mỗi chuyện) | dong (giữa đồng lúa) | chuoi (bụi chuối sau nhà) | nhacu (nhà cổ 2D, máy yếu)
     storyMode: 'vote',      // vote: người xem chọn chuyện | random | order
     storySpeed: 1,          // nhịp kể (1 = vừa, 1.3 = nhanh)
     voteSeconds: 25,        // thời gian chọn hướng đi của truyện

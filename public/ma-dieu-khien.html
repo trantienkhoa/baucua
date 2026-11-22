@@ -288,6 +288,7 @@ socket.on('gifts', g => { GIFTS = g || {}; renderActs(); });
 
 // ---------- cài đặt ----------
 const FIELDS = [
+  ['map', '🌾 Cảnh 3D', 'select', [['auto', 'Tự đổi mỗi chuyện (đồng lúa ↔ bụi chuối)'], ['dong', 'Giữa đồng lúa (bù nhìn, mả đất)'], ['chuoi', 'Bụi chuối sau nhà (giếng cạn, chòi hoang)'], ['nhacu', 'Nhà cổ 2D (máy yếu)']]],
   ['storyMode', 'Chọn chuyện tiếp theo', 'select', [['vote', 'Người xem bình chọn'], ['random', 'Ngẫu nhiên'], ['order', 'Lần lượt']]],
   ['storySpeed', 'Nhịp kể (1 = vừa, 1.3 = nhanh)', 'number', 0.1],
   ['voteSeconds', 'Giây bình chọn hướng đi', 'number', 1],
