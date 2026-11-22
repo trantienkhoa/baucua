@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Số ảo nhận OTP</title>
+<style>
+  :root { --bg:#0f1220; --card:#181c30; --line:#2a3050; --txt:#e8ebff; --mut:#8a91b8; --acc:#4fd1c5; --warn:#f6ad55; --bad:#fc8181; }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--txt); font:15px/1.5 system-ui, sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:16px; display:grid; gap:16px; grid-template-columns:1fr 1fr; }
+  @media (max-width:820px) { main { grid-template-columns:1fr } }
+  header { max-width:1100px; margin:0 auto; padding:16px 16px 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px }
+  h1 { font-size:20px; margin:0 } h2 { font-size:16px; margin:0 0 12px }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; min-width:0 }
+  .full { grid-column:1/-1 }
+  .row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px }
+  select, input, button { font:inherit; color:var(--txt); background:#0f1326; border:1px solid var(--line); border-radius:8px; padding:8px 10px }
+  select, input { flex:1; min-width:120px }
+  button { cursor:pointer; background:#22294a } button:hover { border-color:var(--acc) }
+  button.pri { background:var(--acc); color:#06231f; border-color:var(--acc); font-weight:600 }
+  button.danger { color:var(--bad) }
+  ul { list-style:none; margin:0; padding:0 } li { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 0; border-top:1px solid var(--line); flex-wrap:wrap }
+  .mut { color:var(--mut); font-size:13px } .num { font-family:ui-monospace, monospace; font-size:15px }
+  .code { font-family:ui-monospace, monospace; font-size:22px; font-weight:700; color:var(--acc); letter-spacing:2px; cursor:pointer }
+  .msg { display:block } .msg .top { display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap }
+  .msg p { margin:4px 0 0; word-break:break-word }
+  #toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:#22294a; border:1px solid var(--line); padding:10px 14px; border-radius:8px; display:none; max-width:calc(100% - 32px) }
+  .pill { font-size:12px; padding:2px 8px; border-radius:99px; border:1px solid var(--line) }
+  .ok { color:var(--acc) } .no { color:var(--warn) }
+</style>
+</head>
+<body>
+<header>
+  <h1>📱 Số ảo nhận mã OTP</h1>
+  <span id="status" class="pill">đang kiểm tra…</span>
+</header>
+<main>
+  <section class="card">
+    <h2>1. Tìm số theo quốc gia</h2>
+    <div class="row">
+      <select id="country"><option>Đang tải quốc gia…</option></select>
+      <select id="type"><option value="Mobile">Di động</option><option value="Local">Cố định</option><option value="TollFree">Miễn cước</option></select>
+    </div>
+    <div class="row">
+      <input id="contains" placeholder="Chứa các số (tùy chọn)">
+      <button class="pri" id="search">Tìm số</button>
+    </div>
+    <ul id="results"></ul>
+  </section>
+
+  <section class="card">
+    <h2>2. Số của bạn</h2>
+    <div class="row"><button id="reloadNums">Làm mới</button></div>
+    <ul id="numbers"></ul>
+  </section>
+
+  <section class="card full">
+    <h2>3. Hộp thư SMS & mã xác minh</h2>
+    <div class="row">
+      <select id="inboxTo"><option value="">Tất cả số</option></select>
+      <label class="mut" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="auto" checked style="flex:0;min-width:0"> Tự làm mới 5 giây</label>
+      <button id="reloadInbox">Làm mới</button>
+    </div>
+    <ul id="inbox"></ul>
+  </section>
+</main>
+<div id="toast"></div>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+function toast(t) { const el = $('#toast'); el.textContent = t; el.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => el.style.display = 'none', 4000); }
+async function api(p, body) {
+  const r = await fetch(p, body ? { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) } : {});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error + (j.code ? ` (mã ${j.code})` : ''));
+  return j;
+}
+const flag = cc => cc.replace(/./g, c => String.fromCodePoint(127397 + c.charCodeAt(0)));
+
+let countries = [];
+async function init() {
+  const s = await api('/api/status');
+  $('#status').innerHTML = s.configured ? `<span class="ok">● Twilio ${esc(s.account)}</span>` : '<span class="no">● Chưa có khóa Twilio</span>';
+  if (!s.configured) { $('#country').innerHTML = '<option>Cần cấu hình .env trước</option>'; return; }
+  try {
+    countries = await api('/api/countries');
+    $('#country').innerHTML = countries.map(c => `<option value="${c.code}">${flag(c.code)} ${esc(c.name)} (${c.code})${c.beta ? ' · beta' : ''}</option>`).join('');
+    $('#country').value = countries.find(c => c.code === 'US') ? 'US' : countries[0]?.code;
+    syncTypes();
+  } catch (e) { toast(e.message); }
+  loadNumbers(); loadInbox();
+}
+function syncTypes() {
+  const c = countries.find(c => c.code === $('#country').value); if (!c) return;
+  [...$('#type').options].forEach(o => o.disabled = !c.types.includes(o.value));
+  if ($('#type').selectedOptions[0]?.disabled) $('#type').value = c.types[0];
+}
+$('#country').onchange = syncTypes;
+
+$('#search').onclick = async () => {
+  $('#results').innerHTML = '<li class="mut">Đang tìm…</li>';
+  try {
+    const q = new URLSearchParams({ country:$('#country').value, type:$('#type').value, contains:$('#contains').value });
+    const list = await api('/api/search?' + q);
+    $('#results').innerHTML = list.length ? list.map(n => `<li>
+      <div><div class="num">${esc(n.friendly)}</div><div class="mut">${esc(n.locality)}${n.addressReq && n.addressReq !== 'none' ? ' · cần giấy tờ/địa chỉ: ' + esc(n.addressReq) : ''}</div></div>
+      <button class="pri" data-buy="${esc(n.number)}">Thuê số</button></li>`).join('')
+      : '<li class="mut">Không còn số nhận SMS cho lựa chọn này.</li>';
+  } catch (e) { $('#results').innerHTML = `<li class="mut">${esc(e.message)}</li>`; }
+};
+$('#results').onclick = async e => {
+  const n = e.target.dataset.buy; if (!n) return;
+  if (!confirm(`Thuê số ${n}? Twilio sẽ tính phí hằng tháng cho số này.`)) return;
+  e.target.disabled = true;
+  try { await api('/api/buy', { number:n }); toast('Đã thuê ' + n); e.target.closest('li').remove(); loadNumbers(); }
+  catch (err) { toast(err.message); e.target.disabled = false; }
+};
+
+async function loadNumbers() {
+  try {
+    const list = await api('/api/numbers');
+    $('#numbers').innerHTML = list.length ? list.map(n => `<li>
+      <div><div class="num">${esc(n.number)}</div><div class="mut">${esc(n.friendly)}</div></div>
+      <div class="row" style="margin:0"><button data-copy="${esc(n.number)}">Sao chép</button><button data-view="${esc(n.number)}">Xem SMS</button><button class="danger" data-rel="${esc(n.sid)}" data-n="${esc(n.number)}">Trả số</button></div></li>`).join('')
+      : '<li class="mut">Chưa có số nào. Tìm và thuê ở mục 1.</li>';
+    const cur = $('#inboxTo').value;
+    $('#inboxTo').innerHTML = '<option value="">Tất cả số</option>' + list.map(n => `<option>${esc(n.number)}</option>`).join('');
+    $('#inboxTo').value = cur;
+  } catch (e) { $('#numbers').innerHTML = `<li class="mut">${esc(e.message)}</li>`; }
+}
+$('#reloadNums').onclick = loadNumbers;
+$('#numbers').onclick = async e => {
+  const d = e.target.dataset;
+  if (d.copy) { navigator.clipboard?.writeText(d.copy); toast('Đã chép ' + d.copy); }
+  if (d.view) { $('#inboxTo').value = d.view; loadInbox(); }
+  if (d.rel && confirm(`Trả số ${d.n}? Bạn sẽ mất số này vĩnh viễn.`)) {
+    try { await api('/api/release', { sid:d.rel }); toast('Đã trả ' + d.n); loadNumbers(); } catch (err) { toast(err.message); }
+  }
+};
+
+let seen = new Set();
+async function loadInbox() {
+  try {
+    const q = $('#inboxTo').value ? '?to=' + encodeURIComponent($('#inboxTo').value) : '';
+    const list = await api('/api/inbox' + q);
+    if (seen.size && list.some(m => !seen.has(m.sid))) toast('📩 Có tin nhắn mới');
+    seen = new Set(list.map(m => m.sid));
+    $('#inbox').innerHTML = list.length ? list.map(m => `<li class="msg">
+      <div class="top"><span class="mut">Từ <b>${esc(m.from)}</b> → ${esc(m.to)}</span><span class="mut">${esc(new Date(m.date).toLocaleString('vi-VN'))}</span></div>
+      ${m.code ? `<div class="code" data-code="${esc(m.code)}" title="Bấm để sao chép">${esc(m.code)}</div>` : ''}
+      <p>${esc(m.body)}</p></li>`).join('')
+      : '<li class="mut">Chưa có SMS nào. Dùng số ở mục 2 để nhận mã, tin nhắn sẽ hiện ở đây.</li>';
+  } catch (e) { $('#inbox').innerHTML = `<li class="mut">${esc(e.message)}</li>`; }
+}
+$('#inbox').onclick = e => { const c = e.target.dataset.code; if (c) { navigator.clipboard?.writeText(c); toast('Đã chép mã ' + c); } };
+$('#inboxTo').onchange = loadInbox;
+$('#reloadInbox').onclick = loadInbox;
+setInterval(() => { if ($('#auto').checked && document.visibilityState === 'visible') loadInbox(); }, 5000);
+init();
+</script>
+</body>
+</html>

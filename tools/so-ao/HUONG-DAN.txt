@@ -1,0 +1,28 @@
+SỐ ẢO NHẬN MÃ XÁC MINH (OTP)
+============================
+
+Công cụ thuê số điện thoại thật qua Twilio, đọc SMS gửi tới số đó và tự tách mã OTP.
+
+CÀI ĐẶT (một lần)
+1. Tạo tài khoản tại https://www.twilio.com và nạp tiền (tài khoản dùng thử chỉ thuê được 1 số Mỹ).
+2. Chép tools/so-ao/.env.example thành tools/so-ao/.env, điền TWILIO_ACCOUNT_SID và TWILIO_AUTH_TOKEN.
+   (File .env đã nằm trong .gitignore, không bị đẩy lên git.)
+
+CHẠY
+   node tools/so-ao/server.js
+   Mở trình duyệt: http://127.0.0.1:4848
+
+SỬ DỤNG
+1. Chọn quốc gia + loại số -> "Tìm số" -> "Thuê số".
+2. Dùng số vừa thuê để nhận mã xác minh.
+3. Mã hiện ở mục 3 (tự làm mới mỗi 5 giây), bấm vào mã để sao chép.
+4. Xong việc thì bấm "Trả số" để ngừng tính phí.
+
+LƯU Ý
+- Danh sách quốc gia lấy trực tiếp từ Twilio (khoảng hơn 100 nước). Không nhà cung cấp hợp pháp nào
+  có số ở MỌI quốc gia; nước nào Twilio không có thì sẽ không hiện trong danh sách.
+- Một số nước (Đức, Pháp, Nhật, Úc...) bắt buộc giấy tờ/địa chỉ (Regulatory Bundle) trước khi thuê.
+  Tạo bundle trên Twilio Console rồi thuê lại.
+- Nhiều dịch vụ (Google, WhatsApp, Telegram, ngân hàng...) chặn số VoIP/ảo, nên có thể không nhận được mã.
+- Mỗi số tính phí hằng tháng (thường 1-15 USD tùy nước) + phí mỗi SMS nhận.
+- Chỉ dùng cho tài khoản của chính bạn. Đừng dùng để tạo tài khoản hàng loạt hay lách điều khoản dịch vụ.
