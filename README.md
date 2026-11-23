@@ -25,7 +25,7 @@ Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dù
 - 100 mẫu đồ dân giã miền quê theo bảng tranh (`DAN_GIA` trong `public/outfits.js`): áo bà ba, áo tứ thân, áo cánh, áo dài the / gấm, sơ mi, đồ bộ hoa, áo len, áo mưa…; nón lá (có nón rách), nón quai thao, nón cối, nón tai bèo, khăn mỏ quạ, khăn đóng, khăn rằn quàng cổ; hoạ tiết hoa nhí, caro, sọc, len, gấm.
   Nhóm trẻ em / đồng phục học sinh được thay bằng thanh niên (người đại diện người xem phải là người lớn — CLAUDE.md).
 - Vũ Trường Neon: Cài đặt → "Phong cách trang phục" = Dân giã; "Mặc trang phục cho cả 100 nhân vật riêng" để mặc cả cho char01–char98 (mặc chồng lên đồ có sẵn của họ — chưa thử được trên mô hình thật vì không có trong repo).
-- Ngọn Lửa Cuối Cùng (3D): mặc định dân giã (Cài đặt → Trang phục người xem).
+- Ngọn Lửa Cuối Cùng (3D): người xem là 100 nhân vật char lấy từ Vũ Trường Neon (khi máy có file `public/models/char*.glb`), mặc thêm đồ dân giã — mặc định bật (Cài đặt → Trang phục người xem / Mặc trang phục cho cả 100 nhân vật char).
 - Hạn chế: áo mưa tạm chưa có vạt; quần của mô hình có sẵn không phải lúc nào cũng đổi màu được; mô hình nam mẫu mặc vest nên áo mặc chồng vẫn giữ dáng vest.
 
 ## 👻 Ngọn Lửa Cuối Cùng: 60 truyện, hiệu ứng ma quái mới (bản 2.24.0)

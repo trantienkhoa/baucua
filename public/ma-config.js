@@ -15,6 +15,7 @@
 
   window.MA_DEFAULTS = {
     outfitStyle: 'dangia',  // trang phục người xem 3D: dangia (dân giã miền quê) | party (dạ hội + đi bar)
+    dressChars: true,       // mặc trang phục đó cho cả 100 nhân vật char lấy từ Vũ Trường Neon
     view: '3d',             // 3d: cảnh 3D (cần card đồ hoạ) | 2d: cảnh vẽ tay 2D (nhẹ máy, cùng 12 cảnh)
     map: 'auto',            // cảnh 3D: auto (đổi theo chuyện) | dong | chuoi | gieng | cayda | nghiadia | mieu | bendo | rungtre | choma | duongray | nhahoang | dinh | nhacu (nhà cổ 2D)
     storyMode: 'vote',      // vote: người xem chọn chuyện | random | order

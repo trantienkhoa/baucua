@@ -1839,7 +1839,7 @@ if (renderer && SH) {
     adaptRes();
     st = state;
     const t = state.t, dt = Math.min(0.1, t - lastT || 0.016); lastT = t;
-    windU.value = t;
+    windU.value = t; syncStyle();
     if (state.map && state.map !== curMap) setMap(state.map);
     const fireF = trans ? trans.fire : 1, oilF = state.oil * fireF;
     const on = oilF > 0.5 && state.flick > 0;
@@ -1878,7 +1878,11 @@ if (renderer && SH) {
     renderer.render(scene, camera);
   }
 
-  setOutfitMix(10); setOutfitStyle((SH.S && SH.S.outfitStyle) || 'dangia'); setDressChars(!!(SH.S && SH.S.dressChars));   // Ngọn Lửa: mặc đồ dân giã
+  setOutfitMix(10);
+  // Ngọn Lửa: người xem là 100 nhân vật char của Vũ Trường Neon (nếu máy có file), mặc thêm đồ dân giã — theo cài đặt, đổi lúc nào áp dụng cho người vào sau
+  let styleKey = '';
+  function syncStyle() { const S2 = SH.S || {}, k = (S2.outfitStyle || 'dangia') + (S2.dressChars !== false); if (k === styleKey) return; styleKey = k; setOutfitStyle(S2.outfitStyle || 'dangia'); setDressChars(S2.dressChars !== false); }
+  syncStyle();
   fetch('/api/models').then(r => r.json()).then(list => loadAvatars((list || []).filter(m => m.enabled).map(m => ({ url: m.url, female: m.female })))).then(() => { modelsReady = true; console.log('Cảnh 3D: đã nạp', avatarTemplates.length, 'mô hình người'); }).catch(e => console.warn('Không nạp được mô hình người', e));
 
   window.MA3D = { ready: true, frame, setMap, maps: Object.keys(SCENES), sceneNames: Object.fromEntries(Object.entries(SCENES).map(([k, v]) => [k, v.name])),
