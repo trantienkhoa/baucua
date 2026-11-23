@@ -79,7 +79,7 @@
     LX = fire.x; LY = fire.y;
   }
   // ghế bị bảng "Tặng quà để…" che thì không xếp người vào
-  const seatHidden = s => s.x < -500 || (S.showGiftGuide && s.x > 680 && s.y > 1430);
+  const seatHidden = s => s.x < -500 || (S.showGiftGuide && (out2D() ? s.x > GIFT_X - 30 && s.y > 1560 : s.x > 680 && s.y > 1430));
   const seatByN = n => SEATS[n - 1];
   const RING_NAMES = ['vòng trong cùng (sát đống lửa)', 'vòng thứ hai', 'vòng thứ ba', 'vòng thứ tư', 'vòng ngoài cùng'];
 
@@ -1378,7 +1378,8 @@
   // bố cục ghế 2D: dời các ghế trùng chỗ ông Tư ra hàng sau
   // bố cục 2D: tranh chỉ vẽ người quay mặt ra trước, nên không xếp ai ngồi phía trước đống lửa (sẽ thành quay lưng vào lửa).
   // Mọi người ngồi thành vòng cung phía sau và hai bên đống lửa, quay mặt vào lửa; hàng trong ngồi, hàng ngoài phía sau đứng.
-  const FIRE2D = { x: 430, y: 1300 };   // lửa lệch trái một chút để lửa + ông Tư (ngồi bên phải lửa) nằm chính giữa màn hình
+  const FIRE2D = { x: 430, y: 1300 };
+  const GIFT_X = 790;   // bảng quà gọn (2D): mép trái; nóc bảng ≈ H - 60 - (38 + 9×27 + 8) ≈ 1571   // lửa lệch trái một chút để lửa + ông Tư (ngồi bên phải lửa) nằm chính giữa màn hình
   let relayT = 0;
   if (window.MA2D) window.MA2D.onPoses = () => { clearTimeout(relayT); relayT = setTimeout(() => { if (out2D()) pickMap(false); }, 300); };   // có dáng quay lưng thì mở thêm ghế phía trước lửa
   function layout2D() {
@@ -1394,10 +1395,11 @@
     rings.forEach((R, ri) => {
       const ky = 0.43, n = Math.max(8, Math.round(TAU * Math.sqrt((R * R + (R * ky) ** 2) / 2) / 92)), off = (ri % 2) * 0.5;
       for (let k = 0; k < n; k++) {
-        const a = (k + off) / n * TAU, x = C.x + R * Math.cos(a), y = C.y - R * Math.sin(a) * ky;
+        const a = (k + off) / n * TAU, ca = Math.cos(a), x = C.x + R * ca * (ca < 0 ? 1.55 : 1), y = C.y - R * Math.sin(a) * ky;   // nửa vòng bên trái (đối diện ông Tư) nới rộng ra cho xa lửa
         if (x < 60 || x > W - 60 || y < 925 || y > 1610) continue;
-        if (x > 700 && y > 1470) continue;                     // bảng quà (chân người chạm mép bảng thì bỏ)
+        if (S.showGiftGuide !== false && x > GIFT_X - 30 && y > 1560) continue;   // bảng quà gọn
         if (hitsT(x, y)) continue;                             // chỗ ông Tư
+        if (Math.hypot(x - F.x, (y - F.y) / 0.43) < 310) continue;   // giữ khoảng cách với lửa (phía đối diện ông Tư vòng trong sát lửa quá)
         out.push({ x, y, sc: scOf(y), ring: ri, front: y > F.y + 25, zone: null, w: null, pose: null, face: null, a });
       }
     });
@@ -2366,19 +2368,20 @@
   }
   function drawGiftGuide(t) {
     const list = (S.actions || []).map(a => ({ ...a, def: ACTIONS.find(x => x.id === a.id) })).filter(a => a.def);
-    const x = 708, rowH = 38, h = 52 + list.length * rowH + 10, y = H - 60 - h, w = 352;
-    ctx.fillStyle = 'rgba(10,5,4,.72)'; rr(x, y, w, h, 18); ctx.fill();
-    ctx.strokeStyle = 'rgba(190,140,80,.45)'; ctx.lineWidth = 2; rr(x + 3, y + 3, w - 6, h - 6, 15); ctx.stroke();
+    const cp = out2D();   // 2D ngoài trời: bảng gọn, thấp hơn để vòng người ngồi kín góc dưới bên phải
+    const x = cp ? GIFT_X : 708, rowH = cp ? 27 : 38, head = cp ? 38 : 52, h = head + list.length * rowH + 8, y = H - 60 - h, w = cp ? W - 20 - GIFT_X : 352;
+    ctx.fillStyle = 'rgba(10,5,4,.72)'; rr(x, y, w, h, 16); ctx.fill();
+    ctx.strokeStyle = 'rgba(190,140,80,.45)'; ctx.lineWidth = 2; rr(x + 3, y + 3, w - 6, h - 6, 13); ctx.stroke();
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.font = `800 23px ${FONT}`; ctx.fillStyle = '#ffd27a'; ctx.fillText('🎁 QUÀ & HIỆU ỨNG', x + 18, y + 28);
+    ctx.font = `800 ${cp ? 18 : 23}px ${FONT}`; ctx.fillStyle = '#ffd27a'; ctx.fillText('🎁 QUÀ & HIỆU ỨNG', x + 14, y + head / 2 + 1);
     list.forEach((a, i) => {
-      const yy = y + 56 + i * rowH + rowH / 2;
-      ctx.font = `24px ${FONT}`; ctx.fillStyle = '#fff'; ctx.fillText(a.def.icon, x + 16, yy);
-      ctx.font = `700 21px ${FONT}`; ctx.fillStyle = '#f6ead6'; ctx.fillText(a.def.label, x + 54, yy);
+      const yy = y + head + 2 + i * rowH + rowH / 2;
+      ctx.font = `${cp ? 18 : 24}px ${FONT}`; ctx.fillStyle = '#fff'; ctx.fillText(a.def.icon, x + 12, yy);
+      ctx.font = `700 ${cp ? 16 : 21}px ${FONT}`; ctx.fillStyle = '#f6ead6'; ctx.fillText(a.def.label, x + (cp ? 40 : 54), yy);
       const g = a.gift && GIFTS[a.gift];
       ctx.textAlign = 'right';
       if (g && g.img) { const im = loadImg(g.img); if (im) ctx.drawImage(im, x + w - 48, yy - 15, 30, 30); ctx.font = `700 17px ${FONT}`; ctx.fillStyle = '#c9b8a0'; ctx.fillText(short(a.gift, 10), x + w - 54, yy); }
-      else { ctx.font = `800 19px ${FONT}`; ctx.fillStyle = '#ffcf7a'; ctx.fillText(a.gift ? short(a.gift, 12) : `${a.min} xu`, x + w - 16, yy); }
+      else { ctx.font = `800 ${cp ? 15 : 19}px ${FONT}`; ctx.fillStyle = '#ffcf7a'; ctx.fillText(a.gift ? short(a.gift, 12) : `${a.min} xu`, x + w - 12, yy); }
       ctx.textAlign = 'left';
     });
   }
