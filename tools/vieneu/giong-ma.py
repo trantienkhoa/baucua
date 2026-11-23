@@ -38,14 +38,24 @@ def voice_labels():
     except Exception:
         return []
 
-VOICES = voice_labels()
+# giọng riêng: mỗi file .wav trong thư mục giong/ là một giọng học theo mẫu (10–20 giây, một người nói, ít ồn)
+#   ong-tu.wav → "Ông Tư"; file khác → tên file
+GIONG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'giong')
+CUSTOM = {}
+if os.path.isdir(GIONG_DIR):
+    for f in sorted(os.listdir(GIONG_DIR)):
+        if f.lower().endswith('.wav'):
+            CUSTOM['Ông Tư' if f.lower() == 'ong-tu.wav' else os.path.splitext(f)[0]] = os.path.join(GIONG_DIR, f)
+VOICES = list(CUSTOM) + voice_labels()
 print('Giọng có sẵn:', ', '.join(VOICES) or '(không đọc được danh sách)')
 
 def synth(text, voice):
     fd, path = tempfile.mkstemp(suffix='.wav'); os.close(fd)
     try:
         with lock:   # mô hình chỉ đọc một câu một lúc
-            audio = tts.infer(text, voice=voice) if voice else tts.infer(text)
+            if voice in CUSTOM: audio = tts.infer(text, ref_audio=CUSTOM[voice])   # học giọng theo file mẫu
+            elif voice: audio = tts.infer(text, voice=voice)
+            else: audio = tts.infer(text)
             tts.save(audio, path)
         with open(path, 'rb') as f:
             return f.read()
