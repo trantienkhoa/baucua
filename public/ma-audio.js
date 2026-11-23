@@ -223,8 +223,9 @@
     { rate: 0.84, wet: 0.55, fb: 0.32, delay: 0.27, ghost: 0.18, trem: 0.14, low: 7, high: -7 },
     // 4–5: giọng ông Tư
     // xử lý nhẹ thôi: hạ giọng / làm rè / rung đều đặn nhiều sẽ thành giọng máy. Độ già chủ yếu nhờ chọn giọng VieNeu trầm, chậm (Đức Trí, Thiền Tâm Đức)
-    { rate: 0.95, wet: 0.12, fb: 0, delay: 0, ghost: 0, trem: 0, low: 3, high: -4 },
-    { rate: 0.91, wet: 0.14, fb: 0, delay: 0, ghost: 0, trem: 0.04, low: 4, high: -6 },
+    { rate: 0.88, wet: 0.12, fb: 0, delay: 0, ghost: 0, trem: 0, low: 4, high: -6 },   // 4: chậm + trầm 12%
+    { rate: 0.84, wet: 0.12, fb: 0, delay: 0, ghost: 0, trem: 0, low: 4, high: -6 },   // 5: 16%
+    { rate: 0.80, wet: 0.12, fb: 0, delay: 0, ghost: 0, trem: 0, low: 4, high: -6 },   // 6: 20%
   ];
   A.voiceBusy = false;
   A.decode = buf => A.ctx.decodeAudioData(buf);
