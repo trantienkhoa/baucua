@@ -223,19 +223,28 @@
     if (t - pulses.nhang < 1) { const k = (t - pulses.nhang); put(ctx, 'bo-cui', 120 + (LX - 120) * k, 1000 + (LY - 1000) * k - Math.sin(k * Math.PI) * 220, 70, { cy: 0.5, rot: k * 5, a: 1 - Math.max(0, k - 0.85) * 6 }); }
   }
 
-  const POSE = { ngoi: [], so: [] };
+  // dáng người xem vẽ tay: ngoi-*/so-* (ngồi / ngồi sợ), dung-*/sodung-* (đứng / đứng hoảng); đuôi -r -l -f là hướng mặt trong tranh
+  const POSE = { ngoi: [], so: [], dung: [], sodung: [] };
   fetch('/api/ma-nguoi2d').then(r => r.json()).then(list => {
-    for (const f of list || []) { const im = new Image(); im.src = B + 'nguoi/' + f; (/^so/i.test(f) ? POSE.so : POSE.ngoi).push(im); }
+    for (const f of list || []) {
+      const m = /^(ngoi|so|dung|sodung)-.*?-([rlf])\.png$/i.exec(f) || [null, /^so/i.test(f) ? 'so' : 'ngoi', 'r'];
+      const im = new Image(); im.src = B + 'nguoi/' + f; im.face = m[2].toLowerCase(); POSE[m[1].toLowerCase()].push(im);
+    }
   }).catch(() => {});
+  const ready = pool => pool.filter(i => i.complete && i.naturalWidth);
   // vẽ một người xem bằng dáng 2D; trả về false nếu chưa có dáng nào
-  function viewer(ctx, v, x, y, sc, scared, LX) {
-    const pool = (scared && POSE.so.some(i => i.complete && i.naturalWidth)) ? POSE.so : POSE.ngoi;
-    const list = pool.filter(i => i.complete && i.naturalWidth); if (!list.length) return false;
+  // hàng sau đống lửa (vòng ngoài, phía trên) đứng xem; còn lại ngồi. Mặt luôn quay về phía đống lửa.
+  function viewer(ctx, v, x, y, sc, scared, LX, LY) {
+    const stand = v.seat && v.seat.ring >= 3 && y < (LY ?? 1185) - 40 && ready(POSE.dung).length > 0;
+    let pool = ready(stand ? (scared && ready(POSE.sodung).length ? POSE.sodung : POSE.dung) : (scared && ready(POSE.so).length ? POSE.so : POSE.ngoi));
+    if (!pool.length) pool = ready(POSE.ngoi);
+    if (!pool.length) return false;
     let h = 0; for (const c of String(v.id)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-    const im = list[h % list.length], H = 170 * sc, Wd = H * im.naturalWidth / im.naturalHeight;
-    ctx.save(); ctx.translate(x, y + 22 * sc); if (x > LX) ctx.scale(-1, 1);   // dáng vẽ quay sang phải; người ngồi bên phải lửa thì lật lại
+    const im = pool[h % pool.length], H = (stand ? 255 : 170) * sc, Wd = H * im.naturalWidth / im.naturalHeight;
+    const want = x < LX ? 'r' : 'l', flip = im.face !== 'f' && im.face !== want;
+    ctx.save(); ctx.translate(x, y + 22 * sc); if (flip) ctx.scale(-1, 1);
     ctx.drawImage(im, -Wd / 2, -H, Wd, H); ctx.restore();
-    return { headY: y + 22 * sc - H * 0.86 };
+    return { headY: y + 22 * sc - H * 0.9 };
   }
   window.MA2D = {
     viewer, hasPoses: () => POSE.ngoi.some(i => i.complete && i.naturalWidth),

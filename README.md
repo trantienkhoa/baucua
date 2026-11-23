@@ -20,6 +20,13 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 👥 Ngọn Lửa Cuối Cùng: người xem 2D vẽ tay (bản 2.19.0)
+
+- 24 dáng người xem vẽ tay trong `public/models/ma/2D/nguoi/`: 10 dáng ngồi, 4 dáng ngồi sợ, 6 dáng đứng, 4 dáng đứng hoảng.
+- Hàng sau đống lửa đứng xem, các hàng còn lại ngồi; mặt luôn quay về phía đống lửa (tự lật theo hướng mặt trong tranh).
+- Bị hù, gõ cửa, ma hiện… thì đổi sang dáng sợ; mỗi người xem giữ một dáng cố định theo tài khoản.
+- Tên file: `ngoi-`, `so-`, `dung-`, `sodung-` + số + hướng mặt `-r` (phải) / `-l` (trái) / `-f` (chính diện).
+
 ## 🧍 Ngọn Lửa Cuối Cùng: sửa hạn chế bản 2D, chờ dáng người xem vẽ tay (bản 2.18.1)
 
 - Bảng hướng dẫn / vai chính nền trong hơn, nhìn xuyên thấy cảnh phía sau; câu dài tự thu nhỏ chữ, không còn bị cắt "…".

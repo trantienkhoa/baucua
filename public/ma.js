@@ -1740,7 +1740,7 @@
       gg.addColorStop(0, 'rgba(255,210,100,.45)'); gg.addColorStop(1, 'rgba(255,200,80,0)');
       ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(x, y - 50 * sc, 90 * sc, 0, TAU); ctx.fill();
     }
-    const P2 = out2D() && MA2D.hasPoses() ? MA2D.viewer(ctx, v, x, y, sc, v.shiver > 0 || v.jump > 0, LX) : null;   // dáng 2D vẽ tay (nếu đã có)
+    const P2 = out2D() && MA2D.hasPoses() ? MA2D.viewer(ctx, v, x, y, sc, v.shiver > 0 || v.jump > 0, LX, LY) : null;   // dáng 2D vẽ tay (nếu đã có)
     if (!P2) ctx.drawImage(v.spr, x - 60 * sc, y - 124 * sc, 120 * sc, 150 * sc);
     if (thay) {   // mũ thầy pháp
       ctx.fillStyle = '#c9962a'; ctx.beginPath(); ctx.moveTo(x - 30 * sc, y - 136 * sc); ctx.lineTo(x, y - 172 * sc); ctx.lineTo(x + 30 * sc, y - 136 * sc); ctx.closePath(); ctx.fill();
