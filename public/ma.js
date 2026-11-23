@@ -1694,13 +1694,14 @@
 
   function viewerPos(v, t) {
     let x = v.seat.x, y = v.seat.y, a = v.alpha, sc = v.seat.sc;
+    const DK = out2D() ? { x: v.seat.x < LX ? -80 : W + 80, y: 880 } : { x: MIRROR.x, y: MIRROR.y + 40 };   // ngoài trời: bị dắt vào bóng tối mép cảnh
     if (v.anim && v.anim.type === 'take') {
       const p = ease((t - v.anim.t0) / 1.3);
-      x = lerp(v.seat.x, MIRROR.x, p); y = lerp(v.seat.y, MIRROR.y + 40, p); sc *= 1 - p * 0.6; a *= 1 - p;
+      x = lerp(v.seat.x, DK.x, p); y = lerp(v.seat.y, DK.y, p); sc *= 1 - p * 0.6; a *= 1 - p;
     } else if (v.taken) a = 0;
     else if (v.anim && v.anim.type === 'return') {
       const p = ease((t - v.anim.t0) / 1.3);
-      x = lerp(MIRROR.x, v.seat.x, p); y = lerp(MIRROR.y + 40, v.seat.y, p); sc *= 0.4 + p * 0.6; a *= p;
+      x = lerp(DK.x, v.seat.x, p); y = lerp(DK.y, v.seat.y, p); sc *= 0.4 + p * 0.6; a *= p;
     }
     if (v.shiver > 0) x += Math.sin(t * 70 + v.seat.n) * 2.5 * Math.min(1, v.shiver);
     if (v.jump > 0) y -= Math.sin(v.jump * Math.PI) * 26 * sc;
@@ -1739,7 +1740,8 @@
       gg.addColorStop(0, 'rgba(255,210,100,.45)'); gg.addColorStop(1, 'rgba(255,200,80,0)');
       ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(x, y - 50 * sc, 90 * sc, 0, TAU); ctx.fill();
     }
-    ctx.drawImage(v.spr, x - 60 * sc, y - 124 * sc, 120 * sc, 150 * sc);
+    const P2 = out2D() && MA2D.hasPoses() ? MA2D.viewer(ctx, v, x, y, sc, v.shiver > 0 || v.jump > 0, LX) : null;   // dáng 2D vẽ tay (nếu đã có)
+    if (!P2) ctx.drawImage(v.spr, x - 60 * sc, y - 124 * sc, 120 * sc, 150 * sc);
     if (thay) {   // mũ thầy pháp
       ctx.fillStyle = '#c9962a'; ctx.beginPath(); ctx.moveTo(x - 30 * sc, y - 136 * sc); ctx.lineTo(x, y - 172 * sc); ctx.lineTo(x + 30 * sc, y - 136 * sc); ctx.closePath(); ctx.fill();
       ctx.fillStyle = '#8a1a14'; ctx.fillRect(x - 32 * sc, y - 140 * sc, 64 * sc, 7 * sc);
@@ -2129,7 +2131,7 @@
     const p = (t - story.cast.t0);
     const a = Math.min(1, p * 2);
     ctx.save(); ctx.globalAlpha = a;
-    panel(90, 630, 900, 260, 0.9, 'rgba(255,190,110,.75)');
+    panel(90, 630, 900, 260, 0.74, 'rgba(255,190,110,.75)');
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = `700 24px ${FONT}`; ctx.fillStyle = '#c9b8a0'; ctx.fillText('🎭 VAI CHÍNH TRONG CHUYỆN NÀY', W / 2, 668);
     if (!roles.length) { ctx.font = `700 28px ${FONT}`; ctx.fillStyle = '#f6ead6'; ctx.fillText('Bình luận để được vào vai trong chuyện sau!', W / 2, 770); }
@@ -2222,14 +2224,16 @@
     const g = GUIDES[guide.key], steps = g.steps(), p = (t - guide.t0) / guide.dur;
     ctx.save(); ctx.globalAlpha = clamp(Math.min(p * 8, (1 - p) * 6), 0, 1);
     const x = 50, y = 626, w = 980, h = 70 + steps.length * 44 + 18;
-    panel(x, y, w, h, 0.92, g.color);
+    panel(x, y, w, h, 0.74, g.color);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = `900 32px ${SERIF}`; ctx.fillStyle = g.color; ctx.fillText(`${g.icon} ${g.title}`, W / 2, y + 38);
     steps.forEach((st, i) => {
       const yy = y + 86 + i * 44;
       ctx.fillStyle = g.color; ctx.beginPath(); ctx.arc(x + 48, yy, 16, 0, TAU); ctx.fill();
       ctx.fillStyle = '#1a0a06'; ctx.font = `900 19px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(String(i + 1), x + 48, yy + 1);
-      ctx.textAlign = 'left'; ctx.font = `700 25px ${FONT}`; ctx.fillStyle = '#f6ead6'; ctx.fillText(short(st, 62), x + 78, yy + 1);
+      ctx.textAlign = 'left'; ctx.fillStyle = '#f6ead6'; let fs = 25; ctx.font = `700 ${fs}px ${FONT}`;
+      while (fs > 17 && ctx.measureText(st).width > w - 100) { fs--; ctx.font = `700 ${fs}px ${FONT}`; }
+      ctx.fillText(ctx.measureText(st).width > w - 100 ? short(st, 80) : st, x + 78, yy + 1);
     });
     ctx.restore();
   }

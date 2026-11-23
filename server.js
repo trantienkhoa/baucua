@@ -808,6 +808,11 @@ app.get('/api/ma-tts', async (req, res) => {
   }
   res.set('Content-Type', hit.type).set('Cache-Control', 'no-store').send(hit.buf);
 });
+// dáng người xem 2D vẽ tay: mọi file .png trong public/models/ma/2D/nguoi (ngoi-*.png, so-*.png)
+app.get('/api/ma-nguoi2d', (req, res) => {
+  try { res.json(fs.readdirSync(path.join(__dirname, 'public', 'models', 'ma', '2D', 'nguoi')).filter(f => /^[\w.-]+\.png$/i.test(f)).sort()); }
+  catch { res.json([]); }
+});
 app.get('/api/ma-tts/voices', async (req, res) => {
   try { const r = await vieneuGet('/voices', 5000); if (!r.ok) throw new Error(r.status); res.json(await r.json()); }
   catch (e) { res.status(502).json({ error: 'Chưa kết nối được cầu nối VieNeu tại ' + vieneuBase() }); }

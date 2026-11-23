@@ -20,6 +20,16 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 🧍 Ngọn Lửa Cuối Cùng: sửa hạn chế bản 2D, chờ dáng người xem vẽ tay (bản 2.18.1)
+
+- Bảng hướng dẫn / vai chính nền trong hơn, nhìn xuyên thấy cảnh phía sau; câu dài tự thu nhỏ chữ, không còn bị cắt "…".
+- Cỏ dại, cỏ lau, dương xỉ ở tiền cảnh 2D dùng bản nét 512 px (cùng bộ tranh) thay bản mờ.
+- Người bị ma dắt đi ở cảnh ngoài trời bay vào bóng tối mép cảnh (không còn bay vào chỗ tấm gương cũ).
+- **Dáng người xem 2D**: bỏ file PNG vào `public/models/ma/2D/nguoi/` là game tự dùng, không cần sửa code.
+  - `ngoi-*.png`: dáng ngồi bình thường · `so-*.png` (tuỳ chọn): dáng sợ, dùng lúc bị hù / run.
+  - Nền trong suốt, nhân vật ngồi quay 3/4 sang **phải**, chân sát mép dưới ảnh, cao 400–600 px. Game tự lật cho người ngồi bên phải lửa.
+  - Mỗi người xem luôn giữ một dáng (chọn theo tài khoản). Chưa có dáng nào thì vẫn dùng hình tròn cũ.
+
 ## 🖼 Ngọn Lửa Cuối Cùng: chế độ 2D vẽ tay, 12 cảnh (bản 2.18.0)
 
 - **Chế độ hiển thị** (Cài đặt → 🖼 Chế độ hiển thị): **3D** (nhân vật 3D, máy quay bay) hoặc **2D** (cảnh vẽ tay, nhẹ máy). Máy không chạy được 3D thì tự dùng 2D.

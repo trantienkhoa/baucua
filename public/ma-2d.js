@@ -9,7 +9,7 @@
     'goc-da', 'bia-1', 'bia-2', 'mo', 'hang-rao', 'bia-hoa', 'cay-su', 'tuong-da', 'lu-huong', 'cot-muc', 'van-go', 'mang-nhen', 'mat-nuoc', 'luc-binh', 'mai-cheo', 'den-bao', 'cay-ban',
     'sap-cho', 'thung-mung', 'den-long', 'ganh', 'cot-non', 'cot-tin-hieu', 'den-ga', 'duong-ray', 'toa-tau', 'bien-bao', 'cua-so', 'giuong', 'ban-tho', 'cong-dinh', 'rem-rach', 'tuong-vo',
     'cot-do-1', 'cot-do-2', 'trong', 'den-dau', 'lu-dong', 'lua-1', 'lua-2', 'lua-3', 'lua-4', 'khoi-1', 'khoi-2', 'dom-dom', 'buom', 'suong-1', 'suong-2', 'la-1', 'la-2', 'la-3', 'tia-trang',
-    'bo-cui', 'hu-muoi', 'cua-go', 'nen', 'khoi-nhap', 'bat-nhang', 'bua', 'chuong', 'guong-bat-quai', 'co-1', 'co-lau', 'duong-xi'];
+    'bo-cui', 'hu-muoi', 'cua-go', 'nen', 'khoi-nhap', 'bat-nhang', 'bua', 'chuong', 'guong-bat-quai', 'co-dai-1', 'co-dai-2', 'co-dai-3', 'co-dai-4', 'co-lau', 'duong-xi'];
   const IMG = {};
   let loaded = 0;
   for (const n of NAMES) { const im = new Image(); im.onload = () => { loaded++; }; im.src = B + n + '.png'; IMG[n] = im; }
@@ -127,7 +127,8 @@
     for (const [n, x, y, h, o = {}] of FG[st.map] || []) put(ctx, n, x, y, h, { rot: o.rot, flip: o.flip });
     put(ctx, 'co-lau', 40, 1935, 260, { sway: Math.sin(t * 1.1) * 0.05 + wind.s * 0.08 });
     put(ctx, 'duong-xi', 1030, 1930, 170, { flip: 1, sway: Math.sin(t * 0.9 + 1) * 0.04 + wind.s * 0.06 });
-    put(ctx, 'co-1', 210, 1925, 95, { sway: wind.s * 0.06 }); put(ctx, 'co-1', 880, 1925, 85, { flip: 1, sway: wind.s * 0.06 });
+    put(ctx, 'co-dai-2', 640, 1925, 110, { sway: wind.s * 0.06 + Math.sin(t * 1.2) * 0.03 }); put(ctx, 'co-dai-4', 1000, 1930, 150, { flip: 1, sway: wind.s * 0.07 });
+    put(ctx, 'co-dai-1', 120, 1922, 90, { sway: wind.s * 0.05 });
   }
   // ông Tư ngồi cạnh đống lửa: đang kể thì cầm tẩu, nghỉ giữa truyện thì rót trà
   const TELLER = { dx: 228, dy: 22, h: 235 };
@@ -222,7 +223,22 @@
     if (t - pulses.nhang < 1) { const k = (t - pulses.nhang); put(ctx, 'bo-cui', 120 + (LX - 120) * k, 1000 + (LY - 1000) * k - Math.sin(k * Math.PI) * 220, 70, { cy: 0.5, rot: k * 5, a: 1 - Math.max(0, k - 0.85) * 6 }); }
   }
 
+  const POSE = { ngoi: [], so: [] };
+  fetch('/api/ma-nguoi2d').then(r => r.json()).then(list => {
+    for (const f of list || []) { const im = new Image(); im.src = B + 'nguoi/' + f; (/^so/i.test(f) ? POSE.so : POSE.ngoi).push(im); }
+  }).catch(() => {});
+  // vẽ một người xem bằng dáng 2D; trả về false nếu chưa có dáng nào
+  function viewer(ctx, v, x, y, sc, scared, LX) {
+    const pool = (scared && POSE.so.some(i => i.complete && i.naturalWidth)) ? POSE.so : POSE.ngoi;
+    const list = pool.filter(i => i.complete && i.naturalWidth); if (!list.length) return false;
+    let h = 0; for (const c of String(v.id)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    const im = list[h % list.length], H = 170 * sc, Wd = H * im.naturalWidth / im.naturalHeight;
+    ctx.save(); ctx.translate(x, y + 22 * sc); if (x > LX) ctx.scale(-1, 1);   // dáng vẽ quay sang phải; người ngồi bên phải lửa thì lật lại
+    ctx.drawImage(im, -Wd / 2, -H, Wd, H); ctx.restore();
+    return { headY: y + 22 * sc - H * 0.86 };
+  }
   window.MA2D = {
+    viewer, hasPoses: () => POSE.ngoi.some(i => i.complete && i.naturalWidth),
     ready: () => loaded > 20, scenes: Object.keys(SC), back, teller, tellerRect, fireBase, flame, front,
     pulse: k => { pulses[k] = lastT; if (k === 'go') wind.gust = 1.1; }, gust: () => { wind.gust = 1; },
   };
