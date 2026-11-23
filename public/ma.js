@@ -1324,24 +1324,29 @@
   const view2D = () => S.view === '2d';   // chế độ 2D chọn ở Cài đặt
   const out2D = () => curMap !== 'nhacu' && !!window.MA2D && !use3D();   // cảnh ngoài trời vẽ tay 2D (cả khi máy không chạy được 3D)
   // bố cục ghế 2D: dời các ghế trùng chỗ ông Tư ra hàng sau
+  // bố cục 2D: tranh chỉ vẽ người quay mặt ra trước, nên không xếp ai ngồi phía trước đống lửa (sẽ thành quay lưng vào lửa).
+  // Mọi người ngồi thành vòng cung phía sau và hai bên đống lửa, quay mặt vào lửa; hàng trong ngồi, hàng ngoài phía sau đứng.
+  const FIRE2D = { x: 540, y: 1300 };
   function layout2D() {
-    // dáng người xem cao ~255·sc (đứng, sau lửa) hoặc ~170·sc (ngồi); ghế nào có hình chạm khung ông Tư thì dời sang chỗ trống gần lửa nhất
-    const r = window.MA2D.tellerRect(540, 1185), FX = 540, FY = 1185;
+    const F = FIRE2D, r = window.MA2D.tellerRect(F.x, F.y);
     const scOf = y => 0.62 + (y - 960) / 580 * 0.52;
-    const box = (x, y) => { const sc = scOf(y), h = (y < FY - 40 ? 255 : 170) * sc, w = h * 0.55; return { x0: x - w / 2, x1: x + w / 2, y0: y + 22 * sc - h, y1: y + 22 * sc }; };
-    const hits = (x, y) => { const b = box(x, y); return b.x0 < r.x1 && b.x1 > r.x0 && b.y0 < r.y1 && b.y1 > r.y0; };
-    const blocked = (x, y) => hits(x, y) || (x > 690 && y > 1370) || Math.hypot((x - FX) / 1, (y - FY) / 0.55) < 230 || (y > FY && Math.abs(x - FX) < 170 && y < FY + 330);   // khung ông Tư, bảng quà, sát lửa, không che lửa
-    const list = SEAT2D.map(s => ({ x: s.x, y: s.y, sc: s.sc, ring: s.ring, zone: null, w: null, pose: null, face: null }));
-    const keep = list.filter(q => !hits(q.x, q.y)), move = list.filter(q => hits(q.x, q.y));
-    const spots = [];
-    for (let y = 950; y <= 1530; y += 26) for (let x = 70; x <= 1010; x += 30) if (!blocked(x, y)) spots.push({ x, y, d: Math.hypot(x - FX, (y - FY) / 0.55) });
-    spots.sort((a, b) => a.d - b.d);
-    for (const q of move) {
-      const sp = spots.find(p => !p.used && keep.every(o => Math.abs(o.x - p.x) > 56 || Math.abs(o.y - p.y) > 34));
-      if (!sp) { q.x = -999; continue; }   // hết chỗ: ghế này bỏ trống (vẫn còn ~70 ghế khác)
-      sp.used = true; q.x = sp.x; q.y = sp.y; q.sc = scOf(sp.y); q.ring = 4; keep.push(q);
-    }
-    return list;
+    const box = (x, y) => { const sc = scOf(y), h = (y < F.y - 40 ? 255 : 170) * sc, w = h * 0.55; return { x0: x - w / 2, x1: x + w / 2, y0: y + 22 * sc - h, y1: y + 22 * sc }; };
+    const hitsT = (x, y) => { const b = box(x, y); return b.x0 < r.x1 && b.x1 > r.x0 && b.y0 < r.y1 && b.y1 > r.y0; };
+    const out = [], rings = [250, 345, 440, 535, 630, 725, 820];
+    rings.forEach((R, ri) => {
+      const ky = 0.5 - ri * 0.025, step = (ri < 2 ? 100 : 80) / R, a0 = -0.42, a1 = Math.PI + 0.42;
+      for (let a = a0 + (ri % 2) * step / 2; a <= a1; a += step) {
+        const x = F.x + R * Math.cos(a), y = F.y - R * Math.sin(a) * ky;
+        if (x < 60 || x > W - 60 || y < 925) continue;
+        if (y > F.y && Math.abs(x - F.x) < 300) continue;      // không ai ngồi chắn trước lửa
+        if (x > 690 && y > 1370) continue;                     // bảng quà
+        if (hitsT(x, y)) continue;                             // chỗ ông Tư
+        out.push({ x, y, sc: scOf(y), ring: ri, zone: null, w: null, pose: null, face: null });
+      }
+    });
+    out.sort((p, q) => p.ring - q.ring || Math.abs(p.x - F.x) - Math.abs(q.x - F.x));   // vào trước ngồi gần lửa
+    while (out.length < SEAT2D.length) out.push({ x: -999, y: -999, sc: 1, ring: 9, zone: null, w: null, pose: null, face: null });
+    return out.slice(0, SEAT2D.length);
   }
   function pickMap(next, st) {
     const m = S.map || 'auto';
@@ -1350,7 +1355,7 @@
     else if (next) curMap = (st && SCENE_FOR[st.id] && all.includes(SCENE_FOR[st.id]) && Math.random() < 0.75) ? SCENE_FOR[st.id] : all[mapFlip++ % all.length];
     const flat = curMap === 'nhacu' || view2D();
     const gl = document.getElementById('gl'); if (gl) gl.style.display = flat ? 'none' : 'block';
-    if (flat) { setLayout(out2D() ? layout2D() : null, out2D() ? { x: 540, y: 1185 } : null); window.__maShared.teller = null; if (window.MA3D && MA3D.invalidate) MA3D.invalidate(); }
+    if (flat) { setLayout(out2D() ? layout2D() : null, out2D() ? FIRE2D : null); window.__maShared.teller = null; if (window.MA3D && MA3D.invalidate) MA3D.invalidate(); }
     else if (window.MA3D && MA3D.relayout) MA3D.relayout();
   }
   const use3D = () => !!(window.MA3D && MA3D.ready) && curMap !== 'nhacu' && S.view !== '2d';
