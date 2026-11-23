@@ -1378,7 +1378,7 @@
   // bố cục ghế 2D: dời các ghế trùng chỗ ông Tư ra hàng sau
   // bố cục 2D: tranh chỉ vẽ người quay mặt ra trước, nên không xếp ai ngồi phía trước đống lửa (sẽ thành quay lưng vào lửa).
   // Mọi người ngồi thành vòng cung phía sau và hai bên đống lửa, quay mặt vào lửa; hàng trong ngồi, hàng ngoài phía sau đứng.
-  const FIRE2D = { x: 540, y: 1300 };
+  const FIRE2D = { x: 430, y: 1300 };   // lửa lệch trái một chút để lửa + ông Tư (ngồi bên phải lửa) nằm chính giữa màn hình
   let relayT = 0;
   if (window.MA2D) window.MA2D.onPoses = () => { clearTimeout(relayT); relayT = setTimeout(() => { if (out2D()) pickMap(false); }, 300); };   // có dáng quay lưng thì mở thêm ghế phía trước lửa
   function layout2D() {
@@ -1387,13 +1387,15 @@
     const box = (x, y) => { const sc = scOf(y), h = (y < F.y - 40 ? 255 : 170) * sc, w = h * 0.55; return { x0: x - w / 2, x1: x + w / 2, y0: y + 22 * sc - h, y1: y + 22 * sc }; };
     const hitsT = (x, y) => { const b = box(x, y); return b.x0 < r.x1 && b.x1 > r.x0 && b.y0 < r.y1 && b.y1 > r.y0; };
     // ngồi thành các vòng tròn (ellipse vì nhìn nghiêng) kín quanh đống lửa; chỉ chừa chỗ ông Tư và bảng quà
-    const out = [], rings = [270, 360, 450, 540, 630, 720];
+    // tâm vòng tròn = giữa đống lửa và ông Tư → cả hai ngồi chính giữa, mọi người quây quanh
+    const C = { x: (F.x + (r.x0 + r.x1) / 2) / 2, y: F.y - 10 };
+    const out = [], rings = [330, 420, 510, 600, 690, 780];
     rings.forEach((R, ri) => {
-      const ky = 0.46, n = Math.max(8, Math.round(TAU * Math.sqrt((R * R + (R * ky) ** 2) / 2) / 92)), off = (ri % 2) * 0.5;
+      const ky = 0.44, n = Math.max(8, Math.round(TAU * Math.sqrt((R * R + (R * ky) ** 2) / 2) / 92)), off = (ri % 2) * 0.5;
       for (let k = 0; k < n; k++) {
-        const a = (k + off) / n * TAU, x = F.x + R * Math.cos(a), y = F.y - R * Math.sin(a) * ky;
+        const a = (k + off) / n * TAU, x = C.x + R * Math.cos(a), y = C.y - R * Math.sin(a) * ky;
         if (x < 60 || x > W - 60 || y < 925 || y > 1610) continue;
-        if (x > 690 && y > 1370) continue;                     // bảng quà
+        if (x > 700 && y > 1470) continue;                     // bảng quà (chân người chạm mép bảng thì bỏ)
         if (hitsT(x, y)) continue;                             // chỗ ông Tư
         out.push({ x, y, sc: scOf(y), ring: ri, front: y > F.y + 25, zone: null, w: null, pose: null, face: null, a });
       }
