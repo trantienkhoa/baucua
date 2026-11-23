@@ -221,8 +221,9 @@
     { rate: 0.95, wet: 0.22, fb: 0.12, delay: 0.21, ghost: 0.05, trem: 0, low: 3, high: -3 },
     { rate: 0.9, wet: 0.38, fb: 0.22, delay: 0.24, ghost: 0.11, trem: 0.07, low: 5, high: -5 },
     { rate: 0.84, wet: 0.55, fb: 0.32, delay: 0.27, ghost: 0.18, trem: 0.14, low: 7, high: -7 },
-    // 4: giọng ông Tư — chậm, trầm, hơi khàn và run nhẹ như người già kể chuyện bên bếp lửa, vang ít (ngoài trời)
-    { rate: 0.88, wet: 0.16, fb: 0, delay: 0, ghost: 0, trem: 0.1, low: 5, high: -8 },
+    // 4–5: giọng ông Tư — chậm, trầm, giọng run (rung cao độ + rung âm lượng), khàn, vang ít (ngoài trời)
+    { rate: 0.84, wet: 0.16, fb: 0, delay: 0, ghost: 0, trem: 0.12, low: 6, high: -11, vib: 0.012, rasp: 0.18, mid: 3 },
+    { rate: 0.79, wet: 0.16, fb: 0, delay: 0, ghost: 0, trem: 0.16, low: 6, high: -11, vib: 0.02, rasp: 0.3, mid: 3 },
   ];
   A.voiceBusy = false;
   A.decode = buf => A.ctx.decodeAudioData(buf);
@@ -235,7 +236,15 @@
       const lo = c.createBiquadFilter(); lo.type = 'lowshelf'; lo.frequency.value = 220; lo.gain.value = P.low;
       const hi = c.createBiquadFilter(); hi.type = 'highshelf'; hi.frequency.value = 4500; hi.gain.value = P.high;
       const dry = c.createGain(); dry.gain.value = 1;
-      src.connect(lo); lo.connect(hi); hi.connect(dry); dry.connect(bus);
+      let head = src;
+      if (P.mid) { const pk = c.createBiquadFilter(); pk.type = 'peaking'; pk.frequency.value = 1400; pk.Q.value = 1; pk.gain.value = P.mid; src.connect(pk); head = pk; }
+      head.connect(lo); lo.connect(hi); hi.connect(dry); dry.connect(bus);
+      if (P.vib) { const l = c.createOscillator(), lg = c.createGain(); l.frequency.value = 4.6; lg.gain.value = P.rate * P.vib; l.connect(lg); lg.connect(src.playbackRate); l.start(t); l.stop(t + buffer.duration / P.rate + 3); }   // giọng run của người già
+      if (P.rasp) {   // tiếng khàn: dải giữa được bóp méo nhẹ trộn lại
+        const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2000; bp.Q.value = 0.8;
+        const ws = c.createWaveShaper(), curve = new Float32Array(1024); for (let i = 0; i < 1024; i++) { const x = i / 511.5 - 1; curve[i] = Math.tanh(x * 9) * 0.6; } ws.curve = curve;
+        const rg = c.createGain(); rg.gain.value = P.rasp; src.connect(bp); bp.connect(ws); ws.connect(rg); rg.connect(lo);
+      }
       const an = c.createAnalyser(); an.fftSize = 512; hi.connect(an); A.voiceAn = an;   // đo độ to giọng để nhân vật nhép miệng
       if (P.trem) { const l = c.createOscillator(), lg = c.createGain(); l.frequency.value = 5.5; lg.gain.value = P.trem; l.connect(lg); lg.connect(dry.gain); l.start(t); l.stop(t + buffer.duration / P.rate + 3); }
       if (P.wet) { const w = c.createGain(); w.gain.value = P.wet; hi.connect(w); w.connect(A.verbIn); }
