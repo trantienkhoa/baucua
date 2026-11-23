@@ -1613,12 +1613,10 @@ const sfx = {
 const chime = t => sfx.chime(t), horn = () => sfx.horn();
 
 // ---------- NHẠC DANCE PARTY ----------
-// Bài đã tải lên (chọn ở trang điều khiển) hoặc nhạc party máy tự đánh 128 BPM: trống, clap, hi-hat, bass, hợp âm, giai điệu.
+// 10 bài nhạc party máy tự đánh (chọn ngẫu nhiên hoặc cố định ở trang điều khiển) hoặc bài đã tải lên.
 // Lúc party nhạc nền tạm tắt, hết party thì trở lại.
-const PM = { on: false, synth: false, el: null, bus: null, timer: 0, next: 0, step: 0, t0: 0, fade: 0 };
-const PBPM = 128, PBEAT = 60 / PBPM, PSTEP = PBEAT / 4;
+const PM = { on: false, synth: false, el: null, bus: null, timer: 0, next: 0, step: 0, t0: 0, fade: 0, beat: 60 / 128, stepLen: 60 / 128 / 4 };
 const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
-const PCHORDS = [[45, [57, 60, 64]], [41, [57, 60, 65]], [48, [55, 60, 64]], [43, [55, 59, 62]]];   // Am F C G
 function pmVol() { return clamp(Number(S.partyMusicVol ?? 0.8), 0, 1.5); }
 function pmTone(at, f, dur, type, vol, cut) {
   const A = Music.ctx, o = A.createOscillator(), g = A.createGain();
@@ -1639,23 +1637,95 @@ function pmKick(at) {
   g.gain.setValueAtTime(0.9, at); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.3);
   o.connect(g); g.connect(PM.bus); o.start(at); o.stop(at + 0.32);
 }
+// 10 bài nhạc party máy tự đánh — mỗi lần Dance party chọn ngẫu nhiên một bài (không lặp bài vừa phát)
+const N_ = (n, o) => n + 12 * o;   // tiện ghi nốt
+const ch = (root, kind) => { const t = { m: [0, 3, 7], M: [0, 4, 7], m7: [0, 3, 7, 10], M7: [0, 4, 7, 11], d7: [0, 4, 7, 10], s4: [0, 5, 7] }[kind]; return [root, t.map(x => root + 12 + x)]; };
+const SONGS = [
+  { name: 'Neon Rush', bpm: 128, prog: [ch(45, 'm'), ch(41, 'M'), ch(48, 'M'), ch(43, 'M')], kick: [0, 4, 8, 12], snare: [4, 12], hat: 'off', bass: 'off', stab: [0, 3, 6, 10], stabWave: 'sawtooth', lead: 'arp', leadWave: 'square', minor: true, seed: 1 },
+  { name: 'Tết Bùng Nổ', bpm: 132, prog: [ch(48, 'M'), ch(43, 'M'), ch(45, 'm'), ch(41, 'M')], kick: [0, 4, 8, 12], snare: [4, 12], hat: '8', bass: 'octave', stab: [2, 6, 10, 14], stabWave: 'triangle', lead: 'melody', leadWave: 'square', penta: true, seed: 2 },
+  { name: 'Disco Phố', bpm: 118, prog: [ch(38, 'm7'), ch(43, 'd7'), ch(48, 'M7'), ch(45, 'm7')], kick: [0, 4, 8, 12], snare: [4, 12], hat: 'off16', bass: 'octave', stab: [0, 7, 10], stabWave: 'triangle', lead: 'melody', leadWave: 'triangle', seed: 3 },
+  { name: 'Moombah Vui', bpm: 108, prog: [ch(40, 'm'), ch(48, 'M'), ch(43, 'M'), ch(38, 'M')], kick: [0, 8], snare: [3, 6, 11, 14], hat: '8', bass: 'dembow', stab: [0, 6, 12], stabWave: 'square', lead: 'melody', leadWave: 'sawtooth', minor: true, seed: 4 },
+  { name: 'Trap Party', bpm: 140, prog: [ch(36, 'm'), ch(44, 'M'), ch(39, 'M'), ch(46, 'M')], kick: [0, 10], snare: [8], hat: 'trap', bass: '808', stab: [], stabWave: 'triangle', lead: 'melody', leadWave: 'triangle', minor: true, seed: 5 },
+  { name: 'Hè Rực Rỡ', bpm: 124, prog: [ch(41, 'M'), ch(48, 'M'), ch(38, 'm'), ch(46, 'M')], kick: [0, 4, 8, 12], snare: [4, 12], hat: 'off', bass: 'off', stab: [], stabWave: 'sine', lead: 'pluck', leadWave: 'sine', penta: true, seed: 6 },
+  { name: 'Bass Bounce', bpm: 126, prog: [ch(43, 'm'), ch(39, 'M'), ch(46, 'M'), ch(41, 'M')], kick: [0, 4, 8, 12], snare: [4, 12], hat: 'off16', bass: '16', stab: [0, 10], stabWave: 'sawtooth', lead: 'arp', leadWave: 'square', minor: true, seed: 7 },
+  { name: 'Hands Up', bpm: 140, prog: [ch(45, 'm'), ch(43, 'M'), ch(41, 'M'), ch(43, 'M')], kick: [0, 4, 8, 12], snare: [4, 12], hat: 'off', bass: 'off', stab: [], stabWave: 'sawtooth', lead: 'super', leadWave: 'sawtooth', minor: true, seed: 8 },
+  { name: 'Funky Cọ Vẽ', bpm: 112, prog: [ch(40, 'd7'), ch(40, 'd7'), ch(45, 'd7'), ch(40, 'd7')], kick: [0, 7, 10], snare: [4, 12], hat: '16', bass: 'funk', stab: [2, 5, 9, 13], stabWave: 'square', lead: 'melody', leadWave: 'square', penta: true, seed: 9 },
+  { name: 'Đêm Hội Neon', bpm: 130, prog: [ch(47, 'm'), ch(43, 'M'), ch(38, 'M'), ch(45, 'M')], kick: [0, 4, 8, 12], snare: [4, 12], hat: 'off16', bass: 'off', stab: [0, 6], stabWave: 'sawtooth', lead: 'arpUD', leadWave: 'sawtooth', minor: true, seed: 10 },
+];
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+// giai điệu 4 ô nhịp (64 bước) sinh theo hạt giống của bài: nốt rơi vào hợp âm / ngũ cung
+function makeMelody(song) {
+  const r = mulberry(song.seed * 9973), out = new Array(64).fill(null);
+  const RH = [[0, 3, 6, 8, 10, 12, 14], [0, 2, 4, 7, 8, 11, 12], [0, 4, 6, 8, 12, 14], [0, 2, 3, 6, 8, 10, 11, 14], [0, 6, 8, 12]];
+  let last = song.prog[0][1][0] + 12;
+  for (let bar = 0; bar < 4; bar++) {
+    const [root, tones] = song.prog[bar], rh = RH[Math.floor(r() * RH.length)];
+    const pool = []; for (const t of tones) pool.push(t + 12, t + 24);
+    if (song.penta) { const base = song.prog[0][0] + 24, sc = song.minor ? [0, 3, 5, 7, 10] : [0, 2, 4, 7, 9]; for (const s of sc) pool.push(base + s, base + s + 12); }
+    for (const st of rh) { let best = pool[0], bd = 1e9; const want = last + Math.round((r() - 0.5) * 7); for (const n of pool) { const d = Math.abs(n - want) + r() * 2; if (d < bd) { bd = d; best = n; } } out[bar * 16 + st] = best; last = best; }
+  }
+  return out;
+}
+let PSONG = SONGS[0], PMEL = makeMelody(SONGS[0]), lastSong = -1;
+function pickSong() {
+  const v = String(S.partyMusic || '');
+  let i = v.startsWith('nv:') ? clamp(parseInt(v.slice(3)) || 0, 0, SONGS.length - 1) : -1;
+  if (i < 0) { do { i = Math.floor(Math.random() * SONGS.length); } while (i === lastSong && SONGS.length > 1); }
+  lastSong = i; PSONG = SONGS[i]; PMEL = makeMelody(PSONG); PM.beat = 60 / PSONG.bpm; PM.stepLen = PM.beat / 4;
+}
+function pmSuper(at, f, dur, vol) { for (const d of [-9, 0, 8]) { const o = Music.ctx.createOscillator(); o.detune.value = d; pmToneOsc(o, at, f, dur, 'sawtooth', vol / 2.2, 3200); } }
+function pmToneOsc(o, at, f, dur, type, vol, cut) {
+  const A = Music.ctx, g = A.createGain(); o.type = type; o.frequency.setValueAtTime(f, at);
+  g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(vol, at + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+  const fl = A.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = cut; o.connect(fl); fl.connect(g); g.connect(PM.bus); o.start(at); o.stop(at + dur + 0.02);
+}
+function pm808(at, f, dur) {
+  const A = Music.ctx, o = A.createOscillator(), g = A.createGain();
+  o.type = 'sine'; o.frequency.setValueAtTime(f * 1.5, at); o.frequency.exponentialRampToValueAtTime(f, at + 0.06);
+  g.gain.setValueAtTime(0.55, at); g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+  o.connect(g); g.connect(PM.bus); o.start(at); o.stop(at + dur + 0.02);
+}
 function pmStep(at, n) {
-  const s = n % 16, bar = Math.floor(n / 16), [root, ch] = PCHORDS[bar % 4], intro = bar < 1;
-  if (s % 4 === 0) pmKick(at);
-  if (s % 4 === 2) { pmNoise(at, 0.09, 'highpass', 7000, 0.16); if (!intro) pmTone(at, mtof(root + 12), 0.2, 'sawtooth', 0.16, 900); }
-  else if (s % 2 === 1) pmNoise(at, 0.03, 'highpass', 9000, 0.05);
-  if ((s === 4 || s === 12) && !intro) { pmNoise(at, 0.16, 'bandpass', 1500, 0.45); pmNoise(at + 0.012, 0.12, 'bandpass', 1100, 0.25); }
-  if (!intro && (s === 0 || s === 3 || s === 6 || s === 10)) for (const m of ch) pmTone(at, mtof(m), 0.16, 'sawtooth', 0.045, 2600);
-  if (bar % 4 >= 2 && s % 2 === 0) { const arp = [...ch, ch[0] + 12]; pmTone(at, mtof(arp[(s / 2) % 4] + 12), 0.12, 'square', 0.03, 3000); }
-  if (s === 0 && bar % 8 === 0) pmNoise(at, 1.2, 'highpass', 5000, 0.12);   // chũm chọe đầu mỗi 8 nhịp
+  const so = PSONG, s = n % 16, bar = Math.floor(n / 16), [root, tones] = so.prog[bar % 4];
+  const intro = bar < 1, brk = bar % 8 === 7;   // ô nhịp đầu chỉ có trống, cứ 8 ô nghỉ trống một ô cho “drop”
+  const sl = PM.stepLen;
+  if (!brk && so.kick.includes(s)) pmKick(at);
+  if (!intro && so.snare.includes(s)) { pmNoise(at, 0.16, 'bandpass', 1500, 0.42); pmNoise(at + 0.012, 0.12, 'bandpass', 1100, 0.22); }
+  if (brk && s >= 8 && s % 2 === 0) pmNoise(at, 0.08, 'bandpass', 1200 + s * 120, 0.06 + s * 0.012);   // trống dồn trước drop
+  const h = so.hat;
+  if (h === 'off' && s % 4 === 2) pmNoise(at, 0.09, 'highpass', 7000, 0.16);
+  if (h === 'off16') { if (s % 4 === 2) pmNoise(at, 0.09, 'highpass', 7000, 0.15); else if (s % 2 === 1) pmNoise(at, 0.03, 'highpass', 9000, 0.05); }
+  if (h === '8' && s % 2 === 0) pmNoise(at, 0.04, 'highpass', 8000, s % 4 === 2 ? 0.12 : 0.06);
+  if (h === '16') pmNoise(at, 0.03, 'highpass', 8500, s % 4 === 2 ? 0.1 : 0.045);
+  if (h === 'trap') { pmNoise(at, 0.025, 'highpass', 9000, 0.06); if (s === 14 || s === 15) pmNoise(at + sl / 2, 0.02, 'highpass', 9500, 0.05); }
+  if (!intro) {
+    const b = so.bass, f = mtof(root + 12);
+    if (b === 'off' && s % 4 === 2) pmTone(at, f, 0.2, 'sawtooth', 0.16, 900);
+    if (b === 'octave' && s % 2 === 0) pmTone(at, mtof(root + 12 + (s % 4 === 2 ? 12 : 0)), 0.16, 'sawtooth', 0.14, 1100);
+    if (b === '16' && s % 4 !== 0) pmTone(at, f, 0.09, 'square', 0.1, 600 + 300 * Math.sin(n * 0.3));
+    if (b === 'dembow' && [0, 3, 6, 8, 11, 14].includes(s)) pmTone(at, f, 0.18, 'sawtooth', 0.15, 800);
+    if (b === '808' && (s === 0 || s === 10)) pm808(at, mtof(root), sl * 6);
+    if (b === 'funk' && [0, 3, 6, 7, 10, 13].includes(s)) pmTone(at, mtof(root + 12 + (s === 7 || s === 13 ? 12 : 0)), 0.12, 'square', 0.12, 900);
+    if (so.stab.includes(s)) for (const m of tones) pmTone(at, mtof(m), so.stabWave === 'square' ? 0.08 : 0.16, so.stabWave, 0.04, 2600);
+    const L = so.lead, phrase = bar % 4 >= 2 || bar % 8 >= 4;
+    if (phrase || L === 'super' || L === 'pluck') {
+      const arp = [...tones, tones[0] + 12];
+      if (L === 'arp' && s % 2 === 0) pmTone(at, mtof(arp[(s / 2) % 4] + 12), 0.12, so.leadWave, 0.03, 3000);
+      if (L === 'arpUD' && s % 1 === 0) { const ud = [0, 1, 2, 3, 2, 1]; pmTone(at, mtof(arp[ud[n % 6]] + 12), 0.09, so.leadWave, 0.022, 2400); }
+      if (L === 'pluck' && s % 2 === 0) pmTone(at, mtof(arp[(s / 2 + bar) % 4] + 24), 0.18, 'sine', 0.05, 0);
+      const mn = PMEL[n % 64];
+      if ((L === 'melody' || L === 'super') && mn) { if (L === 'super') pmSuper(at, mtof(mn), sl * 2.2, 0.06); else pmTone(at, mtof(mn), sl * 1.8, so.leadWave, so.leadWave === 'square' ? 0.03 : 0.045, 3200); }
+    }
+  }
+  if (s === 0 && bar % 8 === 0 && bar > 0) pmNoise(at, 1.2, 'highpass', 5000, 0.12);   // chũm chọe
 }
 function pmSchedule() {
   const A = Music.ctx; if (!A || !PM.synth) return;
-  while (PM.next < A.currentTime + 0.3) { pmStep(PM.next, PM.step++); PM.next += PSTEP; }
+  while (PM.next < A.currentTime + 0.3) { pmStep(PM.next, PM.step++); PM.next += PM.stepLen; }
 }
 function partyBeat() {
   if (!PM.synth || !Music || !Music.ctx) return null;
-  const e = (Music.ctx.currentTime - PM.t0) / PBEAT; if (e < 0) return null;
+  const e = (Music.ctx.currentTime - PM.t0) / PM.beat; if (e < 0) return null;
   return [e - Math.floor(e), Math.floor(e)];
 }
 function partyMusicStart() {
@@ -1665,11 +1735,13 @@ function partyMusicStart() {
   PM.on = true; Music.setDuck(0);
   PM.bus = A.createGain(); PM.bus.gain.setValueAtTime(0, A.currentTime); PM.bus.gain.linearRampToValueAtTime(pmVol() * 0.55, A.currentTime + 0.6); PM.bus.connect(A.destination);
   const name = S.partyMusic;
-  if (name && (Music.playlist || []).includes(name)) {
+  if (name && !name.startsWith('nv:') && (Music.playlist || []).includes(name)) {
+    PM.songName = name.replace(/\.[^.]+$/, '');
     const el = new Audio('/music/' + encodeURIComponent(name)); el.loop = true; el.crossOrigin = 'anonymous';
     try { A.createMediaElementSource(el).connect(PM.bus); } catch (e) {}
     el.play().catch(() => {}); PM.el = el; PM.synth = false;
   } else {
+    pickSong(); PM.songName = PSONG.name;
     PM.synth = true; PM.step = 0; PM.t0 = PM.next = A.currentTime + 0.08;
     PM.timer = setInterval(pmSchedule, 25); pmSchedule();
   }
@@ -1800,6 +1872,7 @@ function drawPartyTitle(t) {
     x += widths[i];
   });
   if (party.on) pillText('🎁 Tặng quà lúc này → tranh lên 1 hạng!', W / 2, 640, `800 30px ${FONT}`, 'rgba(26,10,42,0.82)', '#ffe27a', '#ffffff');
+  if (party.on && PM.on && PM.songName) pillText('🎶 ' + PM.songName, W / 2, 700, `700 26px ${FONT}`, 'rgba(255,255,255,0.85)', '#3a1a5a', null);
   ctx.restore();
 }
 function drawSpeech(t) {
