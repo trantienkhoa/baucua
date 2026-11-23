@@ -25,7 +25,7 @@ Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dù
 - Bán không cần VPS: khách gửi mã máy (hiện ở trang nhập key) → anh bấm `TaoKey.bat`, dán mã → ra key `NLOF-…` chỉ chạy trên máy đó, không cần mạng.
 - Dùng song song được với key qua máy chủ (`web/`). Hướng dẫn: `web/HUONG-DAN-BAN-HANG.md` mục "Hai cách bán".
 - Bản 2D: vòng ghế kín hơn, chỉ chừa khe nhỏ trước mặt đống lửa.
-- Giọng kể mặc định **Ông Tư — giọng già** (Độ rợn = 4, thêm mức 5 "rất già"): chậm, trầm, giọng run (rung cao độ), khàn; áp dụng cho giọng VieNeu và giọng Windows dự phòng.
+- Giọng kể mặc định: giọng VieNeu **Đức Trí** (trầm, chậm) + **Ông Tư — trầm nhẹ, tự nhiên** (Độ rợn = 4; mức 5 trầm hơn). Không dùng hiệu ứng rè / rung mạnh vì nghe như giọng máy; áp dụng cho giọng VieNeu và giọng Windows dự phòng.
 - Tên người xem chế độ **Gọn** (mặc định, Cài đặt → Tên người xem): chỉ hiện tên người vừa bình luận, vừa được ông Tư chào, đang là vai trong truyện, đang cầm búp bê hoặc bị đoán bị ma nhập. Chọn "Hiện tên tất cả" để như cũ.
 
 ## 📦 Ngọn Lửa Cuối Cùng: gói phát hành bấm là chạy (bản 2.22.0)

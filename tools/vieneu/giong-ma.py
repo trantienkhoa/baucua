@@ -33,7 +33,8 @@ lock = threading.Lock()
 
 def voice_labels():
     try:
-        return [v[0] if isinstance(v, (list, tuple)) else str(v) for v in tts.list_preset_voices()]
+        # mỗi giọng là (nhãn hiển thị, tên); VieNeu chỉ nhận TÊN khi đọc (vd 'Đức Trí'), nên trả về tên
+        return [(v[1] if len(v) > 1 else v[0]) if isinstance(v, (list, tuple)) else str(v) for v in tts.list_preset_voices()]
     except Exception:
         return []
 

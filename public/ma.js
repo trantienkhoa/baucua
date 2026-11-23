@@ -286,7 +286,7 @@
   function applyTTS() {
     if (!window.MC) return;
     MC.enabled = !!S.tts; MC.rate = +S.ttsRate || 0.92; MC.volume = +S.ttsVolume || 1; MC.setPref(S.ttsVoice || '');
-    MC.pitch = [1, 0.85, 0.72, 0.6, 0.62, 0.55][+S.voiceScary | 0] || 1; if (+S.voiceScary >= 4) MC.rate = Math.min(MC.rate, +S.voiceScary === 5 ? 0.78 : 0.82);   // giọng trình duyệt: chỉ hạ được cao độ
+    MC.pitch = [1, 0.85, 0.72, 0.6, 0.8, 0.72][+S.voiceScary | 0] || 1; if (+S.voiceScary >= 4) MC.rate = Math.min(MC.rate, 0.88);   // giọng trình duyệt: chỉ hạ được cao độ
   }
 
   // ======================================================================

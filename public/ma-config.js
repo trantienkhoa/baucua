@@ -25,9 +25,9 @@
     scare: 'nhe',           // vua | nhe | tat — mức hù; mặc định nhẹ (không hiện mặt ma) để tránh nội dung gây sốc
     tts: true, ttsWhere: 'game', ttsVoice: '', ttsRate: 0.92, ttsVolume: 1,
     ttsEngine: 'vieneu',    // vieneu: giọng VieNeu-TTS (chạy tools/vieneu) | browser: giọng có sẵn của trình duyệt
-    vnVoice: '',            // giọng VieNeu (để trống = giọng mặc định)
+    vnVoice: 'Đức Trí',     // giọng VieNeu: Đức Trí / Thiền Tâm Đức trầm, chậm, hợp ông Tư (để trống = giọng mặc định)
     vieneuUrl: 'http://127.0.0.1:3399',
-    voiceScary: 4,          // 0 giọng gốc · 1 hơi rợn · 2 rợn · 3 rất rợn · 4 ông Tư giọng già · 5 ông Tư giọng rất già (chậm, trầm, run, khàn)
+    voiceScary: 4,          // 0 giọng gốc · 1 hơi rợn · 2 rợn · 3 rất rợn · 4 ông Tư (chậm, trầm nhẹ) · 5 ông Tư trầm hơn
     volume: 0.6,
     maxSeats: 70,           // số ghế quanh đống lửa
     idleSeconds: 420,       // im lặng quá lâu thì rời ghế
