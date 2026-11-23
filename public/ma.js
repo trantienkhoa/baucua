@@ -526,10 +526,27 @@
     startVote('story', 'Kể chuyện nào tiếp theo?', opts.map(s => s.title), S.storyVoteSeconds, idx => startStory(opts[idx]), opts.map(s => s.teaser));
     narrate('Chọn chuyện tiếp theo. Gõ 1, 2 hoặc 3.');
   }
-  function startStory(st) {
+  const traveling = () => story.phase === 'travel' || !!(use3D() && MA3D.busy && MA3D.busy());
+  function startStory(st, noTravel) {
     if (!st) return;
     vote = null;
-    pickMap(true, st);
+    if (!noTravel) {
+      const prev = curMap;
+      pickMap(true, st);
+      if (prev !== curMap && use3D() && MA3D.canTravel && MA3D.canTravel()) {
+        // ông kể chuyện cầm đuốc dẫn mọi người qua màn đêm tới cảnh mới, tới nơi mới kể
+        story.phase = 'travel'; story.travelSt = st; story.travelT0 = story.clock; story.travelSeen = false;
+        const who = S.tellerName || 'Ông Tư', where = ((MA3D.sceneNames || {})[curMap] || 'chốn khác').toLowerCase();
+        const line = pick([
+          `${who} dập lửa, thắp đuốc: "Đi thôi… theo sát tôi, đừng ai quay đầu lại." Cả đoàn run rẩy băng qua màn đêm tới ${where}.`,
+          `${who} giơ cao ngọn đuốc: "Chuyện tiếp theo phải kể ở ${where}. Nắm tay nhau mà đi." Bóng tối nuốt dần con đường phía sau.`,
+          `"Chỗ này không kể tiếp được nữa rồi…" ${who} cầm đuốc dẫn đường. Mọi người co ro bước theo, tới ${where} thì nhóm lửa mới.`,
+        ]);
+        setLine([{ t: line, hl: 0 }], line);
+        sfx('wind', 0.8); sfx('steps', 0.6, 2.5); sfx('steps', 0.5, 6);
+        return;
+      }
+    }
     story.st = st; story.played.push(st.id); if (story.played.length > 20) story.played.shift();
     story.roles = pickRoles();
     story.part = 0;
@@ -606,12 +623,18 @@
     if (n) toast(`🔥 ${n} người nghe trọn chuyện được +2 điểm gan dạ`, '#ffd27a');
   }
   function storyTick(dt) {
-    const blocked = story.paused || (ev && ev.block) || !!jumpscare;
+    const blocked = story.paused || (ev && ev.block) || !!jumpscare || (story.phase !== 'travel' && use3D() && MA3D.busy && MA3D.busy());
     if (!blocked) story.clock += dt;
     if (story.typed < [...story.text].length) story.typed += dt * 46;
     if (blocked) return;
     switch (story.phase) {
       case 'wait': if (story.clock > 4) startIntermission(); break;
+      case 'travel': {
+        const busy = use3D() && MA3D.busy && MA3D.busy();
+        if (busy) story.travelSeen = true;
+        else if (story.travelSeen || story.clock - story.travelT0 > 3) { const st2 = story.travelSt; story.travelSt = null; startStory(st2, true); }
+        break;
+      }
       case 'inter': if (story.pending && story.clock >= story.waitUntil) { const p = story.pending; story.pending = null; startStory(p); } break;
       case 'cast': if (story.clock >= story.waitUntil) goNode(story.st.start); break;
       case 'tell': if (story.clock >= story.nextAt && (!narrating() || story.clock > story.nextAt + 15)) nextLine(); break;
@@ -704,6 +727,7 @@
       }
       return;
     }
+    if (traveling()) return;
     if (vote && !['blackout', 'ghostauto', 'trura'].includes(evQueue[0].type)) return;
     if (story.phase === 'cast') return;
     const it = evQueue.shift();
@@ -1179,12 +1203,12 @@
   function update(dt, t) {
     // dầu đèn cạn dần, âm khí dâng dần
     const blocking = ev && (ev.type === 'blackout' || ev.type === 'trura');
-    if (!blocking && !story.paused) {
+    if (!blocking && !story.paused && !traveling()) {
       oil = clamp(oil - dt * (0.28 + yin / 260) * (+S.lampDecay || 1), 0, 100);
       yin = clamp(yin + dt * 0.14 * (+S.yinRise || 1) * (oil < 30 ? 1.8 : 1), 0, 100);
     }
-    if (oil <= 0 && !blocking && !(ev && ev.type === 'blackout') && !evQueue.some(x => x.type === 'blackout')) { oil = 0.01; queueEvent('blackout'); }
-    if (yin >= 100 && !(ev && (ev.type === 'ghostauto' || ev.type === 'goihon')) && !evQueue.some(x => x.type === 'ghostauto')) { yin = 99; queueEvent('ghostauto'); }
+    if (oil <= 0 && !blocking && !traveling() && !(ev && ev.type === 'blackout') && !evQueue.some(x => x.type === 'blackout')) { oil = 0.01; queueEvent('blackout'); }
+    if (yin >= 100 && !traveling() && !(ev && (ev.type === 'ghostauto' || ev.type === 'goihon')) && !evQueue.some(x => x.type === 'ghostauto')) { yin = 99; queueEvent('ghostauto'); }
     lampFlick = 1 + (Math.sin(t * 13) * 0.02 + Math.sin(t * 7.3) * 0.025 + (Math.random() - 0.5) * 0.03) * (0.6 + yin / 100);
     if (t < lampFlickUntil) lampFlick *= Math.random() < 0.35 ? 0.35 : 1;
     if (ev && ev.type === 'blackout' && t - ev.t0 < 5.2) lampFlick = 0;
@@ -1607,7 +1631,7 @@
   }
   function drawViewer(v, t) {
     const { x, y, sc, a } = viewerPos(v, t);
-    if (use3D() && v.has3d && (v.anim || v.taken)) return;
+    if (use3D() && v.has3d && (v.anim || v.taken || (MA3D.busy && MA3D.busy()))) return;
     if (use3D() && v.has3d && !v.anim && !v.taken) {   // nhân vật 3D: chỉ vẽ mũ thầy pháp / mắt đỏ lên đầu
       const hx = v.hx, hy = v.hy + HEAD3D * sc;
       if (isThay(v)) {
@@ -1651,6 +1675,13 @@
   let bubbleSet = new Set();
   const HEAD3D = 22;   // điểm chiếu (trên đỉnh đầu 3D) → tâm đầu, theo đơn vị sc
   function drawViewerLabel(v, t) {
+    if (use3D() && MA3D.busy && MA3D.busy()) {   // đang đi theo ông kể chuyện: chỉ hiện tên nhỏ trên đầu
+      if (v.taken || v.hx == null || v.hy < 600 || v.hy > 1900) return;
+      ctx.save(); ctx.font = `700 18px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const w = ctx.measureText(v.nameShort).width + 14; ctx.globalAlpha = 0.8;
+      ctx.fillStyle = 'rgba(0,0,0,.55)'; rr(v.hx - w / 2, v.hy - 28, w, 24, 12); ctx.fill(); ctx.fillStyle = '#f3e6d6'; ctx.fillText(v.nameShort, v.hx, v.hy - 15);
+      ctx.restore(); return;
+    }
     if (v.taken && use3D() && v.gx != null) {   // bóng ma người bị bắt: số ghế + cách cứu
       ctx.save(); ctx.globalAlpha = 0.75 + Math.sin(t * 2 + v.seat.n) * 0.2;
       ctx.font = `800 20px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -2289,7 +2320,7 @@
   });
 
   window.__seats = SEATS.length;
-  window.__maShared = { SEATS, MIRROR, S, setLayout, teller: null };
+  window.__maShared = { SEATS, MIRROR, S, setLayout, teller: null, setFire: p => { LX = p.x; LY = p.y; } };
   pickMap(false);
   window.__ma = { S, viewers, story, get ev() { return ev; }, get vote() { return vote; }, get oil() { return oil; }, set oil(v) { oil = v; }, get yin() { return yin; }, set yin(v) { yin = v; }, onEvent, queueEvent };
   requestAnimationFrame(frame);

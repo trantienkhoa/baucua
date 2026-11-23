@@ -116,7 +116,13 @@ if (renderer && SH) {
 
   // ---------------- mặt đất, chiếu ----------------
   const groundMat = new THREE.MeshLambertMaterial({ map: soilTex, color: 0xc8b8a0 });
-  const gnd = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), groundMat); gnd.rotation.x = -Math.PI / 2; scene.add(gnd);
+  const gGeo = new THREE.PlaneGeometry(400, 400, 160, 160);
+  { const p = gGeo.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), d = Math.hypot(x, y); const k = Math.min(1, Math.max(0, (d - 7) / 10)); p.setZ(i, k * (Math.sin(x * 0.35) * Math.cos(y * 0.29) * 0.35 + Math.sin(x * 1.3 + y * 0.9) * 0.08)); } gGeo.computeVertexNormals(); }
+  const gnd = new THREE.Mesh(gGeo, groundMat); gnd.rotation.x = -Math.PI / 2; scene.add(gnd);
+  // lá khô, cành vụn, sỏi rải trên mặt đất
+  { const n = 900, lg = new THREE.PlaneGeometry(0.07, 0.16), im = new THREE.InstancedMesh(lg, new THREE.MeshLambertMaterial({ map: deadLeafTex, color: 0xffffff, side: THREE.DoubleSide, alphaTest: 0.5 }), n), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), c = new THREE.Color();
+    for (let i = 0; i < n; i++) { const a = srand(0, TAU), r = srand(1.2, 14); q.setFromEuler(e.set(-Math.PI / 2 + srand(-0.3, 0.3), 0, srand(0, TAU))); const s2 = srand(0.6, 1.8); im.setMatrixAt(i, m4.compose(new THREE.Vector3(Math.sin(a) * r, 0.015, Math.cos(a) * r), q, new THREE.Vector3(s2, s2, s2))); im.setColorAt(i, c.setHSL(srand(0.06, 0.12), srand(0.2, 0.45), srand(0.25, 0.45))); }
+    scene.add(im); }
 
   // ---------------- dựng các thứ ----------------
   const gMat = (c, extra = {}) => new THREE.MeshLambertMaterial(Object.assign({ color: c }, extra));
@@ -459,40 +465,151 @@ if (renderer && SH) {
   const polar = (r, deg) => [Math.sin(deg * Math.PI / 180) * r, Math.cos(deg * Math.PI / 180) * r];   // 0° = phía máy quay
   const sideName = x => (x < -0.8 ? 'bên trái' : x > 0.8 ? 'bên phải' : 'chính giữa');
   const backName = z => (z < -0.5 ? 'phía sau đống lửa' : 'phía trước đống lửa');
-  function logSeat(g, x, z, len, ang, kind = 'log', zone) {
-    const grp = new THREE.Group(); grp.position.set(x, 0, z); grp.rotation.y = ang;
-    if (kind === 'bamboo') {
-      for (const [dy, dz] of [[0.08, -0.085], [0.08, 0.085], [0.22, 0]]) { const c = mesh(new THREE.CylinderGeometry(0.08, 0.08, len, 7), gMat(0x8a9450), 0, dy, dz, grp); c.rotation.z = Math.PI / 2; }
-      for (const lx of [-len / 3, len / 3]) { const tie = mesh(new THREE.TorusGeometry(0.17, 0.02, 4, 10), gMat(0x5a4a2a), lx, 0.13, 0, grp); tie.rotation.y = Math.PI / 2; }
-    } else {
-      const r = kind === 'root' ? 0.2 : 0.16;
-      const col = kind === 'banana' ? 0x8a8a62 : kind === 'root' ? 0x3e3a30 : 0x6a5640;
-      const c = mesh(new THREE.CylinderGeometry(r * 0.88, r, len, 10), gMat(col, kind === 'root' ? {} : { map: trunkTex }), 0, r - 0.03, 0, grp); c.rotation.z = Math.PI / 2;
-      for (const sx of [-1, 1]) { const end = mesh(new THREE.CircleGeometry(r * (sx < 0 ? 0.88 : 1), 10), gMat(kind === 'banana' ? 0xc8c09a : 0x9a7a52), sx * len / 2 + sx * 0.002, r - 0.03, 0, grp); end.rotation.y = sx * Math.PI / 2; }
-      if (kind === 'log') for (let i = 0; i < 2; i++) { const st = mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.35, 5), gMat(0x4a3a28), srand(-len / 3, len / 3), r + 0.1, srand(-0.05, 0.05), grp); st.rotation.set(srand(-0.6, 0.6), 0, srand(-0.8, 0.8)); }
+  // ---------- đồ vật tự nhiên: thân cây đổ cong queo, gãy lởm chởm, bật rễ; đá méo; gốc cây nham nhở ----------
+  const barkTex = canvasTex(128, 256, (g2, w, h) => {
+    g2.fillStyle = '#4a3b2b'; g2.fillRect(0, 0, w, h);
+    for (let i = 0; i < 46; i++) {   // vết nứt dọc lượn sóng
+      g2.strokeStyle = `rgba(${srand(15, 35) | 0},${srand(10, 25) | 0},8,${srand(0.5, 0.9)})`; g2.lineWidth = srand(1, 3.5);
+      let x = srand(0, w); g2.beginPath(); g2.moveTo(x, 0); for (let y = 0; y <= h; y += 16) { x += srand(-4, 4); g2.lineTo(x, y); } g2.stroke();
     }
-    g.add(grp);
-    const out = [], n = Math.max(1, Math.floor((len - 0.2) / 0.62)), step = (len - 0.2) / n;
-    for (let i = 0; i < n; i++) { const lx = -len / 2 + 0.1 + step * (i + 0.5); const wx = x + lx * Math.cos(ang), wz = z - lx * Math.sin(ang); out.push(seat(wx, SEAT_H, wz, zone || `trên ${kind === 'banana' ? 'thân chuối đổ' : kind === 'bamboo' ? 'bó tre' : kind === 'root' ? 'rễ cây đa' : 'khúc gỗ đổ'} ${sideName(wx)}`)); }
+    for (let i = 0; i < 70; i++) { g2.fillStyle = `rgba(${srand(90, 130) | 0},${srand(75, 100) | 0},${srand(50, 70) | 0},.35)`; g2.fillRect(srand(0, w), srand(0, h), srand(2, 6), srand(6, 20)); }
+    for (let i = 0; i < 9; i++) { g2.fillStyle = `rgba(${srand(50, 80) | 0},${srand(90, 120) | 0},${srand(30, 50) | 0},${srand(0.35, 0.6)})`; g2.beginPath(); g2.ellipse(srand(0, w), srand(0, h), srand(8, 22), srand(10, 30), 0, 0, TAU); g2.fill(); }   // rêu
+  });
+  barkTex.wrapS = barkTex.wrapT = THREE.RepeatWrapping;
+  const fiberTex = canvasTex(64, 256, (g2, w, h) => { g2.fillStyle = '#7e7a58'; g2.fillRect(0, 0, w, h); for (let x = 0; x < w; x += 3) { g2.fillStyle = `rgba(${srand(60, 120) | 0},${srand(70, 110) | 0},${srand(40, 70) | 0},.5)`; g2.fillRect(x, 0, srand(1, 2), h); } for (let i = 0; i < 14; i++) { g2.fillStyle = 'rgba(60,40,25,.45)'; g2.fillRect(srand(0, w), srand(0, h), srand(3, 10), srand(20, 60)); } });
+  fiberTex.wrapS = fiberTex.wrapT = THREE.RepeatWrapping;
+  const strawTex = canvasTex(128, 128, (g2, w) => { g2.fillStyle = '#8a7238'; g2.fillRect(0, 0, w, w); for (let i = 0; i < 400; i++) { g2.strokeStyle = `rgba(${srand(150, 210) | 0},${srand(120, 170) | 0},${srand(50, 90) | 0},.6)`; g2.lineWidth = 1; const x = srand(0, w), y = srand(0, w), a = srand(0, TAU), l = srand(6, 22); g2.beginPath(); g2.moveTo(x, y); g2.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g2.stroke(); } });
+  const PAL = { log: { col: 0xa08a70, map: barkTex, r: 0.2 }, root: { col: 0x6a6050, map: barkTex, r: 0.16 }, banana: { col: 0xb8b48a, map: fiberTex, r: 0.17 } };
+  const woodEnd = new THREE.MeshLambertMaterial({ color: 0xb08a5a });
+  function bumpy(geo, amt, seedK = 1) {   // làm méo hình học cho tự nhiên
+    const p = geo.attributes.position, v = new THREE.Vector3();
+    for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); const n = Math.sin(v.x * 9.1 * seedK + v.y * 7.3) * Math.cos(v.z * 8.7 - v.y * 5.1 * seedK); v.multiplyScalar(1 + n * amt); p.setXYZ(i, v.x, v.y, v.z); }
+    geo.computeVertexNormals(); return geo;
+  }
+  // thân cây nằm đổ: cong, thon dần, một đầu gãy lởm chởm, đầu kia bật gốc rễ hoặc gãy; có cành gãy, rêu
+  function organicLog(g, x, z, len, ang, kind = 'log') {
+    const P = PAL[kind] || PAL.log, grp = new THREE.Group(); grp.position.set(x, 0, z); grp.rotation.y = ang + srand(-0.06, 0.06); g.add(grp);
+    const pts = []; for (let i = 0; i <= 4; i++) pts.push(new THREE.Vector3(-len / 2 + len * i / 4, srand(-0.03, 0.05) * (kind === 'root' ? 3 : 1), (i % 2 ? 1 : -1) * srand(0.03, 0.14) * (kind === 'root' ? 1.8 : 1)));
+    const curve = new THREE.CatmullRomCurve3(pts);
+    const r0 = P.r * srand(0.9, 1.15), r1 = r0 * (kind === 'banana' ? 0.85 : srand(0.5, 0.7));
+    const TUB = 28, RAD = 11, geo = new THREE.TubeGeometry(curve, TUB, 1, RAD, false), pa = geo.attributes.position, v = new THREE.Vector3();
+    const rAt = t => r0 + (r1 - r0) * t;
+    for (let i = 0; i <= TUB; i++) {
+      const c = curve.getPointAt(i / TUB);
+      for (let j = 0; j <= RAD; j++) {
+        const k = i * (RAD + 1) + j; v.fromBufferAttribute(pa, k).sub(c);
+        const lump = 1 + 0.1 * Math.sin(j * 2.3 + i * 1.7) + 0.06 * Math.sin(i * 0.9 + j * 4.1) + (kind === 'log' && (i * 7 + j * 3) % 23 === 0 ? 0.12 : 0);
+        v.multiplyScalar(rAt(i / TUB) * lump).add(c); pa.setXYZ(k, v.x, v.y, v.z);
+      }
+    }
+    geo.computeVertexNormals();
+    const tex = P.map.clone(); tex.needsUpdate = true; tex.repeat.set(2, len * 1.2);
+    const body = mesh(geo, new THREE.MeshLambertMaterial({ map: tex, color: P.col }), 0, r0 * 0.8, 0, grp);
+    const endPt = t => curve.getPointAt(t).add(new THREE.Vector3(0, r0 * 0.8, 0));
+    // đầu gãy: dằm gỗ nhọn chĩa ra
+    const tip = endPt(1), dir = curve.getTangentAt(1);
+    const cap = mesh(new THREE.CircleGeometry(r1 * 0.95, 9), woodEnd, tip.x, tip.y, tip.z, grp); cap.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+    for (let k = 0; k < (kind === 'banana' ? 9 : 7); k++) {
+      const a = k / 7 * TAU, sp = mesh(new THREE.ConeGeometry(kind === 'banana' ? 0.015 : 0.03, srand(0.1, kind === 'banana' ? 0.18 : 0.32), 4), kind === 'banana' ? gMat(0x9a9468) : woodEnd, tip.x + dir.x * 0.04, tip.y + Math.sin(a) * r1 * 0.6, tip.z + Math.cos(a) * r1 * 0.6, grp);
+      sp.rotation.set(srand(-0.4, 0.4), 0, -Math.PI / 2 + srand(-0.5, 0.5));
+    }
+    // đầu kia: bật gốc rễ (cây đổ) hoặc gãy
+    const base = endPt(0);
+    if (kind === 'log' && srand() < 0.6) {
+      const clump = mesh(bumpy(new THREE.SphereGeometry(r0 * 2.1, 10, 8), 0.18, srand(0.6, 1.4)), gMat(0x3a2c1e), base.x - 0.05, r0 * 1.3, base.z, grp); clump.scale.set(0.45, 1, 1);
+      for (let k = 0; k < 6; k++) { const a = k / 6 * TAU + srand(-0.3, 0.3), rl = srand(0.4, 0.9); const rg = new THREE.ConeGeometry(0.045, rl, 5); rg.translate(0, rl / 2, 0); const rt = mesh(rg, new THREE.MeshLambertMaterial({ map: barkTex, color: 0x7a6a58 }), base.x - 0.1, r0 * 1.2 + Math.sin(a) * r0 * 1.4, base.z + Math.cos(a) * r0 * 1.4, grp); rt.rotation.set(Math.cos(a) * 1.2, 0, Math.PI / 2 + Math.sin(a) * 0.9 + srand(-0.3, 0.3)); }
+    } else {
+      const c2 = mesh(new THREE.CircleGeometry(r0 * 0.95, 9), woodEnd, base.x, base.y, base.z, grp); c2.rotation.y = -Math.PI / 2;
+      if (kind !== 'banana') for (let k = 0; k < 4; k++) { const sp = mesh(new THREE.ConeGeometry(0.035, srand(0.1, 0.22), 4), woodEnd, base.x - 0.03, base.y + srand(-r0, r0) * 0.6, base.z + srand(-r0, r0) * 0.6, grp); sp.rotation.z = Math.PI / 2 + srand(-0.4, 0.4); }
+    }
+    // cành gãy mọc ra (không chĩa vào chỗ ngồi phía trên)
+    if (kind === 'log') for (let k = 0; k < 3; k++) {
+      const t = srand(0.25, 0.85), c = endPt(t), side = srand() < 0.5 ? -1 : 1, bl = srand(0.35, 0.8);
+      const bg = new THREE.CylinderGeometry(0.018, 0.05, bl, 6); bg.translate(0, bl / 2, 0);
+      const br = mesh(bg, new THREE.MeshLambertMaterial({ map: barkTex, color: 0x8a7a64 }), c.x, c.y, c.z + side * rAt(t) * 0.8, grp);
+      br.rotation.set(side * srand(0.9, 1.4), srand(-0.4, 0.4), srand(-0.5, 0.5));
+      if (srand() < 0.6) { const tw = mesh(new THREE.CylinderGeometry(0.006, 0.014, 0.25, 4).translate(0, 0.12, 0), gMat(0x5a4a38), 0, bl * 0.7, 0, br); tw.rotation.set(srand(-0.9, 0.9), 0, srand(-0.9, 0.9)); }
+    }
+    if (kind === 'banana') for (let k = 0; k < 3; k++) { const c = endPt(srand(0.2, 0.8)); const lf = mesh(new THREE.PlaneGeometry(0.25, 0.7).translate(0, -0.3, 0), gMat(0x6a5a3a, { map: deadLeafTex, side: THREE.DoubleSide, alphaTest: 0.5 }), c.x, c.y + r0 * 0.6, c.z + (k % 2 ? 1 : -1) * r0, grp); lf.rotation.set(srand(-0.8, 0.8), srand(0, TAU), srand(1.0, 1.5)); }   // bẹ chuối khô bám thân
+    // điểm ngồi dọc thân, theo độ cao thật của thân
+    const out = [], n = Math.max(1, Math.floor((len - 0.4) / 0.62));
+    for (let i = 0; i < n; i++) {
+      const t = 0.15 + 0.7 * (i + 0.5) / n, c = curve.getPointAt(t);
+      const top = r0 * 0.8 + c.y + rAt(t) * 0.92;
+      const wx = x + c.x * Math.cos(grp.rotation.y) + c.z * Math.sin(grp.rotation.y), wz = z - c.x * Math.sin(grp.rotation.y) + c.z * Math.cos(grp.rotation.y);
+      out.push(seat(wx, top, wz, null));
+    }
     return out;
   }
-  function baleSeat(g, x, z) { const b = mesh(new THREE.CylinderGeometry(0.3, 0.32, SEAT_H, 12), gMat(0xa08a48), x, SEAT_H / 2, z, g); b.rotation.y = srand(0, TAU); mesh(new THREE.TorusGeometry(0.31, 0.015, 4, 14), gMat(0x6a5a2a), x, SEAT_H * 0.55, z, g).rotation.x = Math.PI / 2; return seat(x, SEAT_H, z, `trên bó rơm ${sideName(x)} ${backName(z)}`); }
-  function rockSeat(g, x, z, s = 1) { const r = mesh(new THREE.DodecahedronGeometry(0.32 * s, 0), gMat(0x5a5650), x, SEAT_H * 0.5, z, g); r.scale.set(1.1, SEAT_H / (0.6 * s), 1); r.rotation.y = srand(0, TAU); return seat(x, SEAT_H, z, `trên tảng đá ${sideName(x)} ${backName(z)}`); }
-  function stumpSeat(g, x, z, zone) { mesh(new THREE.CylinderGeometry(0.22, 0.27, SEAT_H, 10), gMat(0x5a4632, { map: trunkTex }), x, SEAT_H / 2, z, g); mesh(new THREE.CircleGeometry(0.22, 10), gMat(0xa0805a), x, SEAT_H + 0.002, z, g).rotation.x = -Math.PI / 2; return seat(x, SEAT_H, z, zone || `trên gốc cây ${sideName(x)}`); }
-  function stoolSeat(g, x, z, zone) { box(g, 0.38, 0.05, 0.38, 0x4a3422, x, SEAT_H - 0.025, z); for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(g, 0.02, 0.02, SEAT_H, 0x3a2a1a, x + sx * 0.15, SEAT_H / 2, z + sz * 0.15, 4); return seat(x, SEAT_H, z, zone || `trên ghế đẩu ${sideName(x)}`); }
-  function benchSeats(g, x, z, len, ang, zone) {
-    const grp = new THREE.Group(); grp.position.set(x, 0, z); grp.rotation.y = ang; g.add(grp);
-    box(grp, len, 0.05, 0.34, 0x5a4230, 0, SEAT_H - 0.025, 0);
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(grp, 0.025, 0.025, SEAT_H, 0x3a2a1a, sx * (len / 2 - 0.12), SEAT_H / 2, sz * 0.12, 4);
+  function logSeat(g, x, z, len, ang, kind = 'log', zone) {
+    if (kind === 'bamboo') {   // bó tre buộc dây, cây dài cây ngắn, có cây gãy
+      const grp = new THREE.Group(); grp.position.set(x, 0, z); grp.rotation.y = ang + srand(-0.05, 0.05); g.add(grp);
+      for (const [dy, dz] of [[0.08, -0.09], [0.08, 0.09], [0.22, 0], [0.07, 0.25]]) {
+        const l = len * srand(0.85, 1.1), c = mesh(new THREE.CylinderGeometry(srand(0.06, 0.085), srand(0.07, 0.09), l, 7), gMat([0x8a9450, 0x9a9a58, 0x7a8440][Math.floor(srand(0, 3))]), srand(-0.15, 0.15), dy, dz, grp);
+        c.rotation.z = Math.PI / 2 + srand(-0.03, 0.03);
+        for (let k = 1; k < 5; k++) mesh(new THREE.TorusGeometry(0.078, 0.008, 4, 10), gMat(0x6a7438), 0, -l / 2 + l * k / 5, 0, c).rotation.x = Math.PI / 2;   // đốt tre
+      }
+      for (const lx of [-len / 3, len / 3]) { const tie = mesh(new THREE.TorusGeometry(0.19, 0.022, 4, 10), gMat(0x5a4a2a), lx, 0.14, 0, grp); tie.rotation.y = Math.PI / 2; }
+      const out = [], n = Math.max(1, Math.floor((len - 0.2) / 0.62)), step = (len - 0.2) / n;
+      for (let i = 0; i < n; i++) { const lx = -len / 2 + 0.1 + step * (i + 0.5); out.push(seat(x + lx * Math.cos(grp.rotation.y), 0.3, z - lx * Math.sin(grp.rotation.y), zone || `trên bó tre ${sideName(x + lx * Math.cos(ang))}`)); }
+      return out;
+    }
+    const seats = organicLog(g, x, z, len, ang, kind);
+    const name = kind === 'banana' ? 'thân chuối đổ' : kind === 'root' ? 'rễ cây đa' : 'thân cây đổ';
+    seats.forEach(s => { s.zone = zone || `trên ${name} ${sideName(s.p.x)}`; });
+    return seats;
+  }
+  function baleSeat(g, x, z) {   // đống rơm bù xù
+    const b = mesh(bumpy(new THREE.SphereGeometry(0.36, 12, 9), 0.12, srand(0.7, 1.3)), new THREE.MeshLambertMaterial({ map: strawTex, color: 0xd0b880 }), x, 0.15, z, g); b.scale.set(srand(0.95, 1.15), 0.48, srand(0.95, 1.15)); b.rotation.y = srand(0, TAU);
+    for (let k = 0; k < 6; k++) { const s2 = mesh(new THREE.CylinderGeometry(0.004, 0.004, srand(0.2, 0.4), 3), gMat(0xc8a860), x + srand(-0.35, 0.35), 0.06, z + srand(-0.35, 0.35), g); s2.rotation.set(srand(1.2, 1.8), srand(0, TAU), 0); }
+    return seat(x, 0.31, z, `trên đống rơm ${sideName(x)} ${backName(z)}`);
+  }
+  function rockSeat(g, x, z, s = 1) {
+    const geo = bumpy(new THREE.IcosahedronGeometry(0.34 * s, 1), 0.22, srand(0.6, 1.6));
+    const col = new Float32Array(geo.attributes.position.count * 3), p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) { const up = p.getY(i) / (0.34 * s), moss = up > 0.4 ? srand(0.4, 1) : 0, gry = srand(0.3, 0.42); col.set([gry * (1 - moss * 0.3), gry + moss * 0.12, gry * (1 - moss * 0.45)], i * 3); }
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const r = mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), x, 0.1, z, g); r.scale.set(srand(1.0, 1.3), srand(0.6, 0.8), srand(1.0, 1.25)); r.rotation.set(srand(-0.15, 0.15), srand(0, TAU), srand(-0.15, 0.15));
+    const top = 0.1 + 0.34 * s * r.scale.y * 1.05;
+    return seat(x, top, z, `trên tảng đá ${sideName(x)} ${backName(z)}`);
+  }
+  function stumpSeat(g, x, z, zone) {   // gốc cây gãy, mặt trên nham nhở, rễ bò quanh
+    const h = srand(0.3, 0.36), geo = new THREE.CylinderGeometry(0.22, 0.3, h, 11, 2), p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) if (p.getY(i) > h / 2 - 0.01) p.setY(i, p.getY(i) + srand(-0.04, 0.09) * (Math.abs(p.getX(i)) + Math.abs(p.getZ(i)) > 0.05 ? 1 : 0));
+    geo.computeVertexNormals();
+    mesh(geo, new THREE.MeshLambertMaterial({ map: barkTex, color: 0x8a7a64 }), x, h / 2, z, g);
+    mesh(new THREE.CircleGeometry(0.2, 10), woodEnd, x, h - 0.01, z, g).rotation.x = -Math.PI / 2;
+    for (let k = 0; k < 4; k++) { const a = k / 4 * TAU + srand(-0.4, 0.4), rg = new THREE.ConeGeometry(0.05, 0.5, 5); rg.translate(0, 0.25, 0); const rt = mesh(rg, new THREE.MeshLambertMaterial({ map: barkTex, color: 0x7a6a58 }), x + Math.sin(a) * 0.22, 0.05, z + Math.cos(a) * 0.22, g); rt.rotation.set(Math.cos(a) * 1.35, 0, -Math.sin(a) * 1.35); }
+    return seat(x, h, z, zone || `trên gốc cây gãy ${sideName(x)}`);
+  }
+  function stoolSeat(g, x, z, zone) {   // ghế đẩu gỗ cũ, hơi xiêu
+    const grp = new THREE.Group(); grp.position.set(x, 0, z); grp.rotation.set(srand(-0.04, 0.04), srand(0, TAU), srand(-0.04, 0.04)); g.add(grp);
+    box(grp, 0.38, 0.05, 0.36, 0x4a3422, 0, SEAT_H - 0.025, 0);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const l = cyl(grp, 0.02, 0.025, SEAT_H, 0x3a2a1a, sx * 0.14, SEAT_H / 2, sz * 0.13, 5); l.rotation.set(sz * 0.08, 0, -sx * 0.08); }
+    return seat(x, SEAT_H, z, zone || `trên ghế đẩu ${sideName(x)}`);
+  }
+  function benchSeats(g, x, z, len, ang, zone) {   // ghế băng gỗ cũ: ván cong vênh, chân xiêu
+    const grp = new THREE.Group(); grp.position.set(x, 0, z); grp.rotation.y = ang + srand(-0.05, 0.05); g.add(grp);
+    const plank = new THREE.BoxGeometry(len, 0.05, 0.34, 8, 1, 1), pp = plank.attributes.position;
+    for (let i = 0; i < pp.count; i++) pp.setY(i, pp.getY(i) - Math.pow(pp.getX(i) / len * 2, 2) * -0.015 + srand(-0.004, 0.004));
+    plank.computeVertexNormals();
+    const pl = mesh(plank, new THREE.MeshLambertMaterial({ map: barkTex, color: 0xb09878 }), 0, SEAT_H - 0.025, 0, grp); pl.rotation.z = srand(-0.015, 0.015);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const l = cyl(grp, 0.025, 0.03, SEAT_H, 0x3a2a1a, sx * (len / 2 - 0.12), SEAT_H / 2, sz * 0.12, 5); l.rotation.set(sz * 0.1, 0, srand(-0.08, 0.08)); }
     const out = [], n = Math.max(1, Math.floor(len / 0.6)), step = len / n;
-    for (let i = 0; i < n; i++) { const lx = -len / 2 + step * (i + 0.5); const wx = x + lx * Math.cos(ang), wz = z - lx * Math.sin(ang); out.push(seat(wx, SEAT_H, wz, zone || `trên ghế băng ${sideName(wx)}`)); }
+    for (let i = 0; i < n; i++) { const lx = -len / 2 + step * (i + 0.5); const wx = x + lx * Math.cos(grp.rotation.y), wz = z - lx * Math.sin(grp.rotation.y); out.push(seat(wx, SEAT_H, wz, zone || `trên ghế băng ${sideName(wx)}`)); }
     return out;
   }
-  function stepRows(g, cx, cz, width, n, color = 0x5a5650, label = 'bậc đá') {   // bậc thềm: hàng sau cao hơn, ai cũng nhìn ra đống lửa
+  function stepRows(g, cx, cz, width, n, color = 0x5a5650, label = 'bậc đá') {   // bậc thềm bằng đá: từng phiến lệch nhau, mẻ góc
     const out = [];
     for (let i = 0; i < n; i++) {
       const h = SEAT_H * (i + 1), z = cz - i * 0.5;
-      box(g, width, h, 0.5, color, cx, h / 2, z);
+      for (let x0 = -width / 2; x0 < width / 2 - 0.05;) {
+        const w2 = Math.min(srand(0.7, 1.4), width / 2 - x0), hh = h + srand(-0.02, 0.02);
+        const geo = bumpy(new THREE.BoxGeometry(w2 - 0.02, hh, 0.5, 2, 2, 2), 0.02, srand(0.5, 2));
+        const c = new THREE.Color(color).multiplyScalar(srand(0.8, 1.15));
+        const b = mesh(geo, new THREE.MeshLambertMaterial({ color: c }), cx + x0 + w2 / 2, hh / 2, z + srand(-0.02, 0.02), g); b.rotation.y = srand(-0.02, 0.02);
+        x0 += w2;
+      }
       const k = Math.max(1, Math.floor(width / 0.62));
       for (let j = 0; j < k; j++) { const x = cx - width / 2 + (j + 0.5) * width / k; out.push(seat(x, h, z + 0.05, `trên ${label} thứ ${i + 1} ${sideName(x)}`)); }
     }
@@ -833,8 +950,6 @@ if (renderer && SH) {
     const hat = new THREE.Mesh(new THREE.ConeGeometry(0.27, 0.13, 20, 1, true), gMat(0xc8b080, { side: THREE.DoubleSide }));   // nón lá
     const hatG = new THREE.Group(); hatG.add(hat); hat.position.y = 0.2; hatG.rotation.x = -0.12;
     attachProp(av, 'Head', hatG);
-    const beard = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.2, 8), gMat(0xe8e4dc)); beard.rotation.x = Math.PI; beard.position.set(0, -0.07, 0.1);   // râu bạc
-    attachProp(av, 'Head', beard);
     const cane = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.018, 1.1, 6), gMat(0x5a3a1a)); cane.position.set(0, -0.25, 0.04);   // gậy trúc
     attachProp(av, 'RightHand', cane);
   }
@@ -923,6 +1038,7 @@ if (renderer && SH) {
       }
       if (!e) { v.has3d = false; continue; }
       e.v = v; v.has3d = true;
+      if (trans) { if (v.taken) { e.av.holder.visible = false; continue; } if (transViewer(e, v, t)) continue; }
       let alpha = Math.max(0.001, v.alpha);
       const taking = v.anim && v.anim.type === 'take', returning = v.anim && v.anim.type === 'return';
       if (v.anim) { const p = Math.min(1, (t - v.anim.t0) / 1.3); alpha *= taking ? Math.max(0.001, 1 - p * 2) : Math.max(0.001, p * 2 - 1); }
@@ -967,7 +1083,7 @@ if (renderer && SH) {
       const av = createAvatar(scene, false, males[0] || avatarTemplates[0], null);
       if (!av) return;
       av.holder.traverse(o => { if (o.isMesh && o.material && o.material.emissiveIntensity >= 2 && o.material.toneMapped === false) o.visible = false; });
-      tellerProps(av);
+      tellerProps(av); torch = makeTorch(av);
       teller = { av, prop: null, propFor: null };
     }
     // ghế ngồi của ông kể chuyện theo từng cảnh
@@ -978,6 +1094,7 @@ if (renderer && SH) {
       if (T.kind === 'bale') baleSeat(pg, T.x, T.z); else if (T.kind === 'rock') rockSeat(pg, T.x, T.z); else if (T.kind === 'stool') stoolSeat(pg, T.x, T.z); else if (T.kind === 'root') logSeat(pg, T.x, T.z, 1.2, 0, 'root'); else stumpSeat(pg, T.x, T.z);
       teller.prop = pg; teller.propFor = curMap;
     }
+    if (trans && transTeller(t)) return;
     const T = L2.teller;
     // quay về phía máy quay, hơi hướng vào đống lửa
     const yaw = Math.atan2(camera.position.x - T.x, camera.position.z - T.z) * 0.75 + Math.atan2(-T.x, -T.z) * 0.25 * (Math.abs(T.x) > 0.5 ? 1 : 0);
@@ -999,12 +1116,192 @@ if (renderer && SH) {
     SH.teller = { x: hs.x, y: hs.y, sc: Math.max(0.5, Math.min(1.3, H / (2 * Math.tan(camera.fov * Math.PI / 360) * camera.position.distanceTo(_v.set(T.x, 1, T.z))) / 235)) };
   }
 
+  // ---------------- chuyển cảnh: ông kể chuyện cầm đuốc dẫn đoàn đi qua màn đêm ----------------
+  // 0–1.8s: lửa tàn, đứng dậy thắp đuốc · 1.8–7.8s: dẫn đoàn đi ra (máy quay lùi trước mặt)
+  // 7.8s: tối mịt, đổi cảnh · 7.8–13.3s: đi vào cảnh mới (máy quay theo sau lưng)
+  // 13.3–14.8s: ngồi xuống châm lửa · 12.8–16s: mọi người về chỗ ngồi, máy quay bay về góc cuối
+  const TR = { stand: 1.8, swap: 7.8, arrive: 13.3, lit: 14.0, settle0: 12.8, done: 16.6 };
+  let trans = null;
+  const clamp01 = v => Math.max(0, Math.min(1, v));
+  const ease3 = v => { v = clamp01(v); return v * v * (3 - 2 * v); };
+  function mkPath(pts) { const c = new THREE.CatmullRomCurve3(pts); return { c, len: c.getLength() }; }
+  function pathAt(P, s) {   // vị trí + hướng theo quãng đường (ra ngoài hai đầu thì kéo dài thẳng)
+    const u = clamp01(s / P.len), p = P.c.getPointAt(u), d = P.c.getTangentAt(u);
+    if (s < 0) p.addScaledVector(d, s); else if (s > P.len) p.addScaledVector(d, s - P.len);
+    p.y = 0; d.y = 0; d.normalize();
+    return { p, d };
+  }
+  // cây đuốc trên tay ông kể chuyện
+  let torch = null;
+  function makeTorch(av) {
+    const g2 = new THREE.Group();
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.025, 0.7, 6), gMat(0x4a3018)); stick.position.y = 0.2; g2.add(stick);
+    const rag = new THREE.Mesh(bumpy(new THREE.SphereGeometry(0.06, 8, 6), 0.2), gMat(0x2a1a10)); rag.position.y = 0.56; g2.add(rag);
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.5).translate(0, 0.25, 0), flameMat); fl.position.y = 0.55; g2.add(fl);
+    const fl2 = fl.clone(); fl2.rotation.y = Math.PI / 2; g2.add(fl2);
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffa040, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.8 })); glow.position.y = 0.7; glow.scale.setScalar(1.3); g2.add(glow);
+    const light = new THREE.PointLight(0xff9040, 0, 0, 1.7); light.position.y = 0.7; g2.add(light);
+    g2.rotation.x = -0.25;
+    attachProp(av, 'RightHand', g2);
+    g2.visible = false;
+    return { g: g2, light, fl: [fl, fl2], glow };
+  }
+  // dáng đi: người xem co ro ôm tay, run, bước rón rén; ông kể chuyện đi thẳng, giơ đuốc
+  function poseWalk(t, ph, scared, torchUp) {
+    const sw = Math.sin(ph), jit = scared ? (Math.random() - 0.5) * 0.06 : 0;
+    rig.hips.rotation.set(0, 0, 0);
+    rig.hipL.rotation.set(0.45 * sw, 0, -0.03); rig.knL.rotation.set(Math.max(0, -Math.sin(ph - 0.6)) * 0.8 + 0.08, 0, 0);
+    rig.hipR.rotation.set(-0.45 * sw, 0, 0.03); rig.knR.rotation.set(Math.max(0, Math.sin(ph - 0.6)) * 0.8 + 0.08, 0, 0);
+    if (scared) {
+      rig.spine.rotation.set(0.32 + jit, 0, Math.sin(t * 2.1) * 0.04); rig.neck.rotation.set(0.15, 0, 0);
+      rig.head.rotation.set(0.05 + jit, Math.sin(t * 1.3 + ph) * 0.6, 0);   // ngó nghiêng sợ hãi
+      rig.shL.rotation.set(-0.7 + jit, 0, 0.45); rig.elL.rotation.set(-1.7, 0, 1.0);
+      rig.shR.rotation.set(-0.7 - jit, 0, -0.45); rig.elR.rotation.set(-1.7, 0, -1.0);
+    } else {
+      rig.spine.rotation.set(0.06, 0, 0); rig.head.rotation.set(-0.05, Math.sin(t * 0.7) * 0.3, 0);
+      rig.shL.rotation.set(0.35 * sw, 0, 0.12); rig.elL.rotation.set(-0.3, 0, 0);
+      if (torchUp) { rig.shR.rotation.set(-2.3, 0, -0.25); rig.elR.rotation.set(-0.5, 0, 0); }
+      else { rig.shR.rotation.set(-0.35 * sw, 0, -0.12); rig.elR.rotation.set(-0.3, 0, 0); }
+    }
+  }
+  function canTravel() { return !!(curMap && built[curMap] && modelsReady && teller && !trans); }
+  function startTransition(from, to) {
+    const L1 = built[from], T = L1.teller;
+    trans = {
+      from, to, el: 0,
+      out: mkPath([new THREE.Vector3(T.x, 0, T.z), new THREE.Vector3(T.x * 0.4 + 0.3, 0, 2.2), new THREE.Vector3(-0.4, 0, 5.5), new THREE.Vector3(0.3, 0, 9)]),
+      inn: mkPath([new THREE.Vector3(-0.3, 0, 12), new THREE.Vector3(0.5, 0, 8), new THREE.Vector3(-0.3, 0, 4.2), new THREE.Vector3(0, 0, 1.2)]),
+      swapped: false, fogFrom: scene.fog.density, camSnap: null, finalCam: null, order: null, fire: 1,
+    };
+    trans.order = st.viewers.filter(v => !v.leaving).sort((a, b) => a.seat.n - b.seat.n).map(v => v.id);
+    if (torch) torch.g.visible = true;
+  }
+  function tellerS(el) {   // quãng đường ông kể chuyện đã đi
+    if (el < TR.stand) return { path: trans.out, s: 0 };
+    if (el < TR.swap) return { path: trans.out, s: trans.out.len * (el - TR.stand) / (TR.swap - TR.stand) };
+    return { path: trans.inn, s: trans.inn.len * clamp01((el - TR.swap) / (TR.arrive - TR.swap)) };
+  }
+  function slotOf(i, el) {
+    const ts = tellerS(el), row = Math.floor(i / 5), col = (i % 5) - 2;
+    const q = pathAt(ts.path, ts.s - 1.5 - row * 0.95 - (col % 2 ? 0.3 : 0));
+    const perp = new THREE.Vector3(-q.d.z, 0, q.d.x);
+    q.p.addScaledVector(perp, col * 0.62 + Math.sin(i * 2.7) * 0.12);
+    return q;
+  }
+  function transTick(t, dt) {
+    trans.el += dt;
+    const el = trans.el;
+    // lửa: tàn dần ở cảnh cũ, châm lại ở cảnh mới
+    trans.fire = el < TR.swap ? 1 - ease3(el / 1.6) : el < TR.lit ? 0 : ease3((el - TR.lit) / 1.0);
+    // đuốc
+    if (torch) { const on = el > 0.8 && el < TR.done - 0.8; torch.light.intensity = on ? 6 + Math.sin(t * 15) * 1 : 0; torch.fl.forEach(f => f.visible = on); torch.glow.material.opacity = on ? 0.8 : 0; }
+    // màn đêm: sương dày đặc lúc đi giữa hai cảnh
+    const night = el < TR.swap ? ease3((el - 2.4) / 4.4) : 1 - ease3((el - TR.swap - 1.5) / 4);
+    if (!trans.swapped && el >= TR.swap) {
+      trans.swapped = true;
+      for (const [k, b] of Object.entries(built)) b.g.visible = k === trans.to;
+      curMap = trans.to;
+      assignWorld(built[trans.to]);
+      trans.fogTo = (SCENES[trans.to].fog || 0.04) * 0.75;
+      if (teller) teller.propFor = null;
+    }
+    const baseFog = trans.swapped ? trans.fogTo : trans.fogFrom;
+    scene.fog.density = baseFog + (0.2 - baseFog) * night;
+    hemi.intensity *= 1 - night * 0.6; moonLight.intensity *= 1 - night * 0.7; fillLight.intensity *= 1 - night * 0.7;
+    // máy quay bay theo đoàn
+    const ts = tellerS(el), tq = pathAt(ts.path, ts.s);
+    let camP, look;
+    if (el < TR.swap) {   // lùi trước mặt ông kể chuyện, nhìn vào cả đoàn
+      camP = tq.p.clone().addScaledVector(tq.d, 4.4).add(new THREE.Vector3(0.9, 1.8, 0));
+      look = tq.p.clone().addScaledVector(tq.d, -2.4).add(new THREE.Vector3(0, 0.9, 0));
+    } else {   // bám sau lưng đoàn, nhìn về phía trước
+      const back = pathAt(trans.inn, ts.s - 7.5);
+      camP = back.p.clone().add(new THREE.Vector3(1.3, 3.1, 0));
+      look = tq.p.clone().addScaledVector(tq.d, 2.5).add(new THREE.Vector3(0, 0.5, 0));
+    }
+    if (el >= TR.arrive) {   // bay về góc máy cuối của cảnh mới
+      if (!trans.finalCam) { trans.camSnap = { p: camera.position.clone(), q: camera.quaternion.clone(), fov: camera.fov }; layoutCount = tierFor(built[trans.to], seatedNow()); trans.finalCam = computeFit(built[trans.to], layoutCount); }
+      const k = ease3((el - TR.arrive) / (TR.done - TR.arrive - 0.4));
+      camera.position.lerpVectors(trans.camSnap.p, trans.finalCam.p, k); camera.quaternion.slerpQuaternions(trans.camSnap.q, trans.finalCam.q, k);
+      camera.fov = trans.camSnap.fov + (trans.finalCam.fov - trans.camSnap.fov) * k; camera.updateProjectionMatrix();
+    } else {
+      const sm = 1 - Math.exp(-dt * (el < TR.stand ? 1.6 : 4));
+      camera.position.lerp(camP, sm);
+      const m = new THREE.Matrix4().lookAt(camera.position, look, new THREE.Vector3(0, 1, 0)), q = new THREE.Quaternion().setFromRotationMatrix(m);
+      camera.quaternion.slerp(q, sm);
+      camera.fov += (55 - camera.fov) * sm; camera.updateProjectionMatrix();
+    }
+    camera.updateMatrixWorld();
+    // vị trí ngọn đuốc trên màn hình (cho lớp tối 2D)
+    if (teller) { const hs = toScreen(_v.set(0, 0, 0).applyMatrix4(teller.av.bones.RightHand ? teller.av.bones.RightHand.matrixWorld : teller.av.holder.matrixWorld)); SH.setFire && SH.setFire({ x: hs.x, y: hs.y }); }
+    if (el >= TR.done) {
+      trans = null; if (torch) torch.g.visible = false;
+      scene.fog.density = (SCENES[curMap].fog || 0.04) * 0.75;
+      applyLayout(built[curMap], true);
+    }
+  }
+  function assignWorld(L2) {   // chỗ ngồi mới (chưa chiếu lên màn hình)
+    for (let i = 0; i < SH.SEATS.length; i++) { const s = L2.seats[i] || L2.seats[L2.seats.length - 1]; Object.assign(SH.SEATS[i], { w: s.p, pose: s.pose, face: s.face, zone: s.zone, ring: Math.min(4, Math.floor(i / 14)) }); }
+  }
+  // một người xem trong lúc chuyển cảnh; trả false nếu đã về chỗ ngồi (dùng tư thế ngồi bình thường)
+  function transViewer(e, v, t) {
+    const el = trans.el;
+    let i = trans.order.indexOf(v.id); if (i < 0) { trans.order.push(v.id); i = trans.order.length - 1; }
+    const settle = ease3((el - TR.settle0 - i * 0.025) / 2.4);
+    if (trans.swapped && settle >= 1) return false;
+    const gather = ease3((el - TR.stand - 0.3 - i * 0.03) / 2.6);
+    if (!trans.swapped && gather <= 0) return false;   // còn ngồi chờ ở chỗ cũ
+    const q = slotOf(i, el);
+    let pos = q.p, dir = q.d;
+    if (!trans.swapped) {   // rời chỗ ngồi, nhập vào đoàn
+      const w = v.seat.w; pos = new THREE.Vector3(w.x, 0, w.z).lerp(q.p, gather);
+      if (gather < 1) dir = q.p.clone().sub(new THREE.Vector3(w.x, 0, w.z)).normalize();
+    } else if (settle > 0) {   // tách đoàn về chỗ ngồi mới
+      const w = v.seat.w; const tgt = new THREE.Vector3(w.x, 0, w.z); pos = q.p.clone().lerp(tgt, settle);
+      dir = tgt.clone().sub(q.p); if (dir.lengthSq() < 1e-4) dir = q.d; dir.normalize();
+    }
+    setGhost(e, false); e.av.holder.visible = v.alpha > 0.02;
+    zeroRig(); placeRoot(pos.x, 0, pos.z, Math.atan2(dir.x, dir.z));
+    poseWalk(t, t * 6.5 + i * 1.3, true, false);
+    rig.root.updateMatrixWorld(true); rig.root.position.y = Math.abs(Math.sin(t * 6.5 + i * 1.3)) * 0.025; rig.root.updateMatrixWorld(true);
+    drive(e.av, Math.max(0.05, v.alpha));
+    const hs = headScreen(); v.hx = hs.x; v.hy = hs.y;
+    return true;
+  }
+  function transTeller(t) {
+    const el = trans.el, T2 = built[trans.to].teller;
+    const ts = tellerS(el), q = pathAt(ts.path, ts.s);
+    let pos = q.p, yaw = Math.atan2(q.d.x, q.d.z);
+    zeroRig();
+    if (el < TR.stand) {   // đứng dậy
+      const T1 = built[trans.from].teller; placeRoot(T1.x, 0, T1.z, Math.atan2(q.d.x, q.d.z));
+      if (el < 0.7) { poseSit(0, 0, 0); groundRig(SEAT_H, 0); } else { poseWalk(t, 0, false, el > 0.8); rig.root.updateMatrixWorld(true); }
+    } else if (el < TR.arrive) {
+      placeRoot(pos.x, 0, pos.z, yaw); poseWalk(t, t * 6 + 0.5, false, true);
+      rig.root.updateMatrixWorld(true); rig.root.position.y = Math.abs(Math.sin(t * 6)) * 0.03; rig.root.updateMatrixWorld(true);
+    } else if (el < TR.lit + 0.9) {   // ngồi xổm, đưa đuốc châm vào đống củi
+      placeRoot(0, 0, 1.0, Math.PI);
+      rig.hips.rotation.set(-0.2, 0, 0); rig.spine.rotation.set(0.5, 0, 0); rig.head.rotation.set(0.35, 0, 0);
+      rig.hipL.rotation.set(-1.9, 0, -0.25); rig.knL.rotation.set(2.3, 0, 0); rig.hipR.rotation.set(-1.9, 0, 0.25); rig.knR.rotation.set(2.3, 0, 0);
+      rig.shR.rotation.set(-1.15, 0, -0.1); rig.elR.rotation.set(-0.25, 0, 0); rig.shL.rotation.set(-0.5, 0, 0.3); rig.elL.rotation.set(-1.2, 0, 0.6);
+      rig.root.updateMatrixWorld(true); rig.hips.getWorldPosition(_v); rig.root.position.y -= _v.y - 0.42; rig.root.updateMatrixWorld(true);
+    } else {   // đứng lên đi về chỗ ngồi kể chuyện
+      const k = ease3((el - TR.lit - 0.9) / 1.4), from = new THREE.Vector3(0, 0, 1.0), to = new THREE.Vector3(T2.x, 0, T2.z);
+      const p2 = from.clone().lerp(to, k), d2 = to.clone().sub(from);
+      if (k >= 1) return false;
+      placeRoot(p2.x, 0, p2.z, Math.atan2(d2.x, d2.z) || 0); poseWalk(t, t * 6, false, false); rig.root.updateMatrixWorld(true);
+    }
+    drive(teller.av, 1, 0);
+    const hs = headScreen(); SH.teller = { x: hs.x, y: hs.y, sc: 0.8 };
+    return true;
+  }
+
   // ---------------- vòng lặp ----------------
   let st = { viewers: [], oil: 80, flick: 1, yin: 0 };
   let curMap = null;
   function setMap(name) {
     if (!SCENES[name]) name = 'dong';
-    if (name === curMap) return;
+    if (trans || name === curMap) return;
     if (!built[name]) {
       const g = new THREE.Group(); g.visible = false; scene.add(g);
       seed = 1000 + Object.keys(SCENES).indexOf(name) * 977;
@@ -1012,6 +1309,7 @@ if (renderer && SH) {
       try { r = SCENES[name].build(g); } catch (e) { console.warn('Lỗi dựng cảnh', name, e); }
       built[name] = Object.assign({ g, seats: [], teller: { x: 0, z: -1.3, kind: 'stump' }, cam: {} }, r || {});
     }
+    if (canTravel()) { startTransition(curMap, name); return; }   // ông kể chuyện dẫn đoàn sang cảnh mới
     curMap = name;
     for (const [k, b] of Object.entries(built)) b.g.visible = k === name;
     scene.fog.density = (SCENES[name].fog || 0.04) * 0.75;
@@ -1024,12 +1322,13 @@ if (renderer && SH) {
     const t = state.t, dt = Math.min(0.1, t - lastT || 0.016); lastT = t;
     windU.value = t;
     if (state.map && state.map !== curMap) setMap(state.map);
-    const on = state.oil > 0 && state.flick > 0;
-    lampLight.intensity = on ? (10 + state.oil * 0.6) * state.flick * (0.9 + Math.sin(t * 17) * 0.06 + Math.sin(t * 29) * 0.04) : 0.0;
+    const fireF = trans ? trans.fire : 1, oilF = state.oil * fireF;
+    const on = oilF > 0.5 && state.flick > 0;
+    lampLight.intensity = on ? (10 + oilF * 0.6) * state.flick * (0.9 + Math.sin(t * 17) * 0.06 + Math.sin(t * 29) * 0.04) : 0.0;
     lampLight.position.x = Math.sin(t * 9) * 0.05; lampLight.position.z = Math.cos(t * 7) * 0.05;
-    lampGlow.material.opacity = on ? 0.35 + state.oil / 300 : 0.08;
-    lampGlow.scale.setScalar(2.4 + state.oil / 40);
-    fireTick(t, dt, state.oil, state.flick);
+    lampGlow.material.opacity = on ? 0.35 + oilF / 300 : 0.04;
+    lampGlow.scale.setScalar(2.4 + oilF / 40);
+    fireTick(t, dt, on ? oilF : 0, state.flick);
     const y = state.yin / 100;
     rimLight.intensity = y > 0.5 ? (y - 0.5) * 30 : 0;
     hemi.intensity = 1.0 - y * 0.35 + (state.trura ? 1.2 : 0);
@@ -1045,7 +1344,7 @@ if (renderer && SH) {
       w.s.material.opacity += (target - w.s.material.opacity) * 0.03;
     });
     flies.forEach(f => { f.s.position.set(f.x + Math.sin(t * 0.4 + f.ph) * 1.2, f.y + Math.sin(t * 0.9 + f.ph) * 0.3, f.z + Math.cos(t * 0.35 + f.ph) * 1.2); f.s.material.opacity = Math.max(0, Math.sin(t * 2 + f.ph * 3)) * (1 - y) * 0.9; });
-    camTick();
+    if (trans) transTick(t, dt); else camTick();
     syncAvatars(t);
     tellerTick(t);
     if (state.shake) camera.setViewOffset(W, H, state.shake.x, state.shake.y, W, H); else camera.clearViewOffset();
@@ -1056,6 +1355,7 @@ if (renderer && SH) {
   fetch('/api/models').then(r => r.json()).then(list => loadAvatars((list || []).filter(m => m.enabled).map(m => ({ url: m.url, female: m.female })))).then(() => { modelsReady = true; console.log('Cảnh 3D: đã nạp', avatarTemplates.length, 'mô hình người'); }).catch(e => console.warn('Không nạp được mô hình người', e));
 
   window.MA3D = { ready: true, frame, setMap, maps: Object.keys(SCENES), sceneNames: Object.fromEntries(Object.entries(SCENES).map(([k, v]) => [k, v.name])),
-    invalidate: () => { curMap = null; }, relayout: () => { if (curMap && built[curMap]) applyLayout(built[curMap], false); },
+    invalidate: () => { curMap = null; if (trans) { trans = null; if (torch) torch.g.visible = false; } }, relayout: () => { if (!trans && curMap && built[curMap]) applyLayout(built[curMap], false); },
+    busy: () => !!trans, canTravel: () => canTravel(), transEl: () => (trans ? trans.el : 99),
     avatarCount: () => avs.size, modelsReady: () => modelsReady };
 }

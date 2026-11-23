@@ -20,6 +20,24 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 🔦 Ngọn Lửa Cuối Cùng: ông kể chuyện cầm đuốc dẫn đoàn sang cảnh mới, đồ vật tự nhiên (bản 2.14.0)
+
+- **Chuyển cảnh có người dẫn đường** (khoảng 16 giây):
+  1. Đống lửa tàn dần. Ông kể chuyện đứng dậy, thắp đuốc.
+  2. Ông đi trước dẫn đoàn. Người xem rời chỗ ngồi, co ro ôm tay, run rẩy, ngó nghiêng, bước theo sau thành từng hàng.
+  3. Máy quay lùi trước mặt đoàn người. Sương đặc dần thành màn đêm tối mịt, chỉ còn ánh đuốc lập loè.
+  4. Sang cảnh mới, máy quay bám sau lưng đoàn.
+  5. Ông kể chuyện ngồi xổm, đưa đuốc châm vào đống củi, lửa bùng lên.
+  6. Mọi người tản về chỗ ngồi mới, máy quay bay về góc nhìn của cảnh đó.
+
+  Trong lúc đi, truyện tạm dừng, củi không cạn, âm khí không tăng và không mở sự kiện; tên người xem hiện nhỏ trên đầu. Khi để "tự đổi cảnh", mỗi lần sang truyện có cảnh riêng thì đoàn người lại được dẫn đi; tới nơi mới bắt đầu kể. Đổi cảnh bằng tay ở trang điều khiển cũng có đoạn dẫn đường này.
+- **Đồ vật tự nhiên hơn, không đều tăm tắp như gỗ công nghiệp:**
+  - Thân cây đổ cong queo, thon dần về ngọn. Một đầu gãy lởm chởm có dằm gỗ, đầu kia bật cả gốc rễ kèm cục đất hoặc gãy ngang. Có cành gãy, cành con, vỏ cây nứt và rêu. Chỗ ngồi theo đúng độ cao thật của thân cây.
+  - Thân chuối đổ có thớ, bẹ khô bám; bó tre cây dài cây ngắn, có đốt, buộc dây; rễ đa ngoằn ngoèo.
+  - Đá méo mó có rêu xanh trên mặt; gốc cây gãy mặt trên nham nhở, rễ bò quanh; đống rơm bù xù có cọng rơm vương.
+  - Ghế băng ván cong vênh, chân xiêu; bậc đá ghép từng phiến lệch nhau.
+  - Đất xa mấp mô, lá khô rải khắp mặt đất.
+
 ## 🎙 Ngọn Lửa Cuối Cùng: cảnh 3D hoàn toàn, mỗi cảnh một bố cục, có người kể chuyện (bản 2.13.0)
 
 - **Bỏ tấm gương và tấm chiếu.** Người xem ngồi trên đồ vật có sẵn trong cảnh, mỗi cảnh một cách bày:

@@ -30,3 +30,4 @@ GAME KỂ CHUYỆN MA "Ngọn Đèn Cuối Cùng" (bản 2.9.0):
 - Cảnh 3D (đồng lúa / bụi chuối): chọn ở Cài đặt → "Cảnh 3D". Máy yếu chọn "Nhà cổ 2D".
 - Bản 2.12.0: đống lửa củi thay đèn dầu (thả tim = thêm củi), 12 cảnh 3D: đồng lúa, bụi chuối, giếng cổ, gốc đa, nghĩa địa, miếu hoang, bến đò, rừng tre, chợ ma, đường ray, nhà hoang, sân đình.
 - Bản 2.13.0: mỗi cảnh 3D một bố cục (ngồi trên khúc gỗ, bó rơm, bậc đá, cầu tàu…), lửa 3D, có ông kể chuyện 3D, người bị bắt thành bóng ma trong bóng tối.
+- Bản 2.14.0: đổi cảnh thì ông kể chuyện cầm đuốc dẫn mọi người đi qua màn đêm rồi nhóm lửa ở cảnh mới; cây đổ, đá, gốc cây trông tự nhiên.
