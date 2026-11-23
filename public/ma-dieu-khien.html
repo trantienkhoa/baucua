@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Điều khiển Ngọn Đèn Cuối Cùng</title>
+<title>Điều khiển Ngọn Lửa Cuối Cùng</title>
 <style>
   :root{--bg:#120c0a;--card:#1d1411;--line:#3a2a20;--text:#f1e4d2;--mut:#a8927a;--pri:#c8641e;--ok:#5fc48a;--err:#ff6a5a;--gold:#ffcf7a}
   *{box-sizing:border-box}
@@ -45,8 +45,8 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>🕯 Ngọn Đèn Cuối Cùng — game kể chuyện ma</h1>
-  <div class="sub">Người xem ngồi quanh ngọn đèn dầu, <b>tên của họ được ghép vào truyện</b>, cùng bình chọn hướng đi, đi tìm kẻ bị ma nhập, chuyền búp bê ma, cầu cơ… · <a href="/admin.html" style="color:var(--gold)">← về game sàn nhảy</a></div>
+  <h1>🔥 Ngọn Lửa Cuối Cùng — game kể chuyện ma</h1>
+  <div class="sub">Người xem ngồi quanh đống lửa củi giữa đồng, gốc đa, nghĩa địa…, <b>tên của họ được ghép vào truyện</b>, cùng bình chọn hướng đi, đi tìm kẻ bị ma nhập, chuyền búp bê ma, cầu cơ… · <a href="/admin.html" style="color:var(--gold)">← về game sàn nhảy</a></div>
 
   <div class="card">
     <details>
@@ -58,9 +58,9 @@
       </ol>
       <b>Người xem làm gì?</b>
       <ul>
-        <li>Bình luận bất kỳ → được <b>ngồi một ghế có số</b> quanh đèn. Người vừa bình luận dễ được chọn <b>vào vai</b> trong truyện.</li>
+        <li>Bình luận bất kỳ → được <b>ngồi một ghế có số</b> quanh đống lửa. Người vừa bình luận dễ được chọn <b>vào vai</b> trong truyện.</li>
         <li><b>1 / 2</b> chọn hướng đi của truyện · <b>1 / 2 / 3</b> chọn chuyện tiếp theo. Đã chọn mà tặng quà → phiếu nặng thêm.</li>
-        <li><b>Thả tim</b> = thêm dầu cho đèn. Đèn cạn → <b>ĐÈN TẮT</b>, ma bắt người.</li>
+        <li><b>Thả tim</b> = thêm củi cho lửa. Hết củi → <b>LỬA TẮT</b>, ma bắt người.</li>
         <li><b>nam mô</b> / <b>a di đà phật</b> → xua bớt âm khí. Âm khí đầy → <b>MA HIỆN HÌNH</b>.</li>
         <li>Người bị bắt nằm trong <b>tấm gương</b>; bình luận của họ hiện thành lời thì thầm. Gõ <b>cứu 12</b> (đủ 3 người) để kéo ghế số 12 ra.</li>
         <li><b>Ai bị ma nhập?</b> gõ số ghế để tố · <b>Búp bê ma</b>: người cầm gõ bất kỳ để chuyền · <b>Cầu cơ</b>: <code>hỏi: …</code></li>
@@ -91,7 +91,7 @@
   <div class="card">
     <h2>2. Đang diễn ra</h2>
     <div class="stats">
-      <div class="stat"><b id="sSeated">0</b><span>quanh đèn</span></div>
+      <div class="stat"><b id="sSeated">0</b><span>quanh đống lửa</span></div>
       <div class="stat"><b id="sTaken">0</b><span>trong gương</span></div>
       <div class="stat"><b id="sWait">0</b><span>chờ ghế</span></div>
       <div class="stat"><b id="sThay">—</b><span>thầy pháp</span></div>
@@ -99,7 +99,7 @@
       <div class="stat"><b id="sFps">—</b><span>khung hình/giây</span></div>
     </div>
     <div class="row" style="gap:16px">
-      <div style="flex:1;min-width:220px">🪔 Dầu đèn <b id="sOil">0</b><div class="bar"><i id="bOil" style="background:linear-gradient(90deg,#ff9a2a,#ffd27a);width:0"></i></div></div>
+      <div style="flex:1;min-width:220px">🔥 Củi lửa <b id="sOil">0</b><div class="bar"><i id="bOil" style="background:linear-gradient(90deg,#ff9a2a,#ffd27a);width:0"></i></div></div>
       <div style="flex:1;min-width:220px">👻 Âm khí <b id="sYin">0</b><div class="bar"><i id="bYin" style="background:linear-gradient(90deg,#7a2aff,#ff2a4a);width:0"></i></div></div>
     </div>
     <div class="muted" id="sStory">—</div>
@@ -131,7 +131,7 @@
       <button data-ev="doll">🪆 Búp bê ma</button>
       <button data-ev="ouija">🔮 Cầu cơ</button>
       <button data-ev="ghost">👻 Ma hiện hình</button>
-      <button data-ev="blackout">🪔 Đèn tắt</button>
+      <button data-ev="blackout">🔥 Lửa tắt</button>
       <button data-ev="exorcise">☯️ Trừ tà</button>
       <button data-ev="knock">🚪 Gõ cửa</button>
       <button data-ev="scare">🫣 Hù một người</button>
@@ -139,7 +139,7 @@
       <button id="btnJump">😱 Mặt ma (thử mức hù)</button>
     </div>
     <div class="row">
-      <button id="btnOilFull">🪔 Đổ đầy dầu</button>
+      <button id="btnOilFull">🪵 Chất đầy củi</button>
       <button id="btnYin0">🙏 Âm khí về 0</button>
       <button id="btnYin90">👻 Âm khí 90</button>
       <button id="btnFree">✨ Thả hết người trong gương</button>
@@ -268,7 +268,7 @@ $('btnYin0').onclick = () => cmd({ type: 'yin', v: 0 });
 $('btnYin90').onclick = () => cmd({ type: 'yin', v: 90 });
 $('btnFree').onclick = () => cmd({ type: 'freeAll' });
 $('btnEndEv').onclick = () => cmd({ type: 'endEvent' });
-$('btnClear').onclick = () => { if (confirm('Xoá hết người đang ngồi quanh đèn?')) cmd({ type: 'clearSeats' }); };
+$('btnClear').onclick = () => { if (confirm('Xoá hết người đang ngồi quanh đống lửa?')) cmd({ type: 'clearSeats' }); };
 
 // ---------- quà ----------
 function renderActs() {
@@ -288,7 +288,7 @@ socket.on('gifts', g => { GIFTS = g || {}; renderActs(); });
 
 // ---------- cài đặt ----------
 const FIELDS = [
-  ['map', '🌾 Cảnh 3D', 'select', [['auto', 'Tự đổi mỗi chuyện (đồng lúa ↔ bụi chuối)'], ['dong', 'Giữa đồng lúa (bù nhìn, mả đất)'], ['chuoi', 'Bụi chuối sau nhà (giếng cạn, chòi hoang)'], ['nhacu', 'Nhà cổ 2D (máy yếu)']]],
+  ['map', '🌾 Cảnh 3D', 'select', [['auto', 'Tự đổi theo chuyện (12 cảnh)'], ['dong', 'Giữa đồng lúa'], ['chuoi', 'Bụi chuối sau nhà'], ['gieng', 'Giếng cổ đầu làng'], ['cayda', 'Gốc đa nghìn năm'], ['nghiadia', 'Nghĩa địa làng'], ['mieu', 'Miếu hoang ven rừng'], ['bendo', 'Bến đò đêm'], ['rungtre', 'Rừng tre'], ['choma', 'Chợ ma nửa đêm'], ['duongray', 'Đường ray bỏ hoang'], ['nhahoang', 'Sân nhà hoang'], ['dinh', 'Sân đình làng'], ['nhacu', 'Nhà cổ 2D (máy yếu)']]],
   ['storyMode', 'Chọn chuyện tiếp theo', 'select', [['vote', 'Người xem bình chọn'], ['random', 'Ngẫu nhiên'], ['order', 'Lần lượt']]],
   ['storySpeed', 'Nhịp kể (1 = vừa, 1.3 = nhanh)', 'number', 0.1],
   ['voteSeconds', 'Giây bình chọn hướng đi', 'number', 1],
@@ -304,11 +304,11 @@ const FIELDS = [
   ['ttsRate', 'Tốc độ đọc', 'number', 0.05],
   ['ttsVolume', 'Âm lượng giọng đọc (0–1)', 'number', 0.05],
   ['volume', 'Âm lượng hiệu ứng (0–1)', 'number', 0.05],
-  ['maxSeats', 'Số ghế quanh đèn (tối đa 73)', 'number', 1],
+  ['maxSeats', 'Số ghế quanh đống lửa (tối đa 73)', 'number', 1],
   ['idleSeconds', 'Im lặng bao nhiêu giây thì rời ghế', 'number', 10],
   ['joinOnLike', 'Thả tim cũng được ngồi vào vòng', 'check'],
-  ['likeOil', 'Dầu thêm cho mỗi tim', 'number', 0.01],
-  ['lampDecay', 'Tốc độ cạn dầu (1 = vừa)', 'number', 0.1],
+  ['likeOil', 'Củi thêm cho mỗi tim', 'number', 0.01],
+  ['lampDecay', 'Tốc độ cháy hết củi (1 = vừa)', 'number', 0.1],
   ['yinRise', 'Tốc độ tăng âm khí (1 = vừa)', 'number', 0.1],
   ['thayMin', 'Xu tối thiểu để thành thầy pháp', 'number', 1],
   ['rescueNeed', 'Số người gõ "cứu N" để cứu', 'number', 1],
@@ -358,7 +358,7 @@ function ttsInfo() {
 }
 if (window.MC) MC.onVoices = fillVoices;
 $('ttsVoice').onchange = () => { save({ ttsVoice: $('ttsVoice').value }); MC.setPref($('ttsVoice').value); ttsInfo(); };
-$('ttsTry').onclick = () => { MC.setPref($('ttsVoice').value); MC.enabled = true; MC.rate = Number(MS.ttsRate) || 0.92; MC.volume = Number(MS.ttsVolume) || 1; MC.say('Đêm rằm tháng Bảy… ngọn đèn dầu chập chờn. Có ai đó đang ngồi ngay sau lưng bạn.', true); };
+$('ttsTry').onclick = () => { MC.setPref($('ttsVoice').value); MC.enabled = true; MC.rate = Number(MS.ttsRate) || 0.92; MC.volume = Number(MS.ttsVolume) || 1; MC.say('Đêm rằm tháng Bảy… đống lửa chập chờn. Có ai đó đang ngồi ngay sau lưng bạn.', true); };
 socket.on('ma:say', m => {
   if (!window.MC || !m || !m.text || !MS.tts) return;
   if (!MC.hasVietnamese()) return;   // không đọc tiếng Việt bằng giọng tây
@@ -383,7 +383,7 @@ $('vnTry').onclick = async () => {
   const info = $('vnInfo'); info.textContent = 'Đang đọc… (lần đầu có thể mất vài giây)';
   try {
     MaAudio.init(); MaAudio.resume();
-    const text = 'Đêm rằm tháng Bảy… ngọn đèn dầu chập chờn. Có ai đó… đang ngồi ngay sau lưng bạn.';
+    const text = 'Đêm rằm tháng Bảy… đống lửa chập chờn. Có ai đó… đang ngồi ngay sau lưng bạn.';
     const r = await fetch('/api/ma-tts?text=' + encodeURIComponent(text) + '&voice=' + encodeURIComponent($('vnVoice').value));
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.status);
     const buf = await MaAudio.decode(await r.arrayBuffer());

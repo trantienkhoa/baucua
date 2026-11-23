@@ -20,6 +20,7 @@
   A.suspended = () => !A.ctx || A.ctx.state !== 'running';
   A.setVolume = v => { A.vol = Math.max(0, Math.min(1, +v || 0)); if (A.master) A.master.gain.setTargetAtTime(A.vol, A.ctx.currentTime, 0.1); };
   A.setTension = t => { A.tension = Math.max(0, Math.min(1, t)); };
+  A.fire = 0; A.setFire = f => { A.fire = Math.max(0, Math.min(1, f)); };
 
   function noiseBuf(sec) {
     const c = A.ctx, b = c.createBuffer(1, c.sampleRate * sec, c.sampleRate), d = b.getChannelData(0);
@@ -85,6 +86,8 @@
     }
     if (t > nextCreak) { nextCreak = t + 10 + Math.random() * 25; A.play('creak', 0.4); }
     if (t > nextOwl) { nextOwl = t + 35 + Math.random() * 50; owl(t); }
+    // lửa củi lách tách
+    if (A.fire > 0 && Math.random() < 0.25 + A.fire * 0.5) { const n = 1 + (Math.random() * 3 | 0); for (let i = 0; i < n; i++) noise(t + Math.random() * 0.25, 0.012 + Math.random() * 0.02, 0.15 + A.fire * 0.35, A.master, 'bandpass', 1500 + Math.random() * 3500, 1.5, 0.001); }
     // tim đập khi âm khí > 45%
     if (ten > 0.45) {
       const gap = 1.25 - (ten - 0.45) * 1.3;
@@ -199,6 +202,7 @@
     lampout(t, v) { const n = noise(t, 0.7, 0.6, out(A.ctx.createGain(), 0.4, v), 'lowpass', 2500, 0.5, 0.01); n.f.frequency.exponentialRampToValueAtTime(100, t + 0.6); },
     success(t, v) { FX.bell(t, v); const d = out(A.ctx.createGain(), 0.9, v * 0.5); for (const f of [261.6, 329.6, 392, 523.2]) osc('sine', f, t + 0.1, 3.5, 0.08, d, 0.6); },
     ouija(t, v) { const d = out(A.ctx.createGain(), 0.6, v); osc('sine', 110, t, 1, 0.12, d, 0.2); osc('sine', 116.5, t, 1, 0.1, d, 0.2); },
+    crackle(t, v) { const d = out(A.ctx.createGain(), 0.2, v); for (let i = 0; i < 12; i++) noise(t + Math.random() * 0.5, 0.015 + Math.random() * 0.03, 0.4 + Math.random() * 0.4, d, 'bandpass', 1200 + Math.random() * 4000, 1.2, 0.001); noise(t, 0.6, 0.18, d, 'lowpass', 500, 0.7, 0.05); },
     slide(t, v) { noise(t, 0.4, 0.1 * v, out(A.ctx.createGain(), 0.2, 1), 'bandpass', 900, 2, 0.05); },
   };
   function creak(t, dur, dest, peak) {

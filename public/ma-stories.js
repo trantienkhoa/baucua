@@ -1,4 +1,4 @@
-// Ngọn Đèn Cuối Cùng — kho truyện ma rẽ nhánh
+// Ngọn Lửa Cuối Cùng — kho truyện ma rẽ nhánh
 //
 // Cách viết thêm truyện:
 //   - Mỗi truyện có các đoạn (nodes). Đoạn đầu là `start`.
@@ -438,17 +438,17 @@ window.MA_STORIES = [
   {
     id: 'nguoi-thu-13',
     title: 'Người Thứ Mười Ba',
-    teaser: 'Mười hai người ngồi quanh đèn dầu. Đếm lại, lại thành mười ba…',
+    teaser: 'Mười hai người ngồi quanh đống lửa. Đếm lại, lại thành mười ba…',
     start: 's1',
     nodes: {
       s1: {
         lines: [
-          'Đêm ấy có mười hai người ngồi quanh ngọn đèn dầu kể chuyện ma. Y như chúng ta lúc này.',
+          'Đêm ấy có mười hai người ngồi quanh đống lửa kể chuyện ma. Y như chúng ta lúc này.',
           '{A} kể xong chuyện thứ nhất. {B} đứng dậy đếm người cho vui: "Một, hai, ba…"',
           '"…mười hai, mười ba." {B} khựng lại. Đếm lần nữa. Vẫn là mười ba.',
-          '@flicker|Ngọn đèn dầu chao đảo. Không ai nhận mình là người tới sau.',
+          '@flicker|Đống lửa chao đảo. Không ai nhận mình là người tới sau.',
         ],
-        choice: { q: 'Có một người thừa trong vòng tròn…', a: ['Bắt mọi người nắm tay nhau', 'Thổi tắt đèn rồi đếm lại'], to: ['s2a', 's2b'] },
+        choice: { q: 'Có một người thừa trong vòng tròn…', a: ['Bắt mọi người nắm tay nhau', 'Dập lửa rồi đếm lại'], to: ['s2a', 's2b'] },
       },
       s2a: {
         lines: [
@@ -460,16 +460,16 @@ window.MA_STORIES = [
       },
       s2b: {
         lines: [
-          '{B} thổi phụt ngọn đèn. Bóng tối ập xuống.',
+          '{B} dội nước dập tắt đống lửa. Bóng tối ập xuống.',
           '@steps|Trong bóng tối có tiếng ai đó đứng dậy, đi vòng quanh, chạm nhẹ vào vai từng người.',
           '@laugh|"Một… hai… ba…" Giọng đếm ấy không phải của ai trong nhóm.',
         ],
-        choice: { q: 'Tiếng đếm đang đi vòng quanh…', a: ['Thắp đèn lên ngay', 'Ngồi im, nín thở'], to: ['e3', 'e4'] },
+        choice: { q: 'Tiếng đếm đang đi vòng quanh…', a: ['Nhóm lửa lên ngay', 'Ngồi im, nín thở'], to: ['e3', 'e4'] },
       },
       e1: {
         lines: [
           '{A} buông tay. Vòng tròn đứt.',
-          '@jump|Ngọn đèn phụt tắt rồi bùng sáng. Mọi người vẫn ngồi đó, đủ mười hai người…',
+          '@jump|Đống lửa phụt tắt rồi bùng lên. Mọi người vẫn ngồi đó, đủ mười hai người…',
           'Nhưng có một người, đôi mắt không còn là của mình nữa.',
           '@possess|Người thứ mười ba đã nhập vào một ai đó trong phòng này. Hãy tìm ra nó!',
         ],
@@ -487,15 +487,15 @@ window.MA_STORIES = [
         lines: [
           '{B} quẹt diêm. Ngọn lửa loé lên…',
           '@scream|Một gương mặt trắng bệch dí sát trước mặt {B}, miệng cười toác tới mang tai.',
-          'Que diêm tắt. Khi đèn sáng lại, chỗ của {B} chỉ còn một chiếc dép.',
+          'Que diêm tắt. Khi lửa bùng lên lại, chỗ của {B} chỉ còn một chiếc dép.',
         ],
         end: 'bad', take: 'B',
       },
       e4: {
         lines: [
           'Mọi người ngồi im phăng phắc. Tiếng đếm dừng lại ở số mười hai.',
-          '@door|Cánh cửa kẽo kẹt mở ra rồi đóng lại. Đèn tự bùng sáng. Đếm lại: mười hai người.',
-          'Ai cũng thở phào. Chỉ có {C} vẫn ngồi im, mỉm cười, mắt nhìn chằm chằm vào ngọn đèn…',
+          '@door|Cánh cửa kẽo kẹt mở ra rồi đóng lại. Lửa tự bùng lên. Đếm lại: mười hai người.',
+          'Ai cũng thở phào. Chỉ có {C} vẫn ngồi im, mỉm cười, mắt nhìn chằm chằm vào đống lửa…',
           '@possess|Nó đi thật chưa? Hay vẫn đang ngồi giữa chúng ta?',
         ],
         end: 'open',

@@ -1,8 +1,8 @@
-// Ngọn Đèn Cuối Cùng — cấu hình dùng chung cho màn game và trang điều khiển
+// Ngọn Lửa Cuối Cùng — cấu hình dùng chung cho màn game và trang điều khiển
 (function () {
   // tặng quà → hành động; xếp theo xu từ thấp lên cao (quà ≥ mức xu, hoặc đúng tên quà đã gán)
   window.MA_ACTIONS = [
-    { id: 'nhang', icon: '🕯️', label: 'Thắp nhang', desc: 'thêm dầu cho đèn', min: 1 },
+    { id: 'nhang', icon: '🪵', label: 'Thêm củi', desc: 'ném củi cho lửa cháy to', min: 1 },
     { id: 'muoi', icon: '🧂', label: 'Rắc muối', desc: 'xua bớt âm khí', min: 5 },
     { id: 'go', icon: '🚪', label: 'Gõ cửa', desc: 'dọa cả phòng', min: 10 },
     { id: 'hu', icon: '🫣', label: 'Hù một người', desc: 'gõ "hù 12" để chọn ghế', min: 30 },
@@ -14,7 +14,7 @@
   ];
 
   window.MA_DEFAULTS = {
-    map: 'auto',            // cảnh: auto (đổi luân phiên mỗi chuyện) | dong (giữa đồng lúa) | chuoi (bụi chuối sau nhà) | nhacu (nhà cổ 2D, máy yếu)
+    map: 'auto',            // cảnh 3D: auto (đổi theo chuyện) | dong | chuoi | gieng | cayda | nghiadia | mieu | bendo | rungtre | choma | duongray | nhahoang | dinh | nhacu (nhà cổ 2D)
     storyMode: 'vote',      // vote: người xem chọn chuyện | random | order
     storySpeed: 1,          // nhịp kể (1 = vừa, 1.3 = nhanh)
     voteSeconds: 25,        // thời gian chọn hướng đi của truyện
@@ -28,17 +28,17 @@
     vieneuUrl: 'http://127.0.0.1:3399',
     voiceScary: 2,          // 0 giọng gốc · 1 hơi rợn · 2 rợn · 3 rất rợn
     volume: 0.6,
-    maxSeats: 70,           // số ghế quanh đèn
+    maxSeats: 70,           // số ghế quanh đống lửa
     idleSeconds: 420,       // im lặng quá lâu thì rời ghế
     joinOnLike: true,       // thả tim cũng được ngồi vào vòng
-    lampDecay: 1,           // dầu đèn cạn nhanh / chậm
+    lampDecay: 1,           // củi cháy hết nhanh / chậm
     yinRise: 1,             // âm khí tăng nhanh / chậm
-    likeOil: 0.05,          // mỗi tim thêm bao nhiêu dầu
+    likeOil: 0.05,          // mỗi tim thêm bao nhiêu củi
     thayMin: 99,            // tặng từ bao nhiêu xu thì thành thầy pháp (người tặng nhiều nhất)
     rescueNeed: 3,          // số người gõ "cứu N" để kéo một người ra khỏi gương
     takenReturnSec: 240,    // người bị bắt tự về sau bao lâu
     showGiftGuide: true, showBubbles: true, showHints: true,
-    title: 'NGỌN ĐÈN CUỐI CÙNG',
+    title: 'NGỌN LỬA CUỐI CÙNG',
     actions: window.MA_ACTIONS.map(a => ({ id: a.id, gift: '', min: a.min })),
   };
 })();

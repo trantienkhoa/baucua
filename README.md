@@ -20,6 +20,35 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 🔥 Ngọn Lửa Cuối Cùng: đống lửa củi và 12 cảnh 3D (bản 2.12.0)
+
+- **Đèn dầu được thay bằng đống lửa củi:**
+  - Vòng đá kê, củi xếp chéo, đầu củi cháy đỏ.
+  - Lửa nhiều lưỡi, cao thấp theo lượng củi. Tàn lửa bay lên, có tiếng lửa lách tách.
+  - Ánh lửa thật trong cảnh 3D chập chờn làm bóng người rung theo. Hết củi thì chỉ còn than hồng.
+  - Thanh **🔥 CỦI LỬA** thay cho "Dầu đèn". Quà 1 xu đổi thành **🪵 Thêm củi**: một khúc củi bay từ chỗ người tặng vào đống lửa, lửa bùng lên. Người theo dõi kênh cũng ném được một khúc củi.
+  - Hết củi thì **LỬA TẮT** và ma bắt người.
+  - Tên hiện trên màn đổi thành **NGỌN LỬA CUỐI CÙNG** (đổi được ở Cài đặt → "Tên phòng").
+- **12 cảnh 3D** (thêm 10). Mỗi cảnh chỉ được dựng khi dùng tới lần đầu:
+
+  | Cảnh | Có gì |
+  |---|---|
+  | Giữa đồng lúa | lúa đung đưa, bù nhìn quay đầu, mả đất, đống rơm |
+  | Bụi chuối sau nhà | chuối lá rách, giếng cạn, chòi hoang cửa sổ loé đỏ |
+  | Giếng cổ đầu làng | giếng đá có mái che, dây gàu tự đung đưa, cây hoa sứ, lu nước |
+  | Gốc đa nghìn năm | thân đa khổng lồ, rễ phụ buông rủ, vải đỏ quấn gốc, miếu nhỏ, quần áo giấy treo bay |
+  | Nghĩa địa làng | hàng bia mộ, mả đất, cây hoa sứ, lăng mộ |
+  | Miếu hoang ven rừng | miếu mái cong, bàn thờ đỏ rực chập chờn, lối đá |
+  | Bến đò đêm | mặt sông, vệt trăng, cầu tàu, đò có đèn lồng bồng bềnh, lau sậy |
+  | Rừng tre | tre cao vút lá đung đưa |
+  | Chợ ma nửa đêm | sạp chợ bỏ trống, đèn lồng đỏ chập chờn, tiền vàng mã rơi |
+  | Đường ray bỏ hoang | đường ray, đèn tín hiệu đỏ nhấp nháy, toa tàu nghiêng |
+  | Sân nhà hoang | nhà đổ nát cửa mở hé, xích đu tự đung đưa, cửa sổ thoáng có ánh sáng |
+  | Sân đình làng | đình mái cong cột đỏ, trống đình, đèn đá, cây đa |
+
+- **Chế độ "tự đổi theo chuyện"** chọn cảnh hợp với truyện. Ví dụ: ma da và chuyến đò ra *bến đò*, cây đa ra *gốc đa*, búp bê dưới giếng ra *giếng cổ*, tàu đêm ra *đường ray*, quán cháo và đám ma ra *nghĩa địa*. Truyện chưa có cảnh riêng thì đổi lần lượt qua các cảnh.
+- **Giữ cố định một cảnh:** trang điều khiển → Cài đặt → **🌾 Cảnh 3D**.
+
 ## 🌾 Ngọn Đèn Cuối Cùng: cảnh 3D ngoài đồng và bụi chuối (bản 2.11.0)
 
 - **Nhân vật 3D:** mỗi người xem là một nhân vật 3D ngồi bó gối quanh ngọn đèn dầu.
