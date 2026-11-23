@@ -52,7 +52,7 @@
   // ======================================================================
   // ghế quanh đèn dầu
   // ======================================================================
-  const LX = 540, LY = 1185, LAMP = 1.45;
+  let LX = 540, LY = 1185; const LAMP = 1.45;   // vị trí đống lửa trên màn hình (cảnh 3D đổi theo bố cục)
   const SEATS = [];
   (function buildSeats() {
     const rings = [[225, 9], [335, 14], [445, 20], [548, 25], [645, 30]];
@@ -71,6 +71,13 @@
     });
     SEATS.forEach((s, i) => { s.n = i + 1; s.sc = 0.62 + (s.y - 960) / 580 * 0.52; s.v = null; });
   })();
+  const SEAT2D = SEATS.map(s => ({ x: s.x, y: s.y, sc: s.sc, ring: s.ring }));
+  // cảnh 3D đặt lại chỗ ngồi theo đồ vật trong cảnh (khúc gỗ, bậc đá…); list = null → về bố cục 2D
+  function setLayout(list, fire) {
+    if (!list) { SEATS.forEach((s, i) => { Object.assign(s, SEAT2D[i]); s.zone = null; s.w = null; s.pose = null; s.face = null; }); LX = 540; LY = 1185; return; }
+    list.forEach((p, i) => { if (SEATS[i]) Object.assign(SEATS[i], p); });
+    LX = fire.x; LY = fire.y;
+  }
   // ghế bị bảng "Tặng quà để…" che thì không xếp người vào
   const seatHidden = s => S.showGiftGuide && s.x > 680 && s.y > 1430;
   const seatByN = n => SEATS[n - 1];
@@ -624,7 +631,7 @@
       case 'eyes': for (let i = 0; i < 4; i++) eyes.push({ x: rand(40, 1040), y: rand(640, 1400), t0: now(), life: rand(3, 6), s: rand(0.8, 1.2), red: true, blink: rand(0, 5) }); sfx('eyes'); return;
       case 'knock': doorShake = 1.4; sfx('knock'); scareAll(0.4); return;
       case 'door': doorShake = 0.8; sfx('door'); return;
-      case 'scream': sfx('scream', 0.8); scareAll(0.8); shake = Math.max(shake, 10); return;
+      case 'scream': shockAt = now(); sfx('scream', 0.8); scareAll(0.8); shake = Math.max(shake, 10); return;
       case 'mirror': mirrorFlash = now(); sfx('mirror'); return;
       default: if (window.MaAudio && MaAudio.has(f)) sfx(f); yin = clamp(yin + 1.5, 0, 100);
     }
@@ -779,7 +786,7 @@
       case 'nhap': {
         if (!viewers.has(e.target.id) || e.target.taken) { toast('👁 Kẻ bị nhập đã bỏ trốn…', '#c9a0ff'); endEvent(); return; }
         const tg = e.target;
-        if (e.step === 0 && el > 5) { e.step = 1; e.clues.push(`Kẻ đó ngồi ở ${RING_NAMES[tg.seat.ring]}`); sfx('whisper', 0.7); }
+        if (e.step === 0 && el > 5) { e.step = 1; e.clues.push(tg.seat.zone ? `Kẻ đó đang ngồi ${tg.seat.zone}` : `Kẻ đó ngồi ở ${RING_NAMES[tg.seat.ring]}`); sfx('whisper', 0.7); }
         if (e.step === 1 && el > 18) { e.step = 2; e.clues.push(`Số ghế của kẻ đó là số ${tg.seat.n % 2 ? 'LẺ' : 'CHẴN'}`); sfx('whisper', 0.7); }
         if (e.step === 2 && el > 30) { e.step = 3; e.clues.push('Nhìn kỹ… mắt kẻ đó vừa loé đỏ!'); sfx('possess', 0.6); }
         if (e.step >= 3 && Math.floor(el * 10) % 70 === 0) tg.eyes = Math.max(tg.eyes, 0.45);
@@ -955,7 +962,7 @@
     v.anim = { type: 'take', t0: now(), fx: v.x, fy: v.y };
     showGuide('rescue', 60);
     sfx('taken', 0.9); shake = Math.max(shake, 6);
-    toast(`🪞 ${v.name} bị kéo vào gương — gõ "cứu ${v.seat.n}" để cứu`, '#ff8a7a');
+    toast(`👻 ${v.name} bị ma bắt đi — gõ "cứu ${v.seat.n}" để cứu`, '#ff8a7a');
     if (ev && ev.type === 'bupbe' && ev.holder === v) { /* búp bê đi theo */ }
   }
   function returnViewer(v, silent) {
@@ -1020,7 +1027,9 @@
     }
   }
   function scareAll(k) { for (const v of alive()) if (Math.random() < k) { v.jump = Math.max(v.jump, rand(0.4, 1)); v.shiver = Math.max(v.shiver, 1); } }
+  let shockAt = -99;
   function doJumpscare() {
+    shockAt = now();
     const lvl = S.scare;
     sfx('jump', lvl === 'tat' ? 0.3 : 1);
     if (lvl === 'tat') return;
@@ -1046,7 +1055,7 @@
     const t = now();
     // người trong gương: lời thì thầm
     if (v && v.taken) {
-      if (raw) whispers.push({ text: short(raw, 34), name: short(v.name, 12), t0: t, x: MIRROR.x + rand(-160, 160), y: MIRROR.y + rand(-40, 120) });
+      if (raw) whispers.push({ text: short(raw, 34), name: short(v.name, 12), t0: t, x: use3D() && v.gx != null ? clamp(v.gx, 200, 880) : MIRROR.x + rand(-160, 160), y: use3D() && v.gy != null ? v.gy - 70 : MIRROR.y + rand(-40, 120) });
       if (whispers.length > 6) whispers.shift();
     } else if (v && raw && S.showBubbles) {
       v.bubble = { text: short(raw, 24), t0: t };
@@ -1064,7 +1073,7 @@
       const tv = seat && seat.v;
       if (tv && tv.taken && !tv.rescue.has(v.id)) {
         tv.rescue.add(v.id);
-        floatText(`🙏 ${tv.rescue.size}/${S.rescueNeed}`, MIRROR.x, MIRROR.y - 140, '#ffd27a', 30);
+        floatText(`🙏 ${tv.rescue.size}/${S.rescueNeed}`, use3D() && tv.gx != null ? tv.gx : MIRROR.x, use3D() && tv.gy != null ? tv.gy - 60 : MIRROR.y - 140, '#ffd27a', 30);
         if (tv.rescue.size >= S.rescueNeed) { for (const uid of tv.rescue) { const rv = viewers.get(uid); if (rv) addBrave(rv, 2); } returnViewer(tv); }
       }
       return;
@@ -1180,7 +1189,7 @@
     if (t < lampFlickUntil) lampFlick *= Math.random() < 0.35 ? 0.35 : 1;
     if (ev && ev.type === 'blackout' && t - ev.t0 < 5.2) lampFlick = 0;
     if (window.MaAudio) { MaAudio.setTension(yin / 100); if (MaAudio.setFire) MaAudio.setFire(oil > 0 ? oil / 100 : 0); }
-    if (oil > 0 && Math.random() < dt * (3 + oil / 12)) particles.push({ x: LX + rand(-30, 30), y: LY - 60, vx: rand(-25, 25), vy: -rand(90, 220), life: rand(0.8, 2), max: 2, color: Math.random() < 0.5 ? '255,170,60' : '255,110,30', size: rand(1.2, 2.6), g: -10 });
+    if (!use3D() && oil > 0 && Math.random() < dt * (3 + oil / 12)) particles.push({ x: LX + rand(-30, 30), y: LY - 60, vx: rand(-25, 25), vy: -rand(90, 220), life: rand(0.8, 2), max: 2, color: Math.random() < 0.5 ? '255,170,60' : '255,110,30', size: rand(1.2, 2.6), g: -10 });
 
     storyTick(dt);
     voteTick();
@@ -1252,6 +1261,8 @@
     if (m !== 'auto') curMap = m;
     else if (next) curMap = (st && SCENE_FOR[st.id] && all.includes(SCENE_FOR[st.id]) && Math.random() < 0.75) ? SCENE_FOR[st.id] : all[mapFlip++ % all.length];
     const gl = document.getElementById('gl'); if (gl) gl.style.display = curMap === 'nhacu' ? 'none' : 'block';
+    if (curMap === 'nhacu') { setLayout(null); if (window.MA3D && MA3D.invalidate) MA3D.invalidate(); }
+    else if (window.MA3D && MA3D.relayout) MA3D.relayout();
   }
   const use3D = () => !!(window.MA3D && MA3D.ready) && curMap !== 'nhacu';
   const bg = document.createElement('canvas'); bg.width = W; bg.height = H;
@@ -1387,8 +1398,7 @@
 
   function drawScene(t) {
     const D3 = use3D();
-    if (D3) { ctx.drawImage(mirrorCv, MIRROR.x - 130, MIRROR.y - 190); drawMirror(t); }
-    else drawRoom(t);
+    if (!D3) drawRoom(t);
     sceneRest(t, D3);
   }
   function drawRoom(t) {
@@ -1433,7 +1443,7 @@
     // người ngồi sau đèn
     const list = [...viewers.values()].sort((a, b) => a.seat.y - b.seat.y);
     for (const v of list) if (v.seat.y <= LY) drawViewer(v, t);
-    drawLamp(t);
+    if (!D3) drawLamp(t);
     for (const v of list) if (v.seat.y > LY) drawViewer(v, t);
     // tay ma thò ra hù
     for (let i = hands.length - 1; i >= 0; i--) {
@@ -1478,7 +1488,7 @@
     hole(LX, LY - 230, R * 0.55, 0.5);
     if (!D3) { for (const cx of [720, 990]) hole(cx, 790, 120 + Math.sin(t * 9 + cx) * 6, 0.8); hole(325, 752, 190, 0.55); }
     else hole(LX, 760, 1150, 0.4, 0.42);   // dải cảnh phía sau (cây đa, giếng, miếu…) sáng hơn một chút dưới trăng
-    hole(MIRROR.x, MIRROR.y, 210, seated().some(v => v.taken) ? 0.55 : 0.25);
+    if (!D3) hole(MIRROR.x, MIRROR.y, 210, seated().some(v => v.taken) ? 0.55 : 0.25);
     for (const v of viewers.values()) if (v.incense > t) hole(v.x + 22 * v.seat.sc, v.y - 30 * v.seat.sc, 70, 0.5);
     if (ev && ev.type === 'cauco') hole(OUIJA.cx, OUIJA.cy, 900, 0.7, 0.6);
     ctx.drawImage(dk, 0, 0, W, H);
@@ -1491,7 +1501,7 @@
       ctx.restore();
     }
     // ===== các thứ phát sáng (vẽ trên bóng tối) =====
-    drawFlame(LX, LY - 50 * LAMP, LAMP * 0.95, t, R > 0 ? lampFlick : 0);
+    if (!D3) drawFlame(LX, LY - 50 * LAMP, LAMP * 0.95, t, R > 0 ? lampFlick : 0);
     if (!D3) for (const cx of [720, 990]) drawFlame(cx, 796, 0.45, t + cx, 1);
     for (const v of viewers.values()) if (v.incense > t) { ctx.fillStyle = `rgba(255,120,40,${0.7 + Math.sin(t * 6 + v.seat.n) * 0.3})`; ctx.beginPath(); ctx.arc(v.x + 22 * v.seat.sc, v.y - 50 * v.seat.sc, 3, 0, TAU); ctx.fill(); }
     // mắt trong bóng tối
@@ -1597,6 +1607,7 @@
   }
   function drawViewer(v, t) {
     const { x, y, sc, a } = viewerPos(v, t);
+    if (use3D() && v.has3d && (v.anim || v.taken)) return;
     if (use3D() && v.has3d && !v.anim && !v.taken) {   // nhân vật 3D: chỉ vẽ mũ thầy pháp / mắt đỏ lên đầu
       const hx = v.hx, hy = v.hy + HEAD3D * sc;
       if (isThay(v)) {
@@ -1640,6 +1651,15 @@
   let bubbleSet = new Set();
   const HEAD3D = 22;   // điểm chiếu (trên đỉnh đầu 3D) → tâm đầu, theo đơn vị sc
   function drawViewerLabel(v, t) {
+    if (v.taken && use3D() && v.gx != null) {   // bóng ma người bị bắt: số ghế + cách cứu
+      ctx.save(); ctx.globalAlpha = 0.75 + Math.sin(t * 2 + v.seat.n) * 0.2;
+      ctx.font = `800 20px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const txt = `👻 ${short(v.name, 10)} · gõ "cứu ${v.seat.n}" ${v.rescue.size}/${S.rescueNeed}`, w = ctx.measureText(txt).width + 20;
+      const gx = clamp(v.gx, w / 2 + 12, W - w / 2 - 12);
+      ctx.fillStyle = 'rgba(10,20,45,.8)'; rr(gx - w / 2, v.gy - 44, w, 30, 15); ctx.fill();
+      ctx.fillStyle = '#cfe0ff'; ctx.fillText(txt, gx, v.gy - 29);
+      ctx.restore(); return;
+    }
     if (v.taken || !v.da || v.da < 0.05) return;
     const x = v.x, y = v.y, sc = v.dsc;
     const D3 = use3D() && v.has3d && v.hx != null && !v.anim;
@@ -1800,6 +1820,16 @@
     meter(550, my, 490, '👻 ÂM KHÍ', yin, ['#7a2aff', '#ff2a4a'], yin > 80 && Math.sin(t * 8) > 0);
     // ---- dòng bảng xếp hạng / gợi ý ----
     drawTicker(t);
+    // ---- ông kể chuyện ----
+    const TL = window.__maShared.teller;
+    if (use3D() && TL && TL.y > 640) {
+      const talk = narrating() || story.typed < [...story.text].length, fs = Math.round(16 + 6 * TL.sc);
+      ctx.save(); ctx.font = `800 ${fs}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const txt = `🎙 ${S.tellerName || 'Ông Tư'} kể chuyện${talk ? ' …' : ''}`, w = ctx.measureText(txt).width + 24, y0 = TL.y - 34 * TL.sc - 16;
+      ctx.fillStyle = 'rgba(60,20,8,.85)'; rr(TL.x - w / 2, y0 - fs * 0.7, w, fs * 1.4, fs * 0.7); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,190,110,.7)'; ctx.lineWidth = 1.5; rr(TL.x - w / 2, y0 - fs * 0.7, w, fs * 1.4, fs * 0.7); ctx.stroke();
+      ctx.fillStyle = '#ffd27a'; ctx.fillText(txt, TL.x, y0 + 1); ctx.restore();
+    }
     // ---- bảng bình chọn & sự kiện ----
     if (ev && drawEventPanel(t)) { /* bảng sự kiện có sẵn cách chơi */ }
     else if (vote) drawVotePanel(t);
@@ -2042,7 +2072,7 @@
   const GUIDES = {
     blackout: { icon: '🔥', title: 'LỬA TẮT VÌ HẾT CỦI', color: '#ffb36a', steps: () => ['Trong bóng tối, ma bắt 1–2 người vào gương', 'THẢ TIM liên tục để thêm củi (thanh 🔥 CỦI LỬA)', 'Tặng 🪵 Thêm củi để lửa cháy to'] },
     ghost: { icon: '👻', title: 'MA HIỆN HÌNH', color: '#ff7a6a', steps: () => ['Âm khí đầy (hoặc ai đó Gọi hồn) → ma bắt một người', 'Gõ "nam mô" hoặc tặng 🧂 Rắc muối để hạ ÂM KHÍ', 'Người bị bắt nằm trong gương — gõ "cứu + số ghế" để cứu'] },
-    rescue: { icon: '🪞', title: 'CỨU NGƯỜI TRONG GƯƠNG', color: '#9fc0ff', steps: () => ['Người bị bắt hiện trong TẤM GƯƠNG, có số ghế trên mặt', 'Gõ: cứu 12  (thay 12 bằng số ghế người đó)', `Đủ ${S.rescueNeed} người gõ là cứu được · người cứu +2 gan dạ`] },
+    rescue: { icon: '👻', title: 'CỨU NGƯỜI BỊ MA BẮT', color: '#9fc0ff', steps: () => [use3D() ? 'Người bị bắt thành bóng ma xanh mờ đứng trong bóng tối' : 'Người bị bắt hiện trong TẤM GƯƠNG, có số ghế trên mặt', 'Gõ: cứu 12  (thay 12 bằng số ghế người đó)', `Đủ ${S.rescueNeed} người gõ là cứu được · người cứu +2 gan dạ`] },
     trura: { icon: '☯️', title: 'TRỪ TÀ', color: '#ffd27a', steps: () => ['Người tặng ☯️ Trừ tà trở thành THẦY PHÁP của phòng', 'Cứu hết người trong gương · lửa cháy to · âm khí về 0', 'Thầy pháp không bị ma bắt, cầm búp bê thì trấn yểm được'] },
     behind: { icon: '⚠️', title: 'MA ĐANG ĐỨNG SAU LƯNG', color: '#ff6a5a', steps: () => ['Tìm chữ đỏ "⚠ SAU LƯNG BẠN" trên đầu một người', 'Người đó (hoặc ai cũng được) gõ "nam mô" để đuổi ma', 'Hoặc tặng 🧂 Rắc muối — âm khí cao quá là ma bắt người'] },
     general: { icon: '🔥', title: 'CÁCH CHƠI', color: '#ffd27a', steps: () => ['Bình luận bất kỳ → ngồi một ghế có số, tên bạn có thể vào truyện', 'Thả tim = thêm củi cho lửa · gõ "nam mô" = xua âm khí', 'Khi bình chọn gõ 1 hoặc 2 · gõ "cứu 12" để cứu người trong gương', 'Tặng quà để mở sự kiện (bảng "Tặng quà để…" bên phải)'] },
@@ -2177,7 +2207,7 @@
       const sx = shake > 0 ? rand(-shake, shake) : 0, sy = shake > 0 ? rand(-shake, shake) : 0;
       if (shake > 0) ctx.translate(sx, sy);
       if (use3D()) {
-        MA3D.frame({ t, dt, viewers: [...viewers.values()], oil, flick: lampFlick, yin, map: curMap, shake: shake > 0 ? { x: -sx, y: -sy } : null, trura: !!(ev && ev.type === 'trura') });
+        MA3D.frame({ t, dt, viewers: [...viewers.values()], oil, flick: lampFlick, yin, map: curMap, talking: narrating() || !!(window.MC && MC.speaking) || story.typed < [...story.text].length, shockAt, shake: shake > 0 ? { x: -sx, y: -sy } : null, trura: !!(ev && ev.type === 'trura') });
         ctx.clearRect(-30, -30, W + 60, H + 60);
       } else { ctx.fillStyle = '#000'; ctx.fillRect(-30, -30, W + 60, H + 60); }
       drawScene(t);
@@ -2259,7 +2289,7 @@
   });
 
   window.__seats = SEATS.length;
-  window.__maShared = { SEATS, LX, LY, MIRROR, S };
+  window.__maShared = { SEATS, MIRROR, S, setLayout, teller: null };
   pickMap(false);
   window.__ma = { S, viewers, story, get ev() { return ev; }, get vote() { return vote; }, get oil() { return oil; }, set oil(v) { oil = v; }, get yin() { return yin; }, set yin(v) { yin = v; }, onEvent, queueEvent };
   requestAnimationFrame(frame);

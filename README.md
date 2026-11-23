@@ -20,6 +20,37 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 🎙 Ngọn Lửa Cuối Cùng: cảnh 3D hoàn toàn, mỗi cảnh một bố cục, có người kể chuyện (bản 2.13.0)
+
+- **Bỏ tấm gương và tấm chiếu.** Người xem ngồi trên đồ vật có sẵn trong cảnh, mỗi cảnh một cách bày:
+
+  | Cảnh | Ngồi ở đâu |
+  |---|---|
+  | Rừng tre | bó tre và khúc gỗ đổ xếp hình chữ U, tảng đá phía trước |
+  | Bụi chuối sau nhà | thân chuối đổ xếp hai vòng |
+  | Giữa đồng lúa | bó rơm hai vòng, hàng sau ngồi trên bờ ruộng |
+  | Giếng cổ đầu làng | bệ đá quanh giếng, ghế đá vòng bên phải |
+  | Gốc đa nghìn năm | rễ cây đa toả ra phía sau, tảng đá phía trước |
+  | Nghĩa địa làng | bệ mộ xếp thành hàng, nấm mộ |
+  | Miếu hoang ven rừng | 4 bậc đá trước miếu (hàng sau cao hơn, ai cũng nhìn ra lửa), ghế hai bên |
+  | Bến đò đêm | ngồi dọc cầu tàu ven sông, khúc gỗ hai bên, có đò bồng bềnh |
+  | Chợ ma nửa đêm | ghế chợ xếp hai lớp chữ U |
+  | Đường ray bỏ hoang | ngồi trên đường ray và chồng tà vẹt |
+  | Sân nhà hoang | bậc thềm nhà, ghế gãy rải rác |
+  | Sân đình làng | chiếu nhỏ xếp hàng ngay ngắn hướng về người kể chuyện |
+
+  - Hết chỗ có đồ vật thì người đến sau ngồi bệt dưới đất ở vòng ngoài.
+  - Có hai tư thế: ngồi trên gỗ/ghế/bậc thì thả chân xuống, ngồi đất thì bó gối.
+  - Manh mối "Ai bị ma nhập?" nói theo chỗ ngồi, ví dụ: "Kẻ đó đang ngồi trên bậc đá trước miếu thứ 3 bên trái".
+- **Máy quay tự căn theo số người:** ít người thì quay gần thấy rõ mặt, đông người thì lùi ra từ từ trong 3 giây. Mỗi cảnh có góc máy riêng (thấp, cao, chếch nghiêng).
+- **Đống lửa 3D thật:** đá kê, củi chụm, lưỡi lửa vẽ bằng shader, than hồng, tàn lửa bay. Người ngồi phía trước lửa che được lửa đúng chiều sâu.
+- **Người kể chuyện 3D (mặc định tên "Ông Tư"):**
+  - Đội nón lá, chống gậy, ngồi cạnh đống lửa quay về phía người xem.
+  - Khi đang kể: nhép miệng, vung tay, nhìn quanh người nghe. Tới đoạn hù: giơ hai tay. Lúc nghỉ: nhìn vào đống lửa.
+  - Đổi tên ở Cài đặt → "Tên người kể chuyện".
+- **Người bị ma bắt** thành bóng ma xanh mờ lơ lửng ở mép tối của cảnh, kèm chữ `gõ "cứu 12"`. Bình luận của họ hiện thành lời thì thầm cạnh bóng ma.
+- Cảnh *Nhà cổ 2D* (cho máy yếu) vẫn giữ gương và bố cục cũ.
+
 ## 🔥 Ngọn Lửa Cuối Cùng: đống lửa củi và 12 cảnh 3D (bản 2.12.0)
 
 - **Đèn dầu được thay bằng đống lửa củi:**

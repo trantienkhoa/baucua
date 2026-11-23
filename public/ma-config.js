@@ -39,6 +39,7 @@
     takenReturnSec: 240,    // người bị bắt tự về sau bao lâu
     showGiftGuide: true, showBubbles: true, showHints: true,
     title: 'NGỌN LỬA CUỐI CÙNG',
+    tellerName: 'Ông Tư',   // tên người kể chuyện 3D
     actions: window.MA_ACTIONS.map(a => ({ id: a.id, gift: '', min: a.min })),
   };
 })();
