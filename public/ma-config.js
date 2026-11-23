@@ -41,6 +41,7 @@
     showGiftGuide: true, showBubbles: true, showHints: true,
     nameMode: 'gon',        // gon: chỉ hiện tên người vừa bình luận / được gọi tên · tatca: hiện tên mọi người
     seatBadge: 'nho',       // nho: số ghế nhỏ mờ · an: ẩn (chỉ hiện khi sự kiện cần gõ số)
+    ambientScare: true,     // thỉnh thoảng tự có bóng đen lướt qua, gió giật, tiếng thì thầm, im bặt rồi tiếng gõ (mức nhẹ)
     autoHost: true,         // người kể chuyện tự chào người mới, cảm ơn quà, đáp bình luận (treo LIVE vẫn có tương tác thật)
     fictionLabel: true,     // nhãn nhỏ "Truyện hư cấu · giọng đọc AI" luôn hiện
     title: 'NGỌN LỬA CUỐI CÙNG',

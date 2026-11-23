@@ -137,6 +137,10 @@
       <button data-ev="scare">🫣 Hù cả phòng</button>
       <button data-ev="salt">🧂 Rắc muối</button>
       <button id="btnJump">😱 Mặt ma (thử mức hù)</button>
+      <button data-fx="luot">👤 Bóng đen lướt</button>
+      <button data-fx="gio">🌬 Gió giật</button>
+      <button data-fx="thamthi">👂 Thì thầm</button>
+      <button data-fx="hush">🤫 Im bặt rồi gõ</button>
     </div>
     <div class="row">
       <button id="btnOilFull">🪵 Chất đầy củi</button>
@@ -264,6 +268,7 @@ $('sayText').onkeydown = e => { if (e.key === 'Enter') $('btnSay').click(); };
 
 // ---------- sự kiện ----------
 document.querySelectorAll('[data-ev]').forEach(b => b.onclick = () => cmd({ type: 'event', name: b.dataset.ev }));
+document.querySelectorAll('[data-fx]').forEach(b => b.onclick = () => cmd({ type: 'fx', name: b.dataset.fx }));
 $('btnJump').onclick = () => cmd({ type: 'jumpscare' });
 $('btnOilFull').onclick = () => cmd({ type: 'oil', v: 100 });
 $('btnYin0').onclick = () => cmd({ type: 'yin', v: 0 });
@@ -320,6 +325,7 @@ const FIELDS = [
   ['showHints', 'Hiện dòng gợi ý lệnh', 'check'],
   ['nameMode', 'Tên người xem', 'select', [['gon', 'Gọn — chỉ hiện khi vừa bình luận hoặc được gọi tên'], ['tatca', 'Hiện tên tất cả']]],
   ['seatBadge', 'Số ghế', 'select', [['nho', 'Nhỏ, mờ — vừa đủ thấy'], ['an', 'Ẩn — chỉ hiện khi sự kiện cần gõ số']]],
+  ['ambientScare', 'Hù ngẫu nhiên giữa truyện (bóng đen lướt, gió giật, thì thầm, im bặt rồi gõ cửa)', 'check'],
   ['autoHost', 'Người kể chuyện tự chào, cảm ơn, đáp bình luận (treo LIVE)', 'check'],
   ['fictionLabel', 'Hiện nhãn "Truyện hư cấu · giọng đọc AI"', 'check'],
   ['title', 'Tên phòng (hiện trên đầu màn)', 'text'],

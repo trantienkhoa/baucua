@@ -324,19 +324,37 @@
   // gọi mỗi khung: tên cảnh hiện tại + đang đi đường (đổi cảnh 3D)
   A.scene = function (name, travel) {
     if (!A.ctx || A.ctx.state !== 'running') return;
-    const cfg = SCENE_SND[name] || SCENE_SND.dong, t = T();
-    const want = new Map(cfg.loop.map(([n, v]) => [n, v * (travel ? 0.5 : 1) * (1 - A.tension * 0.4)]));
+    const cfg = SCENE_SND[name] || SCENE_SND.dong, t = T(), hushed = t < A.hushUntil;
+    const want = new Map(cfg.loop.map(([n, v]) => [n, hushed ? 0 : v * (travel ? 0.5 : 1) * (1 - A.tension * 0.4)]));
     for (const [n, L] of layers) if (!want.has(n)) L.g.gain.setTargetAtTime(0, t, 1);
-    for (const [n, v] of want) loopOn(n, v);
+    for (const [n, v] of want) loopOn(n, v, hushed ? 0.25 : 2.5);
     if (name !== curScene) { curScene = name; nextOcc = t + 8 + Math.random() * 10; for (const [n] of cfg.occ) buf(n); }
     if (t > nextOcc && cfg.occ.length && !travel) { const [n, v] = cfg.occ[Math.floor(Math.random() * cfg.occ.length)]; once(n, v * (0.7 + Math.random() * 0.3), 6); nextOcc = t + 25 + Math.random() * 35; }
     // tiếng củi cháy thật theo lượng củi
     const fb = buf('cui-no-lach-tach');
-    if (fb) { if (!fireL) { loopOn('cui-no-lach-tach', 0); fireL = layers.get('cui-no-lach-tach'); } if (fireL) fireL.g.gain.setTargetAtTime(A.fire > 0 ? 0.35 + A.fire * 0.9 : 0, t, 0.6); }
+    if (fb) { if (!fireL) { loopOn('cui-no-lach-tach', 0); fireL = layers.get('cui-no-lach-tach'); } if (fireL) fireL.g.gain.setTargetAtTime(hushed ? 0.05 : A.fire > 0 ? 0.35 + A.fire * 0.9 : 0, t, hushed ? 0.08 : 0.6); }
     // bước chân khi ông Tư dẫn đoàn đi
     if (travel !== walking) { walking = travel; const sn = Math.random() < 0.5 ? 'buoc-chan-la-kho' : 'buoc-chan-soi'; if (travel) { loopOn(sn, 0.55, 1); stepL = sn; } else if (stepL && layers.get(stepL)) { layers.get(stepL).g.gain.setTargetAtTime(0, t, 0.5); } }
   };
-  A.real = (n, vol = 0.6, maxDur) => once(n, vol, maxDur);   // tiếng sự kiện: mõ khi niệm Phật, chuông khi trừ tà
+  A.real = (n, vol = 0.6, maxDur) => once(n, vol, maxDur);
+  // im bặt: mọi tiếng nền (ếch, gió, củi) tắt ngấm trong vài giây — để tiếng động sau đó làm giật mình
+  A.hushUntil = 0;
+  A.hush = dur => { if (!A.ctx) return; A.hushUntil = T() + dur; if (A.amb) { A.amb.wg.gain.setTargetAtTime(0, T(), 0.08); setTimeout(() => A.amb && A.amb.wg.gain.setTargetAtTime(0.05, T(), 1), dur * 1000); } };
+  // tiếng thì thầm đi một vòng từ tai trái sang tai phải (nghe tai nghe rõ nhất)
+  A.whisperPan = (v = 0.8) => {
+    if (!A.ctx || A.ctx.state !== 'running') return;
+    const c = A.ctx, t = T() + 0.02, sp = c.createStereoPanner ? c.createStereoPanner() : null, d = c.createGain(); d.gain.value = v;
+    if (sp) { sp.pan.setValueAtTime(-1, t); sp.pan.linearRampToValueAtTime(1, t + 2.6); d.connect(sp); sp.connect(A.master); } else d.connect(A.master);
+    const w = c.createGain(); w.gain.value = 0.45; d.connect(w); w.connect(A.verbIn);
+    for (let i = 0; i < 16; i++) { const tt = t + i * 0.16 + Math.random() * 0.06; const n = noise(tt, 0.14 + Math.random() * 0.12, 0.3, d, 'bandpass', 2200 + Math.random() * 2800, 6, 0.03); n.f.frequency.linearRampToValueAtTime(1700 + Math.random() * 3000, tt + 0.18); }
+  };
+  // tiếng gió vụt qua (bóng đen lướt)
+  A.whoosh = (v = 0.7) => {
+    if (!A.ctx || A.ctx.state !== 'running') return;
+    const c = A.ctx, t = T() + 0.02, d = c.createGain(), sp = c.createStereoPanner ? c.createStereoPanner() : null;
+    if (sp) { sp.pan.setValueAtTime(-0.9, t); sp.pan.linearRampToValueAtTime(0.9, t + 0.9); d.connect(sp); sp.connect(A.master); } else d.connect(A.master);
+    const n = noise(t, 1.0, 0.55 * v, d, 'bandpass', 500, 1.2, 0.25); n.f.frequency.setValueAtTime(400, t); n.f.frequency.exponentialRampToValueAtTime(1800, t + 0.45); n.f.frequency.exponentialRampToValueAtTime(350, t + 1.0);
+  };   // tiếng sự kiện: mõ khi niệm Phật, chuông khi trừ tà
   A.preload = () => { for (const n of ['cui-no-lach-tach', 'ech-nhai-de-keu', 'gio-lua-tre-keo-ket', 'mo-go', 'chuong-dinh']) buf(n); };
   window.MaAudio = A;
 })();

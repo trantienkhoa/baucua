@@ -20,6 +20,14 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 👻 Ngọn Lửa Cuối Cùng: 60 truyện, hiệu ứng ma quái mới (bản 2.24.0)
+
+- **Thêm 30 truyện** (`ma-stories-4/5/6.js`), mỗi cảnh 2–3 truyện, tự đổi sang đúng cảnh khi kể: bù nhìn quay đầu, ngọn đèn giữa ruộng, cây chuối hột, tiếng khóc trong bụi tre, gàu múc nước nửa đêm, đèn lồng cành đa, ván cờ dưới gốc đa, người gác nghĩa trang, chuyến đò cuối, phiên chợ ba giờ sáng, toa tàu thứ mười ba, chiếc đồng hồ quả lắc, trống đình nửa đêm, gánh hát bội…
+  Truyện mới không có ai trong vòng lửa bị bắt / bị nhập / bị hại (đúng CLAUDE.md); kết xấu chỉ ảnh hưởng cảnh vật hoặc nhân vật trong truyện.
+- **Hiệu ứng mới** (dùng trong truyện và thử được ở trang điều khiển): bóng trắng lướt qua sau lưng mọi người (có tiếng gió vụt từ trái sang phải), gió giật làm lửa rạp xuống rồi bùng lại, tiếng thì thầm đi một vòng từ tai trái sang tai phải, **im bặt** (mọi tiếng nền tắt, lửa lụi) rồi ba tiếng gõ cửa thật rõ.
+- **Hù ngẫu nhiên** mỗi 1,5–3 phút giữa lúc kể (Cài đặt → Hù ngẫu nhiên; tắt theo mức hù "Tắt").
+- Sửa hiệu ứng lửa chập chờn: trước đây nhấp nháy theo từng khung hình (gần như chớp sáng), giờ đổi chậm ≤ 3 lần/giây.
+
 ## 🗝 Ngọn Lửa Cuối Cùng: key theo mã máy, không cần máy chủ (bản 2.23.0)
 
 - Bán không cần VPS: khách gửi mã máy (hiện ở trang nhập key) → anh bấm `TaoKey.bat`, dán mã → ra key `NLOF-…` chỉ chạy trên máy đó, không cần mạng.

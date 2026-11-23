@@ -11,6 +11,8 @@
     'cot-do-1', 'cot-do-2', 'trong', 'den-dau', 'lu-dong', 'lua-1', 'lua-2', 'lua-3', 'lua-4', 'khoi-1', 'khoi-2', 'dom-dom', 'buom', 'suong-1', 'suong-2', 'la-1', 'la-2', 'la-3', 'tia-trang',
     'bo-cui', 'hu-muoi', 'cua-go', 'nen', 'khoi-nhap', 'bat-nhang', 'bua', 'chuong', 'guong-bat-quai', 'co-dai-1', 'co-dai-2', 'co-dai-3', 'co-dai-4', 'co-lau', 'duong-xi'];
   const IMG = {};
+  const DASH_IM = Object.assign(new Image(), { src: '/models/ma/E2D/ma-ao-ba-ba.png' });   // bóng trắng lướt qua sau lưng (bóng đen chìm mất trên nền tối)
+  let dashT0 = -99, dashDir = 1;
   let loaded = 0;
   for (const n of NAMES) { const im = new Image(); im.onload = () => { loaded++; }; im.src = B + n + '.png'; IMG[n] = im; }
   const ok = n => { const im = IMG[n]; return im && im.complete && im.naturalWidth > 0; };
@@ -122,6 +124,13 @@
     for (const [n, x, y, h, o = {}] of [...S.props].sort((a, b) => a[2] - b[2])) {
       const sw = o.sway ? Math.sin(t * 1.3 + x) * 0.04 + wind.s * 0.05 : 0;
       put(ctx, n, x, y, h, { flip: o.flip, rot: o.rot, cy: o.cy, sway: sw });
+    }
+    // bóng đen lướt ngang phía sau hàng người (vẽ trước người ngồi nên bị người che, như đi sau lưng)
+    const dk = (t - dashT0) / 0.95;
+    if (dk >= 0 && dk <= 1 && DASH_IM.complete && DASH_IM.naturalWidth) {
+      const h = 250, w = h * DASH_IM.naturalWidth / DASH_IM.naturalHeight, x = dashDir > 0 ? -160 + dk * (W + 320) : W + 160 - dk * (W + 320);
+      ctx.save(); ctx.globalAlpha = 0.65 * Math.sin(dk * Math.PI); ctx.translate(x, HZ + 95); ctx.transform(1, 0, -0.18 * dashDir, 1, 0, 0);
+      ctx.drawImage(DASH_IM, -w / 2, -h, w, h); ctx.restore();
     }
     // cụm đồ tiền cảnh + cỏ cây sát mép dưới
     for (const [n, x, y, h, o = {}] of FG[st.map] || []) put(ctx, n, x, y, h, { rot: o.rot, flip: o.flip });
@@ -250,6 +259,6 @@
   window.MA2D = {
     viewer, hasPoses: () => POSE.ngoi.some(i => i.complete && i.naturalWidth), hasBackPoses: () => POSE.lua.some(i => i.complete && i.naturalWidth),
     ready: () => loaded > 20, scenes: Object.keys(SC), back, teller, tellerRect, fireBase, flame, front,
-    pulse: k => { pulses[k] = lastT; if (k === 'go') wind.gust = 1.1; }, gust: () => { wind.gust = 1; },
+    pulse: k => { pulses[k] = lastT; if (k === 'go') wind.gust = 1.1; }, gust: () => { wind.gust = 1.2; }, dash: () => { dashT0 = lastT; dashDir = Math.random() < 0.5 ? 1 : -1; },
   };
 })();

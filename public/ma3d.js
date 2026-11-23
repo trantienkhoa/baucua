@@ -1775,6 +1775,18 @@ if (renderer && SH) {
     }
   }
 
+  // ---- bóng đen lướt qua phía sau vòng người (hiệu ứng "luot") ----
+  let dashSp = null, dashT0 = -99, dashDir = 1;
+  function dashTick() {
+    const tx = ATX['e_ma-ao-ba-ba']; if (!tx) return;   // bóng trắng: bóng đen chìm mất trong đêm
+    if (!dashSp) { const m = new THREE.SpriteMaterial({ map: tx, transparent: true, depthWrite: false, fog: false, opacity: 0 }); dashSp = new THREE.Sprite(m); dashSp.center.set(0.5, 0.02); dashSp.scale.set(1.9 * tx.image.width / tx.image.height, 1.9, 1); dashSp.renderOrder = 7; scene.add(dashSp); }
+    const k = (lastT - dashT0) / 1.0;
+    if (k < 0 || k > 1 || trans) { dashSp.visible = false; return; }
+    const back = Math.atan2(camera.position.x, camera.position.z) + Math.PI, a = back + dashDir * (k * 2.4 - 1.2), r = 7;
+    dashSp.visible = true; dashSp.position.set(Math.sin(a) * r, 0, Math.cos(a) * r);
+    dashSp.material.opacity = 0.7 * Math.sin(k * Math.PI); dashSp.material.rotation = -0.15 * dashDir;
+  }
+
   function onAssets() {
     assetsReady = true;
     buildFireAssets(); buildBackdrops(); buildGhosts(); upgradeCane(); buildFx(); buildEvProps();
@@ -1860,7 +1872,7 @@ if (renderer && SH) {
       if (on) { const a = Math.atan2(T.x, T.z) + 0.55, r = Math.hypot(T.x, T.z); teller.tea.position.set(Math.sin(a) * r, 0, Math.cos(a) * r); teller.tea.rotation.y = a + Math.PI; }
     }
     windTick(t, dt); fxTick(t, dt, state); evPropTick(t, dt, state.ev);
-    ghostTick3(t); handTick3(t);
+    ghostTick3(t); handTick3(t); dashTick();
     for (const k of ['may1', 'may2', 'may3']) if (bgLayers[k]) bgLayers[k].rotation.y += bgLayers[k].userData.spin * dt;
     if (state.shake) camera.setViewOffset(W, H, state.shake.x, state.shake.y, W, H); else camera.clearViewOffset();
     renderer.render(scene, camera);
@@ -1873,6 +1885,7 @@ if (renderer && SH) {
     invalidate: () => { curMap = null; if (trans) { trans = null; if (torch) torch.g.visible = false; } }, relayout: () => { if (!trans && curMap && built[curMap]) applyLayout(built[curMap], false); },
     quality: () => ({ res: Math.round(resScale * 100), fps: Math.round(fpsEma) }),
     pulse: k => { if (assetsReady) pulseFx(k); },
+    gust: () => { wind.gust = 1.2; }, dash: () => { dashT0 = lastT; dashDir = Math.random() < 0.5 ? 1 : -1; },
     ghost3D: () => ghosts3.length > 0, hands3D: () => !!ATX['e_ban-tay'], assets: () => assetsReady,
     busy: () => !!trans, canTravel: () => canTravel(), transEl: () => (trans ? trans.el : 99),
     avatarCount: () => avs.size, modelsReady: () => modelsReady };

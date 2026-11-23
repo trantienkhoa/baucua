@@ -671,10 +671,43 @@
       case 'door': doorShake = 0.8; sfx('door'); return;
       case 'scream': shockAt = now(); sfx('scream', 0.8); scareAll(0.8); shake = Math.max(shake, 10); return;
       case 'mirror': mirrorFlash = now(); sfx('mirror'); return;
+      case 'gio': spookGust(); return;
+      case 'luot': spookDash(); return;
+      case 'hush': spookHush(); return;
+      case 'thamthi': spookWhisper(); return;
       default: if (window.MaAudio && MaAudio.has(f)) sfx(f); yin = clamp(yin + 1.5, 0, 100);
     }
   }
-  let lampFlickUntil = 0, mirrorFlash = -99;
+  let lampFlickUntil = 0, mirrorFlash = -99, fireDipUntil = 0;
+  // ---------- hiệu ứng ma quái (mức nhẹ theo CLAUDE.md: không chớp sáng, không mặt ma phóng to) ----------
+  const scareOn = () => S.scare !== 'tat';
+  function spookGust() {   // gió giật: lửa rạp xuống rồi bùng lại, lá bay, ai cũng rùng mình
+    fireDipUntil = now() + 1.4; sfx('wind', 1); scareAll(0.35);
+    if (use3D() && MA3D.gust) MA3D.gust(); else if (window.MA2D && MA2D.gust) MA2D.gust();
+  }
+  function spookDash() {   // bóng đen lướt qua sau lưng mọi người
+    if (window.MaAudio && MaAudio.whoosh) MaAudio.whoosh(0.8);
+    if (use3D() && MA3D.dash) MA3D.dash(); else if (window.MA2D && MA2D.dash) MA2D.dash();
+    setTimeout(() => scareAll(0.6), 350);
+  }
+  function spookHush() {   // im bặt 2,5 giây… rồi ba tiếng gõ thật rõ
+    if (window.MaAudio && MaAudio.hush) MaAudio.hush(2.6);
+    fireDipUntil = now() + 2.6;
+    if (!scareOn()) return;
+    setTimeout(() => { doorShake = 1.4; sfx('knock', 1.3); scareAll(0.9); shake = Math.max(shake, 6); }, 2600);
+  }
+  function spookWhisper() { if (window.MaAudio && MaAudio.whisperPan) MaAudio.whisperPan(0.85); else sfx('whisper'); }
+  // thỉnh thoảng (1,5–3 phút) tự có một hiệu ứng giữa lúc kể / lúc nghỉ, để không gian lúc nào cũng rờn rợn
+  let nextSpook = 90;
+  function spookTick(t) {
+    if (S.ambientScare === false || !scareOn() || ev || traveling() || jumpscare) return;
+    if (t < nextSpook) return;
+    nextSpook = t + 90 + Math.random() * 90;
+    const pool = ['luot', 'gio', 'thamthi', 'eyes', 'ghost', 'luot', 'thamthi'];
+    if (story.phase !== 'vote') pool.push('hush');
+    const f = pool[Math.floor(Math.random() * pool.length)];
+    runStoryFx(f);
+  }
 
   // ======================================================================
   // BÌNH CHỌN
@@ -1252,7 +1285,9 @@
     if (oil <= 0 && !blocking && !traveling() && !(ev && ev.type === 'blackout') && !evQueue.some(x => x.type === 'blackout')) { oil = 0.01; queueEvent('blackout'); }
     if (yin >= 100 && !traveling() && !(ev && (ev.type === 'ghostauto' || ev.type === 'goihon')) && !evQueue.some(x => x.type === 'ghostauto')) { yin = 99; queueEvent('ghostauto'); }
     lampFlick = 1 + (Math.sin(t * 13) * 0.02 + Math.sin(t * 7.3) * 0.025 + (Math.random() - 0.5) * 0.03) * (0.6 + yin / 100);
-    if (t < lampFlickUntil) lampFlick *= Math.random() < 0.35 ? 0.35 : 1;
+    if (t < lampFlickUntil) lampFlick *= (Math.floor(t * 3) % 2) ? 0.55 : 1;   // chập chờn chậm, không chớp sáng
+    if (t < fireDipUntil) lampFlick *= 0.45;   // gió giật / im bặt: lửa rạp xuống
+    else if (t < fireDipUntil + 1.2) lampFlick *= 0.45 + 0.55 * ((t - fireDipUntil) / 1.2);   // rồi bùng lên lại từ từ
     if (ev && ev.type === 'blackout' && t - ev.t0 < 5.2) lampFlick = 0;
     if (window.MaAudio) { MaAudio.setTension(yin / 100); if (MaAudio.setFire) MaAudio.setFire(oil > 0 ? oil / 100 : 0); if (MaAudio.scene) MaAudio.scene(curMap, traveling()); }
     if (!use3D() && oil > 0 && Math.random() < dt * (3 + oil / 12)) particles.push({ x: LX + rand(-30, 30), y: LY - 60, vx: rand(-25, 25), vy: -rand(90, 220), life: rand(0.8, 2), max: 2, color: Math.random() < 0.5 ? '255,170,60' : '255,110,30', size: rand(1.2, 2.6), g: -10 });
@@ -1263,6 +1298,7 @@
     ghostTick(dt, t);
     takenTick(t);
     hostTick(t);
+    spookTick(t);
 
     if (story.phase === 'tell' && !ev && !vote && t - lastGeneralAt > 100) { lastGeneralAt = t; showGuide('general', 90); }
     if (t - minuteAt > 60) { minuteAt = t; for (const v of alive()) if (t - v.active < S.idleSeconds) addBrave(v, 1); }
@@ -1321,6 +1357,13 @@
     've-so': 'choma', 'ma-xo': 'nhahoang', 'phong-tro': 'nhahoang', 'guong-dem': 'nhahoang', 'ao-cuoi': 'nhahoang', 'meo-den': 'nhahoang',
     'tang-4': 'nhahoang', 'nha-xac': 'nhahoang', 'ky-tuc-xa': 'nhahoang', 'phong-nhac': 'nhahoang', 'bac-13': 'nhahoang', 'biet-thu': 'nhahoang',
     'nguoi-thu-13': 'dinh', 'dua-goi-hon': 'dinh',
+    // phần 4–6: mỗi truyện hợp một cảnh
+    'bu-nhin': 'dong', 'den-giua-ruong': 'dong', 'ganh-lua-dem': 'dong', 'chuoi-hot': 'chuoi', 'buong-chuoi-chin': 'chuoi',
+    'tre-khoc': 'rungtre', 'duong-tat-tre': 'rungtre', 'dao-mang': 'rungtre', 'gau-nuoc-dem': 'gieng', 'trang-duoi-gieng': 'gieng', 'gieng-lap': 'gieng',
+    'den-long-da': 'cayda', 'co-tuong-da': 'cayda', 'nguoi-gac-mo': 'nghiadia', 'bo-hoa-mo': 'nghiadia', 'chuong-mo-co': 'nghiadia',
+    'tuong-da-quay': 'mieu', 'nen-mieu': 'mieu', 'do-cuoi': 'bendo', 'luc-binh-nguoc': 'bendo', 'den-bao-song': 'bendo',
+    'ganh-xoi-dem': 'choma', 'non-la-treo-cot': 'choma', 'phien-cho-am': 'choma', 'toa-tau-cuoi': 'duongray', 'den-tin-hieu': 'duongray',
+    'dong-ho-qua-lac': 'nhahoang', 'gac-xep': 'nhahoang', 'trong-dinh-dem': 'dinh', 'ganh-hat-boi': 'dinh',
   };
   const SCENE_IDS = ['dong', 'chuoi', 'rungtre', 'gieng', 'cayda', 'nghiadia', 'mieu', 'bendo', 'choma', 'duongray', 'nhahoang', 'dinh'];
   const view2D = () => S.view === '2d';   // chế độ 2D chọn ở Cài đặt
@@ -2415,6 +2458,7 @@ socket.on('ma:locked', () => { location.href = '/kich-hoat.html?tu=' + encodeURI
         break;
       }
       case 'jumpscare': doJumpscare(); break;
+      case 'fx': if (typeof c.name === 'string' && /^[a-z]+$/.test(c.name)) runStoryFx(c.name); break;
       case 'oil': oil = clamp(+c.v || 0, 0, 100); break;
       case 'yin': yin = clamp(+c.v || 0, 0, 100); break;
       case 'freeAll': for (const v of seated()) if (v.taken) returnViewer(v, true); break;
