@@ -1,0 +1,30 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#9aa0aa;font-family:DejaVu Sans,sans-serif}canvas{display:block}
+.l{position:absolute;color:#fff;font-size:22px;font-weight:bold;text-shadow:0 0 3px #000,0 0 3px #000;width:300px;text-align:center}</style>
+<script type="importmap">{ "imports": { "three": "/three/build/three.module.js", "three/addons/": "/three/examples/jsm/" } }</script></head><body>
+<script type="module">
+// Trang xem trước + tính động tác cho một nhân vật. Tham số sau dấu #: {m:'đường dẫn glb', only:[...], cols, ry, label}
+import * as THREE from 'three'; import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'; import { MOVES, D } from './dong-tac.js';
+const P=JSON.parse(decodeURIComponent(location.hash.slice(1)||'{}')); const COLS=P.cols||5, TW=300, TH=360, names=P.only||Object.keys(MOVES), ROWS=Math.ceil(names.length/COLS);
+const W=TW*COLS, H=TH*ROWS, r=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true}); r.setSize(W,H); r.outputColorSpace=THREE.SRGBColorSpace; r.setScissorTest(true); document.body.appendChild(r.domElement);
+names.forEach((n,i)=>{ const e=document.createElement('div'); e.className='l'; e.textContent=P.label??MOVES[n].ten; e.style.left=(i%COLS)*TW+'px'; e.style.top=(Math.floor(i/COLS)*TH+8)+'px'; document.body.appendChild(e); });
+const sc=new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff,0x555566,2.2)); const d=new THREE.DirectionalLight(0xffffff,1.6); d.position.set(2,4,-3); sc.add(d);
+const g=new THREE.Mesh(new THREE.CircleGeometry(1.2,40),new THREE.MeshLambertMaterial({color:0x7d838c})); g.rotation.x=-Math.PI/2; sc.add(g);
+const cam=new THREE.PerspectiveCamera(30,TW/TH,.1,50); cam.position.set(0,1.05,-4.6); cam.lookAt(0,0.82,0);
+const gg=await new GLTFLoader().loadAsync(P.m); const root=gg.scene; sc.add(root); root.rotation.y=P.ry??0.75;
+const B={}; root.traverse(n=>{ if(n.isBone) B[n.name.replace(/^mixamorig:?/,'')]=n; if(n.isMesh) n.frustumCulled=false; });
+const arm=B.Hips.parent; root.updateMatrixWorld(true);
+const rest={}, armInv=new THREE.Quaternion(); arm.getWorldQuaternion(armInv); armInv.invert();
+for(const k in B){ const w=new THREE.Quaternion(); B[k].getWorldQuaternion(w); rest[k]={l:B[k].quaternion.clone(), w:armInv.clone().multiply(w), p:B[k].position.clone()}; }
+const SC=rest.Hips.p.y/0.842;   // nhân vật cao/thấp hơn mẫu thì dịch hông theo tỉ lệ
+const AX={x:new THREE.Vector3(1,0,0),y:new THREE.Vector3(0,1,0),z:new THREE.Vector3(0,0,1)}, tq=new THREE.Quaternion(), R=new THREE.Quaternion(), wi=new THREE.Quaternion();
+function apply(o){ for(const k in B){ B[k].quaternion.copy(rest[k].l); B[k].position.copy(rest[k].p); }
+  for(const k in o){ if(k==='hip'||!B[k]) continue; R.identity(); for(const [a,deg] of o[k]){ tq.setFromAxisAngle(AX[a],deg*D); R.premultiply(tq); }
+    const w=rest[k].w; wi.copy(w).invert(); B[k].quaternion.copy(rest[k].l).multiply(wi.clone().multiply(R).multiply(w)); }
+  if(o.hip){ B.Hips.position.x+=o.hip[0]*SC; B.Hips.position.y+=o.hip[1]*SC; B.Hips.position.z+=-o.hip[2]*SC; } }
+window.frame=T=>{ names.forEach((n,i)=>{ const m=MOVES[n]; apply(m.f((T/m.dur)%1)); const x=(i%COLS)*TW, y=H-(Math.floor(i/COLS)+1)*TH;
+  r.setViewport(x,y,TW,TH); r.setScissor(x,y,TW,TH); r.setClearColor(0x9aa0aa); r.clear(); r.render(sc,cam); }); };
+window.bake=fps=>{ const res={}; for(const n in MOVES){ const m=MOVES[n], N=Math.round(m.dur*fps), out={times:[],q:{},hip:[]}; for(const k in B) out.q[k]=[];
+  for(let i=0;i<=N;i++){ apply(m.f((i/N)%1)); out.times.push(i/fps); for(const k in B) out.q[k].push(...B[k].quaternion.toArray()); out.hip.push(...B.Hips.position.toArray()); }
+  res[n]=out; } return res; };
+window.SIZE=[W,H]; window.frame(0); window.DONE=true;
+</script></body></html>
