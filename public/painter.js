@@ -936,7 +936,15 @@ function drawSignature(k) {
   P.fillStyle = job && job.style === 'neon' ? '#ff7ad9' : '#7a1f2b'; P.font = `700 34px ${HAND}`; P.textAlign = 'left'; P.textBaseline = 'middle';
   const sig = (S.painterName || 'Neon').split(' ').pop();
   P.fillText(sig.slice(0, 10) + ' ♥', 0, 0);
-  P.restore(); paintTex.needsUpdate = true;
+  P.restore(); gameLabel(); paintTex.needsUpdate = true;
+}
+// nhãn "tranh do game vẽ": tranh giống ảnh người thật phải ghi rõ là nội dung đã chỉnh sửa / máy tạo
+function gameLabel() {
+  P.save(); P.font = `700 20px ${FONT}`; P.textAlign = 'left'; P.textBaseline = 'middle';
+  const t = '🎨 Tranh do game vẽ', w = P.measureText(t).width + 20;
+  P.fillStyle = 'rgba(255,255,255,0.78)'; rr(P, 14, PAINT_PX - 44, w, 30, 15); P.fill();
+  P.fillStyle = '#3a2410'; P.fillText(t, 24, PAINT_PX - 29);
+  P.restore();
 }
 // ---------- hình vẽ nghịch cho tranh biếm họa ----------
 const CAPTIONS = ['Thần thái 10 điểm ✨', 'Xinh xỉu luôn 💖', 'Ngầu ghê 😎', 'Nụ cười tỏa nắng ☀️', 'Fan cứng của phố ❤', 'Siêu dễ thương 🌸', 'Visual đỉnh nóc 💫', 'Vui vẻ cả ngày nha 🎈', 'Chào bạn mới 👋', 'Cảm ơn đã ghé chơi 🎨'];   // chỉ lời khen, không chê ngoại hình
@@ -963,7 +971,7 @@ function drawDoodles(d) {
   P.translate(PAINT_PX - 140, PAINT_PX - 60); P.rotate(-0.22);
   P.strokeStyle = 'rgba(255,111,163,0.9)'; P.lineWidth = 5; rr(P, -110, -30, 220, 60, 30); P.stroke();
   P.fillStyle = 'rgba(255,111,163,0.9)'; P.font = `900 30px ${BIG}`; P.fillText('♥ PHỐ VẼ', 0, 2);
-  P.restore(); paintTex.needsUpdate = true;
+  P.restore(); gameLabel(); paintTex.needsUpdate = true;
 }
 function drawInvite() {
   paperBg('sketch');
@@ -981,7 +989,7 @@ const tierOf = c => c >= (Number(S.tierKing) || 299) ? 4 : c >= (Number(S.tierNo
 const TIER_NAME = ['Hoạt hình ✨', 'Vẽ nhanh', 'Sơn dầu', 'Chân dung', 'Kiệt tác'];
 const TIER_ICON = ['✨', '🌹', '💎', '👑', '🏆'];
 const snapReq = [];   // chụp mặt nhân vật 3D làm mẫu khi không có ảnh đại diện
-function plateSub(j) { if (j.p.guest) return `Khách phố · ${TIER_NAME[j.tier]}${j.style !== 'sondau' ? ' · ' + ART[j.style].name : ''}`; return j.tier ? `${TIER_NAME[j.tier]}${j.style !== 'sondau' ? ' · ' + ART[j.style].name : ''}${j.lucky ? ' · 🍀 vẽ tặng' : ''}` : 'Tranh hoạt hình ✨'; }
+function plateSub(j) { if (j.p.guest) return `Nhân vật trong game · ${TIER_NAME[j.tier]}${j.style !== 'sondau' ? ' · ' + ART[j.style].name : ''}`; return j.tier ? `${TIER_NAME[j.tier]}${j.style !== 'sondau' ? ' · ' + ART[j.style].name : ''}${j.lucky ? ' · 🍀 vẽ tặng' : ''}` : 'Tranh hoạt hình ✨'; }
 function startJob(p) {
   const i = queue.indexOf(p); if (i >= 0) queue.splice(i, 1);
   sitter = p;
@@ -1272,7 +1280,8 @@ let lastActivity = now();
 const passers = [];
 function spawnGuest() {
   const ch = pickChar(undefined, [painter.charId]);
-  const g = makeActor({ id: 'guest' + seq, name: ch ? ch.name : 'Khách phố', avatar: '' });
+  // tên ghi rõ NPC: không giả làm người xem thật (tránh 'tương tác giả')
+  const g = makeActor({ id: 'guest' + seq, name: 'NPC ' + (ch ? ch.name.split(' ').pop() : 'Khách phố'), avatar: '' });
   g.guest = true; g.charSet = true; assignChar(g, ch);
   g.coins = pick([1, 30, 30, 99]); g.artStyle = pick(['sondau', 'sondau', 'mauNuoc', 'popart', 'neon']);
   g.order = seq++; g.joinT = now();
@@ -1869,7 +1878,7 @@ function drawBanner(t) {
   ctx.restore();
   return true;
 }
-const HINTS = ['💬 Bình luận để vào hàng chờ vẽ', '✨ Vẽ miễn phí kiểu hoạt hình cho mọi người', '🎁 Quà càng lớn tranh càng chi tiết', '🖌️ Gõ “pop art”, “màu nước”, “neon” chọn kiểu', '⭐ Gõ 1–5 chấm điểm tranh vừa vẽ', '🍀 Người chờ lâu nhất được vẽ tặng sơn dầu', '❓ Gõ “thứ mấy” xem lượt của bạn', '❤️ Tim giúp họa sĩ vẽ nhanh hơn'];
+const HINTS = ['💬 Bình luận để vào hàng chờ vẽ', '✨ Vẽ miễn phí kiểu hoạt hình cho mọi người', '🎁 Quà càng lớn tranh càng chi tiết', '🖌️ Gõ “pop art”, “màu nước”, “neon” chọn kiểu', '⭐ Gõ 1–5 chấm điểm tranh vừa vẽ', '🍀 Người chờ lâu nhất được vẽ tặng sơn dầu', '❓ Gõ “thứ mấy” xem lượt của bạn', '❤️ Tim giúp họa sĩ vẽ nhanh hơn', '🎨 Tranh do game vẽ, không phải ảnh thật', '🤖 Khách phố “NPC” là nhân vật trong game'];
 function drawHint(t) {
   const i = Math.floor(t / 4.5) % HINTS.length, k = (t % 4.5) / 4.5, a = Math.min(1, k * 8, (1 - k) * 8);
   ctx.save(); ctx.globalAlpha = 0.92 * a;
@@ -1973,7 +1982,7 @@ function drawPeopleTags(t) {
     const r = 40, sx = clamp(sitter._sp.x, 130, W - 130), y = sitter._sp.y - r - 12;
     avatarCircle(sitter, sx, y, r, tierRing(sitter.paintCoins || 0));
     ctx.font = `800 28px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-    const n = '🎨 ' + fit(sitter.name, 200); ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(42,22,8,0.8)'; ctx.strokeText(n, sx, y - r - 6); ctx.fillStyle = '#fff'; ctx.fillText(n, sx, y - r - 6);
+    const n = (sitter.guest ? '🤖 ' : '🎨 ') + fit(sitter.name, 200); ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(42,22,8,0.8)'; ctx.strokeText(n, sx, y - r - 6); ctx.fillStyle = '#fff'; ctx.fillText(n, sx, y - r - 6);
   }
 }
 function drawJobProgress(t) {
@@ -2049,8 +2058,8 @@ function drawBoard(t) {
   const title = s => { ctx.fillStyle = '#ffe9a3'; ctx.font = `800 24px ${FONT}`; ctx.fillText(s, x + 16, y + 28); };
   if (page === 'how') {
     title('🎨 Cách chơi');
-    const rows = [['💬', 'Bình luận', 'tranh hoạt hình ✨'], ['🌹', '1 xu', 'vẽ nhanh'], ['💎', '30 xu', 'sơn dầu'], ['👑', `${S.tierNoble || 99} xu`, 'chân dung vàng'], ['🏆', `${S.tierKing || 299} xu`, 'giống y ảnh'], ['🖌️', 'pop art · màu nước · neon', ''], ['⭐', 'Gõ 1–5', 'chấm điểm tranh']];
-    rows.forEach(([ic, aa, bb], i) => { const yy = y + 64 + i * 33; ctx.font = `22px ${FONT}`; ctx.fillStyle = '#fff'; ctx.fillText(ic, x + 14, yy); ctx.font = `700 19px ${FONT}`; ctx.fillText(aa, x + 48, yy); if (bb) { ctx.fillStyle = '#ffd9a8'; ctx.font = `600 19px ${FONT}`; ctx.fillText('→ ' + bb, x + 48 + ctx.measureText(aa).width + 6, yy); } });
+    const rows = [['💬', 'Bình luận', 'tranh hoạt hình ✨'], ['🌹', '1 xu', 'vẽ nhanh'], ['💎', '30 xu', 'sơn dầu'], ['👑', `${S.tierNoble || 99} xu`, 'chân dung vàng'], ['🏆', `${S.tierKing || 299} xu`, 'giống y ảnh'], ['🖌️', 'pop art · màu nước · neon', ''], ['⭐', 'Gõ 1–5', 'chấm điểm tranh'], ['🎨', 'Tranh do game vẽ, không phải ảnh', '']];
+    rows.forEach(([ic, aa, bb], i) => { const yy = y + 62 + i * 30; ctx.font = `22px ${FONT}`; ctx.fillStyle = '#fff'; ctx.fillText(ic, x + 14, yy); ctx.font = `700 19px ${FONT}`; ctx.fillText(aa, x + 48, yy); if (bb) { ctx.fillStyle = '#ffd9a8'; ctx.font = `600 19px ${FONT}`; ctx.fillText('→ ' + bb, x + 48 + ctx.measureText(aa).width + 6, yy); } });
   } else if (page === 'next') {
     title('⏳ Sắp tới lượt');
     queue.slice(0, 5).forEach((p, i) => { const yy = y + 72 + i * 42; avatarCircle(p, x + 50, yy, 16, p.lucky ? '#3ddc84' : p.coins ? tierRing(p.coins) : null); ctx.fillStyle = '#ffe9a3'; ctx.font = `800 20px ${FONT}`; ctx.fillText('#' + (i + 1), x + 12, yy); ctx.fillStyle = '#fff'; ctx.font = `700 20px ${FONT}`; ctx.fillText(fit(p.name, 150), x + 74, yy); ctx.fillStyle = '#ffd9a8'; ctx.font = `600 18px ${FONT}`; ctx.textAlign = 'right'; ctx.fillText(p.lucky ? '🍀' : TIER_ICON[Math.min(4, tierOf(p.coins) + (p.tierBonus || 0))], x + w - 14, yy); ctx.textAlign = 'left'; });
