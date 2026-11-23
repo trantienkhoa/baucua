@@ -20,6 +20,24 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 🚶 Ngọn Lửa Cuối Cùng: tránh nhau khi đi, đêm rõ hơn, nhép miệng theo giọng (bản 2.15.0)
+
+- **Đoàn người tránh nhau:**
+  - Mỗi người tự bước tới chỗ của mình với tốc độ giới hạn (tụt lại xa thì đi nhanh hơn).
+  - Đứng quá gần người khác (dưới khoảng nửa mét) thì tự giãn ra. Người đang ngồi hay đứng chờ là vật cản, người đi phải tránh.
+  - Ai cũng đi vòng qua đống lửa và Ông Tư.
+  - Hướng mặt theo hướng đi, bước chân theo quãng đường thật. Đứng chờ thì run tại chỗ.
+  - Lúc tách đoàn, từng người đi tới chỗ ngồi mới rồi mới ngồi xuống.
+  - Đã thử với 30 người: khoảng cách gần nhất giữa hai người lúc đi là 0,43 m, không còn ai đi xuyên qua ai.
+- **Đoạn đi đêm thấy rõ hơn:** đuốc sáng gấp đôi, sương nhẹ hơn, ánh trăng không tắt hẳn. Vẫn thấy đoàn người co ro và cảnh vật quanh ánh đuốc.
+- **Ông Tư nhép miệng theo giọng thật:** khi dùng VieNeu, miệng mở to nhỏ theo âm lượng giọng đang phát. Giọng trình duyệt thì vẫn mấp máy theo nhịp.
+- **Gậy chống xuống đất:** gậy trúc đặt theo tay trái mỗi khung, đầu gậy chống thẳng xuống đất cạnh chân. Lúc cầm đuốc đi thì cất gậy.
+- **Tên đỡ chồng chéo:** tên bị đè lên nhau thì ẩn bớt. Ưu tiên giữ tên người đang được gọi trong truyện, thầy pháp, người vừa bình luận, người bị tố, rồi tới người ngồi gần máy quay. Số ghế vẫn luôn hiện để mọi người gõ được.
+- **Tự giảm độ phân giải 3D khi máy chậm:**
+  - Dưới khoảng 26 khung hình/giây trong 4 giây, độ phân giải giảm từng nấc 15%, thấp nhất 50%.
+  - Máy khoẻ lại (trên 50 khung hình/giây trong 12 giây) thì tăng dần về 100%.
+  - Trang điều khiển hiện mức đang dùng, ví dụ "35 · 3D 70%".
+
 ## 🔦 Ngọn Lửa Cuối Cùng: ông kể chuyện cầm đuốc dẫn đoàn sang cảnh mới, đồ vật tự nhiên (bản 2.14.0)
 
 - **Chuyển cảnh có người dẫn đường** (khoảng 16 giây):

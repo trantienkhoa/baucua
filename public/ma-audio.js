@@ -233,6 +233,7 @@
       const hi = c.createBiquadFilter(); hi.type = 'highshelf'; hi.frequency.value = 4500; hi.gain.value = P.high;
       const dry = c.createGain(); dry.gain.value = 1;
       src.connect(lo); lo.connect(hi); hi.connect(dry); dry.connect(bus);
+      const an = c.createAnalyser(); an.fftSize = 512; hi.connect(an); A.voiceAn = an;   // đo độ to giọng để nhân vật nhép miệng
       if (P.trem) { const l = c.createOscillator(), lg = c.createGain(); l.frequency.value = 5.5; lg.gain.value = P.trem; l.connect(lg); lg.connect(dry.gain); l.start(t); l.stop(t + buffer.duration / P.rate + 3); }
       if (P.wet) { const w = c.createGain(); w.gain.value = P.wet; hi.connect(w); w.connect(A.verbIn); }
       if (P.fb) {   // tiếng vọng
@@ -250,11 +251,18 @@
       // hạ tiếng gió / ù nền khi đang kể
       if (A.amb) { A.amb.wg.gain.setTargetAtTime(0.015, t, 0.3); }
       A.voiceBusy = true;
-      src.onended = () => { A.voiceBusy = false; if (A.amb) A.amb.wg.gain.setTargetAtTime(0.05, c.currentTime, 1); resolve(true); };
+      src.onended = () => { A.voiceBusy = false; A.voiceAn = null; if (A.amb) A.amb.wg.gain.setTargetAtTime(0.05, c.currentTime, 1); resolve(true); };
       src.start(t); if (src2) src2.start(t + 0.035);
     });
   };
 
+  const _buf = new Float32Array(512);
+  A.voiceLevel = () => {   // 0..1 theo âm lượng giọng đang phát
+    if (!A.voiceAn) return 0;
+    A.voiceAn.getFloatTimeDomainData(_buf);
+    let s = 0; for (let i = 0; i < _buf.length; i++) s += _buf[i] * _buf[i];
+    return Math.min(1, Math.sqrt(s / _buf.length) * 5);
+  };
   A.play = function (name, v = 1, delay = 0) {
     if (!A.ctx || A.ctx.state !== 'running') return;
     const f = FX[name]; if (!f) return;

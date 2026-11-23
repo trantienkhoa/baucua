@@ -1544,6 +1544,17 @@
     if (ghost.a > 0.01) drawGhost(ghost.x, ghost.y, ghost.sc, ghost.a, t, { red: yin > 60, reach: ghost.mode === 'rush' ? 1 : ghost.mode === 'behind' ? 0.35 : 0 });
     // chữ trên đầu người xem (tối đa 8 bong bóng bình luận mới nhất)
     bubbleSet = new Set(list.filter(v => v.bubble && !v.taken && t - v.bubble.t0 < 3.4).sort((a, b) => b.bubble.t0 - a.bubble.t0).slice(0, 8).map(v => v.id));
+    // tên chồng lên nhau thì ẩn bớt: ưu tiên người được gọi tên, thầy pháp, người vừa bình luận, bị tố, người ngồi gần máy quay
+    const pri = v => (v.glow > 0 ? 100 : 0) + (isThay(v) ? 90 : 0) + (bubbleSet.has(v.id) ? 60 : 0) + (ev && ev.type === 'nhap' && ev.tally.get(v.seat.n) ? 70 : 0) + (v.seat.sc || 1) * 30;
+    const rects = [];
+    for (const v of [...list].sort((a, b) => pri(b) - pri(a))) {
+      if (v.taken) continue;
+      const sc = v.dsc || v.seat.sc, nfs = 13 + 8 * sc, w = (v.nameW || 60) * nfs / 22 + 14 + (D3 ? nfs * 1.6 : 0);
+      const r = { x0: v.x - w / 2 - (D3 ? nfs * 1.2 : 0), x1: v.x + w / 2, y0: v.y + 16 * sc - nfs * 0.65, y1: v.y + 16 * sc + nfs * 0.65 };
+      const hit = rects.some(q => { const ox = Math.min(r.x1, q.x1) - Math.max(r.x0, q.x0), oy = Math.min(r.y1, q.y1) - Math.max(r.y0, q.y0); return ox > 0 && oy > 0 && ox * oy > 0.3 * (r.x1 - r.x0) * (r.y1 - r.y0); });
+      v.hideName = hit && pri(v) < 60;
+      if (!v.hideName) rects.push(r);
+    }
     for (const v of list) drawViewerLabel(v, t);
     drawWhispers(t);
     // ánh sáng trừ tà
@@ -1721,15 +1732,18 @@
     ctx.font = `700 ${nfs}px ${FONT}`;
     const tw = (v.nameW || 60) * nfs / 22 + 14;
     const ny = y + 16 * sc;
+    if (!v.hideName) {
     ctx.fillStyle = isThay(v) ? 'rgba(120,80,10,.85)' : 'rgba(0,0,0,.62)';
     rr(x - tw / 2, ny - nfs * 0.62, tw, nfs * 1.25, nfs * 0.6); ctx.fill();
     ctx.fillStyle = isThay(v) ? '#ffe08a' : '#f3e6d6'; ctx.fillText(v.nameShort, x, ny + 1);
-    if (D3) {   // ảnh đại diện cạnh tên (nhân vật 3D không mang ảnh trên mặt)
+    }
+    if (D3 && !v.hideName) {   // ảnh đại diện cạnh tên (nhân vật 3D không mang ảnh trên mặt)
       const r = nfs * 0.78, px = x - tw / 2 - r * 0.55;
       ctx.save(); ctx.beginPath(); ctx.arc(px, ny, r, 0, TAU); ctx.clip(); ctx.drawImage(v.spr, 28, 10, 64, 64, px - r, ny - r, r * 2, r * 2); ctx.restore();
       ctx.strokeStyle = 'rgba(255,236,200,.85)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(px, ny, r, 0, TAU); ctx.stroke();
     }
-    if (isThay(v)) { ctx.font = `800 ${nfs - 4}px ${FONT}`; ctx.fillStyle = '#ffd27a'; ctx.fillText('☯ THẦY PHÁP', x, ny + nfs * 1.15); }
+    if (v.hideName) { /* tên bị che bớt cho đỡ rối, vẫn còn số ghế */ }
+    else if (isThay(v)) { ctx.font = `800 ${nfs - 4}px ${FONT}`; ctx.fillStyle = '#ffd27a'; ctx.fillText('☯ THẦY PHÁP', x, ny + nfs * 1.15); }
     else if (BRAVE_TOP[0] && BRAVE_TOP[0].id === v.id) { ctx.font = `800 ${nfs - 5}px ${FONT}`; ctx.fillStyle = '#ffb36a'; ctx.fillText('👑 GAN NHẤT KÊNH', x, ny + nfs * 1.1); }
     // ma đứng sau lưng
     if (ghost.mode === 'behind' && ghost.behind === v && ghost.a > 0.2) {
@@ -2238,7 +2252,7 @@
       const sx = shake > 0 ? rand(-shake, shake) : 0, sy = shake > 0 ? rand(-shake, shake) : 0;
       if (shake > 0) ctx.translate(sx, sy);
       if (use3D()) {
-        MA3D.frame({ t, dt, viewers: [...viewers.values()], oil, flick: lampFlick, yin, map: curMap, talking: narrating() || !!(window.MC && MC.speaking) || story.typed < [...story.text].length, shockAt, shake: shake > 0 ? { x: -sx, y: -sy } : null, trura: !!(ev && ev.type === 'trura') });
+        MA3D.frame({ t, dt, viewers: [...viewers.values()], oil, flick: lampFlick, yin, map: curMap, talking: narrating() || !!(window.MC && MC.speaking) || story.typed < [...story.text].length, mouth: window.MaAudio && MaAudio.voiceBusy ? MaAudio.voiceLevel() : null, shockAt, shake: shake > 0 ? { x: -sx, y: -sy } : null, trura: !!(ev && ev.type === 'trura') });
         ctx.clearRect(-30, -30, W + 60, H + 60);
       } else { ctx.fillStyle = '#000'; ctx.fillRect(-30, -30, W + 60, H + 60); }
       drawScene(t);
@@ -2300,7 +2314,7 @@
       seated: seated().length, alive: alive().length, taken: seated().filter(v => v.taken).length, waiting: waiting.size,
       oil: Math.round(oil), yin: Math.round(yin), event: ev ? ev.type : '', queue: evQueue.map(x => x.type),
       vote: vote ? { q: vote.q, opts: vote.opts.map(o => ({ label: o.label, w: o.w })), left: Math.max(0, Math.round(vote.end - now())) } : null,
-      thay: thayName().name, fps: Math.round(fps), roles: story.roles ? ['A', 'B', 'C'].map(k => story.roles[k].name) : [],
+      thay: thayName().name, fps: Math.round(fps), res3d: use3D() && MA3D.quality ? MA3D.quality().res : null, roles: story.roles ? ['A', 'B', 'C'].map(k => story.roles[k].name) : [],
       brave: braveTop(10),
     });
   }, 2000);

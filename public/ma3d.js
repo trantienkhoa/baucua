@@ -946,12 +946,26 @@ if (renderer && SH) {
 
   // ông kể chuyện
   let teller = null;
+  // gậy trúc: đặt theo tay trái mỗi khung, đầu gậy chống thẳng xuống đất cạnh chân
+  const cane = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.02, 1, 6).translate(0, 0.5, 0), new THREE.MeshLambertMaterial({ map: barkTex, color: 0x9a7a50 }));
+  cane.visible = false; scene.add(cane);
+  function placeCane(on) {
+    const hb = teller && teller.av.bones.LeftHand;
+    if (!on || !hb) { cane.visible = false; return; }
+    hb.updateWorldMatrix(true, false);
+    const hand = new THREE.Vector3().setFromMatrixPosition(hb.matrixWorld);
+    const fwd = new THREE.Vector3(Math.sin(rig.root.rotation.y), 0, Math.cos(rig.root.rotation.y));
+    const foot = hand.clone().addScaledVector(fwd, 0.12); foot.y = 0;
+    const top = hand.clone(); top.y += 0.12;
+    const d = top.clone().sub(foot);
+    cane.position.copy(foot); cane.scale.set(1, d.length(), 1);
+    cane.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
+    cane.visible = true;
+  }
   function tellerProps(av) {
     const hat = new THREE.Mesh(new THREE.ConeGeometry(0.27, 0.13, 20, 1, true), gMat(0xc8b080, { side: THREE.DoubleSide }));   // nón lá
     const hatG = new THREE.Group(); hatG.add(hat); hat.position.y = 0.2; hatG.rotation.x = -0.12;
     attachProp(av, 'Head', hatG);
-    const cane = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.018, 1.1, 6), gMat(0x5a3a1a)); cane.position.set(0, -0.25, 0.04);   // gậy trúc
-    attachProp(av, 'RightHand', cane);
   }
 
   // ---------------- máy quay tự căn cho vừa khung chữ ----------------
@@ -1094,7 +1108,7 @@ if (renderer && SH) {
       if (T.kind === 'bale') baleSeat(pg, T.x, T.z); else if (T.kind === 'rock') rockSeat(pg, T.x, T.z); else if (T.kind === 'stool') stoolSeat(pg, T.x, T.z); else if (T.kind === 'root') logSeat(pg, T.x, T.z, 1.2, 0, 'root'); else stumpSeat(pg, T.x, T.z);
       teller.prop = pg; teller.propFor = curMap;
     }
-    if (trans && transTeller(t)) return;
+    if (trans && transTeller(t)) { placeCane(false); return; }
     const T = L2.teller;
     // quay về phía máy quay, hơi hướng vào đống lửa
     const yaw = Math.atan2(camera.position.x - T.x, camera.position.z - T.z) * 0.75 + Math.atan2(-T.x, -T.z) * 0.25 * (Math.abs(T.x) > 0.5 ? 1 : 0);
@@ -1106,12 +1120,15 @@ if (renderer && SH) {
       rig.spine.rotation.x = -0.15; rig.head.rotation.set(-0.15, 0, 0);
     } else if (talk) {   // vừa kể vừa vung tay, nhìn quanh người nghe
       rig.shR.rotation.set(-1.0 - Math.sin(t * 2.3) * 0.35, 0, -0.35 - Math.sin(t * 1.7) * 0.2); rig.elR.rotation.set(-1.0 + Math.sin(t * 3.1) * 0.3, 0, -0.6);
-      if (Math.sin(t * 0.45) > 0.3) { rig.shL.rotation.set(-1.3, 0, 0.5 + Math.sin(t * 2) * 0.1); rig.elL.rotation.set(-0.3, 0, 0.3); }
       rig.head.rotation.set(0.05 + Math.sin(t * 4.1) * 0.05, Math.sin(t * 0.6) * 0.45, 0);
       rig.spine.rotation.x = 0.22 + Math.sin(t * 1.1) * 0.06;
     } else rig.head.rotation.set(0.25, Math.atan2(-T.x, -T.z) - yaw, 0);   // nhìn đống lửa
+    if (!shock) { rig.shL.rotation.set(-0.55, 0, 0.32); rig.elL.rotation.set(-0.85, 0, 0.1); }   // tay trái tựa gậy
     groundRig(SEAT_H, 0);
-    drive(teller.av, 1, talk ? Math.abs(Math.sin(t * 13)) * 0.65 : 0);
+    // nhép miệng theo độ to thật của giọng VieNeu; giọng trình duyệt thì mấp máy theo nhịp
+    const mouth = st.mouth != null ? Math.min(0.9, st.mouth * 1.3) : talk ? Math.abs(Math.sin(t * 13)) * 0.6 : 0;
+    drive(teller.av, 1, mouth);
+    placeCane(!shock);
     const hs = headScreen();
     SH.teller = { x: hs.x, y: hs.y, sc: Math.max(0.5, Math.min(1.3, H / (2 * Math.tan(camera.fov * Math.PI / 360) * camera.position.distanceTo(_v.set(T.x, 1, T.z))) / 235)) };
   }
@@ -1194,7 +1211,7 @@ if (renderer && SH) {
     // lửa: tàn dần ở cảnh cũ, châm lại ở cảnh mới
     trans.fire = el < TR.swap ? 1 - ease3(el / 1.6) : el < TR.lit ? 0 : ease3((el - TR.lit) / 1.0);
     // đuốc
-    if (torch) { const on = el > 0.8 && el < TR.done - 0.8; torch.light.intensity = on ? 6 + Math.sin(t * 15) * 1 : 0; torch.fl.forEach(f => f.visible = on); torch.glow.material.opacity = on ? 0.8 : 0; }
+    if (torch) { const on = el > 0.8 && el < TR.done - 0.8; torch.light.intensity = on ? 16 + Math.sin(t * 15) * 2 + Math.sin(t * 23) * 1.5 : 0; torch.fl.forEach(f => f.visible = on); torch.glow.material.opacity = on ? 0.8 : 0; }
     // màn đêm: sương dày đặc lúc đi giữa hai cảnh
     const night = el < TR.swap ? ease3((el - 2.4) / 4.4) : 1 - ease3((el - TR.swap - 1.5) / 4);
     if (!trans.swapped && el >= TR.swap) {
@@ -1206,8 +1223,8 @@ if (renderer && SH) {
       if (teller) teller.propFor = null;
     }
     const baseFog = trans.swapped ? trans.fogTo : trans.fogFrom;
-    scene.fog.density = baseFog + (0.2 - baseFog) * night;
-    hemi.intensity *= 1 - night * 0.6; moonLight.intensity *= 1 - night * 0.7; fillLight.intensity *= 1 - night * 0.7;
+    scene.fog.density = baseFog + (0.085 - baseFog) * night;
+    hemi.intensity *= 1 - night * 0.35; moonLight.intensity *= 1 - night * 0.45; fillLight.intensity *= 1 - night * 0.3;
     // máy quay bay theo đoàn
     const ts = tellerS(el), tq = pathAt(ts.path, ts.s);
     let camP, look;
@@ -1232,6 +1249,7 @@ if (renderer && SH) {
       camera.fov += (55 - camera.fov) * sm; camera.updateProjectionMatrix();
     }
     camera.updateMatrixWorld();
+    crowdStep(el, dt);
     // vị trí ngọn đuốc trên màn hình (cho lớp tối 2D)
     if (teller) { const hs = toScreen(_v.set(0, 0, 0).applyMatrix4(teller.av.bones.RightHand ? teller.av.bones.RightHand.matrixWorld : teller.av.holder.matrixWorld)); SH.setFire && SH.setFire({ x: hs.x, y: hs.y }); }
     if (el >= TR.done) {
@@ -1243,27 +1261,78 @@ if (renderer && SH) {
   function assignWorld(L2) {   // chỗ ngồi mới (chưa chiếu lên màn hình)
     for (let i = 0; i < SH.SEATS.length; i++) { const s = L2.seats[i] || L2.seats[L2.seats.length - 1]; Object.assign(SH.SEATS[i], { w: s.p, pose: s.pose, face: s.face, zone: s.zone, ring: Math.min(4, Math.floor(i / 14)) }); }
   }
-  // một người xem trong lúc chuyển cảnh; trả false nếu đã về chỗ ngồi (dùng tư thế ngồi bình thường)
-  function transViewer(e, v, t) {
-    const el = trans.el;
-    let i = trans.order.indexOf(v.id); if (i < 0) { trans.order.push(v.id); i = trans.order.length - 1; }
-    const settle = ease3((el - TR.settle0 - i * 0.025) / 2.4);
-    if (trans.swapped && settle >= 1) return false;
-    const gather = ease3((el - TR.stand - 0.3 - i * 0.03) / 2.6);
-    if (!trans.swapped && gather <= 0) return false;   // còn ngồi chờ ở chỗ cũ
-    const q = slotOf(i, el);
-    let pos = q.p, dir = q.d;
-    if (!trans.swapped) {   // rời chỗ ngồi, nhập vào đoàn
-      const w = v.seat.w; pos = new THREE.Vector3(w.x, 0, w.z).lerp(q.p, gather);
-      if (gather < 1) dir = q.p.clone().sub(new THREE.Vector3(w.x, 0, w.z)).normalize();
-    } else if (settle > 0) {   // tách đoàn về chỗ ngồi mới
-      const w = v.seat.w; const tgt = new THREE.Vector3(w.x, 0, w.z); pos = q.p.clone().lerp(tgt, settle);
-      dir = tgt.clone().sub(q.p); if (dir.lengthSq() < 1e-4) dir = q.d; dir.normalize();
+  // ---- đoàn người đi theo: mỗi người tự bước (tốc độ giới hạn), tự giãn ra khi quá gần, tránh lửa và ông kể chuyện ----
+  const PERSONAL = 0.52;   // khoảng cách tối thiểu giữa hai người (m)
+  function crowdStep(el, dt) {
+    const W2 = trans.walk || (trans.walk = new Map());
+    const list = [];
+    for (const v of st.viewers) {
+      if (v.leaving || v.taken || !v.seat || !v.seat.w) continue;
+      let i = trans.order.indexOf(v.id); if (i < 0) { trans.order.push(v.id); i = trans.order.length - 1; }
+      let w = W2.get(v.id);
+      const seatP = new THREE.Vector3(v.seat.w.x, 0, v.seat.w.z);
+      if (!w) { w = { pos: seatP.clone(), dir: new THREE.Vector3(0, 0, 1), ph: Math.random() * 6, mode: 'wait', moved: 0 }; W2.set(v.id, w); }
+      // trạng thái
+      if (!trans.swapped) {
+        const start = TR.stand + 0.3 + i * 0.05;
+        if (el < start) { w.mode = 'wait'; w.pos.copy(seatP); }
+        else { w.mode = 'walk'; w.target = slotOf(i, el).p; }
+      } else {
+        if (!w.inNew) { w.inNew = true; w.pos.copy(slotOf(i, el).p); w.mode = 'walk'; }   // giữa màn đêm: chuyển sang con đường của cảnh mới
+        if (w.mode !== 'seat') {
+          if (el > TR.settle0 + i * 0.04) { w.target = seatP; w.settling = true; } else w.target = slotOf(i, el).p;
+          if (w.settling && (w.pos.distanceTo(seatP) < 0.1 || el > TR.done - 0.5)) { w.mode = 'seat'; w.pos.copy(seatP); }
+        }
+      }
+      list.push({ v, w, i });
     }
+    // bước tới đích
+    for (const o of list) {
+      const w = o.w; if (w.mode !== 'walk') continue;
+      const d = w.target.clone().sub(w.pos); d.y = 0;
+      const dist = d.length(), speed = dist > 2.2 ? 2.7 : 1.7;
+      w.step = Math.min(dist, speed * dt);
+      if (dist > 1e-4) { w.pos.addScaledVector(d, w.step / dist); }
+    }
+    // giãn ra: người đang ngồi / đang chờ là vật cản đứng yên
+    const tp = trans.tellerPos;
+    for (let it = 0; it < 3; it++) {
+      for (let a = 0; a < list.length; a++) {
+        const A2 = list[a].w; if (A2.mode !== 'walk') continue;
+        for (let b = 0; b < list.length; b++) {
+          if (a === b) continue;
+          const B2 = list[b].w, dx = A2.pos.x - B2.pos.x, dz = A2.pos.z - B2.pos.z, dd = dx * dx + dz * dz;
+          if (dd > PERSONAL * PERSONAL) continue;
+          const d0 = Math.sqrt(dd) || 1e-3, push = (PERSONAL - d0) * (B2.mode === 'walk' ? 0.5 : 1);
+          const nx = dd > 1e-6 ? dx / d0 : Math.cos(a * 2.4), nz = dd > 1e-6 ? dz / d0 : Math.sin(a * 2.4);
+          A2.pos.x += nx * push; A2.pos.z += nz * push;
+        }
+        // tránh đống lửa và ông kể chuyện
+        for (const [cx, cz, r] of [[0, 0, 0.95], tp ? [tp.x, tp.z, 0.6] : null].filter(Boolean)) {
+          const dx = A2.pos.x - cx, dz = A2.pos.z - cz, d0 = Math.hypot(dx, dz);
+          if (d0 < r && !(A2.settling && A2.target.distanceTo(new THREE.Vector3(cx, 0, cz)) < r)) { const k = (r - d0) / (d0 || 1e-3); A2.pos.x += dx * k; A2.pos.z += dz * k; }
+        }
+      }
+    }
+    // hướng mặt theo hướng đi, bước chân theo quãng đường đã đi
+    for (const o of list) {
+      const w = o.w; if (w.mode !== 'walk') continue;
+      const mv = w.pos.clone().sub(w.last || w.pos); mv.y = 0; w.last = w.pos.clone();
+      const len = mv.length(); w.moved = len;
+      if (len > 0.004) w.dir.lerp(mv.normalize(), 0.25).normalize();
+      else if (w.target) { const d = w.target.clone().sub(w.pos); d.y = 0; if (d.lengthSq() > 1e-4) w.dir.lerp(d.normalize(), 0.1).normalize(); }
+      w.ph += len * 7.5;
+    }
+  }
+  // một người xem trong lúc chuyển cảnh; trả false nếu đang ngồi (dùng tư thế ngồi bình thường)
+  function transViewer(e, v, t) {
+    const w = trans.walk && trans.walk.get(v.id);
+    if (!w || w.mode !== 'walk') return false;
     setGhost(e, false); e.av.holder.visible = v.alpha > 0.02;
-    zeroRig(); placeRoot(pos.x, 0, pos.z, Math.atan2(dir.x, dir.z));
-    poseWalk(t, t * 6.5 + i * 1.3, true, false);
-    rig.root.updateMatrixWorld(true); rig.root.position.y = Math.abs(Math.sin(t * 6.5 + i * 1.3)) * 0.025; rig.root.updateMatrixWorld(true);
+    zeroRig(); placeRoot(w.pos.x, 0, w.pos.z, Math.atan2(w.dir.x, w.dir.z));
+    poseWalk(t, w.ph, true, false);
+    if (w.moved < 0.002) { rig.hipL.rotation.x *= 0.2; rig.hipR.rotation.x *= 0.2; rig.knL.rotation.x = 0.1; rig.knR.rotation.x = 0.1; }   // đứng chờ: run tại chỗ
+    rig.root.updateMatrixWorld(true); rig.root.position.y = Math.abs(Math.sin(w.ph)) * 0.025; rig.root.updateMatrixWorld(true);
     drive(e.av, Math.max(0.05, v.alpha));
     const hs = headScreen(); v.hx = hs.x; v.hy = hs.y;
     return true;
@@ -1292,6 +1361,7 @@ if (renderer && SH) {
       placeRoot(p2.x, 0, p2.z, Math.atan2(d2.x, d2.z) || 0); poseWalk(t, t * 6, false, false); rig.root.updateMatrixWorld(true);
     }
     drive(teller.av, 1, 0);
+    trans.tellerPos = rig.root.position.clone();
     const hs = headScreen(); SH.teller = { x: hs.x, y: hs.y, sc: 0.8 };
     return true;
   }
@@ -1316,8 +1386,18 @@ if (renderer && SH) {
     applyLayout(built[name]);
   }
 
-  let lastT = 0;
+  let lastT = 0, resScale = 1, fpsEma = 60, lastReal = performance.now(), slowFor = 0, fastFor = 0;
+  function adaptRes() {   // máy chậm thì tự giảm độ phân giải 3D, máy khoẻ thì tăng lại
+    const now2 = performance.now(), rd = Math.max(1, now2 - lastReal); lastReal = now2;
+    fpsEma += (1000 / rd - fpsEma) * 0.05;
+    if (fpsEma < 26) { slowFor += rd; fastFor = 0; } else if (fpsEma > 50) { fastFor += rd; slowFor = 0; } else { slowFor = 0; fastFor = 0; }
+    let next = resScale;
+    if (slowFor > 4000 && resScale > 0.5) next = Math.max(0.5, resScale - 0.15);
+    if (fastFor > 12000 && resScale < 1) next = Math.min(1, resScale + 0.15);
+    if (next !== resScale) { resScale = next; renderer.setPixelRatio(resScale); renderer.setSize(W, H, false); slowFor = fastFor = 0; }
+  }
   function frame(state) {
+    adaptRes();
     st = state;
     const t = state.t, dt = Math.min(0.1, t - lastT || 0.016); lastT = t;
     windU.value = t;
@@ -1356,6 +1436,7 @@ if (renderer && SH) {
 
   window.MA3D = { ready: true, frame, setMap, maps: Object.keys(SCENES), sceneNames: Object.fromEntries(Object.entries(SCENES).map(([k, v]) => [k, v.name])),
     invalidate: () => { curMap = null; if (trans) { trans = null; if (torch) torch.g.visible = false; } }, relayout: () => { if (!trans && curMap && built[curMap]) applyLayout(built[curMap], false); },
+    quality: () => ({ res: Math.round(resScale * 100), fps: Math.round(fpsEma) }),
     busy: () => !!trans, canTravel: () => canTravel(), transEl: () => (trans ? trans.el : 99),
     avatarCount: () => avs.size, modelsReady: () => modelsReady };
 }

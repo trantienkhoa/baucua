@@ -242,7 +242,7 @@ fetch('/api/info').then(r => r.json()).then(info => {
 socket.on('ma:status', s => {
   if (!s || !s.phase) return;
   $('sSeated').textContent = s.alive ?? 0; $('sTaken').textContent = s.taken ?? 0; $('sWait').textContent = s.waiting ?? 0;
-  $('sThay').textContent = s.thay || '—'; $('sEvent').textContent = s.event || (s.queue && s.queue.length ? 'chờ: ' + s.queue.join(', ') : '—'); $('sFps').textContent = s.fps ?? '—';
+  $('sThay').textContent = s.thay || '—'; $('sEvent').textContent = s.event || (s.queue && s.queue.length ? 'chờ: ' + s.queue.join(', ') : '—'); $('sFps').textContent = (s.fps ?? '—') + (s.res3d != null && s.res3d < 100 ? ` · 3D ${s.res3d}%` : '');
   $('sOil').textContent = s.oil; $('bOil').style.width = s.oil + '%'; $('sYin').textContent = s.yin; $('bYin').style.width = s.yin + '%';
   const ph = { wait: 'chuẩn bị', inter: 'chọn chuyện', cast: 'giới thiệu vai', tell: 'đang kể', vote: 'đang bình chọn', end: 'kết truyện' }[s.phase] || s.phase;
   $('sStory').textContent = `${s.paused ? '⏸ ĐANG TẠM DỪNG · ' : ''}${s.story ? '📖 ' + s.story + ' · đoạn ' + s.part : 'Chưa kể'} · ${ph}${s.roles && s.roles.length ? ' · vai: ' + s.roles.join(', ') : ''}`;
