@@ -20,6 +20,12 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 🗝 Ngọn Lửa Cuối Cùng: key theo mã máy, không cần máy chủ (bản 2.23.0)
+
+- Bán không cần VPS: khách gửi mã máy (hiện ở trang nhập key) → anh bấm `TaoKey.bat`, dán mã → ra key `NLOF-…` chỉ chạy trên máy đó, không cần mạng.
+- Dùng song song được với key qua máy chủ (`web/`). Hướng dẫn: `web/HUONG-DAN-BAN-HANG.md` mục "Hai cách bán".
+- Bản 2D: vòng ghế kín hơn, chỉ chừa khe nhỏ trước mặt đống lửa.
+
 ## 📦 Ngọn Lửa Cuối Cùng: gói phát hành bấm là chạy (bản 2.22.0)
 
 - `node tools/dong-goi.js` → `dist/NgonLuaCuoiCung-<bản>.zip`: kèm sẵn Node.js cho Windows, thư viện, asset, khoá công khai. Khách giải nén → bấm `ChayNgonLua.bat` → trình duyệt tự mở trang nhập key.

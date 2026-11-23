@@ -15,3 +15,4 @@ __pycache__/
 license-pubkey.js
 dist/
 tools/.cache/
+tools/.khoa-offline/

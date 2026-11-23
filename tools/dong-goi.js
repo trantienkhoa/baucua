@@ -73,10 +73,12 @@ function* walk(rel) {
 }
 
 (async () => {
-  const pub = process.argv[2] || path.join(ROOT, 'web', 'license-pubkey.js');
-  if (!fs.existsSync(pub)) { console.error(`Thiếu ${pub}.\nTrên máy chủ bán hàng chạy "npm run xuat-khoa" rồi đưa file license-pubkey.js vào đây.`); process.exit(1); }
+  // ưu tiên file do tools/tao-key.js tạo (có key theo máy, gộp sẵn key máy chủ nếu có), không có thì dùng file của web/
+  const pub = process.argv[2] || [path.join(__dirname, '.khoa-offline', 'license-pubkey.js'), path.join(ROOT, 'web', 'license-pubkey.js')].find(f => fs.existsSync(f)) || path.join(ROOT, 'web', 'license-pubkey.js');
+  if (!fs.existsSync(pub)) { console.error(`Thiếu license-pubkey.js.\n- Bán bằng key theo máy (không cần máy chủ): chạy "node tools/tao-key.js khoi-tao" trước.\n- Bán qua máy chủ web/: trên máy chủ chạy "npm run xuat-khoa" rồi đưa file vào thư mục web/.`); process.exit(1); }
   const pk = require(path.resolve(pub));
-  if (!/^https:\/\//.test(pk.server || '')) console.warn(`⚠ license-pubkey.js đang trỏ tới ${pk.server} — bản bán cho khách nên dùng tên miền HTTPS.`);
+  console.log('Dùng khoá:', pub, '·', [pk.offlinePublicKey && 'key theo máy', pk.server && 'key qua máy chủ ' + pk.server].filter(Boolean).join(' + '));
+  if (pk.server && !/^https:\/\//.test(pk.server)) console.warn(`⚠ license-pubkey.js đang trỏ tới ${pk.server} — bản bán cho khách nên dùng tên miền HTTPS.`);
   const { exe, v } = await nodeExe();
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   const z = zipWriter(OUT); let bytes = 0;

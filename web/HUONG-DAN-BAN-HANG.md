@@ -5,6 +5,26 @@ Thư mục `web/` là một máy chủ Node riêng (đặt trên VPS / hosting c
 - Trang quản trị (`/quan-tri`): xem đơn, bấm "Đã nhận tiền", tạo key tay, khoá key, gỡ máy, đổi số máy.
 - API cấp key: game gọi để kích hoạt, gia hạn vé, gỡ máy.
 
+## Hai cách bán (dùng một hoặc cả hai)
+| | Key theo mã máy (không cần máy chủ) | Key qua máy chủ (thư mục `web/`) |
+|---|---|---|
+| Chi phí | 0đ | VPS ~100–150k/tháng + tên miền |
+| Khách mua | Nhắn Zalo, chuyển khoản, gửi mã máy | Tự đặt trên web, quét QR, tự nhận key |
+| Anh làm | Kiểm tra tiền, chạy `TaoKey.bat`, gửi key | Bấm "Đã nhận tiền" (hoặc SePay tự xác nhận) |
+| Cần mạng | Không | Kích hoạt lần đầu + 90 ngày/lần |
+| Đổi máy | Khách gửi mã máy mới, anh cấp key mới | Khách tự gỡ máy cũ |
+| Khoá key chia sẻ | Không khoá được | Khoá được |
+
+### Bán bằng key theo mã máy
+1. Lần đầu, ở thư mục game trên máy anh: bấm đúp `TaoKey.bat` (hoặc `node tools/tao-key.js khoi-tao <link Zalo>`).
+   → tạo cặp khoá trong `tools/.khoa-offline/` và file `license-pubkey.js` dùng để đóng gói.
+   **Sao lưu thư mục `tools/.khoa-offline/`** (USB / Drive riêng tư): mất là không cấp được key cho bản đã bán, lộ là ai cũng tự tạo được key.
+2. Đóng gói: `node tools/dong-goi.js` (tự dùng khoá trong `tools/.khoa-offline/`).
+3. Khách cài game → trang nhập key hiện **mã máy** (dạng `312C-A795-B532-BAFC`) → khách gửi mã cho anh qua Zalo.
+4. Anh nhận tiền → mở `TaoKey.bat`, dán mã máy → ra key `NLOF-…` → gửi khách → khách dán vào là chạy, không cần mạng.
+   Mọi key đã cấp được ghi vào `tools/.khoa-offline/da-cap.csv`.
+5. Nếu sau này dựng máy chủ: chạy lại `node tools/tao-key.js khoi-tao` sau khi đã có `web/license-pubkey.js` → gói game mới nhận được cả hai loại key, key theo máy đã cấp vẫn dùng được.
+
 ## 0. Máy chủ: cần gì, tốn bao nhiêu
 - Máy chủ cần chạy 24/7 vì game khách gọi về để kích hoạt key và gia hạn vé (3 ngày/lần khi có mạng).
 - Nếu máy chủ tạm ngừng, game khách **vẫn chạy tới 90 ngày** (`offlineDays`), chỉ khách mới là chưa kích hoạt được.

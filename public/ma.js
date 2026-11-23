@@ -1341,7 +1341,7 @@
         const x = F.x + R * Math.cos(a), y = F.y - R * Math.sin(a) * ky;
         const front = y > F.y + 40;   // nửa vòng phía trước: dùng dáng quay lưng / nghiêng (có tranh) — không có thì bỏ trống
         if (x < 60 || x > W - 60 || y < 925 || y > 1560) continue;
-        if (front && (!hasBack || R < 345 || (Math.abs(x - F.x) < 150 && R < 440))) continue;   // chừa khoảng nhìn thấy đống lửa
+        if (front && (!hasBack || R < 345 || (Math.abs(x - F.x) < 95 && R < 440))) continue;   // vòng kín, chỉ chừa một khe nhỏ ngay trước mặt lửa
         if (!front && y > F.y && Math.abs(x - F.x) < 300) continue;
         if (x > 690 && y > 1370) continue;                     // bảng quà
         if (hitsT(x, y)) continue;                             // chỗ ông Tư
