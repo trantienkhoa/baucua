@@ -8,6 +8,7 @@ và Nguyên tắc kiếm tiền trên LIVE. Khi thêm hoặc sửa game, tự ki
 - KHÔNG trả tiền để thắng: quà không được đổi thành phiếu bầu nặng hơn, điểm thắng, hay quyền quyết định thay cả phòng.
 - KHÔNG kêu gọi tặng quà để đổi lấy phần thưởng ("tặng X để được Y", "tặng để cứu bạn"). Quà chỉ kích hoạt hiệu ứng trang trí cho cả phòng.
 - Cảm ơn quà thì được; xin quà, ép quà, đếm ngược đòi quà thì không.
+- Danh hiệu do tặng quà (thầy pháp, top quà…) chỉ để trang trí: không miễn sự kiện xấu, không được ưu tiên hơn người khác.
 - Chơi phải được bằng bình luận và thả tim. Người không tặng quà vẫn tham gia đầy đủ.
 - Nhớ: phải 18+ mới được tặng quà hoặc lên LIVE. Không làm nội dung nhắm tới trẻ em để kiếm quà.
 

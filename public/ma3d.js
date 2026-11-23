@@ -1394,7 +1394,6 @@ if (renderer && SH) {
     non: 'D/non-la-rach.glb', gay: 'D/gay-tre-cong.glb', duoc: 'D/duoc-rom.glb', binhtra: 'D/ong-dieu-binh-tra.glb', khan: 'D/khan-ran.glb',
     cBoCui: 'C/bo-cui.glb', cHuMuoi: 'C/hu-muoi-sanh.glb', cCua: 'C/cua-go.glb', cBanCo: 'C/ban-co.glb', cXu: 'C/dong-xu.glb', cChen: 'C/chen-up.glb', cNen: 'C/nen.glb',
     cBupBe: 'C/bup-be-ma.glb', cBatNhang: 'C/bat-nhang.glb', cKhungAnh: 'C/khung-anh-tho.glb', cBua: 'C/bua-vang.glb', cChuong: 'C/chuong-dong.glb', cGuong: 'C/guong-bat-quai.glb', cBongKhoi: 'C/bong-ma-khoi.glb',
-    maAoDai: 'E/ma-ao-dai-trang.glb', maBaBa: 'E/ma-ao-ba-ba-trang.glb', bongDen: 'E/bong-den-khong-mat.glb', tayMa: 'E/ban-tay-ma.glb',
   };
   const GROUND = { dat: 'dat-kho', bun: 'bun-uot', la: 'la-muc', gach: 'gach-vo', daong: 'da-ong' };
   const SCENE_LOOK = {   // mặt đất + phông nền riêng của từng cảnh
@@ -1525,31 +1524,20 @@ if (renderer && SH) {
   // ---- hồn ma 3D (thay hình ma 2D khi đã nạp) ----
   const ghosts3 = [];
   let ghostCur = null, ghostWas = 0;
-  function lowerArms(root) {   // mô hình đứng chữ T: hạ hai tay xuống, hơi đưa ra trước
-    root.updateMatrixWorld(true);
-    const arms = []; root.traverse(o => { if (o.isMesh && /^(tay_ao|ban_tay)/.test(o.name)) arms.push(o); });
-    for (const side of [1, -1]) {
-      const part = arms.filter(o => new THREE.Box3().setFromObject(o).getCenter(_v).x * side > 0);
-      if (!part.length) continue;
-      const bb = new THREE.Box3(); part.forEach(o => bb.union(new THREE.Box3().setFromObject(o)));
-      const piv = new THREE.Object3D(); piv.position.set(side > 0 ? bb.min.x : bb.max.x, bb.max.y - 0.03, (bb.min.z + bb.max.z) / 2); root.add(piv); piv.updateMatrixWorld(true);
-      part.forEach(o => piv.attach(o));
-      piv.rotation.set(-0.55, 0, -side * 1.05);
-    }
-  }
-  function buildGhosts() {
-    for (const k of ['maAoDai', 'maBaBa', 'bongDen']) {
-      if (!AS[k]) continue;
-      const o = AS[k]; lowerArms(o);
-      const g = new THREE.Group(); g.add(o); g.visible = false; g.scale.setScalar(1.0); scene.add(g);
-      const mats = []; o.traverse(m => { if (m.isMesh) mats.push(m.material); });
-      ghosts3.push({ g, mats, kind: k });
+  function buildGhosts() {   // hồn ma vẽ tay: tấm phẳng luôn quay về máy quay, khói mờ ở viền giữ nguyên nét vẽ
+    for (const k of ['ma-ao-dai', 'ma-ao-ba-ba', 'bong-den']) {
+      const tx = ATX['e_' + k]; if (!tx) continue;
+      const m = new THREE.SpriteMaterial({ map: tx, transparent: true, depthWrite: false, fog: false, color: k === 'bong-den' ? 0xffffff : 0xdfe8ff });
+      m.userData.baseOp = k === 'bong-den' ? 0.95 : 0.88;
+      const sp = new THREE.Sprite(m); sp.center.set(0.5, 0.03); const h = k === 'bong-den' ? 1.85 : 1.75; sp.scale.set(h * tx.image.width / tx.image.height, h, 1); sp.renderOrder = 7;
+      const g = new THREE.Group(); g.add(sp); g.visible = false; scene.add(g);
+      ghosts3.push({ g, mats: [m], kind: k, sp });
     }
   }
   function ghostTick3(t) {
     const G = SH.ghost;
     if (!ghosts3.length || !G) return;
-    if (G.a > 0.02 && ghostWas <= 0.02) ghostCur = ghosts3[Math.floor(Math.random() * ghosts3.length)];   // mỗi lần hiện là một dáng ma
+    if (G.a > 0.02 && ghostWas <= 0.02) ghostCur = ghosts3[(SH.ghostPick || 0) % ghosts3.length];   // cùng dáng ma với chế độ 2D
     ghostWas = G.a;
     for (const gh of ghosts3) gh.g.visible = false;
     if (!ghostCur || G.a <= 0.02 || trans) return;
@@ -1557,7 +1545,7 @@ if (renderer && SH) {
     const gh = ghostCur;
     gh.g.visible = true;
     gh.g.position.set(p.x, 0.12 + Math.sin(t * 1.6) * 0.08, p.z);
-    gh.g.rotation.set(Math.sin(t * 0.9) * 0.04, Math.atan2(-p.x, -p.z), Math.sin(t * 1.3) * 0.05);   // nhìn về đống lửa, đung đưa nhẹ
+    gh.sp.material.rotation = Math.sin(t * 0.9) * 0.035;   // đung đưa nhẹ
     const op = Math.min(1, G.a * 1.4);
     for (const m of gh.mats) m.opacity = (m.userData.baseOp || 0.85) * op;
   }
@@ -1565,10 +1553,12 @@ if (renderer && SH) {
   const hands3 = [];
   function handTick3(t) {
     const list = SH.hands;
-    if (!AS.tayMa || !list) return;
-    while (hands3.length < Math.min(6, list.length)) { const hm = inst('tayMa', 1.7); hm.traverse(m => { if (m.isMesh) { m.material = new THREE.MeshBasicMaterial({ color: 0xd8e4ff, transparent: true, opacity: 0, depthWrite: false, fog: false }); m.material.userData.baseOp = 0.85; m.renderOrder = 5; } });   // trắng nhợt tự sáng, thấy rõ trong bóng tối
-      hm.rotation.x = Math.PI / 2 - 0.3;   // ngón tay (−Z trong glTF) dựng đứng lên trời
-      const o = new THREE.Group(); o.add(hm); const mats = []; o.traverse(m => { if (m.isMesh) mats.push(m.material); }); scene.add(o); hands3.push({ o, mats }); }
+    if (!ATX['e_ban-tay'] || !list) return;
+    while (hands3.length < Math.min(6, list.length)) {
+      const tx = ATX['e_ban-tay']; if (!tx) return;
+      const m = new THREE.SpriteMaterial({ map: tx, transparent: true, depthWrite: false, fog: false, rotation: -2.2, opacity: 0 }); m.userData.baseOp = 0.95;
+      const o = new THREE.Sprite(m); o.scale.set(0.95 * tx.image.width / tx.image.height, 0.95, 1); o.renderOrder = 7; scene.add(o); hands3.push({ o, mats: [m] });
+    }
     hands3.forEach((h, i) => {
       const it = list[i];
       if (!it || !it.v || trans) { h.o.visible = false; return; }
@@ -1577,8 +1567,8 @@ if (renderer && SH) {
       const up = Math.sin(p * Math.PI), q = ground(it.v.x, it.v.y), out = Math.hypot(q.x, q.z) || 1;
       const sx = -q.z / out, sz = q.x / out;   // lệch sang bên vai để không bị người che
       q.x += q.x / out * 0.3 + sx * 0.32; q.z += q.z / out * 0.3 + sz * 0.32;
-      h.o.visible = true; h.o.position.set(q.x, -0.2 + up * 1.15, q.z);
-      h.o.rotation.set(0, Math.atan2(-q.x, -q.z), Math.sin(t * 7 + i) * 0.08);
+      h.o.visible = true; h.o.position.set(q.x, -0.15 + up * 0.75, q.z);
+      h.mats[0].rotation = -2.2 + Math.sin(t * 7 + i) * 0.08;   // ngón tay chĩa lên, run run
       for (const m of h.mats) m.opacity = (m.userData.baseOp || 0.95) * up;
     });
   }
@@ -1789,7 +1779,8 @@ if (renderer && SH) {
     assetsReady = true;
     buildFireAssets(); buildBackdrops(); buildGhosts(); upgradeCane(); buildFx(); buildEvProps();
     if (curMap) sceneProps(curMap);
-    if (ATX.wisp) wisps.forEach(w => { w.s.material.map = ATX.wisp; w.s.material.needsUpdate = true; w.s.scale.setScalar(0.8); });
+    const wt = [1, 2, 3, 4].map(i => ATX['e_ma-troi-' + i]).filter(Boolean);   // 4 đốm ma trơi vẽ tay
+    if (wt.length) wisps.forEach((w, i) => { const tx = wt[i % wt.length]; w.s.material.map = tx; w.s.material.color.setHex(0xffffff); w.s.material.needsUpdate = true; w.s.scale.set(0.42 * tx.image.width / tx.image.height, 0.42, 1); });
     for (const k of Object.keys(built)) decorate(k);
     if (curMap) applyLook(curMap);
     upgradeTeller();
@@ -1799,7 +1790,7 @@ if (renderer && SH) {
     ...Object.entries(MODELS).map(([k, path]) => gltfL.loadAsync(AB + path).then(gl => { AS[k] = prepModel(gl.scene, { ghost: /^(ma|bong|tay)/.test(k) }); }).catch(e => console.warn('Thiếu asset', path, e.message))),
     ...Object.entries(GROUND).map(([k, f]) => Promise.all([loadTex(`B/textures/${f}.png`, true, 110), loadTex(`B/textures/${f}-normal.png`, false, 110)]).then(([map, nor]) => { if (map) ATX['g_' + k] = { map, nor }; })),
     ...Object.entries({ nui: 'doi-nui-mo', cayxa: 'hang-cay-xa', cayvua: 'hang-cay-vua', caygan: 'hang-cay-gan', tre: 'luy-tre-lang', nha: 'mai-nha-lang-xa', may1: 'may-mong-1', may2: 'may-mong-2', may3: 'may-mong-3', trang: 'trang-quang' }).map(([k, f]) => loadTex(`B/backgrounds/${f}.png`).then(t => { if (t) ATX[k] = t; })),
-    loadTex('E/dom-ma-troi-xanh.png').then(t => { if (t) ATX.wisp = t; }),
+    ...['ma-ao-dai', 'ma-ao-ba-ba', 'bong-den', 'ban-tay', 'ma-troi-1', 'ma-troi-2', 'ma-troi-3', 'ma-troi-4'].map(f => loadTex(`E2D/${f}.png`).then(t => { if (t) ATX['e_' + f] = t; })),
     ...['khoi', 'tan-lua', 'dom-dom', 'buom-dem', 'la-roi', 'suong-mu-thap', 'god-ray', 'ngon-lua-1', 'ngon-lua-2', 'ngon-lua-3'].map(f => loadTex(`H/${f}.png`).then(t => { if (t) ATX['h_' + f] = t; })),
     ...['hat-muoi', 'tia-lua', 'vong-sang-bat-quai', 'khoi-nhang', 'vong-khoi'].map(f => loadTex(`C/fx/${f}.png`).then(t => { if (t) ATX['c_' + f] = t; })),
   ]).then(onAssets);
@@ -1882,7 +1873,7 @@ if (renderer && SH) {
     invalidate: () => { curMap = null; if (trans) { trans = null; if (torch) torch.g.visible = false; } }, relayout: () => { if (!trans && curMap && built[curMap]) applyLayout(built[curMap], false); },
     quality: () => ({ res: Math.round(resScale * 100), fps: Math.round(fpsEma) }),
     pulse: k => { if (assetsReady) pulseFx(k); },
-    ghost3D: () => ghosts3.length > 0, hands3D: () => !!AS.tayMa, assets: () => assetsReady,
+    ghost3D: () => ghosts3.length > 0, hands3D: () => !!ATX['e_ban-tay'], assets: () => assetsReady,
     busy: () => !!trans, canTravel: () => canTravel(), transEl: () => (trans ? trans.el : 99),
     avatarCount: () => avs.size, modelsReady: () => modelsReady };
 }

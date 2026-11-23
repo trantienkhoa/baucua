@@ -20,6 +20,13 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 👻 Ngọn Lửa Cuối Cùng: hồn ma vẽ tay 2D cho cả hai chế độ (bản 2.17.1)
+
+- Hồn ma (áo dài trắng, áo bà ba trắng, bóng đen), bàn tay ma và 4 đốm ma trơi cắt từ tranh vẽ tay (`public/models/ma/E2D/`), nền trong suốt, giữ nguyên khói mờ ở viền.
+- Chế độ 3D: tấm phẳng luôn quay về máy quay (đẹp hơn mô hình 3D cho thứ mờ ảo). Chế độ 2D (nhà cổ): vẽ thẳng hình này thay cho hình ma vẽ bằng code.
+- Mỗi lần ma hiện là một dáng; 2D và 3D cùng dáng.
+- Thầy pháp (do tặng quà) chỉ còn là danh hiệu trang trí: không còn được miễn ma bắt / ma nhập. Sửa hướng dẫn "Ma hiện hình" cho đúng luật hiện tại.
+
 ## 🎨 Ngọn Lửa Cuối Cùng: asset vẽ tay, gió thổi lửa (bản 2.17.0)
 
 - **Asset vẽ tay** (thư mục `public/models/ma/`, nhóm B, C, D, E, G, H) tự nạp; thiếu file nào thì cảnh dùng lại đồ vẽ bằng code.

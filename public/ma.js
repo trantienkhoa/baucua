@@ -306,7 +306,7 @@
     if (!busy) {
       if (t > ghost.nextMove) {
         ghost.nextMove = t + rand(9, 16);
-        const as = alive().filter(v => v.seat.ring >= 2 && !isThay(v));
+        const as = alive().filter(v => v.seat.ring >= 2);
         if (lvl > 0.7 && as.length) {
           ghost.mode = 'behind'; ghost.behind = pick(as); showGuide('behind', 150);
         } else if (lvl > 0.3 || t < ghost.glimpse) {
@@ -325,6 +325,8 @@
     const k = 1 - Math.exp(-dt * (busy ? 6 : 0.6));
     ghost.x = lerp(ghost.x, ghost.tx, k); ghost.y = lerp(ghost.y, ghost.ty, k);
     ghost.a = lerp(ghost.a, ghost.ta, 1 - Math.exp(-dt * 1.5));
+    if (ghost.a > 0.02 && ghostWasA <= 0.02) ghostPick = Math.floor(Math.random() * 3);
+    ghostWasA = ghost.a; window.__maShared && (window.__maShared.ghostPick = ghostPick);
     // mắt trong bóng tối
     const want = Math.floor(lvl * 7 + (oil < 25 ? 3 : 0) + (oil <= 0 ? 6 : 0));
     if (eyes.length < want && Math.random() < dt * 0.8) {
@@ -336,8 +338,20 @@
     for (let i = eyes.length - 1; i >= 0; i--) if (t - eyes[i].t0 > eyes[i].life || eyes.length > want + 2) eyes.splice(i, 1);
   }
 
+  // hồn ma vẽ tay (public/models/ma/E2D): mỗi lần hiện là một dáng; chưa nạp xong thì vẽ bằng code như cũ
+  const GH2D = ['ma-ao-dai', 'ma-ao-ba-ba', 'bong-den'].map(n => { const im = new Image(); im.src = `/models/ma/E2D/${n}.png`; return im; });
+  const HAND2D = Object.assign(new Image(), { src: '/models/ma/E2D/ban-tay.png' });
+  let ghostPick = 0, ghostWasA = 0;
   function drawGhost(x, y, sc, alpha, t, opt = {}) {
     if (alpha <= 0.01) return;
+    const im = GH2D[ghostPick % GH2D.length];
+    if (im.complete && im.naturalWidth) {
+      const h = 300 * sc, w = h * im.naturalWidth / im.naturalHeight;
+      ctx.save(); ctx.globalAlpha = clamp(alpha, 0, 1) * 0.92;
+      ctx.translate(x, y + Math.sin(t * 1.3) * 8 * sc); ctx.rotate(Math.sin(t * 0.9) * 0.03);
+      ctx.drawImage(im, -w / 2, -175 * sc, w, h); ctx.restore();
+      return;
+    }
     ctx.save();
     ctx.translate(x, y + Math.sin(t * 1.3) * 8 * sc);
     ctx.scale(sc, sc);
@@ -469,7 +483,7 @@
     const pool = alive().filter(v => t - v.active < 300).sort((a, b) => b.active - a.active).slice(0, 8);
     const rest = alive().filter(v => !pool.includes(v));
     shuffle(pool); shuffle(rest);
-    const all = pool.concat(rest).filter(v => !isThay(v));
+    const all = pool.concat(rest);
     const r = {};
     for (const [i, k] of ['A', 'B', 'C'].entries()) { const v = all[i]; r[k] = v ? { id: v.id, name: v.name } : { id: null, name: NPC[k] }; }
     return r;
@@ -609,7 +623,7 @@
       showBanner('KẾT THÚC ĐEN TỐI', story.st ? story.st.title : '', '#ff4a3a', 4);
       if (node.take && story.roles[node.take] && story.roles[node.take].id) {
         const v = viewers.get(story.roles[node.take].id);
-        if (v && !v.taken && !isThay(v)) setTimeout(() => takeViewer(v, 'story'), 900);
+        if (v && !v.taken) setTimeout(() => takeViewer(v, 'story'), 900);
       }
     } else if (kind === 'good') {
       oil = clamp(oil + 25, 0, 100); yin = clamp(yin - 20, 0, 100);
@@ -746,7 +760,7 @@
     const byV = by ? viewers.get(by.id) : null;
     switch (type) {
       case 'nhap': {
-        const cand = al.filter(v => !isThay(v));
+        const cand = al.slice();
         if (cand.length < 3) { if (by) toast(`👁 Cần ít nhất 3 người quanh đống lửa để chơi "Ai bị nhập?"`); return; }
         const recent = cand.filter(v => t - v.active < 180);
         const target = pick(recent.length >= 2 ? recent : cand);
@@ -773,7 +787,7 @@
         return;
       }
       case 'goihon': case 'ghostauto': {
-        const cand = al.filter(v => !isThay(v) && (!byV || v !== byV));
+        const cand = al.filter(v => !byV || v !== byV);
         const victim = type === 'ghostauto' && cand.length ? pick(cand.filter(v => v.seat.ring >= 1).length ? cand.filter(v => v.seat.ring >= 1) : cand) : null;
         ev = { type, block: true, t0: t, dur: 6.5, victim, step: 0, by };
         showGuide('ghost', 30);
@@ -800,7 +814,7 @@
         flash = 0.18; flashColor = '255,215,140';
         sfx('success', 1);
         showBanner('TRỪ TÀ!', by ? `☯ ${by.name} trở thành THẦY PHÁP` : 'Tà khí tan biến', '#ffd27a', 4.5);
-        narrate(by ? `${by.name} làm lễ trừ tà. Âm khí tan biến. ${freed.length ? 'Mọi người trong gương đã được cứu về.' : ''} Từ giờ ${by.name} là thầy pháp của phòng.` : 'Lễ trừ tà. Âm khí tan biến.', true);
+        narrate(by ? `${by.name} làm lễ trừ tà. Âm khí tan biến. ${freed.length ? 'Mọi người bị ma dắt đi đã được cứu về.' : ''} Từ giờ ${by.name} là thầy pháp của phòng.` : 'Lễ trừ tà. Âm khí tan biến.', true);
         return;
       }
     }
@@ -889,7 +903,7 @@
       case 'blackout': {
         if (e.step === 0 && el > 2.6) {
           e.step = 1; sfx('scream', 0.9); shake = 12;
-          const cand = shuffle(alive().filter(v => !isThay(v)));
+          const cand = shuffle(alive());
           e.victims = cand.slice(0, cand.length >= 10 ? 2 : cand.length ? 1 : 0);
           for (const v of e.victims) takeViewer(v, 'dark');
         }
@@ -1500,6 +1514,11 @@
       if (p > 1 || !viewers.has(h.v.id)) { hands.splice(i, 1); continue; }
       if (use3DFx('hands3D')) continue;
       const v = h.v, sc = v.seat.sc, up = Math.sin(Math.min(1, p) * Math.PI);
+      if (HAND2D.complete && HAND2D.naturalWidth) {   // bàn tay vẽ tay thò lên từ bóng tối sau lưng
+        const hh = 150 * sc, ww = hh * HAND2D.naturalWidth / HAND2D.naturalHeight;
+        ctx.save(); ctx.globalAlpha = up * 0.95; ctx.translate(v.x - 30 * sc, v.y - 40 * sc - up * 60 * sc); ctx.rotate(-2.2);
+        ctx.drawImage(HAND2D, -ww / 2, -hh / 2, ww, hh); ctx.restore(); continue;
+      }
       ctx.save(); ctx.translate(v.x - 34 * sc, v.y - 70 * sc); ctx.scale(sc, sc); ctx.globalAlpha = up;
       ctx.strokeStyle = 'rgba(220,228,245,.95)'; ctx.lineWidth = 9; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(-60, 70); ctx.quadraticCurveTo(-50, 10, -8 * up, -20 * up); ctx.stroke();
@@ -2161,11 +2180,11 @@
   // ---------- thẻ hướng dẫn ----------
   const GUIDES = {
     blackout: { icon: '🔥', title: 'LỬA TẮT VÌ HẾT CỦI', color: '#ffb36a', steps: () => ['Trong bóng tối, ma bắt 1–2 người vào gương', 'THẢ TIM liên tục để thêm củi (thanh 🔥 CỦI LỬA)', 'Tặng 🪵 Thêm củi để lửa cháy to'] },
-    ghost: { icon: '👻', title: 'MA HIỆN HÌNH', color: '#ff7a6a', steps: () => ['Âm khí đầy (hoặc ai đó Gọi hồn) → ma bắt một người', 'Gõ "nam mô" hoặc tặng 🧂 Rắc muối để hạ ÂM KHÍ', 'Người bị bắt nằm trong gương — gõ "cứu + số ghế" để cứu'] },
+    ghost: { icon: '👻', title: 'MA HIỆN HÌNH', color: '#ff7a6a', steps: () => ['Âm khí đầy → ma dắt một người vào bóng tối (Gọi hồn bằng quà: ma chỉ hiện hình rồi tan)', 'Gõ "nam mô" để hạ ÂM KHÍ (ai cũng gõ được, không cần quà)', 'Người bị dắt đi đứng trong bóng tối — cả phòng gõ "cứu + số ghế" để cứu'] },
     rescue: { icon: '👻', title: 'CỨU NGƯỜI BỊ MA BẮT', color: '#9fc0ff', steps: () => [use3D() ? 'Người bị bắt thành bóng ma xanh mờ đứng trong bóng tối' : 'Người bị bắt hiện trong TẤM GƯƠNG, có số ghế trên mặt', 'Gõ: cứu 12  (thay 12 bằng số ghế người đó)', `Đủ ${S.rescueNeed} người gõ là cứu được · người cứu +2 gan dạ`] },
-    trura: { icon: '☯️', title: 'TRỪ TÀ', color: '#ffd27a', steps: () => ['Người tặng ☯️ Trừ tà trở thành THẦY PHÁP của phòng', 'Cứu hết người trong gương · lửa cháy to · âm khí về 0', 'Thầy pháp không bị ma bắt, cầm búp bê thì trấn yểm được'] },
+    trura: { icon: '☯️', title: 'TRỪ TÀ', color: '#ffd27a', steps: () => ['Người tặng ☯️ Trừ tà trở thành THẦY PHÁP của phòng', 'Cứu hết người bị ma dắt đi · lửa cháy to · âm khí về 0', 'Thầy pháp chỉ là danh hiệu trang trí, không có quyền gì hơn người khác'] },
     behind: { icon: '⚠️', title: 'MA ĐANG ĐỨNG SAU LƯNG', color: '#ff6a5a', steps: () => ['Tìm chữ đỏ "⚠ SAU LƯNG BẠN" trên đầu một người', 'Người đó (hoặc ai cũng được) gõ "nam mô" để đuổi ma', 'Hoặc tặng 🧂 Rắc muối — âm khí cao quá là ma bắt người'] },
-    general: { icon: '🔥', title: 'CÁCH CHƠI', color: '#ffd27a', steps: () => ['Bình luận bất kỳ → ngồi một ghế có số, tên bạn có thể vào truyện', 'Thả tim = thêm củi cho lửa · gõ "nam mô" = xua âm khí', 'Khi bình chọn gõ 1 hoặc 2 · gõ "cứu 12" để cứu người trong gương', 'Không cần tặng quà vẫn chơi được: bình luận, thả tim, đoán, cứu người'] },
+    general: { icon: '🔥', title: 'CÁCH CHƠI', color: '#ffd27a', steps: () => ['Bình luận bất kỳ → ngồi một ghế có số, tên bạn có thể vào truyện', 'Thả tim = thêm củi cho lửa · gõ "nam mô" = xua âm khí', 'Khi bình chọn gõ 1 hoặc 2 · gõ "cứu 12" để cứu người bị ma dắt đi', 'Không cần tặng quà vẫn chơi được: bình luận, thả tim, đoán, cứu người'] },
   };
   let guide = null; const guideQ = []; const guideAt = {};
   function showGuide(key, cooldown = 90) {
