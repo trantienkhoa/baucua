@@ -151,7 +151,7 @@ window.MA_STORIES = (window.MA_STORIES || []).concat([
         lines: [
           '{C} ngồi xuống cho vui. Lập tức mười một ghế còn lại có bóng người hiện ra, áo quần lộng lẫy, mặt mờ như sương.',
           '@whisper|Người đàn ông đầu bàn nâng ly: "Cuối cùng khách thứ mười hai cũng tới. Uống đi."',
-          'Ly rượu trước mặt {C} đặc sánh, đỏ thẫm, mùi tanh như máu.',
+          'Ly rượu trước mặt {C} đặc sánh, đỏ thẫm, mùi tanh nồng.',
         ],
         choice: { q: 'Cả bàn đang chờ {C} uống…', a: ['Uống cạn ly', 'Hất đổ ly rượu'], to: ['e1', 'e2'] },
       },
@@ -233,7 +233,7 @@ window.MA_STORIES = (window.MA_STORIES || []).concat([
         lines: [
           '{A} và {B} nhảy lên đè chặt nắp quan tài. Bên dưới, có thứ gì đang cào cấu dữ dội.',
           '@bell|Gà gáy. Mọi thứ im bặt. Bà nội thức dậy, thấy hai đứa nằm ngủ gục trên nắp quan tài.',
-          'Lúc khâm liệm lại, móng tay ông cố gãy hết, mặt trong nắp quan tài chi chít vết cào.',
+          'Lúc khâm liệm lại, mặt trong nắp quan tài chi chít những vết xước lạ.',
         ],
         end: 'open',
       },
@@ -635,7 +635,7 @@ window.MA_STORIES = (window.MA_STORIES || []).concat([
       e2: {
         lines: [
           '{A} tò mò hé vành nón ông lái đò.',
-          '@jump|Dưới nón không có mặt, chỉ là một hộp sọ rêu xanh, hai hốc mắt có cá con bơi ra bơi vào.',
+          '@jump|Dưới nón không có mặt, chỉ là một khoảng tối đen ngòm, lập loè hai đốm sáng xanh như mắt cá.',
           '{A} hét lên. Hơi thở bay ra, ông lái đò há miệng nuốt trọn. Từ đó, đò ma có thêm một hành khách ngồi im nhìn xuống nước.',
         ],
         end: 'bad', take: 'A',

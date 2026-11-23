@@ -77,7 +77,7 @@ window.MA_STORIES = (window.MA_STORIES || []).concat([
           '{A} về quê ngoại nghỉ hè. Nhà bên cạnh có một bà cụ hiền lành, ngày nào cũng cho kẹo.',
           'Ngoại dặn: "Tối đừng ra vườn sau. Nhất là đêm không trăng."',
           '@wind|Nửa đêm, {A} dậy đi vệ sinh, thấy một đốm sáng xanh lơ lửng ngoài vườn chuối.',
-          'Lại gần mới thấy: đó là một cái đầu người, kéo theo cả bộ lòng lủng lẳng, đang bay là là trên mặt đất.',
+          'Lại gần mới thấy: đó là một cái đầu người, toả ra thứ ánh sáng xanh lạnh lẽo, đang bay là là trên mặt đất.',
         ],
         choice: { q: 'Cái đầu từ từ quay lại…', a: ['Nấp sau bụi chuối', 'Chạy về gọi ngoại'], to: ['s2a', 's2b'] },
       },
@@ -95,11 +95,11 @@ window.MA_STORIES = (window.MA_STORIES || []).concat([
           '@knock|Cộc… cộc… Có thứ gì đập nhẹ vào vách nhà, như ai đang tìm đường vào.',
           'Ngoại thì thầm: "Ma lai phải về nhập lại xác trước khi gà gáy. Không thì nó chết."',
         ],
-        choice: { q: 'Ngoại có một cách…', a: ['Lật úp cái xác bên nhà kia', 'Chờ tới sáng'], to: ['e3', 'e4'] },
+        choice: { q: 'Ngoại có một cách…', a: ['Lật úp tấm chăn bên nhà kia', 'Chờ tới sáng'], to: ['e3', 'e4'] },
       },
       e1: {
         lines: [
-          '{A} lẻn sang nhà bà cụ. Trên giường là một cái xác không đầu, nằm ngay ngắn đắp chăn.',
+          '{A} lẻn sang nhà bà cụ. Trên giường, chiếc chăn phồng lên như có người nằm, nhưng chiếc gối thì trống trơn.',
           '@jump|Sau lưng {A}, giọng bà cụ vang lên rất gần: "Cháu tìm bà à?"',
           'Sáng hôm sau, bà cụ lại ra ngõ cho kẹo như thường. Chỉ có điều, {A} không còn ở đó để nhận.',
         ],
@@ -115,7 +115,7 @@ window.MA_STORIES = (window.MA_STORIES || []).concat([
       },
       e3: {
         lines: [
-          '{A} cùng {B} lẻn sang, lật úp cái xác không đầu xuống, rắc tro bếp lên cổ.',
+          '{A} cùng {B} lẻn sang, lật úp tấm chăn trên giường bà cụ, rắc tro bếp lên cổ.',
           '@scream|Gà gáy. Ngoài vườn vang lên tiếng rít xé tai, rồi im bặt.',
           'Sáng ra, cả làng đồn bà cụ nhà bên mất trong đêm. Nhưng {A} biết, bà chỉ không về được nữa thôi.',
         ],
@@ -124,7 +124,7 @@ window.MA_STORIES = (window.MA_STORIES || []).concat([
       e4: {
         lines: [
           'Hai bà cháu ôm nhau ngồi tới sáng giữa vòng gai bưởi.',
-          '@bell|Tiếng đập vách dừng hẳn khi trời hửng. Ngoài sân có một vệt máu kéo dài về phía nhà bên.',
+          '@bell|Tiếng đập vách dừng hẳn khi trời hửng. Ngoài sân có một vệt bùn kéo dài về phía nhà bên.',
           'Hôm ấy, bà cụ đóng cửa không ra ngõ. Hôm sau, cả nhà bà dọn đi, không ai biết đi đâu.',
         ],
         end: 'good',
@@ -371,7 +371,7 @@ window.MA_STORIES = (window.MA_STORIES || []).concat([
       e2: {
         lines: [
           '{A} nói khẽ: "Cậu ơi… cậu mất lâu rồi. Không cần thi nữa đâu."',
-          '@cry|Cô gái ngẩng lên. Nửa gương mặt dập nát, nước mắt chảy thành dòng: "Không… mai tớ thi mà…"',
+          '@cry|Cô gái ngẩng lên. Gương mặt trắng bệch, ướt đẫm, nước mắt chảy thành dòng: "Không… mai tớ thi mà…"',
           'Sáng hôm sau, giường số chín có thêm một cái tên dán trên thành giường. Tên {A}.',
         ],
         end: 'bad', take: 'A',
@@ -627,7 +627,7 @@ window.MA_STORIES = (window.MA_STORIES || []).concat([
       e1: {
         lines: [
           '{A} cầm kéo cắt toạc áo cưới.',
-          '@scream|Từ vết cắt, máu đỏ thẫm rỉ ra, thấm khắp sàn nhà, kèm tiếng hét xé lòng.',
+          '@scream|Từ vết cắt, nước đen sì rỉ ra, thấm khắp sàn nhà, kèm tiếng hét xé lòng.',
           'Sáng hôm sau, bộ áo cưới lại treo ngay ngắn ở sạp đồ cũ, lành lặn như mới. Bà bán hàng thì thầm: "Lại một người nữa."',
         ],
         end: 'bad', take: 'A',
@@ -643,7 +643,7 @@ window.MA_STORIES = (window.MA_STORIES || []).concat([
       e3: {
         lines: [
           '{A} đặt tay vào tay chú rể. Lạnh như băng.',
-          '@jump|Tấm khăn đỏ rơi xuống. Dưới khăn chỉ là một cái đầu lâu cười toác.',
+          '@jump|Tấm khăn đỏ rơi xuống. Dưới khăn chỉ là một khoảng tối đen ngòm, và một giọng cười khanh khách.',
           '{B} phá được cửa thì phòng đã trống trơn. Chỉ còn tấm gương, trong gương có một đám cưới đang đi xa dần.',
         ],
         end: 'bad', take: 'A',

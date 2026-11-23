@@ -134,7 +134,7 @@
       <button data-ev="blackout">🔥 Lửa tắt</button>
       <button data-ev="exorcise">☯️ Trừ tà</button>
       <button data-ev="knock">🚪 Gõ cửa</button>
-      <button data-ev="scare">🫣 Hù một người</button>
+      <button data-ev="scare">🫣 Hù cả phòng</button>
       <button data-ev="salt">🧂 Rắc muối</button>
       <button id="btnJump">😱 Mặt ma (thử mức hù)</button>
     </div>
@@ -180,6 +180,8 @@
 
   <div class="card">
     <h2>7. 🧪 Thử không cần LIVE</h2>
+    <p class="hint" style="margin:4px 0 8px;opacity:.8">Tự khóa khi đang kết nối LIVE thật — người xem / quà giả trên sóng là tương tác giả, vi phạm nguyên tắc TikTok.</p>
+    <p id="testMsg" style="color:#ff9a7a;margin:0 0 6px"></p>
     <div class="row">
       <button data-t="join10">+10 người vào</button>
       <button data-t="join30">+30 người vào</button>
@@ -293,10 +295,9 @@ const FIELDS = [
   ['storySpeed', 'Nhịp kể (1 = vừa, 1.3 = nhanh)', 'number', 0.1],
   ['voteSeconds', 'Giây bình chọn hướng đi', 'number', 1],
   ['storyVoteSeconds', 'Giây bình chọn chuyện', 'number', 1],
-  ['voteGiftWeight', 'Tặng quà để phiếu nặng thêm', 'check'],
   ['autoEvents', 'Tự mở sự kiện (nhập / búp bê / cầu cơ)', 'check'],
   ['eventEvery', 'Phút giữa hai sự kiện tự động', 'number', 0.5],
-  ['scare', 'Mức hù (mặt ma bất ngờ)', 'select', [['manh', 'Mạnh — mặt ma to + chớp sáng'], ['vua', 'Vừa — mặt ma, không chớp'], ['nhe', 'Nhẹ — chỉ rung màn hình'], ['tat', 'Tắt — không hù']]],
+  ['scare', 'Mức hù (mặt ma bất ngờ)', 'select', [['vua', 'Vừa — mặt ma thoáng qua, không chớp'], ['nhe', 'Nhẹ — chỉ rung màn hình'], ['tat', 'Tắt — không hù']]],
   ['tts', '🎙 Đọc lời kể', 'check'],
   ['ttsEngine', 'Bộ giọng đọc', 'select', [['vieneu', 'VieNeu-TTS (giọng ma, cần chạy ChayGiongMa)'], ['browser', 'Giọng có sẵn của trình duyệt']]],
   ['vieneuUrl', 'Địa chỉ cầu nối VieNeu', 'text'],
@@ -316,6 +317,9 @@ const FIELDS = [
   ['showGiftGuide', 'Hiện bảng "Tặng quà để…"', 'check'],
   ['showBubbles', 'Hiện bong bóng bình luận', 'check'],
   ['showHints', 'Hiện dòng gợi ý lệnh', 'check'],
+  ['seatBadge', 'Số ghế', 'select', [['nho', 'Nhỏ, mờ — vừa đủ thấy'], ['an', 'Ẩn — chỉ hiện khi sự kiện cần gõ số']]],
+  ['autoHost', 'Người kể chuyện tự chào, cảm ơn, đáp bình luận (treo LIVE)', 'check'],
+  ['fictionLabel', 'Hiện nhãn "Truyện hư cấu · giọng đọc AI"', 'check'],
   ['title', 'Tên phòng (hiện trên đầu màn)', 'text'],
   ['tellerName', '🎙 Tên người kể chuyện (nhân vật 3D)', 'text'],
 ];
@@ -411,6 +415,7 @@ $('giftTests').querySelectorAll('[data-g]').forEach(b => b.onclick = () => {
 });
 
 // ---------- gan dạ ----------
+socket.on('testBlocked', m => { $('testMsg').textContent = m; setTimeout(() => $('testMsg').textContent = '', 6000); });
 socket.on('ma:braveTop', list => {
   $('braveRows').innerHTML = (list || []).length ? list.map((b, i) => `<tr><td>${i + 1}</td><td>${esc(b.name)}</td><td><b>${b.pts}</b></td></tr>`).join('') : '<tr><td colspan="3" class="muted">Chưa có ai.</td></tr>';
 });

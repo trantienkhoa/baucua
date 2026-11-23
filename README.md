@@ -20,6 +20,17 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## ✅ Ngọn Lửa Cuối Cùng: tuân thủ nguyên tắc TikTok, treo LIVE được (bản 2.16.0)
+
+- **Bỏ cơ chế trả tiền để thắng / may rủi**: quà không còn làm phiếu bầu nặng hơn; bỏ mọi câu kêu gọi tặng quà để đổi lấy phần thưởng. Không cần tặng quà vẫn chơi đầy đủ.
+- **Không nhắm vào người xem cụ thể**: đoán sai người bị ma nhập không bắt ai; gọi hồn bằng quà không bắt ai; "Hù" thành **Hù cả phòng**; cầu cơ không gọi tên ai; búp bê ma thành chuyền tay, ai giữ cuối được **+5 gan dạ**.
+- **Nội dung nhẹ hơn**: bớt chi tiết máu me trong truyện; mặt ma không chớp sáng, không phóng to; mặc định mức hù **Nhẹ**, bỏ mức Mạnh.
+- **Minh bạch**: nhãn nhỏ "📖 Truyện hư cấu · 🤖 giọng đọc AI" luôn hiện (tắt được ở Cài đặt).
+- **Treo LIVE**: ông kể chuyện tự chào người mới vào, đáp bình luận ("chào", "sợ quá", "hay quá"…), cảm ơn quà, có bong bóng lời thoại để người tắt tiếng vẫn đọc được.
+- **Chống tương tác giả**: công cụ thử tự khóa khi đang kết nối LIVE thật. Bình luận có từ tục được che `***` trước khi lên màn hình.
+- **Số ghế**: nhỏ, mờ vừa đủ thấy; hoặc chọn **Ẩn** (chỉ hiện khi sự kiện cần gõ số).
+- Quy tắc cho các game sau: xem `CLAUDE.md`.
+
 ## 🚶 Ngọn Lửa Cuối Cùng: tránh nhau khi đi, đêm rõ hơn, nhép miệng theo giọng (bản 2.15.0)
 
 - **Đoàn người tránh nhau:**

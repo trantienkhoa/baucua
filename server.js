@@ -506,7 +506,7 @@ function attach(c) {
     const now = Date.now();
     const give = now - (chatXpAt.get(user.id) || 0) > 20000; if (give) chatXpAt.set(user.id, now);
     fanTouch(user, give ? 2 : 0);
-    broadcast({ type: 'chat', user, text: cleanText(d.comment ?? d.content, 80) || '' });
+    broadcast({ type: 'chat', user, text: cleanBad(cleanText(d.comment ?? d.content, 80) || '').text });   // che từ tục trước khi hiện lên màn hình
   });
   on(WebcastEvent.GIFT, handleGift);
   on(WebcastEvent.LIKE, d => {
@@ -946,6 +946,8 @@ io.on('connection', socket => {
   // công cụ thử
   socket.on('test', t => {
     if (!t) return;
+    // đang phát LIVE thật thì khóa công cụ thử: người xem / bình luận / quà giả trên sóng là tương tác giả (vi phạm nguyên tắc TikTok)
+    if (connState.status === 'connected') { socket.emit('testBlocked', 'Đang kết nối LIVE thật: công cụ thử bị khóa để tránh tương tác giả. Ngắt kết nối rồi thử.'); return; }
     if (t.kind === 'join') {
       const n = Math.min(100, Number(t.n) || 10);
       for (let i = 0; i < n; i++) setTimeout(() => broadcast({ type: 'chat', user: fanTouch(testUser(), 2), text: 'hi' }), i * 120);

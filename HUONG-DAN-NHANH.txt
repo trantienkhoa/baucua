@@ -32,3 +32,11 @@ GAME KỂ CHUYỆN MA "Ngọn Đèn Cuối Cùng" (bản 2.9.0):
 - Bản 2.13.0: mỗi cảnh 3D một bố cục (ngồi trên khúc gỗ, bó rơm, bậc đá, cầu tàu…), lửa 3D, có ông kể chuyện 3D, người bị bắt thành bóng ma trong bóng tối.
 - Bản 2.14.0: đổi cảnh thì ông kể chuyện cầm đuốc dẫn mọi người đi qua màn đêm rồi nhóm lửa ở cảnh mới; cây đổ, đá, gốc cây trông tự nhiên.
 - Bản 2.15.0: đoàn người tránh nhau khi đi, đoạn đi đêm rõ hơn, Ông Tư nhép miệng theo giọng, máy chậm thì 3D tự giảm độ phân giải.
+
+TUÂN THỦ TIKTOK (bản 2.16.0):
+- Quà chỉ tạo hiệu ứng cho cả phòng, không đổi lấy phiếu hay phần thưởng. Không cần quà vẫn chơi được.
+- Nhãn "Truyện hư cấu · giọng đọc AI" luôn hiện. Nên bật thêm nhãn nội dung AI (AIGC) khi lên LIVE.
+- Ông kể chuyện tự chào, đáp bình luận, cảm ơn quà để treo LIVE. TikTok vẫn có thể hỏi bạn còn ở đó không,
+  nên thỉnh thoảng vào trả lời bình luận.
+- Công cụ thử tự khóa khi đang kết nối LIVE thật.
+- Số ghế: Cài đặt → "Số ghế" → Nhỏ hoặc Ẩn.

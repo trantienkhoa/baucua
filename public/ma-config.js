@@ -5,12 +5,12 @@
     { id: 'nhang', icon: '🪵', label: 'Thêm củi', desc: 'ném củi cho lửa cháy to', min: 1 },
     { id: 'muoi', icon: '🧂', label: 'Rắc muối', desc: 'xua bớt âm khí', min: 5 },
     { id: 'go', icon: '🚪', label: 'Gõ cửa', desc: 'dọa cả phòng', min: 10 },
-    { id: 'hu', icon: '🫣', label: 'Hù một người', desc: 'gõ "hù 12" để chọn ghế', min: 30 },
+    { id: 'hu', icon: '🫣', label: 'Hù cả phòng', desc: 'bàn tay ma thò ra từ bóng tối', min: 30 },
     { id: 'cauco', icon: '🔮', label: 'Cầu cơ', desc: 'hỏi hồn ma một câu', min: 99 },
-    { id: 'bupbe', icon: '🪆', label: 'Búp bê ma', desc: 'chuyền tay cả phòng', min: 199 },
+    { id: 'bupbe', icon: '🪆', label: 'Búp bê ma', desc: 'chuyền tay, ai giữ cuối +5 gan dạ', min: 199 },
     { id: 'nhap', icon: '👁️', label: 'Ai bị ma nhập?', desc: 'cả phòng đi tìm', min: 299 },
-    { id: 'goihon', icon: '👻', label: 'Gọi hồn', desc: 'ma hiện hình bắt người', min: 499 },
-    { id: 'trura', icon: '☯️', label: 'Trừ tà', desc: 'làm thầy pháp, cứu hết', min: 999 },
+    { id: 'goihon', icon: '👻', label: 'Gọi hồn', desc: 'hồn ma hiện hình rồi tan', min: 499 },
+    { id: 'trura', icon: '☯️', label: 'Trừ tà', desc: 'xua tà, cứu hết người bị bắt', min: 999 },
   ];
 
   window.MA_DEFAULTS = {
@@ -19,9 +19,9 @@
     storySpeed: 1,          // nhịp kể (1 = vừa, 1.3 = nhanh)
     voteSeconds: 25,        // thời gian chọn hướng đi của truyện
     storyVoteSeconds: 20,   // thời gian chọn chuyện tiếp theo
-    voteGiftWeight: true,   // đã chọn rồi tặng quà → phiếu nặng thêm (1 xu = 1 phiếu)
+    voteGiftWeight: false,  // KHÔNG dùng: đổi quà lấy phiếu là trả tiền để thắng, dễ vi phạm chính sách quà LIVE
     autoEvents: true, eventEvery: 4,    // tự mở sự kiện (nhập / búp bê / cầu cơ) mỗi N phút
-    scare: 'vua',           // manh | vua | nhe | tat — mức hù (mặt ma bất ngờ)
+    scare: 'nhe',           // vua | nhe | tat — mức hù; mặc định nhẹ (không hiện mặt ma) để tránh nội dung gây sốc
     tts: true, ttsWhere: 'game', ttsVoice: '', ttsRate: 0.92, ttsVolume: 1,
     ttsEngine: 'vieneu',    // vieneu: giọng VieNeu-TTS (chạy tools/vieneu) | browser: giọng có sẵn của trình duyệt
     vnVoice: '',            // giọng VieNeu (để trống = giọng mặc định)
@@ -38,6 +38,9 @@
     rescueNeed: 3,          // số người gõ "cứu N" để kéo một người ra khỏi gương
     takenReturnSec: 240,    // người bị bắt tự về sau bao lâu
     showGiftGuide: true, showBubbles: true, showHints: true,
+    seatBadge: 'nho',       // nho: số ghế nhỏ mờ · an: ẩn (chỉ hiện khi sự kiện cần gõ số)
+    autoHost: true,         // người kể chuyện tự chào người mới, cảm ơn quà, đáp bình luận (treo LIVE vẫn có tương tác thật)
+    fictionLabel: true,     // nhãn nhỏ "Truyện hư cấu · giọng đọc AI" luôn hiện
     title: 'NGỌN LỬA CUỐI CÙNG',
     tellerName: 'Ông Tư',   // tên người kể chuyện 3D
     actions: window.MA_ACTIONS.map(a => ({ id: a.id, gift: '', min: a.min })),
