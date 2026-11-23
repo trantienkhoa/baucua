@@ -13,3 +13,5 @@ public/_m_*.glb
 public/_view3.html
 __pycache__/
 license-pubkey.js
+dist/
+tools/.cache/

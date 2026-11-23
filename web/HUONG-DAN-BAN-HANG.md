@@ -5,6 +5,15 @@ Thư mục `web/` là một máy chủ Node riêng (đặt trên VPS / hosting c
 - Trang quản trị (`/quan-tri`): xem đơn, bấm "Đã nhận tiền", tạo key tay, khoá key, gỡ máy, đổi số máy.
 - API cấp key: game gọi để kích hoạt, gia hạn vé, gỡ máy.
 
+## 0. Máy chủ: cần gì, tốn bao nhiêu
+- Máy chủ cần chạy 24/7 vì game khách gọi về để kích hoạt key và gia hạn vé (3 ngày/lần khi có mạng).
+- Nếu máy chủ tạm ngừng, game khách **vẫn chạy tới 90 ngày** (`offlineDays`), chỉ khách mới là chưa kích hoạt được.
+- Gợi ý: 1 VPS nhỏ (1 CPU, 1 GB RAM, Ubuntu 22.04/24.04) chạy cả trang bán hàng lẫn máy chủ key, cộng một tên miền.
+  Không cần máy mạnh: mỗi lần kích hoạt chỉ vài mili giây.
+- **Không dùng** các gói miễn phí kiểu "ngủ khi không có ai truy cập" hoặc không có ổ đĩa cố định: dữ liệu key nằm trong `data/`, mất là mất hết key đã bán.
+- Cài nhanh bằng script: trỏ tên miền về IP VPS, chép thư mục `web/` lên VPS rồi chạy
+  `sudo bash cai-dat-vps.sh ten-mien.vn email@cua-anh.vn` (cài Node, pm2, nginx, HTTPS, sao lưu hằng ngày, tự tạo mật khẩu quản trị).
+
 ## 1. Cài lần đầu trên máy chủ
 1. Chép thư mục `web/` lên máy chủ, chạy `npm install` rồi `npm start` (lần đầu tự tạo `config.json` và cặp khoá ký trong `data/`).
 2. Sửa `config.json`:
@@ -17,10 +26,14 @@ Thư mục `web/` là một máy chủ Node riêng (đặt trên VPS / hosting c
 3. Khởi động lại. Nên chạy bằng `pm2` để tự bật lại khi máy chủ khởi động lại.
 4. **Sao lưu `data/`** (chứa `private.pem` và `db.json`). Mất `private.pem` thì mọi key đã bán không gia hạn được; lộ `private.pem` thì người khác tự tạo được key.
 
-## 2. Đóng gói game gửi khách
-1. Trên máy chủ: `npm run xuat-khoa` → tạo `web/license-pubkey.js` (chỉ chứa khoá công khai, không có bí mật).
-2. Chép `license-pubkey.js` vào **thư mục gốc của game** (cạnh `server.js`), rồi nén game gửi khách.
-3. Bản game không có `license-pubkey.js` (bản anh đang phát triển) thì không khoá.
+## 2. Đóng gói game gửi khách (khách chỉ cần giải nén → bấm ChayNgonLua.bat → nhập key)
+1. Trên máy chủ: `npm run xuat-khoa` → tạo `web/license-pubkey.js` (chỉ chứa khoá công khai, không có bí mật). Tải file này về máy anh, đặt vào thư mục `web/` của repo.
+2. Trên máy anh, ở thư mục gốc game: `node tools/dong-goi.js` → tạo `dist/NgonLuaCuoiCung-<phiên bản>.zip` (~140 MB).
+   Gói đã kèm sẵn Node.js cho Windows (`node\node.exe`), thư viện, toàn bộ asset, file ghi công âm thanh và hướng dẫn `DOC-TRUOC.txt`.
+3. Đưa file zip lên Google Drive, dán link vào `downloadUrl` trong `config.json`.
+4. Bản game không có `license-pubkey.js` (bản anh đang phát triển) thì không khoá.
+
+Khách KHÔNG cần cài Node.js. Giọng đọc VieNeu là tuỳ chọn (cần Python); không cài thì game tự dùng giọng có sẵn của Windows.
 
 ## 3. Quy trình bán
 1. Khách chọn gói → nhập tên, Zalo → nhận mã QR VietQR có sẵn số tiền và nội dung = mã đơn.

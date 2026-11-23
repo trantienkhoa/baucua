@@ -20,6 +20,12 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 📦 Ngọn Lửa Cuối Cùng: gói phát hành bấm là chạy (bản 2.22.0)
+
+- `node tools/dong-goi.js` → `dist/NgonLuaCuoiCung-<bản>.zip`: kèm sẵn Node.js cho Windows, thư viện, asset, khoá công khai. Khách giải nén → bấm `ChayNgonLua.bat` → trình duyệt tự mở trang nhập key.
+- `ChayNgonLua.bat` tự bật giọng VieNeu nếu máy đã cài Python + vieneu, không có thì dùng giọng Windows.
+- Máy chủ key: script `web/cai-dat-vps.sh` dựng trên VPS Ubuntu (Node, pm2, nginx, HTTPS, sao lưu hằng ngày). Máy chủ ngừng thì game khách vẫn chạy tới 90 ngày.
+
 ## 🔊 Ngọn Lửa Cuối Cùng: âm thanh thu thật, ông Tư không bị che (bản 2.21.0)
 
 - 15 bản ghi âm thật (`public/models/ma/I/`): mỗi cảnh một bộ lớp nền (ếch dế, gió lùa tre, lá xào xạc, nước giếng, nước vỗ, tàu hỏa xa) và tiếng thưa thỉnh thoảng (chó tru, cú, quạ, chuông đình, trống, mõ).

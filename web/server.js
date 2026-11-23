@@ -17,7 +17,7 @@ const CFG_FILE = path.join(ROOT, 'config.json');
 if (!fs.existsSync(CFG_FILE)) { fs.copyFileSync(path.join(ROOT, 'config.example.json'), CFG_FILE); console.log('Đã tạo config.json từ config.example.json — hãy sửa thông tin ngân hàng, giá, mật khẩu quản trị.'); }
 const CFG = JSON.parse(fs.readFileSync(CFG_FILE, 'utf8'));
 const PORT = Number(process.env.PORT) || CFG.port || 8080;
-const OFFLINE_DAYS = CFG.offlineDays || 30;
+const OFFLINE_DAYS = CFG.offlineDays || 90;   // máy chủ tạm ngừng tới chừng này ngày thì game khách vẫn chạy
 if (!CFG.adminPassword || CFG.adminPassword === 'doi-mat-khau-nay') console.warn('⚠ Chưa đổi adminPassword trong config.json!');
 
 // ---------- khoá ký (tạo một lần, GIỮ BÍ MẬT file private.pem) ----------

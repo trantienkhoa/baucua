@@ -5,7 +5,7 @@
   "adminPassword": "doi-mat-khau-nay",
   "keyPrefix": "NLCC",
   "orderPrefix": "NL",
-  "offlineDays": 30,
+  "offlineDays": 90,
   "bank": {
     "bin": "970415",
     "bankName": "VietinBank",
@@ -15,9 +15,39 @@
   "sepayApiKey": "",
   "downloadUrl": "https://drive.google.com/...",
   "demoVideo": "",
-  "contact": { "zalo": "https://zalo.me/...", "phone": "", "email": "" },
+  "contact": {
+    "zalo": "https://zalo.me/...",
+    "phone": "",
+    "email": ""
+  },
   "tiers": [
-    { "id": "1may", "name": "Gói 1 máy", "machines": 1, "price": 990000, "desc": "Dùng trên 1 máy tính", "features": ["Trọn bộ game, 30 truyện ma", "12 cảnh 3D + 12 cảnh 2D vẽ tay", "Giọng đọc VieNeu tiếng Việt", "Cập nhật miễn phí bản mới", "Hỗ trợ cài đặt qua Zalo"] },
-    { "id": "3may", "name": "Gói 3 máy", "machines": 3, "price": 1990000, "popular": true, "desc": "Dùng trên 3 máy tính cùng lúc", "features": ["Mọi thứ trong gói 1 máy", "Kích hoạt trên 3 máy", "Hỗ trợ cài đặt 1-1 qua UltraViewer", "Ưu tiên nhận bản mới sớm"] }
+    {
+      "id": "1may",
+      "name": "Gói 1 máy",
+      "machines": 1,
+      "price": 990000,
+      "desc": "Dùng trên 1 máy tính",
+      "features": [
+        "Trọn bộ game, 30 truyện ma",
+        "12 cảnh 3D + 12 cảnh 2D vẽ tay",
+        "Giọng đọc VieNeu tiếng Việt",
+        "Cập nhật miễn phí bản mới",
+        "Hỗ trợ cài đặt qua Zalo"
+      ]
+    },
+    {
+      "id": "3may",
+      "name": "Gói 3 máy",
+      "machines": 3,
+      "price": 1990000,
+      "popular": true,
+      "desc": "Dùng trên 3 máy tính cùng lúc",
+      "features": [
+        "Mọi thứ trong gói 1 máy",
+        "Kích hoạt trên 3 máy",
+        "Hỗ trợ cài đặt 1-1 qua UltraViewer",
+        "Ưu tiên nhận bản mới sớm"
+      ]
+    }
   ]
 }
