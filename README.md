@@ -20,6 +20,19 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 🎨 Ngọn Lửa Cuối Cùng: asset vẽ tay, gió thổi lửa (bản 2.17.0)
+
+- **Asset vẽ tay** (thư mục `public/models/ma/`, nhóm B, C, D, E, G, H) tự nạp; thiếu file nào thì cảnh dùng lại đồ vẽ bằng code.
+- **Đống lửa**: củi cháy có vết nứt đỏ, vòng đá, vết tro, đống củi để sẵn; mỗi cảnh một kiểu xếp củi.
+- **Mặt đất + phông nền**: 5 loại đất theo từng cảnh; hàng cây 3 lớp, núi mờ, lũy tre, mái nhà làng, trăng, mây trôi.
+- **Cỏ cây** rải quanh cảnh (tránh chỗ ngồi): cỏ dại, cỏ lau, dương xỉ, lá khô, sỏi, cành khô.
+- **Đồ từng cảnh** (nhóm G): toa tàu, sạp chợ, gốc đa có miếu nhỏ, bù nhìn, tượng đá… đặt ở vòng ngoài, phía máy quay chỉ để đồ thấp.
+- **Ông Tư**: nón lá rách, khăn rằn, gậy tre, đuốc rơm; bộ ấm trà + ống điếu đặt cạnh chỗ ngồi.
+- **Hồn ma 3D** (áo dài trắng, áo bà ba trắng, bóng đen) và **bàn tay ma 3D** cho "Hù cả phòng"; đốm ma trơi mới.
+- **Vật phẩm sự kiện** (nhóm C): bàn cầu cơ + nến, búp bê, bát nhang + khung ảnh, gương bát quái + chuông + bùa + vòng sáng (trừ tà), bóng khói (ma nhập), cánh cửa (gõ cửa), hũ muối + hạt muối, bó củi bay vào lửa.
+- **Hiệu ứng** (nhóm H): khói bốc theo gió, tàn lửa, đom đóm, bướm đêm, lá rơi, sương bò sát đất, tia trăng, lớp lửa vẽ tay.
+- **Gió**: lửa ngả theo gió (gốc đứng yên, chóp ngả), thỉnh thoảng có cơn giật; gõ cửa / hù dọa có luồng gió lùa; tàn lửa, khói, lá rơi, lúa đều bay theo cùng hướng.
+
 ## ✅ Ngọn Lửa Cuối Cùng: tuân thủ nguyên tắc TikTok, treo LIVE được (bản 2.16.0)
 
 - **Bỏ cơ chế trả tiền để thắng / may rủi**: quà không còn làm phiếu bầu nặng hơn; bỏ mọi câu kêu gọi tặng quà để đổi lấy phần thưởng. Không cần tặng quà vẫn chơi đầy đủ.

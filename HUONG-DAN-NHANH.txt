@@ -40,3 +40,7 @@ TUÂN THỦ TIKTOK (bản 2.16.0):
   nên thỉnh thoảng vào trả lời bình luận.
 - Công cụ thử tự khóa khi đang kết nối LIVE thật.
 - Số ghế: Cài đặt → "Số ghế" → Nhỏ hoặc Ẩn.
+
+ASSET VẼ TAY (bản 2.17.0):
+- Để trong public/models/ma/ (B, C, D, E, G, H). Thiếu file nào game vẫn chạy bằng đồ vẽ sẵn.
+- Lửa ngả theo gió, có cơn gió giật; gõ cửa / hù dọa có luồng gió lùa.

@@ -299,6 +299,7 @@
   // ======================================================================
   const ghost = { x: 120, y: 900, tx: 120, ty: 900, a: 0, ta: 0, sc: 1, mode: 'hide', behind: null, nextMove: 0, glimpse: 0 };
   const eyes = [];   // cặp mắt trong bóng tối
+  const use3DFx = k => use3D() && window.MA3D && window.MA3D[k] && window.MA3D[k]();   // ma / bàn tay ma vẽ 3D khi đã nạp asset
   function ghostTick(dt, t) {
     const lvl = yin / 100;
     const busy = ev && (ev.type === 'ghost');
@@ -1001,6 +1002,7 @@
     const count = opt.count || 1;
     switch (type) {
       case 'nhang': {
+        if (use3D() && MA3D.pulse) MA3D.pulse('nhang');
         oil = clamp(oil + 4 * count, 0, 100);
         if (v) throwLog(v); else spark(LX, LY - 60, 20, '255,170,60', 60, 160, 3);
         sfx('crackle', 0.7);
@@ -1008,6 +1010,7 @@
         return;
       }
       case 'muoi': {
+        if (use3D() && MA3D.pulse) MA3D.pulse('muoi');
         yin = clamp(yin - 8 * count, 0, 100);
         for (let i = 0; i < 70; i++) particles.push({ x: rand(60, 1020), y: rand(640, 900), vx: rand(-30, 30), vy: rand(60, 200), life: rand(0.8, 1.8), max: 1.8, color: '240,240,255', size: rand(1.5, 3.5), g: 300 });
         sfx('salt', 0.9);
@@ -1016,6 +1019,7 @@
         return;
       }
       case 'go': {
+        if (use3D() && MA3D.pulse) MA3D.pulse('go');
         doorShake = 1.4; sfx('knock'); yin = clamp(yin + 4, 0, 100); scareAll(0.5);
         if (by) toast(`🚪 ${by.name} gõ cửa… cộc, cộc, cộc`, '#ffb38a');
         return;
@@ -1494,6 +1498,7 @@
     for (let i = hands.length - 1; i >= 0; i--) {
       const h = hands[i], p = (t - h.t0) / 1.6;
       if (p > 1 || !viewers.has(h.v.id)) { hands.splice(i, 1); continue; }
+      if (use3DFx('hands3D')) continue;
       const v = h.v, sc = v.seat.sc, up = Math.sin(Math.min(1, p) * Math.PI);
       ctx.save(); ctx.translate(v.x - 34 * sc, v.y - 70 * sc); ctx.scale(sc, sc); ctx.globalAlpha = up;
       ctx.strokeStyle = 'rgba(220,228,245,.95)'; ctx.lineWidth = 9; ctx.lineCap = 'round';
@@ -1562,7 +1567,7 @@
       }
     }
     // hồn ma
-    if (ghost.a > 0.01) drawGhost(ghost.x, ghost.y, ghost.sc, ghost.a, t, { red: yin > 60, reach: ghost.mode === 'rush' ? 1 : ghost.mode === 'behind' ? 0.35 : 0 });
+    if (ghost.a > 0.01 && !use3DFx('ghost3D')) drawGhost(ghost.x, ghost.y, ghost.sc, ghost.a, t, { red: yin > 60, reach: ghost.mode === 'rush' ? 1 : ghost.mode === 'behind' ? 0.35 : 0 });
     // chữ trên đầu người xem (tối đa 8 bong bóng bình luận mới nhất)
     bubbleSet = new Set(list.filter(v => v.bubble && !v.taken && t - v.bubble.t0 < 3.4).sort((a, b) => b.bubble.t0 - a.bubble.t0).slice(0, 8).map(v => v.id));
     // tên chồng lên nhau thì ẩn bớt: ưu tiên người được gọi tên, thầy pháp, người vừa bình luận, bị tố, người ngồi gần máy quay
@@ -2292,7 +2297,7 @@
       const sx = shake > 0 ? rand(-shake, shake) : 0, sy = shake > 0 ? rand(-shake, shake) : 0;
       if (shake > 0) ctx.translate(sx, sy);
       if (use3D()) {
-        MA3D.frame({ t, dt, viewers: [...viewers.values()], oil, flick: lampFlick, yin, map: curMap, talking: narrating() || !!(window.MC && MC.speaking) || story.typed < [...story.text].length, mouth: window.MaAudio && MaAudio.voiceBusy ? MaAudio.voiceLevel() : null, shockAt, shake: shake > 0 ? { x: -sx, y: -sy } : null, trura: !!(ev && ev.type === 'trura') });
+        MA3D.frame({ t, dt, viewers: [...viewers.values()], oil, flick: lampFlick, yin, map: curMap, talking: narrating() || !!(window.MC && MC.speaking) || story.typed < [...story.text].length, mouth: window.MaAudio && MaAudio.voiceBusy ? MaAudio.voiceLevel() : null, shockAt, shake: shake > 0 ? { x: -sx, y: -sy } : null, trura: !!(ev && ev.type === 'trura'), ev: ev ? ev.type : null });
         ctx.clearRect(-30, -30, W + 60, H + 60);
       } else { ctx.fillStyle = '#000'; ctx.fillRect(-30, -30, W + 60, H + 60); }
       drawScene(t);
@@ -2374,7 +2379,7 @@
   });
 
   window.__seats = SEATS.length;
-  window.__maShared = { SEATS, MIRROR, S, setLayout, teller: null, setFire: p => { LX = p.x; LY = p.y; } };
+  window.__maShared = { SEATS, MIRROR, S, setLayout, teller: null, setFire: p => { LX = p.x; LY = p.y; }, hands, ghost, now };
   pickMap(false);
   window.__ma = { S, viewers, story, get ev() { return ev; }, get vote() { return vote; }, get oil() { return oil; }, set oil(v) { oil = v; }, get yin() { return yin; }, set yin(v) { yin = v; }, onEvent, queueEvent };
   requestAnimationFrame(frame);
