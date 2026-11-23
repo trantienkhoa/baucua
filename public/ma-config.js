@@ -39,6 +39,7 @@
     rescueNeed: 3,          // số người gõ "cứu N" để kéo một người ra khỏi gương
     takenReturnSec: 240,    // người bị bắt tự về sau bao lâu
     showGiftGuide: true, showBubbles: true, showHints: true,
+    nameMode: 'gon',        // gon: chỉ hiện tên người vừa bình luận / được gọi tên · tatca: hiện tên mọi người
     seatBadge: 'nho',       // nho: số ghế nhỏ mờ · an: ẩn (chỉ hiện khi sự kiện cần gõ số)
     autoHost: true,         // người kể chuyện tự chào người mới, cảm ơn quà, đáp bình luận (treo LIVE vẫn có tương tác thật)
     fictionLabel: true,     // nhãn nhỏ "Truyện hư cấu · giọng đọc AI" luôn hiện

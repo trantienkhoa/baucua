@@ -1099,7 +1099,9 @@
     if (greetQ.length > 12) greetQ.splice(0, greetQ.length - 12);
     if (greetQ.length && t - lastGreetAt > 25 && t - lastHostAt >= 12) {
       lastGreetAt = t;
-      const names = greetQ.splice(0).slice(-3).map(n => short(n, 14));
+      const ids = greetQ.splice(0).slice(-3), vs = ids.map(id => viewers.get(id)).filter(Boolean);
+      for (const x of vs) x.mentionT = t;   // được ông Tư gọi tên → hiện tên một lúc
+      const names = vs.map(x => short(x.name, 14)); if (!names.length) return;
       hostSay(pick([`Chào ${names.join(', ')}. Ngồi sát vào đống lửa đi.`, `${names.join(', ')} tới rồi à… kiếm chỗ ngồi đi, chuyện sắp tới đoạn hay.`, `Thêm ${names.join(', ')} ngồi cùng. Đêm nay đông vui, ma cũng phải ngại.`]));
     }
     if (story.phase === 'inter' && t - lastHostAt > 40 && Math.random() < 0.01) hostSay(pick(['Ai muốn nghe chuyện nào thì gõ số để chọn nhé.', 'Thả tim cho lửa cháy to, kẻo ma mò tới.', 'Lạnh quá… ai gõ "nam mô" giùm tôi cái.', 'Chuyện chỉ là chuyện kể thôi, đừng ai bắt chước làm theo nghe chưa.']));
@@ -1116,7 +1118,7 @@
     const isNew = !viewers.has(user.id);
     const v = userTouch(user, 'chat');
     const t = now();
-    if (isNew && v) greetQ.push(user.name);
+    if (isNew && v) greetQ.push(user.id);
     if (v && S.autoHost && t - lastHostAt > 12 && Math.random() < 0.5) { for (const [re, fn] of HOST_REPLY) if (re.test(s)) { hostSay(fn(short(user.name, 14))); break; } }
     // người trong gương: lời thì thầm
     if (v && v.taken) {
@@ -1634,13 +1636,15 @@
     bubbleSet = new Set(list.filter(v => v.bubble && !v.taken && t - v.bubble.t0 < 3.4).sort((a, b) => b.bubble.t0 - a.bubble.t0).slice(0, 8).map(v => v.id));
     // tên chồng lên nhau thì ẩn bớt: ưu tiên người được gọi tên, thầy pháp, người vừa bình luận, bị tố, người ngồi gần máy quay
     const pri = v => (v.glow > 0 ? 100 : 0) + (isThay(v) ? 90 : 0) + (bubbleSet.has(v.id) ? 60 : 0) + (ev && ev.type === 'nhap' && ev.tally.get(v.seat.n) ? 70 : 0) + (v.seat.sc || 1) * 30;
-    const rects = [];
+    const rects = [], roleIds = new Set(story.phase === 'tell' || story.phase === 'vote' || story.phase === 'cast' ? ['A', 'B', 'C'].map(k => story.roles[k] && story.roles[k].id).filter(Boolean) : []);
     for (const v of [...list].sort((a, b) => pri(b) - pri(a))) {
       if (v.taken) continue;
       const sc = v.dsc || v.seat.sc, nfs = 13 + 8 * sc, w = (v.nameW || 60) * nfs / 22 + 14 + (D3 ? nfs * 1.6 : 0);
       const r = { x0: v.x - w / 2 - (D3 ? nfs * 1.2 : 0), x1: v.x + w / 2, y0: v.y + 16 * sc - nfs * 0.65, y1: v.y + 16 * sc + nfs * 0.65 };
       const hit = rects.some(q => { const ox = Math.min(r.x1, q.x1) - Math.max(r.x0, q.x0), oy = Math.min(r.y1, q.y1) - Math.max(r.y0, q.y0); return ox > 0 && oy > 0 && ox * oy > 0.3 * (r.x1 - r.x0) * (r.y1 - r.y0); });
-      v.hideName = hit && pri(v) < 60;
+      // chế độ gọn: chỉ hiện tên người vừa bình luận, vừa được gọi tên (trong truyện / lời chào), đang bị đoán trong sự kiện
+      const named = S.nameMode === 'tatca' || v.glow > 0 || (v.bubble && t - v.bubble.t0 < 8) || (v.mentionT && t - v.mentionT < 8) || roleIds.has(v.id) || (ev && ev.type === 'nhap' && ev.tally.get(v.seat.n)) || (ev && ev.type === 'bupbe' && ev.holder === v);
+      v.hideName = !named || (hit && pri(v) < 60);
       if (!v.hideName) rects.push(r);
     }
     for (const v of list) drawViewerLabel(v, t);
