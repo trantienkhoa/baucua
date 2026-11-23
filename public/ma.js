@@ -1385,13 +1385,14 @@
     const F = FIRE2D, r = window.MA2D.tellerRect(F.x, F.y);
     const scOf = y => 0.62 + (y - 960) / 580 * 0.52;
     const box = (x, y) => { const sc = scOf(y), h = (y < F.y - 40 ? 255 : 170) * sc, w = h * 0.55; return { x0: x - w / 2, x1: x + w / 2, y0: y + 22 * sc - h, y1: y + 22 * sc }; };
-    const hitsT = (x, y) => { const b = box(x, y); return b.x0 < r.x1 && b.x1 > r.x0 && b.y0 < r.y1 && b.y1 > r.y0; };
+    // chỉ bỏ ghế đè lên chỗ ông Tư ngồi; người ngồi sau ông bị ông che, người ngồi trước chỉ che phần chân (vẫn thấy mặt ông)
+    const hitsT = (x, y) => x > r.x0 - 40 && x < r.x1 + 40 && y > r.y0 + 60 && y < r.y1 + 70;
     // ngồi thành các vòng tròn (ellipse vì nhìn nghiêng) kín quanh đống lửa; chỉ chừa chỗ ông Tư và bảng quà
     // tâm vòng tròn = giữa đống lửa và ông Tư → cả hai ngồi chính giữa, mọi người quây quanh
     const C = { x: (F.x + (r.x0 + r.x1) / 2) / 2, y: F.y - 10 };
-    const out = [], rings = [330, 420, 510, 600, 690, 780];
+    const out = [], rings = [300, 385, 470, 555, 640, 725, 810];
     rings.forEach((R, ri) => {
-      const ky = 0.44, n = Math.max(8, Math.round(TAU * Math.sqrt((R * R + (R * ky) ** 2) / 2) / 92)), off = (ri % 2) * 0.5;
+      const ky = 0.43, n = Math.max(8, Math.round(TAU * Math.sqrt((R * R + (R * ky) ** 2) / 2) / 92)), off = (ri % 2) * 0.5;
       for (let k = 0; k < n; k++) {
         const a = (k + off) / n * TAU, x = C.x + R * Math.cos(a), y = C.y - R * Math.sin(a) * ky;
         if (x < 60 || x > W - 60 || y < 925 || y > 1610) continue;
