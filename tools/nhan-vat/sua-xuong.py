@@ -98,6 +98,42 @@ for s_, (S, d, L, rad) in arminfo.items():
             thr[b] = ax - hw * 1.05
     ARMTHR[s_] = thr
     print(s_, 'nửa bề ngang tay', round(hw, 3))
+from PIL import Image, ImageDraw
+import io
+def patch_hidden(p, X, idx, W, armK, ycut):
+    # phần thân nằm sát dưới cánh tay chưa từng được vẽ (máy tạo chỉ thấy tay) -> tô bằng màu áo xung quanh
+    mat = J['materials'][p.get('material', 0)]; ti = mat.get('pbrMetallicRoughness', {}).get('baseColorTexture', {}).get('index')
+    if ti is None or 'TEXCOORD_0' not in p['attributes']: return
+    imi = J['textures'][ti]['source']; im = J['images'][imi]; bv = J['bufferViews'][im['bufferView']]
+    img = Image.open(io.BytesIO(bytes(g.bin[bv.get('byteOffset', 0):bv.get('byteOffset', 0) + bv['byteLength']]))).convert('RGB'); Wd, Ht = img.size
+    UV = g.acc(p['attributes']['TEXCOORD_0']).astype(float)
+    armW = W[:, armK].sum(1); C = X[idx].mean(1); body = armW[idx].max(1) < 0.05
+    hid = np.zeros(len(idx), bool)
+    for s_ in arminfo:
+        sg = -1 if s_ == 'Left' else 1; d = np.min([segdist(C, *SEG[s_ + b])[0] for b in ('Arm', 'ForeArm', 'Hand')], 0)
+        hid |= body & (C[:, 0] * sg > 0) & (d < 0.075 * SC) & (C[:, 1] < ycut + 0.08 * SC)
+    src = body & ~hid & (C[:, 1] < ycut + 0.1 * SC) & (C[:, 1] > P('Hips')[1] - 0.25 * SC)
+    # mặt trong cánh tay (quay vào thân) cũng chưa từng được nhìn thấy -> lấy màu mặt ngoài tay áo
+    Nf = np.cross(X[idx[:, 1]] - X[idx[:, 0]], X[idx[:, 2]] - X[idx[:, 0]]); Nf /= np.maximum(1e-12, np.linalg.norm(Nf, axis=1, keepdims=True))
+    arm = armW[idx].min(1) > 0.6; inner = np.zeros(len(idx), bool); outer = np.zeros(len(idx), bool)
+    for s_ in arminfo:
+        sg = -1 if s_ == 'Left' else 1; sd = arm & (C[:, 0] * sg > 0)
+        inner |= sd & (Nf[:, 0] * -sg > 0.35); outer |= sd & (Nf[:, 0] * sg > 0.2)
+    if hid.sum() + inner.sum() == 0 or src.sum() < 20: return
+    A = np.asarray(img); uvc = UV[idx].mean(1); px = np.clip((uvc[:, 0] * Wd).astype(int), 0, Wd - 1); py = np.clip((uvc[:, 1] * Ht).astype(int), 0, Ht - 1)
+    col = A[py, px].astype(float); dr = ImageDraw.Draw(img)
+    todo = [(t, np.nonzero(src)[0]) for t in np.nonzero(hid)[0]]
+    if outer.sum() > 20:
+        oc = np.nonzero(outer)[0]; todo += [(t, oc) for t in np.nonzero(inner & ~hid)[0]]
+    for t, ci in todo:
+        dd = np.linalg.norm((C[ci] - C[t]) * [0.3, 1, 1], axis=1); nn = ci[np.argsort(dd)[:12]]
+        c = tuple(int(v) for v in np.median(col[nn], 0))
+        dr.polygon([(u * Wd, v * Ht) for u, v in UV[idx[t]]], fill=c)
+    bio = io.BytesIO(); img.save(bio, 'PNG'); data = bio.getvalue()
+    while len(g.bin) % 4: g.bin.append(0)
+    off = len(g.bin); g.bin += data; J['bufferViews'].append({'buffer': 0, 'byteOffset': off, 'byteLength': len(data)})
+    im['bufferView'] = len(J['bufferViews']) - 1; im['mimeType'] = 'image/png'; J['buffers'][0]['byteLength'] = len(g.bin)
+    print('tô lại', int(hid.sum()), 'tam giác bị tay che,', int((inner & ~hid).sum()), 'tam giác mặt trong tay')
 for pi, p in enumerate(prims):
     X = POS[pi]; n = len(X)
     D = np.stack([np.maximum(1e-3, segdist(X, *SEG[b])[0] - RAD[b] * 0.6) for b in bones], 1)
@@ -117,9 +153,38 @@ for pi, p in enumerate(prims):
         sv = np.clip((X[:, 0] * sg - thr[yb]) / 0.03 + 0.5, 0, 1) * on
         sArm = np.maximum(sArm, sv)
         dh, _ = segdist(X, *SEG[s_ + 'Hand']); dfa, _ = segdist(X, *SEG[s_ + 'ForeArm'])
-        sArm = np.maximum(sArm, ((dh < 0.055) | (dfa < 0.04)) * (np.sign(X[:, 0]) == sg) * 1.0)   # bàn tay, cẳng tay chắc chắn theo tay
+        near = ((dh < 0.055) | (dfa < 0.04)) & (np.sign(X[:, 0]) == sg) & (X[:, 0] * sg > thr[yb] - 0.012)   # không kéo ống quần sát tay
+        sArm = np.maximum(sArm, near * 1.0)   # bàn tay, cẳng tay chắc chắn theo tay
     armK = [k for k, b in enumerate(bones) if b.endswith(('Arm', 'ForeArm', 'Hand'))]
     restK = [k for k in range(len(bones)) if k not in armK]
+    # dưới nách: mỗi điểm thuộc hẳn tay hoặc hẳn thân (lưới máy tạo hay dính tay với hông/ống quần)
+    ycut = min(P(s_ + 'ForeArm')[1] for s_ in arminfo) + 0.02 * SC   # từ khuỷu xuống: tách cứng tay / thân
+    lowA = X[:, 1] < ycut; hard = sArm > 0.5
+    # mẩu lưới lẻ mang nhãn tay mà không nối với cánh tay chính (ống quần sát bàn tay) -> trả về thân
+    idx0 = g.acc(p['indices']).reshape(-1, 3).astype(np.int64)
+    _, w0 = np.unique(np.round(X / 2e-4).astype(np.int64), axis=0, return_inverse=True); w0 = w0.ravel(); m0 = w0.max() + 1
+    hM = np.zeros(m0); np.maximum.at(hM, w0, hard * 1.0); hM = hM > 0
+    E0 = np.concatenate([w0[idx0][:, [0, 1]], w0[idx0][:, [1, 2]], w0[idx0][:, [2, 0]]]); E0 = E0[hM[E0[:, 0]] & hM[E0[:, 1]]]
+    par = np.arange(m0)
+    def fd(x):
+        while par[x] != x: par[x] = par[par[x]]; x = par[x]
+        return x
+    for a_, b_ in E0:
+        ra, rb = fd(a_), fd(b_)
+        if ra != rb: par[ra] = rb
+    root = np.array([fd(i) for i in range(m0)])
+    keep = np.zeros(m0, bool)
+    for s_ in arminfo:   # thành phần chứa điểm gần cẳng tay nhất của mỗi bên
+        sg = -1 if s_ == 'Left' else 1; Xm = np.zeros((m0, 3)); Xm[w0] = X
+        dfa_, _ = segdist(Xm, *SEG[s_ + 'ForeArm']); dfa_[~hM | (np.sign(Xm[:, 0]) != sg)] = 9
+        big = np.bincount(root[hM], minlength=m0)
+        for r_ in set(root[np.argsort(dfa_)[:20]][dfa_[np.argsort(dfa_)[:20]] < 9]):
+            keep |= root == r_
+        for r_ in np.nonzero(big > 0.25 * big.max())[0]: keep |= root == r_
+    hard = hard & keep[w0]
+    nreb = int((hM & ~keep).sum())
+    allow[np.ix_(lowA & ~hard, armK)] = False; allow[np.ix_(lowA & hard, restK)] = False
+    sArm = np.where(lowA, hard * 1.0, sArm)
     Wb = np.where(allow, 1 / D ** 4, 0)
     Wa = Wb.copy(); Wa[:, restK] = 0
     Wr = Wb.copy(); Wr[:, armK] = 0
@@ -135,6 +200,8 @@ for pi, p in enumerate(prims):
         S_ = np.zeros((m, A.shape[1])); np.add.at(S_, wid, A); c_ = np.bincount(wid, minlength=m)[:, None]; return (S_ / c_)[wid]
     W = nz(pool(W)); allowW = pool(allow.astype(float)) > 0.5; headW = pool(head[:, None].astype(float))[:, 0] > 0.5
     WI = wid[idx]; E = np.concatenate([WI[:, [0, 1]], WI[:, [1, 2]], WI[:, [2, 0]]])
+    labM = np.zeros(m); np.maximum.at(labM, wid, (lowA & hard) * 1.0); lowM = np.zeros(m, bool); lowM[wid] = lowA
+    cut = lowM[E[:, 0]] & lowM[E[:, 1]] & (labM[E[:, 0]] != labM[E[:, 1]]); E = E[~cut]
     Wm = np.zeros((m, W.shape[1])); np.add.at(Wm, wid, W); Wm = nz(Wm)
     allowM = np.zeros((m, W.shape[1]), bool); allowM[wid] = allowW; headM = np.zeros(m, bool); headM[wid] = headW
     for _ in range(6):
@@ -150,12 +217,14 @@ for pi, p in enumerate(prims):
     armW = W[:, armK].sum(1)
     tri = idx; low = X[tri, 1].max(1) < P('Hips')[1] - 0.04
     bridge = low & (legL[tri].max(1) > 0.6) & (legR[tri].max(1) > 0.6)
-    spike = (armW[tri].max(1) - armW[tri].min(1) > 0.7) & (X[tri, 1].max(1) < P('LeftArm')[1] - 0.22)
-    kill = bridge | spike
+    spike = (armW[tri].max(1) - armW[tri].min(1) > 0.7) & (X[tri, 1].max(1) < ycut)
+    fuse = lowM[WI].all(1) & (labM[WI].max(1) != labM[WI].min(1))   # tam giác nối tay với thân dưới nách
+    kill = bridge | spike | fuse
     if kill.any():
         ni = idx.copy(); ni[kill] = ni[kill][:, :1]
         ia = J['accessors'][p['indices']]; g.put(p['indices'], ni.reshape(-1, 1).astype({5123: '<u2', 5125: '<u4'}[ia['componentType']]))
-    print('prim', pi, 'bỏ màng chân', int(bridge.sum()), 'bỏ gai tay–áo', int(spike.sum()))
+    print('prim', pi, 'bỏ màng chân', int(bridge.sum()), 'bỏ gai tay–áo', int(spike.sum()), 'cắt dính tay–thân', int(fuse.sum()), 'mẩu lẻ trả về thân', nreb)
+    if pi == 0: patch_hidden(p, X, idx, W, armK, ycut)
     top = np.argsort(-W, 1)[:, :4]; tw = np.take_along_axis(W, top, 1); tw /= tw.sum(1, keepdims=True)
     jj = np.vectorize(lambda k: JI[bones[k]])(top)
     ja = J['accessors'][p['attributes']['JOINTS_0']]

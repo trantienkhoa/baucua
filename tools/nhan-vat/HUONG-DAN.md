@@ -21,6 +21,8 @@ Cần python3 + numpy, playwright (chromium) và ffmpeg. Không có ffmpeg thì 
    - Gắn lại trọng số theo khoảng cách tới đoạn xương: tách hẳn chân trái và phải, tay tách khỏi thân theo khe hở ở từng lát cắt, đầu và nón gắn cứng vào xương đầu.
    - Gộp các đỉnh trùng vị trí rồi làm mượt.
    - Bỏ các tam giác tạo màng nối giữa hai chân.
+   - Từ khuỷu tay trở xuống, mỗi điểm thuộc hẳn tay hoặc hẳn thân. Tam giác dính bàn tay với hông, ống quần bị cắt; mẩu lưới lẻ không nối với cánh tay được trả về thân.
+   - Tô lại phần hông bị tay che và mặt trong cánh tay bằng màu vải xung quanh (máy tạo không nhìn thấy những chỗ này).
 2. `xem.html` + `dong-tac.js`
    - Tính 14 động tác ở 30 khung/giây.
    - Trục quay tính theo khung nhân vật: mặt nhìn về -Z, tay trái ở phía -X. Vì vậy động tác không phụ thuộc trục riêng của từng xương.
@@ -47,9 +49,16 @@ Cần python3 + numpy, playwright (chromium) và ffmpeg. Không có ffmpeg thì 
 Thêm hay sửa động tác: sửa `dong-tac.js`. Mỗi động tác có `dur` (giây, một vòng lặp) và `f(t)` với t chạy từ 0 đến 1. Hàm trả về góc (độ) cho từng xương, và `hip` là độ dời hông tính bằng mét.
 
 ## Nhân vật mẫu đã duyệt
-`public/models/ma/nhanvat/tp-002.glb`
+`public/models/ma/nhanvat/tp-001.glb` … `tp-010.glb` (nhóm F, bản pilot; tp-002 là mẫu đầu tiên anh duyệt)
+
+## Soi nhanh một nhân vật
+```
+node tools/nhan-vat/chup.js <file.glb> <ra.png> [giây] '{"only":["chay_bo"],"cols":1,"ry":2.4}'
+```
 
 ## Giới hạn
+- Đạo cụ dính liền thân trong lưới (cuốc của tp-001) đi theo phần cơ thể mà nó chạm vào.
+- Quang gánh tp-010 gắn vào lưng; tay không bám đòn gánh khi làm động tác.
 - Lỗ có sẵn trong lưới dưới nách hiện ra khi vung tay mạnh.
 - Mặt trong cánh tay có bóng tối vẽ sẵn trong texture.
 - Xuất mô hình ở tư thế chữ T (tay dang ngang, không chạm thân) sẽ cho kết quả tốt nhất.

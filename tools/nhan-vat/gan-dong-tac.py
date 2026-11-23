@@ -24,4 +24,4 @@ for an, d in data.items():
     h = np.array(d['hip'], np.float32).reshape(-1, 3)
     smp.append({'input': ti, 'output': add(h, 'VEC3'), 'interpolation': 'LINEAR'}); ch.append({'sampler': len(smp)-1, 'target': {'node': name2node['Hips'], 'path': 'translation'}})
     j['animations'].append({'name': an, 'samplers': smp, 'channels': ch})
-j['buffers'][0]['byteLength'] = len(g.bin); g.save(sys.argv[3]); print(len(j['animations']), 'animations')
+j['buffers'][0]['byteLength'] = len(g.bin); g.compact(); g.save(sys.argv[3]); print(len(j['animations']), 'animations')

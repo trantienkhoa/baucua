@@ -11,7 +11,7 @@ const sc=new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff,0x555566,2
 const g=new THREE.Mesh(new THREE.CircleGeometry(1.2,40),new THREE.MeshLambertMaterial({color:0x7d838c})); g.rotation.x=-Math.PI/2; sc.add(g);
 const cam=new THREE.PerspectiveCamera(30,TW/TH,.1,50); cam.position.set(0,1.05,-4.6); cam.lookAt(0,0.82,0);
 const gg=await new GLTFLoader().loadAsync(P.m); const root=gg.scene; sc.add(root); root.rotation.y=P.ry??0.75;
-const B={}; root.traverse(n=>{ if(n.isBone) B[n.name.replace(/^mixamorig:?/,'')]=n; if(n.isMesh) n.frustumCulled=false; });
+const B={}; root.traverse(n=>{ if(n.isBone) B[n.name.replace(/^mixamorig:?/,'')]=n; if(n.isMesh){ n.frustumCulled=false; if(P.basic) n.material=new THREE.MeshBasicMaterial({map:n.material.map,color:n.material.map?0xffffff:0xff00ff,side:THREE.DoubleSide}); if(P.back) n.material.side=THREE.FrontSide; } });
 const arm=B.Hips.parent; root.updateMatrixWorld(true);
 const rest={}, armInv=new THREE.Quaternion(); arm.getWorldQuaternion(armInv); armInv.invert();
 for(const k in B){ const w=new THREE.Quaternion(); B[k].getWorldQuaternion(w); rest[k]={l:B[k].quaternion.clone(), w:armInv.clone().multiply(w), p:B[k].position.clone()}; }

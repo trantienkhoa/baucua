@@ -17,6 +17,20 @@ class GLB:
         if stride==sz*nc: s.bin[off:off+data.nbytes]=data.tobytes()
         else:
             for k in range(a['count']): s.bin[off+k*stride:off+k*stride+sz*nc]=data[k].tobytes()
+    def compact(s):
+        # bỏ dữ liệu không còn dùng (ví dụ texture cũ đã thay)
+        used=set(a['bufferView'] for a in s.j['accessors'] if 'bufferView' in a)|set(i['bufferView'] for i in s.j.get('images',[]) if 'bufferView' in i)
+        nb=bytearray(); remap={}
+        for k,v in enumerate(s.j['bufferViews']):
+            if k not in used: continue
+            while len(nb)%4: nb.append(0)
+            o=v.get('byteOffset',0); seg=s.bin[o:o+v['byteLength']]; v=dict(v); v['byteOffset']=len(nb); nb+=seg; remap[k]=len(remap); s.j['bufferViews'][k]=v
+        s.j['bufferViews']=[s.j['bufferViews'][k] for k in sorted(remap)]
+        for a in s.j['accessors']:
+            if 'bufferView' in a: a['bufferView']=remap[a['bufferView']]
+        for i in s.j.get('images',[]):
+            if 'bufferView' in i: i['bufferView']=remap[i['bufferView']]
+        s.bin=nb; s.j['buffers'][0]['byteLength']=len(nb)
     def save(s,path):
         js=json.dumps(s.j,separators=(',',':')).encode(); js+=b' '*((4-len(js)%4)%4); bn=bytes(s.bin); bn+=b'\0'*((4-len(bn)%4)%4)
         out=struct.pack('<III',0x46546C67,2,12+8+len(js)+8+len(bn))+struct.pack('<II',len(js),0x4E4F534A)+js+struct.pack('<II',len(bn),0x004E4942)+bn
