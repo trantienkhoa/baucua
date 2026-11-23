@@ -20,6 +20,17 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 🖼 Ngọn Lửa Cuối Cùng: chế độ 2D vẽ tay, 12 cảnh (bản 2.18.0)
+
+- **Chế độ hiển thị** (Cài đặt → 🖼 Chế độ hiển thị): **3D** (nhân vật 3D, máy quay bay) hoặc **2D** (cảnh vẽ tay, nhẹ máy). Máy không chạy được 3D thì tự dùng 2D.
+- **2D có đủ 12 cảnh** như 3D, ghép từ tranh vẽ tay (`public/models/ma/2D/`, 95 hình): trời, trăng, mây trôi, núi mờ, hàng cây, lũy tre, mái nhà làng, mặt nước; đồ riêng từng cảnh ở chân trời và một cụm đồ lớn ở góc dưới.
+- **Đống lửa 2D**: vết tro, vòng đá, củi cháy (mỗi cảnh một kiểu), đống củi để sẵn; ngọn lửa vẽ tay 4 khung chuyển mượt, **ngả theo gió**, có cơn gió giật.
+- **Ông Tư 2D**: đang kể thì cầm tẩu (có khói), nghỉ giữa truyện thì rót trà; có nhãn tên và bong bóng lời thoại. Ghế trùng chỗ ông tự dời ra hàng sau.
+- **Hiệu ứng 2D**: khói bay theo gió, đom đóm, bướm đêm quanh lửa, lá rơi, sương bò sát đất, tia trăng (cảnh có cây), ánh đèn bão / đèn lồng / đèn tín hiệu.
+- **Vật phẩm sự kiện 2D**: gương bát quái + chuông + bùa (trừ tà), bát nhang (gọi hồn), bóng khói mắt đỏ (ma nhập), nến (cầu cơ), cánh cửa rung (gõ cửa), hũ muối (rắc muối), bó củi bay vào lửa (thêm củi). Chuyển cảnh tối dần rồi sáng lại.
+- Không dùng 4 hình trong tranh vì quy tắc CLAUDE.md: búp bê mắt đen chảy nước, khung ảnh mặt ma, bù nhìn mặt đầu lâu, bàn cơ chữ tiếng Anh.
+- Công cụ cắt hình: `tools/asset-2d/cat-asset-2d.py` (nền trắng → trong suốt, giữ khói mờ ở viền).
+
 ## 👻 Ngọn Lửa Cuối Cùng: hồn ma vẽ tay 2D cho cả hai chế độ (bản 2.17.1)
 
 - Hồn ma (áo dài trắng, áo bà ba trắng, bóng đen), bàn tay ma và 4 đốm ma trơi cắt từ tranh vẽ tay (`public/models/ma/E2D/`), nền trong suốt, giữ nguyên khói mờ ở viền.

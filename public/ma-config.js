@@ -14,6 +14,7 @@
   ];
 
   window.MA_DEFAULTS = {
+    view: '3d',             // 3d: cảnh 3D (cần card đồ hoạ) | 2d: cảnh vẽ tay 2D (nhẹ máy, cùng 12 cảnh)
     map: 'auto',            // cảnh 3D: auto (đổi theo chuyện) | dong | chuoi | gieng | cayda | nghiadia | mieu | bendo | rungtre | choma | duongray | nhahoang | dinh | nhacu (nhà cổ 2D)
     storyMode: 'vote',      // vote: người xem chọn chuyện | random | order
     storySpeed: 1,          // nhịp kể (1 = vừa, 1.3 = nhanh)

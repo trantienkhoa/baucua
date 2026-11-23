@@ -1016,7 +1016,7 @@
     const count = opt.count || 1;
     switch (type) {
       case 'nhang': {
-        if (use3D() && MA3D.pulse) MA3D.pulse('nhang');
+        if (use3D() && MA3D.pulse) MA3D.pulse('nhang'); else if (out2D()) MA2D.pulse('nhang');
         oil = clamp(oil + 4 * count, 0, 100);
         if (v) throwLog(v); else spark(LX, LY - 60, 20, '255,170,60', 60, 160, 3);
         sfx('crackle', 0.7);
@@ -1024,7 +1024,7 @@
         return;
       }
       case 'muoi': {
-        if (use3D() && MA3D.pulse) MA3D.pulse('muoi');
+        if (use3D() && MA3D.pulse) MA3D.pulse('muoi'); else if (out2D()) MA2D.pulse('muoi');
         yin = clamp(yin - 8 * count, 0, 100);
         for (let i = 0; i < 70; i++) particles.push({ x: rand(60, 1020), y: rand(640, 900), vx: rand(-30, 30), vy: rand(60, 200), life: rand(0.8, 1.8), max: 1.8, color: '240,240,255', size: rand(1.5, 3.5), g: 300 });
         sfx('salt', 0.9);
@@ -1033,7 +1033,7 @@
         return;
       }
       case 'go': {
-        if (use3D() && MA3D.pulse) MA3D.pulse('go');
+        if (use3D() && MA3D.pulse) MA3D.pulse('go'); else if (out2D()) MA2D.pulse('go');
         doorShake = 1.4; sfx('knock'); yin = clamp(yin + 4, 0, 100); scareAll(0.5);
         if (by) toast(`🚪 ${by.name} gõ cửa… cộc, cộc, cộc`, '#ffb38a');
         return;
@@ -1318,16 +1318,31 @@
     'tang-4': 'nhahoang', 'nha-xac': 'nhahoang', 'ky-tuc-xa': 'nhahoang', 'phong-nhac': 'nhahoang', 'bac-13': 'nhahoang', 'biet-thu': 'nhahoang',
     'nguoi-thu-13': 'dinh', 'dua-goi-hon': 'dinh',
   };
+  const SCENE_IDS = ['dong', 'chuoi', 'rungtre', 'gieng', 'cayda', 'nghiadia', 'mieu', 'bendo', 'choma', 'duongray', 'nhahoang', 'dinh'];
+  const view2D = () => S.view === '2d';   // chế độ 2D chọn ở Cài đặt
+  const out2D = () => curMap !== 'nhacu' && !!window.MA2D && !use3D();   // cảnh ngoài trời vẽ tay 2D (cả khi máy không chạy được 3D)
+  // bố cục ghế 2D: dời các ghế trùng chỗ ông Tư ra hàng sau
+  function layout2D() {
+    const r = window.MA2D.tellerRect(540, 1185), list = SEAT2D.map(s => ({ x: s.x, y: s.y, sc: s.sc, ring: s.ring, zone: null, w: null, pose: null, face: null }));
+    const bad = q => q.x > r.x0 - 40 && q.x < r.x1 + 40 && q.y > r.y0 && q.y < r.y1 + 40;
+    const spare = []; for (let y = 945; y <= 990 && spare.length < 40; y += 45) for (let x = 90; x <= 990; x += 64) spare.push({ x, y });
+    for (const q of list) if (bad(q)) {
+      const sp = spare.find(p => !list.some(o => Math.hypot(o.x - p.x, o.y - p.y) < 60) && !bad(p));
+      if (sp) { q.x = sp.x; q.y = sp.y; q.sc = 0.62 + (q.y - 960) / 580 * 0.52; q.ring = 4; }
+    }
+    return list;
+  }
   function pickMap(next, st) {
     const m = S.map || 'auto';
-    const all = (window.MA3D && MA3D.maps) || ['dong', 'chuoi'];
+    const all = view2D() ? SCENE_IDS : ((window.MA3D && MA3D.maps) || SCENE_IDS);
     if (m !== 'auto') curMap = m;
     else if (next) curMap = (st && SCENE_FOR[st.id] && all.includes(SCENE_FOR[st.id]) && Math.random() < 0.75) ? SCENE_FOR[st.id] : all[mapFlip++ % all.length];
-    const gl = document.getElementById('gl'); if (gl) gl.style.display = curMap === 'nhacu' ? 'none' : 'block';
-    if (curMap === 'nhacu') { setLayout(null); if (window.MA3D && MA3D.invalidate) MA3D.invalidate(); }
+    const flat = curMap === 'nhacu' || view2D();
+    const gl = document.getElementById('gl'); if (gl) gl.style.display = flat ? 'none' : 'block';
+    if (flat) { setLayout(out2D() ? layout2D() : null, out2D() ? { x: 540, y: 1185 } : null); window.__maShared.teller = null; if (window.MA3D && MA3D.invalidate) MA3D.invalidate(); }
     else if (window.MA3D && MA3D.relayout) MA3D.relayout();
   }
-  const use3D = () => !!(window.MA3D && MA3D.ready) && curMap !== 'nhacu';
+  const use3D = () => !!(window.MA3D && MA3D.ready) && curMap !== 'nhacu' && S.view !== '2d';
   const bg = document.createElement('canvas'); bg.width = W; bg.height = H;
   const WALL_TOP = 600, FLOOR_Y = 940;
   (function paintBG() {
@@ -1459,9 +1474,13 @@
     return clamp(1 - Math.hypot(dx, dy) / R, 0, 1);
   }
 
+  const st2D = t => ({ map: curMap, LX, LY, oil, flick: lampFlick, yin, ev: ev ? ev.type : null, talking: narrating() || story.typed < [...story.text].length });
   function drawScene(t) {
     const D3 = use3D();
-    if (!D3) drawRoom(t);
+    if (!D3) {
+      if (out2D()) { const s2 = st2D(t); MA2D.back(ctx, t, s2); }
+      else { drawRoom(t); window.__maShared.teller = null; }
+    }
     sceneRest(t, D3);
   }
   function drawRoom(t) {
@@ -1505,8 +1524,10 @@
     }
     // người ngồi sau đèn
     const list = [...viewers.values()].sort((a, b) => a.seat.y - b.seat.y);
+    const O2 = !D3 && out2D();
     for (const v of list) if (v.seat.y <= LY) drawViewer(v, t);
-    if (!D3) drawLamp(t);
+    if (O2) { MA2D.fireBase(ctx, t, LX, LY, curMap, oil); window.__maShared.teller = MA2D.teller(ctx, t, st2D(t)); }
+    else if (!D3) drawLamp(t);
     for (const v of list) if (v.seat.y > LY) drawViewer(v, t);
     // tay ma thò ra hù
     for (let i = hands.length - 1; i >= 0; i--) {
@@ -1540,8 +1561,8 @@
       ctx.fillStyle = `rgba(${p.color},${a})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, TAU); ctx.fill();
     }
     // ===== bóng tối =====
-    const dmax = D3 ? 0.5 : 0.93;   // cảnh 3D đã có ánh trăng / ánh đèn thật, chỉ phủ tối nhẹ
-    const base = ev && ev.type === 'trura' ? lerp(0.35, dmax, clamp((now() - ev.t0) / ev.dur, 0, 1)) : oil <= 0 || lampFlick === 0 ? (D3 ? 0.9 : 0.975) : dmax;
+    const dmax = D3 ? 0.5 : O2 ? 0.36 : 0.93;   // cảnh 3D / 2D ngoài trời đã có ánh trăng, chỉ phủ tối vừa
+    const base = ev && ev.type === 'trura' ? lerp(0.35, dmax, clamp((now() - ev.t0) / ev.dur, 0, 1)) : oil <= 0 || lampFlick === 0 ? (D3 || O2 ? 0.9 : 0.975) : dmax;
     dctx.globalCompositeOperation = 'source-over';
     dctx.clearRect(0, 0, dk.width, dk.height);
     dctx.fillStyle = `rgba(3,2,6,${base})`; dctx.fillRect(0, 0, dk.width, dk.height);
@@ -1555,9 +1576,10 @@
     };
     hole(LX, LY - 60, R, 1, 0.8);
     hole(LX, LY - 230, R * 0.55, 0.5);
-    if (!D3) { for (const cx of [720, 990]) hole(cx, 790, 120 + Math.sin(t * 9 + cx) * 6, 0.8); hole(325, 752, 190, 0.55); }
-    else hole(LX, 760, 1150, 0.4, 0.42);   // dải cảnh phía sau (cây đa, giếng, miếu…) sáng hơn một chút dưới trăng
-    if (!D3) hole(MIRROR.x, MIRROR.y, 210, seated().some(v => v.taken) ? 0.55 : 0.25);
+    if (!D3 && !O2) { for (const cx of [720, 990]) hole(cx, 790, 120 + Math.sin(t * 9 + cx) * 6, 0.8); hole(325, 752, 190, 0.55); }
+    else hole(LX, 760, 1150, O2 ? 0.6 : 0.4, 0.42);
+    if (O2 && window.__maShared.teller) hole(window.__maShared.teller.x, window.__maShared.teller.y + 90, 420, 0.5);   // dải cảnh phía sau (cây đa, giếng, miếu…) sáng hơn một chút dưới trăng
+    if (!D3 && !O2) hole(MIRROR.x, MIRROR.y, 210, seated().some(v => v.taken) ? 0.55 : 0.25);
     for (const v of viewers.values()) if (v.incense > t) hole(v.x + 22 * v.seat.sc, v.y - 30 * v.seat.sc, 70, 0.5);
     if (ev && ev.type === 'cauco') hole(OUIJA.cx, OUIJA.cy, 900, 0.7, 0.6);
     ctx.drawImage(dk, 0, 0, W, H);
@@ -1570,8 +1592,9 @@
       ctx.restore();
     }
     // ===== các thứ phát sáng (vẽ trên bóng tối) =====
-    if (!D3) drawFlame(LX, LY - 50 * LAMP, LAMP * 0.95, t, R > 0 ? lampFlick : 0);
-    if (!D3) for (const cx of [720, 990]) drawFlame(cx, 796, 0.45, t + cx, 1);
+    if (O2) { if (!(R > 0 && MA2D.flame(ctx, t, LX, LY, oil / 100, lampFlick)) && R > 0) drawFlame(LX, LY - 50 * LAMP, LAMP * 0.95, t, lampFlick); }
+    else if (!D3) { drawFlame(LX, LY - 50 * LAMP, LAMP * 0.95, t, R > 0 ? lampFlick : 0); for (const cx of [720, 990]) drawFlame(cx, 796, 0.45, t + cx, 1); }
+    if (O2) MA2D.front(ctx, t, st2D(t));
     for (const v of viewers.values()) if (v.incense > t) { ctx.fillStyle = `rgba(255,120,40,${0.7 + Math.sin(t * 6 + v.seat.n) * 0.3})`; ctx.beginPath(); ctx.arc(v.x + 22 * v.seat.sc, v.y - 50 * v.seat.sc, 3, 0, TAU); ctx.fill(); }
     // mắt trong bóng tối
     for (const e of eyes) {
@@ -1931,7 +1954,7 @@
       ctx.beginPath(); ctx.moveTo(clamp(BT.x, bx2 - bw / 2 + 20, bx2 + bw / 2 - 20) - 9, by2 + 21); ctx.lineTo(clamp(BT.x, bx2 - bw / 2 + 20, bx2 + bw / 2 - 20), by2 + 34); ctx.lineTo(clamp(BT.x, bx2 - bw / 2 + 20, bx2 + bw / 2 - 20) + 9, by2 + 21); ctx.fill();
       ctx.fillStyle = '#2a1a12'; ctx.fillText(tellerBubble.text, bx2, by2 + 1); ctx.restore();
     }
-    if (use3D() && TL && TL.y > 640) {
+    if ((use3D() || out2D()) && TL && TL.y > 640) {
       const talk = narrating() || story.typed < [...story.text].length, fs = Math.round(16 + 6 * TL.sc);
       ctx.save(); ctx.font = `800 ${fs}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       const txt = `🎙 ${S.tellerName || 'Ông Tư'} kể chuyện${talk ? ' …' : ''}`, w = ctx.measureText(txt).width + 24, y0 = TL.y - 34 * TL.sc - 16;

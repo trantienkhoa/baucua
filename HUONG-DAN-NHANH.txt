@@ -44,3 +44,6 @@ TUÂN THỦ TIKTOK (bản 2.16.0):
 ASSET VẼ TAY (bản 2.17.0):
 - Để trong public/models/ma/ (B, C, D, E, G, H). Thiếu file nào game vẫn chạy bằng đồ vẽ sẵn.
 - Lửa ngả theo gió, có cơn gió giật; gõ cửa / hù dọa có luồng gió lùa.
+
+CHẾ ĐỘ 2D (bản 2.18.0):
+- Cài đặt → "Chế độ hiển thị": 3D (cần card đồ hoạ) hoặc 2D (cảnh vẽ tay, nhẹ máy). Cả hai đều có 12 cảnh.

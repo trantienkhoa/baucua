@@ -290,7 +290,8 @@ socket.on('gifts', g => { GIFTS = g || {}; renderActs(); });
 
 // ---------- cài đặt ----------
 const FIELDS = [
-  ['map', '🌾 Cảnh 3D', 'select', [['auto', 'Tự đổi theo chuyện (12 cảnh)'], ['dong', 'Giữa đồng lúa'], ['chuoi', 'Bụi chuối sau nhà'], ['gieng', 'Giếng cổ đầu làng'], ['cayda', 'Gốc đa nghìn năm'], ['nghiadia', 'Nghĩa địa làng'], ['mieu', 'Miếu hoang ven rừng'], ['bendo', 'Bến đò đêm'], ['rungtre', 'Rừng tre'], ['choma', 'Chợ ma nửa đêm'], ['duongray', 'Đường ray bỏ hoang'], ['nhahoang', 'Sân nhà hoang'], ['dinh', 'Sân đình làng'], ['nhacu', 'Nhà cổ 2D (máy yếu)']]],
+  ['view', '🖼 Chế độ hiển thị', 'select', [['3d', '3D — nhân vật 3D, máy quay bay (cần card đồ hoạ)'], ['2d', '2D — cảnh vẽ tay, nhẹ máy']]],
+  ['map', '🌾 Cảnh', 'select', [['auto', 'Tự đổi theo chuyện (12 cảnh)'], ['dong', 'Giữa đồng lúa'], ['chuoi', 'Bụi chuối sau nhà'], ['gieng', 'Giếng cổ đầu làng'], ['cayda', 'Gốc đa nghìn năm'], ['nghiadia', 'Nghĩa địa làng'], ['mieu', 'Miếu hoang ven rừng'], ['bendo', 'Bến đò đêm'], ['rungtre', 'Rừng tre'], ['choma', 'Chợ ma nửa đêm'], ['duongray', 'Đường ray bỏ hoang'], ['nhahoang', 'Sân nhà hoang'], ['dinh', 'Sân đình làng'], ['nhacu', 'Nhà cổ (2D cũ)']]],
   ['storyMode', 'Chọn chuyện tiếp theo', 'select', [['vote', 'Người xem bình chọn'], ['random', 'Ngẫu nhiên'], ['order', 'Lần lượt']]],
   ['storySpeed', 'Nhịp kể (1 = vừa, 1.3 = nhanh)', 'number', 0.1],
   ['voteSeconds', 'Giây bình chọn hướng đi', 'number', 1],
