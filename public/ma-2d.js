@@ -135,7 +135,7 @@
   function teller(ctx, t, st) {
     const n = st.talking ? 'ongtu-tau' : 'ongtu-tra';
     const x = st.LX + TELLER.dx, y = st.LY + TELLER.dy + Math.sin(t * 1.4) * 1.5;
-    put(ctx, n, x, y, TELLER.h, { flip: 1 });
+    put(ctx, n, x, y, TELLER.h, { flip: n === 'ongtu-tau' ? 1 : 0 });   // tranh gốc: cầm tẩu quay phải, rót trà quay trái → lật cho luôn nhìn vào đống lửa bên trái
     if (n === 'ongtu-tau') {   // khói tẩu
       for (let k = 0; k < 3; k++) { const p = ((t * 0.35 + k / 3) % 1); put(ctx, 'khoi-2', x - 70 + wind.s * 60 * p, y - TELLER.h * 0.62 - p * 70, 30 + p * 40, { a: (1 - p) * 0.35, cy: 0.5 }); }
     }
