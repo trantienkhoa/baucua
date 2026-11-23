@@ -31,7 +31,7 @@ Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dù
 - 15 bản ghi âm thật (`public/models/ma/I/`): mỗi cảnh một bộ lớp nền (ếch dế, gió lùa tre, lá xào xạc, nước giếng, nước vỗ, tàu hỏa xa) và tiếng thưa thỉnh thoảng (chó tru, cú, quạ, chuông đình, trống, mõ).
 - Tiếng củi nổ thật to nhỏ theo lượng củi; bước chân trên lá / sỏi khi ông Tư dẫn đoàn đổi cảnh; gõ mõ khi có người niệm Phật, chuông đình khi trừ tà. Có tiếng thật thì tắt dế / cú / củi tổng hợp.
 - **Ghi công bắt buộc** (CC BY / CC BY-SA): `public/models/ma/I/GHI-CONG.txt`, có dòng ghi công ở cuối trang điều khiển. Giữ file này trong mọi bản gửi khách.
-- Bản 2D: người xem ngồi thành vòng cung phía sau và hai bên đống lửa (không ai ngồi phía trước, vì tranh chỉ vẽ người quay mặt ra trước), mặt quay về lửa; chừa chỗ cho ông Tư, không che đống lửa.
+- Bản 2D: người xem ngồi kín vòng quanh đống lửa: phía sau và hai bên dùng dáng quay mặt ra, phía trước dùng 10 dáng ngồi quay lưng / nghiêng (`lua-*.png`, đuôi `-b` quay lưng thẳng), ai cũng nhìn vào lửa; chừa chỗ cho ông Tư và khoảng nhìn thấy đống lửa.
 
 ## 🔑 Ngọn Lửa Cuối Cùng: key bản quyền + web bán hàng (bản 2.20.0)
 

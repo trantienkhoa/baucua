@@ -1327,25 +1327,29 @@
   // bố cục 2D: tranh chỉ vẽ người quay mặt ra trước, nên không xếp ai ngồi phía trước đống lửa (sẽ thành quay lưng vào lửa).
   // Mọi người ngồi thành vòng cung phía sau và hai bên đống lửa, quay mặt vào lửa; hàng trong ngồi, hàng ngoài phía sau đứng.
   const FIRE2D = { x: 540, y: 1300 };
+  let relayT = 0;
+  if (window.MA2D) window.MA2D.onPoses = () => { clearTimeout(relayT); relayT = setTimeout(() => { if (out2D()) pickMap(false); }, 300); };   // có dáng quay lưng thì mở thêm ghế phía trước lửa
   function layout2D() {
     const F = FIRE2D, r = window.MA2D.tellerRect(F.x, F.y);
     const scOf = y => 0.62 + (y - 960) / 580 * 0.52;
     const box = (x, y) => { const sc = scOf(y), h = (y < F.y - 40 ? 255 : 170) * sc, w = h * 0.55; return { x0: x - w / 2, x1: x + w / 2, y0: y + 22 * sc - h, y1: y + 22 * sc }; };
     const hitsT = (x, y) => { const b = box(x, y); return b.x0 < r.x1 && b.x1 > r.x0 && b.y0 < r.y1 && b.y1 > r.y0; };
-    const out = [], rings = [250, 345, 440, 535, 630, 725, 820];
+    const out = [], rings = [250, 345, 440, 535, 630, 725, 820], hasBack = window.MA2D.hasBackPoses && window.MA2D.hasBackPoses();
     rings.forEach((R, ri) => {
-      const ky = 0.5 - ri * 0.025, step = (ri < 2 ? 100 : 80) / R, a0 = -0.42, a1 = Math.PI + 0.42;
+      const ky = 0.5 - ri * 0.025, step = (ri < 2 ? 100 : 80) / R, a0 = -Math.PI + 0.3, a1 = Math.PI + 0.42;
       for (let a = a0 + (ri % 2) * step / 2; a <= a1; a += step) {
         const x = F.x + R * Math.cos(a), y = F.y - R * Math.sin(a) * ky;
-        if (x < 60 || x > W - 60 || y < 925) continue;
-        if (y > F.y && Math.abs(x - F.x) < 300) continue;      // không ai ngồi chắn trước lửa
+        const front = y > F.y + 40;   // nửa vòng phía trước: dùng dáng quay lưng / nghiêng (có tranh) — không có thì bỏ trống
+        if (x < 60 || x > W - 60 || y < 925 || y > 1560) continue;
+        if (front && (!hasBack || R < 345 || (Math.abs(x - F.x) < 150 && R < 440))) continue;   // chừa khoảng nhìn thấy đống lửa
+        if (!front && y > F.y && Math.abs(x - F.x) < 300) continue;
         if (x > 690 && y > 1370) continue;                     // bảng quà
         if (hitsT(x, y)) continue;                             // chỗ ông Tư
-        out.push({ x, y, sc: scOf(y), ring: ri, zone: null, w: null, pose: null, face: null });
+        out.push({ x, y, sc: scOf(y), ring: ri, front, zone: null, w: null, pose: null, face: null });
       }
     });
     out.sort((p, q) => p.ring - q.ring || Math.abs(p.x - F.x) - Math.abs(q.x - F.x));   // vào trước ngồi gần lửa
-    while (out.length < SEAT2D.length) out.push({ x: -999, y: -999, sc: 1, ring: 9, zone: null, w: null, pose: null, face: null });
+    while (out.length < SEAT2D.length) out.push({ x: -999, y: -999, sc: 1, ring: 9, front: false, zone: null, w: null, pose: null, face: null });
     return out.slice(0, SEAT2D.length);
   }
   function pickMap(next, st) {
