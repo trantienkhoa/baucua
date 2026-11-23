@@ -1,0 +1,342 @@
+DANH SÁCH ASSET CẦN LÀM — GAME "NGỌN LỬA CUỐI CÙNG"
+====================================================
+Đánh dấu [x] khi làm xong. Làm xong nhóm nào gửi file lên để lắp vào game.
+
+THỨ TỰ NÊN LÀM
+  1. Phông nền xa + mặt đất (mục B)
+  2. Vật phẩm sự kiện quà (mục C)
+  3. Ông kể chuyện + hồn ma (mục D, E)
+  4. Trang phục người chơi (mục F, 100 mẫu)
+  5. Đồ trung cảnh từng cảnh (mục G)
+  6. Hiệu ứng + âm thanh (mục H, I)
+
+
+A. THÔNG SỐ KỸ THUẬT CHUNG
+---------------------------
+Đồ vật 3D:
+  - Định dạng .glb, đơn vị MÉT, gốc tọa độ ở ĐÁY vật (đặt xuống đất là khớp).
+  - Chỗ ngồi cao 0,4–0,5 m.
+  - Đồ nhỏ < 2.000 tam giác; đồ lớn (gốc đa, miếu, toa tàu) < 15.000 tam giác.
+  - Texture 1024 px (đồ nhỏ 512 px). Dùng chung atlas nếu được để máy yếu chạy mượt.
+  - Mỗi vật một file, tên không dấu, gạch nối: gieng-gau.glb, nghiadia-bia-nghieng-1.glb
+
+Nhân vật / trang phục:
+  - Nhân vật trọn bộ .glb, tư thế chữ T, rig bằng Mixamo (giữ tên xương mixamorig:...).
+    Cách nhanh: xuất .fbx → tải lên mixamo.com → Auto-Rig → tải về → chuyển sang .glb.
+  - Cao 1,55–1,75 m; 10.000–20.000 tam giác; 1 texture 2048 px (hoặc 1024 px).
+  - Phụ kiện đội đầu (nón, khăn): .glb riêng, gốc tọa độ ở đỉnh đầu, để gắn vào xương Head.
+  - Đồ cầm tay (gậy, đèn, giỏ): .glb riêng, gốc tọa độ ở chỗ nắm tay.
+  - Tên file: tp-001-ba-ba-nam.glb, tp-002-ba-ba-nu.glb ...
+
+Ảnh phẳng (phông nền, hiệu ứng): .png nền trong suốt, cạnh là lũy thừa của 2 (512, 1024, 2048).
+
+Nội dung (theo CLAUDE.md): không máu me, không xác chết, không thương tích ghê rợn.
+
+
+B. DÙNG CHUNG CHO MỌI CẢNH
+---------------------------
+Đống lửa
+  [ ] Bộ củi chất cháy dở (3–4 kiểu), đầu củi cháy đen, có than hồng
+  [ ] Vòng đá kê quanh lửa
+  [ ] Tro, than vụn rơi trên đất
+  [ ] Đống củi để sẵn bên cạnh (dùng cho hiệu ứng "Thêm củi")
+
+Mặt đất & cây cỏ
+  [ ] Texture đất khô (có normal map)
+  [ ] Texture bùn ướt
+  [ ] Texture lá mục
+  [ ] Texture gạch vỡ
+  [ ] Texture đá ong
+  [ ] Bụi cỏ dại (3–4 kiểu)
+  [ ] Cỏ lau
+  [ ] Dương xỉ
+  [ ] Dây leo
+  [ ] Đá nhỏ, sỏi
+  [ ] Cành khô rơi
+  [ ] Lá khô rơi (texture rời từng lá)
+
+Phông nền xa (ảnh phẳng cắt hình là đủ)
+  [ ] Hàng cây đen in trên trời đêm — 3 lớp xa / vừa / gần
+  [ ] Lũy tre làng
+  [ ] Mái nhà làng xa có 1–2 đốm đèn
+  [ ] Đồi, núi mờ
+  [ ] Trăng có quầng
+  [ ] Mây mỏng trôi (2–3 dải)
+
+
+C. VẬT PHẨM SỰ KIỆN QUÀ
+------------------------
+  [ ] Thêm củi ........ bó củi bay vào lửa, tia lửa văng
+  [ ] Rắc muối ........ hũ muối sành, hạt muối (particle)
+  [ ] Gõ cửa .......... cánh cửa gỗ / cổng tre đứng lẻ trong bóng tối
+  [ ] Hù cả phòng ..... bàn tay ma thò ra từ bóng tối, bóng đen lướt qua
+  [ ] Cầu cơ .......... bàn cơ gỗ có chữ cái, đồng xu hoặc chén úp, nến
+  [ ] Búp bê ma ....... búp bê vải cũ mặc áo bà ba, mắt nút áo
+  [ ] Ai bị ma nhập ... vòng khói quanh người, mắt đỏ phát sáng (hiệu ứng)
+  [ ] Gọi hồn ......... bát nhang, khói nhang, khung ảnh thờ mờ (KHÔNG dùng ảnh người thật)
+  [ ] Trừ tà .......... bùa vàng chữ đỏ, chuông đồng, gương bát quái, vòng sáng bát quái
+
+
+D. ÔNG KỂ CHUYỆN (ÔNG TƯ)
+--------------------------
+  [ ] Bộ áo bà ba nâu cũ (hoặc áo dài the nâu) + khăn rằn quấn cổ
+  [ ] Nón lá rách mép
+  [ ] Gậy tre cong
+  [ ] Đuốc: bó rơm hoặc ống tre quấn giẻ
+  [ ] Ống điếu / bình trà nhỏ (cầm lúc ngồi kể)
+
+
+E. HỒN MA (mức nhẹ, không máu me)
+---------------------------------
+  [ ] Ma áo dài trắng, tóc dài che mặt
+  [ ] Ma áo bà ba trắng, vạt áo bay
+  [ ] Bóng đen không mặt
+  [ ] Bàn tay ma (dùng cho "Hù cả phòng")
+  [ ] Đốm ma trơi xanh (texture đốm sáng)
+
+
+F. TRANG PHỤC NGƯỜI CHƠI — 100 MẪU DÂN GIÃ & ĐỜI THƯỜNG MIỀN QUÊ
+------------------------------------------------------------------
+(Theo bảng asset sheet bạn gửi. Mỗi mẫu = 1 nhân vật trọn bộ, rig Mixamo.)
+
+LƯU Ý TUÂN THỦ: nhóm 4 (trẻ em, đồng phục học sinh) KHÔNG dùng làm nhân vật đại diện người xem.
+Người xem tặng quà phải 18+, để nhân vật trẻ em ngồi tặng quà dễ bị coi là nội dung nhắm tới trẻ em.
+Bạn có thể bỏ nhóm này, hoặc làm bản người lớn tương đương (xem gợi ý thay thế ở nhóm 4).
+
+Nhóm 1 — Nông dân & lao động (nam, nữ)
+  [ ] 001  Nam: áo bà ba xanh chàm, quần đen, nón lá, cuốc
+  [ ] 002  Nữ: áo bà ba xanh, quần đen, nón lá, khăn rằn
+  [ ] 003  Nam: áo sơ mi cũ xắn tay, quần tây xắn ống, nón lá
+  [ ] 004  Nữ: áo bà ba hoa nhí, quần lãnh đen, nón lá
+  [ ] 005  Nam: áo nâu bạc màu, quần lửng, dép tổ ong, liềm
+  [ ] 006  Nữ: áo nâu, khăn trùm đầu chống nắng, ủng cao su
+  [ ] 007  Nam: áo thun cổ tròn, quần đùi, nón tai bèo
+  [ ] 008  Nữ: áo chống nắng tay dài, khẩu trang vải, nón lá
+  [ ] 009  Nam: áo ba lỗ trắng, quần kaki, khăn vắt vai
+  [ ] 010  Nữ: áo bà ba nâu, quần đen, gánh quang gánh
+
+Nhóm 2 — Bán hàng chợ & buôn bán nhỏ (nữ)
+  [ ] 011  Áo hoa, quần đen, đạp xe đạp chở hàng
+  [ ] 012  Áo bà ba hồng hoa, quần lãnh, nón lá
+  [ ] 013  Áo bộ đồ bộ hoa, dép tổ ong, túi đeo hông đựng tiền
+  [ ] 014  Áo tứ thân nâu, yếm, khăn mỏ quạ (kiểu chợ quê Bắc)
+  [ ] 015  Áo sơ mi caro, quần đen, thúng mủng
+  [ ] 016  Đồ bộ lụa, nón lá, rổ rau
+  [ ] 017  Áo kiểu cổ tròn, váy đụp, giỏ cói
+  [ ] 018  Áo khoác mỏng, quần ống rộng, khăn trùm đầu
+  [ ] 019  Áo bà ba trắng, quần đen, tạp dề
+  [ ] 020  Áo thun, quần lửng, nón vải, xách làn nhựa
+
+Nhóm 3 — Người già & trang phục truyền thống (nam, nữ)
+  [ ] 021  Ông: áo cánh trắng, quần trắng, dép
+  [ ] 022  Bà: áo cánh trắng, quần đen, khăn vấn tóc
+  [ ] 023  Ông: áo dài the đen, khăn đóng
+  [ ] 024  Bà: áo dài nâu, khăn mấn, vòng bạc
+  [ ] 025  Ông: áo bà ba nâu, khăn rằn, gậy chống
+  [ ] 026  Bà: áo bà ba tím, khăn rằn, túi vải, trầu cau
+  [ ] 027  Ông: áo sơ mi trắng cũ, quần tây, mũ phớt
+  [ ] 028  Bà: áo len cổ lọ, quần đen, khăn len
+  [ ] 029  Ông: áo bà ba trắng, quần đen, nón cối
+  [ ] 030  Bà: áo tứ thân, yếm, nón quai thao
+
+Nhóm 4 — Trẻ em & đồng phục học sinh  (KHÔNG dùng cho người xem — xem lưu ý trên)
+  Gợi ý thay bằng người lớn trẻ (sinh viên, thanh niên làng):
+  [ ] 031  Nam thanh niên: áo sơ mi trắng, quần tây xanh, dép quai hậu
+  [ ] 032  Nữ thanh niên: áo dài trắng nữ sinh viên, nón lá
+  [ ] 033  Nam: áo thun đoàn viên xanh, quần jean
+  [ ] 034  Nữ: áo sơ mi trắng, chân váy xanh dài, túi đeo chéo
+  [ ] 035  Nam: áo khoác gió, quần kaki, ba lô vải
+  [ ] 036  Nữ: áo len mỏng, quần jean, nón bucket
+  [ ] 037  Nam: áo phông in chữ, quần lửng túi hộp
+  [ ] 038  Nữ: áo hoodie, quần jogger, giày vải
+  [ ] 039  Nam: áo sơ mi caro, quần jean, mũ lưỡi trai
+  [ ] 040  Nữ: áo cổ trụ, quần ống suông, túi cói
+
+Nhóm 5 — Đồ mặc nhà & nghỉ ngơi (nam, nữ)
+  [ ] 041  Nam: áo ba lỗ, quần đùi caro, dép tổ ong
+  [ ] 042  Nữ: đồ bộ hoa, dép lê
+  [ ] 043  Nam: áo thun cũ, quần dài vải dù
+  [ ] 044  Nữ: đồ bộ lụa trơn, kẹp tóc càng cua
+  [ ] 045  Nam: áo sơ mi mở cúc, quần đùi, quạt nan
+  [ ] 046  Nữ: áo thun rộng, quần đùi, khăn quấn tóc
+  [ ] 047  Nam: áo khoác len, quần dài, chăn mỏng quấn vai
+  [ ] 048  Nữ: áo bà ba mặc nhà, quần lửng, chăn mỏng
+  [ ] 049  Nam: đồ bộ kẻ sọc, dép kẹp
+  [ ] 050  Nữ: áo cardigan, váy suông dài, đèn pin
+
+Nhóm 6 — Chài lưới & sông nước (nam)
+  [ ] 051  Áo bà ba xanh, quần xắn, nón lá, chài lưới vắt vai
+  [ ] 052  Áo thun, quần đùi, nón tai bèo, giỏ cá
+  [ ] 053  Áo sơ mi cũ, quần lửng, khăn rằn, mái chèo
+  [ ] 054  Áo ba lỗ, quần xắn, ủng cao su, cần câu
+  [ ] 055  Áo mưa ni lông, nón lá, đèn bão
+  [ ] 056  Áo caro, quần kaki, nón vải, vó bè
+  [ ] 057  Áo bà ba nâu, khăn rằn, đơm cá tre
+  [ ] 058  Áo phao cũ, quần dài, nón tai bèo
+  [ ] 059  Áo thun ngắn tay, quần đùi, thúng chai
+  [ ] 060  Áo khoác vải, quần xắn, lờ bắt cá
+
+Nhóm 7 — Thợ thủ công (nam, nữ)
+  [ ] 061  Thợ mộc: áo thun, tạp dề da, bào gỗ
+  [ ] 062  Thợ đan lát: áo bà ba, rổ tre đan dở
+  [ ] 063  Thợ rèn: áo ba lỗ, tạp dề, búa (không nhấn mạnh như vũ khí)
+  [ ] 064  Thợ gốm: áo cũ dính đất, khăn trùm đầu
+  [ ] 065  Thợ may: áo bà ba, thước dây vắt cổ
+  [ ] 066  Thợ nón: áo bà ba, chồng nón lá đang làm
+  [ ] 067  Thợ xây: áo sơ mi xắn tay, nón cối, bay
+  [ ] 068  Thợ dệt: áo tứ thân, khung cửi nhỏ / cuộn vải
+  [ ] 069  Thợ sửa xe: áo dính dầu, khăn lau vắt túi
+  [ ] 070  Thợ làm hương: áo cánh, bó nhang chưa đốt
+
+Nhóm 8 — Đi lại (mũ bảo hiểm, áo mưa)
+  [ ] 071  Nam: áo mưa cánh dơi xanh, mũ bảo hiểm
+  [ ] 072  Nữ: áo mưa ni lông hồng, ủng
+  [ ] 073  Nam: áo khoác gió, mũ bảo hiểm nửa đầu
+  [ ] 074  Nữ: áo chống nắng, khẩu trang, găng tay dài
+  [ ] 075  Nam: áo mưa bộ vàng, ủng cao su
+  [ ] 076  Nữ: áo mưa trong suốt, nón lá
+  [ ] 077  Nam: áo tơi lá (áo mưa truyền thống), nón lá
+  [ ] 078  Nữ: áo khoác jean, mũ bảo hiểm, túi chéo
+  [ ] 079  Nam: áo mưa xanh lá, nón cối
+  [ ] 080  Nữ: áo poncho, giày vải
+
+Nhóm 9 — Lễ hội & dịp đặc biệt (nam, nữ)
+  [ ] 081  Nam: áo dài the xanh, khăn đóng
+  [ ] 082  Nữ: áo dài đỏ, khăn vấn
+  [ ] 083  Nữ: áo tứ thân, nón quai thao, dây lưng xanh
+  [ ] 084  Nam: áo sơ mi trắng, quần tây, cà vạt (đám cưới quê)
+  [ ] 085  Nữ: áo dài trắng, nón lá
+  [ ] 086  Nam: áo bà ba lụa trắng, khăn rằn đỏ
+  [ ] 087  Nữ: áo bà ba lụa hồng, vòng ngọc
+  [ ] 088  Nam: áo the đen, quạt giấy (hát bội / hội đình)
+  [ ] 089  Nữ: áo dài gấm, khăn mấn
+  [ ] 090  Nam: áo dài cách tân, mũ phớt
+
+Nhóm 10 — Nón, dép & phụ kiện (.glb riêng, gắn vào nhân vật)
+  [ ] 091  Nón lá trơn
+  [ ] 092  Nón quai thao
+  [ ] 093  Nón tai bèo
+  [ ] 094  Nón cối
+  [ ] 095  Khăn rằn (quấn cổ / đội đầu)
+  [ ] 096  Khăn mỏ quạ
+  [ ] 097  Dép tổ ong
+  [ ] 098  Dép quai hậu / guốc mộc
+  [ ] 099  Túi vải, giỏ cói, làn nhựa
+  [ ] 100  Quạt nan, đèn pin, chăn mỏng
+
+
+G. ĐỒ TRUNG CẢNH THEO TỪNG CẢNH
+--------------------------------
+(Đã có: chỗ ngồi của 12 cảnh. Phần dưới để cảnh không bị trống.)
+
+Rừng tre
+  [ ] Thân tre gãy ngả nghiêng
+  [ ] Măng tre
+  [ ] Lá tre rụng
+  [ ] Dây chuối buộc
+
+Bụi chuối
+  [ ] Buồng chuối
+  [ ] Bắp chuối treo
+  [ ] Lá chuối rách
+  [ ] Tàu chuối khô rủ xuống
+
+Đồng lúa
+  [ ] Bù nhìn rơm
+  [ ] Bờ ruộng có nước phản chiếu
+  [ ] Cột điện gỗ (ở xa)
+  [ ] Chòi canh ruộng
+
+Giếng cổ
+  [ ] Gàu múc nước + dây thừng
+  [ ] Ròng rọc gỗ
+  [ ] Rêu, vũng nước đọng
+  [ ] Cây sung cạnh giếng
+
+Gốc đa
+  [ ] Tán lá đa + rễ phụ buông xuống (phần trên của gốc đã làm)
+  [ ] Miếu nhỏ dưới gốc
+  [ ] Dải vải đỏ buộc rễ
+  [ ] Bát nhang
+
+Nghĩa địa
+  [ ] Bia nghiêng đổ
+  [ ] Hàng rào sắt gỉ
+  [ ] Cây sứ (cây đại) hoa trắng
+  [ ] Bó hoa héo
+  [ ] Nhang tàn cắm đất
+
+Miếu hoang
+  [ ] Tượng đá mòn
+  [ ] Lư hương đồng
+  [ ] Câu đối gỗ mục
+  [ ] Mạng nhện
+  [ ] Cột gỗ nứt
+
+Bến đò
+  [ ] Mặt nước có sương
+  [ ] Lục bình trôi
+  [ ] Mái chèo
+  [ ] Đèn bão treo cọc
+  [ ] Cây bần ven sông
+
+Chợ ma
+  [ ] Sạp tre trống
+  [ ] Thúng mủng
+  [ ] Đèn lồng giấy treo dây
+  [ ] Gánh hàng bỏ lại
+  [ ] Nón lá treo cột
+
+Đường ray
+  [ ] Cột tín hiệu gỉ
+  [ ] Đèn ga
+  [ ] Đá dăm
+  [ ] Toa tàu bỏ hoang (ở xa)
+  [ ] Biển báo chữ mờ
+
+Nhà hoang
+  [ ] Khung cửa sổ vỡ
+  [ ] Giường tre sập
+  [ ] Bàn thờ phủ bụi
+  [ ] Rèm rách bay
+  [ ] Tường có vết khung ảnh
+
+Sân đình
+  [ ] Cột đình sơn son tróc
+  [ ] Trống đình
+  [ ] Cổng tam quan
+  [ ] Cây đèn dầu chân cao
+  [ ] Lư hương lớn
+
+
+H. HIỆU ỨNG (texture / particle)
+---------------------------------
+  [ ] Ngọn lửa: 2–3 khung texture
+  [ ] Khói
+  [ ] Tàn lửa
+  [ ] Sương mù tầng thấp (dải sương bò trên mặt đất)
+  [ ] Đom đóm
+  [ ] Bướm đêm bay quanh lửa
+  [ ] Lá rơi theo gió
+  [ ] Mưa phùn
+  [ ] Ánh trăng xuyên kẽ lá (god ray)
+  (Không làm hiệu ứng chớp sáng mạnh — nguy cơ động kinh.)
+
+
+I. ÂM THANH MÔI TRƯỜNG (.mp3 / .ogg, lặp liền mạch được)
+---------------------------------------------------------
+  [ ] Ếch nhái, dế kêu đồng
+  [ ] Gió lùa tre kẽo kẹt
+  [ ] Lá chuối xào xạc
+  [ ] Nước giếng nhỏ giọt
+  [ ] Nước vỗ mạn đò
+  [ ] Tàu hỏa xa xa
+  [ ] Chó tru xa
+  [ ] Cú kêu
+  [ ] Quạ kêu
+  [ ] Chuông đình
+  [ ] Mõ
+  [ ] Trống đình vọng lại
+  [ ] Bước chân trên lá khô
+  [ ] Bước chân trên sỏi
+  [ ] Củi nổ lách tách (bản ghi thật)
