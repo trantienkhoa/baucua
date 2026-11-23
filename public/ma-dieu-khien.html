@@ -164,7 +164,7 @@
       <div class="row">
         <label>Giọng: <select id="vnVoice"><option value="">Mặc định</option></select></label>
         <button id="vnReload">↻ Tải danh sách giọng</button>
-        <label>Độ rợn: <select id="voiceScary"><option value="0">Giọng gốc</option><option value="1">Hơi rợn</option><option value="2">Rợn (khuyên dùng)</option><option value="3">Rất rợn</option></select></label>
+        <label>Độ rợn: <select id="voiceScary"><option value="0">Giọng gốc</option><option value="1">Hơi rợn</option><option value="2">Rợn</option><option value="3">Rất rợn</option><option value="4">Ông Tư — giọng người già (khuyên dùng)</option></select></label>
         <button class="pri" id="vnTry">▶ Nghe thử giọng ma</button>
       </div>
       <div class="row"><span class="muted" id="vnInfo">…</span></div>
@@ -346,7 +346,7 @@ socket.on('ma:settings', s => {
   if (!Array.isArray(MS.actions) || !MS.actions.length) MS.actions = DEF.actions;
   if (!document.activeElement || !$('setGrid').contains(document.activeElement)) renderSettings();
   renderActs(); fillVoices();
-  $('voiceScary').value = String(MS.voiceScary ?? 2);
+  $('voiceScary').value = String(MS.voiceScary ?? 4);
   if (!vnLoaded) { vnLoaded = true; loadVnVoices(); }
 });
 let vnLoaded = false;

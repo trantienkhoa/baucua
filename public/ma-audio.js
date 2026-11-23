@@ -221,13 +221,15 @@
     { rate: 0.95, wet: 0.22, fb: 0.12, delay: 0.21, ghost: 0.05, trem: 0, low: 3, high: -3 },
     { rate: 0.9, wet: 0.38, fb: 0.22, delay: 0.24, ghost: 0.11, trem: 0.07, low: 5, high: -5 },
     { rate: 0.84, wet: 0.55, fb: 0.32, delay: 0.27, ghost: 0.18, trem: 0.14, low: 7, high: -7 },
+    // 4: giọng ông Tư — chậm, trầm, hơi khàn và run nhẹ như người già kể chuyện bên bếp lửa, vang ít (ngoài trời)
+    { rate: 0.88, wet: 0.16, fb: 0, delay: 0, ghost: 0, trem: 0.1, low: 5, high: -8 },
   ];
   A.voiceBusy = false;
   A.decode = buf => A.ctx.decodeAudioData(buf);
   A.playVoice = function (buffer, lvl = 2, vol = 1) {
     return new Promise(resolve => {
       if (!A.ctx || A.ctx.state !== 'running') return resolve(false);
-      const c = A.ctx, P = VOICE_FX[Math.max(0, Math.min(3, lvl | 0))], t = c.currentTime + 0.03;
+      const c = A.ctx, P = VOICE_FX[Math.max(0, Math.min(VOICE_FX.length - 1, lvl | 0))], t = c.currentTime + 0.03;
       const bus = c.createGain(); bus.gain.value = Math.max(0, Math.min(1.5, vol)) * 1.6; bus.connect(A.master);
       const src = c.createBufferSource(); src.buffer = buffer; src.playbackRate.value = P.rate;
       const lo = c.createBiquadFilter(); lo.type = 'lowshelf'; lo.frequency.value = 220; lo.gain.value = P.low;
