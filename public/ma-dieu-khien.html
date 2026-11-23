@@ -295,6 +295,7 @@ socket.on('gifts', g => { GIFTS = g || {}; renderActs(); });
 
 // ---------- cài đặt ----------
 const FIELDS = [
+  ['outfitStyle', '👘 Trang phục người xem (3D)', 'select', [['dangia', 'Dân giã miền quê (100 mẫu)'], ['party', 'Dạ hội + đi bar']]],
   ['view', '🖼 Chế độ hiển thị', 'select', [['3d', '3D — nhân vật 3D, máy quay bay (cần card đồ hoạ)'], ['2d', '2D — cảnh vẽ tay, nhẹ máy']]],
   ['map', '🌾 Cảnh', 'select', [['auto', 'Tự đổi theo chuyện (12 cảnh)'], ['dong', 'Giữa đồng lúa'], ['chuoi', 'Bụi chuối sau nhà'], ['gieng', 'Giếng cổ đầu làng'], ['cayda', 'Gốc đa nghìn năm'], ['nghiadia', 'Nghĩa địa làng'], ['mieu', 'Miếu hoang ven rừng'], ['bendo', 'Bến đò đêm'], ['rungtre', 'Rừng tre'], ['choma', 'Chợ ma nửa đêm'], ['duongray', 'Đường ray bỏ hoang'], ['nhahoang', 'Sân nhà hoang'], ['dinh', 'Sân đình làng'], ['nhacu', 'Nhà cổ (2D cũ)']]],
   ['storyMode', 'Chọn chuyện tiếp theo', 'select', [['vote', 'Người xem bình chọn'], ['random', 'Ngẫu nhiên'], ['order', 'Lần lượt']]],

@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, avatarTemplates, setOutfitMix, templateForChar, hasCharModel } from './avatars.js';
+import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, avatarTemplates, setOutfitMix, setOutfitStyle, setDressChars, templateForChar, hasCharModel } from './avatars.js';
 import { attachProp } from './costumes.js';
 
 const W = 1080, H = 1920, TAU = Math.PI * 2;
@@ -1878,7 +1878,7 @@ if (renderer && SH) {
     renderer.render(scene, camera);
   }
 
-  setOutfitMix(10);
+  setOutfitMix(10); setOutfitStyle((SH.S && SH.S.outfitStyle) || 'dangia'); setDressChars(!!(SH.S && SH.S.dressChars));   // Ngọn Lửa: mặc đồ dân giã
   fetch('/api/models').then(r => r.json()).then(list => loadAvatars((list || []).filter(m => m.enabled).map(m => ({ url: m.url, female: m.female })))).then(() => { modelsReady = true; console.log('Cảnh 3D: đã nạp', avatarTemplates.length, 'mô hình người'); }).catch(e => console.warn('Không nạp được mô hình người', e));
 
   window.MA3D = { ready: true, frame, setMap, maps: Object.keys(SCENES), sceneNames: Object.fromEntries(Object.entries(SCENES).map(([k, v]) => [k, v.name])),

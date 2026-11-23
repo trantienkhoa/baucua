@@ -188,8 +188,10 @@ const SKIRTS = {
   slip: { hem: 'knee', flare: t => 0.02 + 0.08 * t, leg: 0.6, tight: true },
   pleated: { hem: 'thigh', flare: t => 0.04 + 0.15 * t, leg: 0.45, pleats: 0.14 },
   pleatedMidi: { hem: 'tea', flare: t => 0.04 + 0.2 * t, leg: 0.42, pleats: 0.12 },
-  aodai: { hem: 'calf', flare: t => 0.0 + 0.02 * t, leg: 0.62, slit: true, tight: true, smooth: true },
-  baba: { hem: 'hip', flare: t => 0.03 + 0.03 * t, leg: 0.35, slit: true },
+  aodai: { hem: 'calf', flare: t => 0.0 + 0.02 * t, leg: 0.62, slit: true, tight: true, smooth: true , mono: true },
+  baba: { hem: 'hip', flare: t => 0.03 + 0.03 * t, leg: 0.35, slit: true , mono: true },
+  tuthan: { hem: 'knee', flare: t => 0.02 + 0.05 * t, leg: 0.5, slit: true, smooth: true , mono: true },   // áo tứ thân: vạt dài tới gối, xẻ hai bên
+  poncho: { hem: 'knee', flare: t => 0.1 + 0.22 * t, leg: 0.25, smooth: true , mono: true },               // áo mưa cánh dơi
 };
 function buildSkirt(F, kind) {
   const S = SKIRTS[kind]; if (!S) return null;
@@ -198,7 +200,7 @@ function buildSkirt(F, kind) {
   const hem = S.hem === 'floor' ? footH - 0.07 * L : S.hem === 'thigh' ? kneeH * 0.45 : S.hem === 'hip' ? kneeH * 0.15 : S.hem === 'knee' ? kneeH * 1.02 : S.hem === 'calf' ? kneeH + (footH - kneeH) * 0.5 : kneeH + (footH - kneeH) * 0.85;
   const RINGS = 30, SEG = 48;
   const iH = F.idx('Hips'), iLU = F.idx('LeftUpLeg'), iRU = F.idx('RightUpLeg'), iLL = F.idx('LeftLeg'), iRL = F.idx('RightLeg');
-  const pos = [], uv = [], ind = [], sIdx = [], sW = [];
+  const pos = [], uv = [], ind = [], sIdx = [], sW = [], prevR = new Float32Array(SEG + 1);
   for (let r = 0; r <= RINGS; r++) for (let s = 0; s <= SEG; s++) {
     const tt = r / RINGS, h = top + (hem - top) * tt;
     let a = s / SEG * TAU; if (a > PI) a -= TAU;
@@ -207,6 +209,7 @@ function buildSkirt(F, kind) {
     const minHip = (F.hipHalf * 1.9 + 0.02 * L) * (0.85 + 0.15 * Math.abs(Math.sin(a)));
     let rad = Math.max(fit, h < 0 ? minHip * (S.tight ? 0.92 : 1) : fit) + S.flare(tt) * L * 1.15;
     if (!S.tight && tt > 0.15) rad = Math.max(rad, minHip + S.flare(tt) * L * 1.15);
+    if (S.mono) { rad = Math.max(rad, prevR[s] * 0.995); prevR[s] = rad; }   // vạt áo rủ thẳng: không thắt vào theo khe chân (hết gợn bậc thang)
     const wav = S.smooth ? 1 : S.pleats ? 1 + S.pleats * Math.abs(Math.sin(a * 14)) * (0.3 + tt) : 1 + (S.tight ? 0.02 : 0.05) * Math.sin(a * 9) * tt;     // nếp vải / xếp ly
     const x = Math.sin(a) * rad * wav, z = Math.cos(a) * rad * wav * 0.92;
     _v.copy(H).addScaledVector(up, h).addScaledVector(lat, x).addScaledVector(fwd, z);
@@ -310,7 +313,13 @@ export function outfitLayers(outfit) {
 // ======================================================================
 let partyMix = 25;                                  // % người mặc đồ dạ hội, còn lại đồ đi bar
 export function setOutfitMix(n) { partyMix = Math.max(0, Math.min(100, Number(n) || 0)); }
-export function pickOutfit(female) { return Math.random() * 100 < partyMix ? randomOutfit(female) : randomBarOutfit(female); }
+let outfitStyle = 'party';   // party: dạ hội + đi bar (Vũ Trường Neon) · dangia: đồ dân giã miền quê
+export function setOutfitStyle(s) { outfitStyle = s === 'dangia' ? 'dangia' : 'party'; }
+export function getOutfitStyle() { return outfitStyle; }
+let dressChars = false;   // mặc đồ may cho cả nhân vật riêng (char01–char98) — ngoài đồ có sẵn của họ
+export function setDressChars(on) { dressChars = !!on; }
+export function dressCharsOn() { return dressChars; }
+export function pickOutfit(female) { if (outfitStyle === 'dangia') return randomDanGia(female); return Math.random() * 100 < partyMix ? randomOutfit(female) : randomBarOutfit(female); }
 
 const DENIM = ['#3b5ba5', '#2c4a86', '#4a6fb5', '#1e2f55', '#6f8fc9', '#1b1b1f', '#3b5ba5'];
 const TEE = ['#f5f5f2', '#111114', '#f5f5f2', '#ff3d8b', '#ffd84d', '#8cc8ff', '#c8ff3d', '#b9a3e8', '#ff8a3d', '#9fe3c6', '#e8e0d0', '#d6262f'];
@@ -519,6 +528,43 @@ function tie(color, add, bow) {
   g.position.set(0, 0.02, 0.075); g.rotation.x = -0.12; add('Neck', g);
 }
 function khanDong(L, c) { const g = new THREE.Group(), R = L * 0.58, m = std(c, { roughness: 0.6 }); for (let i = 0; i < 4; i++) { const tr = new THREE.Mesh(new THREE.TorusGeometry(R * (1 - i * 0.04), L * 0.09, 8, 24).rotateX(PI / 2), m); tr.position.y = i * L * 0.11; tr.rotation.z = (i % 2 ? 0.12 : -0.12); g.add(tr); } const top = new THREE.Mesh(new THREE.CylinderGeometry(R * 0.85, R * 0.85, 0.02, 20), m); top.position.y = L * 0.4; g.add(top); g.position.y = L * 0.5; return g; }
+// ---- nón, khăn dân giã ----
+function nonLa(L, c = '#d9c38c', torn) {   // nón lá: chóp nhọn, vành rộng, vân lá
+  const g = new THREE.Group(), R = L * 1.25, H = L * 0.62;
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 32; const x = cv.getContext('2d');
+  x.fillStyle = c; x.fillRect(0, 0, 256, 32); x.strokeStyle = 'rgba(90,70,30,.45)'; for (let i = 0; i < 256; i += 8) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, 32); x.stroke(); }
+  x.fillStyle = 'rgba(120,90,40,.35)'; for (let i = 6; i < 32; i += 9) x.fillRect(0, i, 256, 1.5);
+  const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; tx.wrapS = THREE.RepeatWrapping;
+  const geo = new THREE.ConeGeometry(R, H, 36, 1, true, 0, torn ? TAU * 0.93 : TAU);
+  g.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tx, roughness: 0.9, side: THREE.DoubleSide })).translateY(H / 2));
+  const strap = new THREE.Mesh(new THREE.TorusGeometry(L * 0.42, 0.005, 4, 16, PI).rotateZ(PI), std('#7a2a2a')); strap.position.y = -L * 0.12; g.add(strap);
+  g.position.y = L * 0.55; g.rotation.x = -0.1; return g;
+}
+function nonQuaiThao(L) {   // nón quai thao: mặt phẳng rộng, vành có tua
+  const g = new THREE.Group(), R = L * 1.5, m = std('#cdb27a', { roughness: 0.9, side: THREE.DoubleSide });
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(R * 0.96, R, L * 0.12, 32, 1, true), m));
+  g.add(new THREE.Mesh(new THREE.CircleGeometry(R * 0.96, 32).rotateX(-PI / 2).translate(0, L * 0.06, 0), m));
+  const tm = std('#2a2a2a'); for (let i = 0; i < 18; i++) { const a = i / 18 * TAU, f = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, L * 0.4), tm); f.position.set(Math.sin(a) * R * 0.98, -L * 0.2, Math.cos(a) * R * 0.98); g.add(f); }
+  g.position.y = L * 0.62; return g;
+}
+function nonCoi(L, c = '#5b6b3a') {   // nón cối
+  const g = new THREE.Group(), R = L * 0.66, m = std(c, { roughness: 0.75 });
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(R, 20, 10, 0, TAU, 0, PI * 0.5).scale(1, 0.85, 1.05), m));
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(R * 1.32, R * 1.36, 0.012, 24), m));
+  g.position.y = L * 0.42; g.rotation.x = -0.08; return g;
+}
+function khanRan(L, c = '#1b1b22') {   // khăn rằn quấn cổ, hai đuôi rủ trước ngực
+  const g = new THREE.Group(), m = new THREE.MeshStandardMaterial({ map: patternTex('plaid', c), roughness: 0.9, side: THREE.DoubleSide });
+  g.add(new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.022, 8, 20).rotateX(PI / 2).scale(1, 1, 0.9), m));
+  for (const sd of [-1, 1]) { const t = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.2), m); t.position.set(sd * 0.03, -0.11, 0.09); t.rotation.set(-0.15, 0, sd * 0.12); g.add(t); }
+  return g;
+}
+function khanMoQua(L, c = '#2a2a2e') {   // khăn mỏ quạ: chít đầu, mỏ nhọn trước trán
+  const g = new THREE.Group(), R = L * 0.6, m = std(c, { roughness: 0.85, side: THREE.DoubleSide });
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(R, 18, 10, 0, TAU, 0, PI * 0.42).scale(1.02, 0.95, 1.08), m));
+  const beak = new THREE.Mesh(new THREE.ConeGeometry(L * 0.12, L * 0.22, 4).rotateX(PI / 2).scale(1, 0.4, 1), m); beak.position.set(0, R * 0.62, R * 0.92); g.add(beak);
+  g.position.y = L * 0.52; return g;
+}
 function addSkirt(av, F, kind, mat, skelName) {
   let skel = meshByName(av.root, skelName); skel = skel && skel.skeleton;
   F.cache[kind] = F.cache[kind] || buildSkirt(F, kind);
@@ -550,6 +596,17 @@ function applyBar(av, o, add) {
   const skirtMat = o.skirt ? plainMat(o.skirtColor || o.topColor, o.skirtFabric || o.topFabric || 'matte', o.skirtPattern || (o.skirt === 'aodai' || o.skirt === 'baba' ? o.topPattern : null)) : null;
   if (o.skirt) addSkirt(av, F, o.skirt, skirtMat, F.main.name);
   // mũ
+  if (o.dg) {   // đồ dân giã: nón / khăn cho mọi nhân vật
+    if (o.hat === 'nonla') add('Head', nonLa(L, o.hatColor || undefined, o.torn));
+    if (o.hat === 'quaithao') add('Head', nonQuaiThao(L));
+    if (o.hat === 'noncoi') add('Head', nonCoi(L, o.hatColor || undefined));
+    if (o.hat === 'taibeo') add('Head', bucketHat(L, o.hatColor || '#5b6b3a'));
+    if (o.hat === 'moqua') add('Head', khanMoQua(L, o.hatColor || undefined));
+    if (o.hat === 'khandong') add('Head', khanDong(L, o.hatColor || '#111114'));
+    if (o.hat === 'mulen') add('Head', beanie(L, o.hatColor || '#5a4a3a'));
+    if (o.scarf) { const k = khanRan(L, o.scarf); k.position.set(0, 0.0, 0.0); add('Neck', k); }
+    return;
+  }
   if (rpmMale || o.hat === 'khandong') {
     const hc = o.hatColor || pick(['#111114', '#f5f5f2', '#ff3d8b', '#1e3a8a', '#cdb58f', '#c8ff3d']);
     if (o.hat === 'cap' || o.hat === 'capBack') add('Head', capHat(L, hc, o.hat === 'capBack'));
@@ -560,9 +617,88 @@ function applyBar(av, o, add) {
 }
 // lớp đồ có sẵn bị ẩn / đổi chất liệu khi mặc đồ đi bar
 export function barHidden(o) { return o && o.bar && !o.female && o.top && o.top !== 'jacket' ? ['Wolf3D_Outfit_Top'] : []; }
+
 export function barLayers(o) {
   if (!o || !o.bar) return null;
+  if (o.dg) return { Wolf3D_Outfit_Top: [o.topColor, 'matte'], Wolf3D_Outfit_Bottom: o.bottom, Wolf3D_Outfit_Footwear: o.shoes };
   if (o.female) return { Wolf3D_Outfit_Top: [o.topColor, o.topFabric], Wolf3D_Outfit_Bottom: [o.legs, 'denim'], Wolf3D_Outfit_Footwear: ['#f5f5f2', 'matte'] };
   return { Wolf3D_Outfit_Top: o.jacket || [o.topColor, 'matte'], Wolf3D_Outfit_Bottom: o.bottom, Wolf3D_Outfit_Footwear: o.shoes };
 }
 export { plainMat };
+
+// ======================================================================
+// ĐỒ DÂN GIÃ MIỀN QUÊ (theo bảng 100 mẫu, bỏ nhóm trẻ em / đồng phục học sinh — thay bằng thanh niên)
+// [mã, tên, giới (m/f/u), kiểu áo, màu áo, hoạ tiết, vạt áo, màu quần, nón/khăn, màu nón, khăn rằn]
+// ======================================================================
+const C = { cham: '#2f3e5c', nau: '#6b4a32', naud: '#5a3d2b', den: '#1d1d22', trang: '#ece8dc', la: '#4f6b3a', tim: '#6a4a7a', hong: '#c97a8a', xam: '#6d6e70', be: '#cbb48c', do: '#9b2a2a', vang: '#d9b23a', xanh: '#3a6fa8', reu: '#55603e', kem: '#e4d8bd' };
+const DG = [
+  // nông dân & lao động
+  ['001', 'Áo bà ba chàm, nón lá', 'm', 'baba', C.cham, null, 'baba', C.den, 'nonla'], ['002', 'Áo bà ba xanh, khăn rằn', 'f', 'baba', C.xanh, null, 'baba', C.den, 'nonla', null, C.den],
+  ['003', 'Sơ mi cũ xắn tay', 'm', 'shirt', C.be, null, null, C.naud, 'nonla'], ['004', 'Áo bà ba hoa nhí', 'f', 'baba', C.hong, 'floral', 'baba', C.den, 'nonla'],
+  ['005', 'Áo nâu bạc màu', 'm', 'long', C.nau, null, null, C.naud, null], ['006', 'Áo nâu, khăn trùm', 'f', 'long', C.nau, null, null, C.den, 'moqua', C.naud],
+  ['007', 'Áo thun, nón tai bèo', 'm', 'tee', C.xam, null, null, C.naud, 'taibeo', C.reu], ['008', 'Áo chống nắng tay dài', 'f', 'long', C.kem, null, null, C.den, 'nonla'],
+  ['009', 'Ba lỗ trắng, khăn vắt vai', 'm', 'tank', C.trang, null, null, C.be, null, null, C.den], ['010', 'Bà ba nâu gánh quang', 'f', 'baba', C.nau, null, 'baba', C.den, 'nonla'],
+  // bán hàng chợ
+  ['011', 'Áo hoa đi chợ', 'f', 'shirtShort', C.hong, 'floral', null, C.den, null], ['012', 'Bà ba hồng hoa', 'f', 'baba', C.hong, 'floral', 'baba', C.den, 'nonla'],
+  ['013', 'Đồ bộ hoa', 'f', 'shirtShort', C.vang, 'floral', null, C.vang, null], ['014', 'Áo tứ thân, khăn mỏ quạ', 'f', 'long', C.naud, null, 'tuthan', C.den, 'moqua'],
+  ['015', 'Sơ mi caro', 'f', 'shirt', C.do, 'plaid', null, C.den, null], ['016', 'Đồ bộ lụa, nón lá', 'f', 'long', C.tim, null, null, C.tim, 'nonla'],
+  ['017', 'Áo cổ tròn, giỏ cói', 'f', 'tee', C.kem, null, null, C.naud, null], ['018', 'Áo khoác mỏng, khăn trùm', 'f', 'long', C.xam, null, null, C.den, 'moqua', C.xam],
+  ['019', 'Bà ba trắng, tạp dề', 'f', 'baba', C.trang, null, 'baba', C.den, null], ['020', 'Áo thun, nón vải', 'f', 'tee', C.la, null, null, C.naud, 'taibeo', C.be],
+  // người già & truyền thống
+  ['021', 'Áo cánh trắng', 'm', 'shirtShort', C.trang, null, null, C.trang, null], ['022', 'Áo cánh, khăn vấn', 'f', 'shirtShort', C.trang, null, null, C.den, 'khandong', C.den],
+  ['023', 'Áo dài the đen, khăn đóng', 'm', 'aodai', C.den, null, 'aodai', C.trang, 'khandong'], ['024', 'Áo dài nâu, khăn mấn', 'f', 'aodai', C.nau, null, 'aodai', C.den, 'khandong', C.den],
+  ['025', 'Bà ba nâu, khăn rằn', 'm', 'baba', C.nau, null, 'baba', C.den, null, null, C.den], ['026', 'Bà ba tím, khăn rằn', 'f', 'baba', C.tim, null, 'baba', C.den, null, null, C.den],
+  ['027', 'Sơ mi trắng cũ', 'm', 'shirt', C.trang, null, null, C.xam, null], ['028', 'Áo len, khăn len', 'f', 'long', C.naud, 'knit', null, C.den, 'mulen', C.naud],
+  ['029', 'Bà ba trắng, nón cối', 'm', 'baba', C.trang, null, 'baba', C.den, 'noncoi'], ['030', 'Áo tứ thân, nón quai thao', 'f', 'long', C.nau, null, 'tuthan', C.den, 'quaithao'],
+  // thanh niên (thay nhóm trẻ em)
+  ['031', 'Sơ mi trắng, quần xanh', 'm', 'shirt', C.trang, null, null, C.cham, null], ['032', 'Áo dài trắng, nón lá', 'f', 'aodai', C.trang, null, 'aodai', C.trang, 'nonla'],
+  ['033', 'Áo thun xanh', 'm', 'tee', C.xanh, null, null, C.cham, null], ['034', 'Sơ mi trắng, quần xanh', 'f', 'shirt', C.trang, null, null, C.cham, null],
+  ['035', 'Áo khoác gió', 'm', 'long', C.la, null, null, C.be, null], ['036', 'Áo len mỏng', 'f', 'long', C.hong, 'knit', null, C.cham, 'taibeo', C.be],
+  ['037', 'Áo phông, quần túi hộp', 'm', 'tee', C.vang, null, null, C.reu, null], ['038', 'Áo hoodie', 'f', 'long', C.xam, null, null, C.den, null],
+  ['039', 'Sơ mi caro, quần jean', 'm', 'shirt', C.xanh, 'plaid', null, C.cham, null], ['040', 'Áo cổ trụ', 'f', 'aodai', C.kem, null, null, C.naud, null],
+  // đồ mặc nhà
+  ['041', 'Ba lỗ, quần caro', 'm', 'tank', C.xam, null, null, C.xanh, null], ['042', 'Đồ bộ hoa', 'f', 'shirtShort', C.xanh, 'floral', null, C.xanh, null],
+  ['043', 'Áo thun cũ', 'm', 'tee', C.naud, null, null, C.den, null], ['044', 'Đồ bộ lụa trơn', 'f', 'shirtShort', C.tim, null, null, C.tim, null],
+  ['045', 'Sơ mi mở cúc', 'm', 'shirtShort', C.kem, 'stripe', null, C.naud, null], ['046', 'Áo thun rộng', 'f', 'tee', C.hong, null, null, C.den, 'moqua', C.hong],
+  ['047', 'Áo len, chăn quấn vai', 'm', 'long', C.reu, 'knit', null, C.den, 'mulen', C.reu], ['048', 'Bà ba mặc nhà', 'f', 'baba', C.kem, null, 'baba', C.den, null],
+  ['049', 'Đồ bộ kẻ sọc', 'm', 'shirtShort', C.xanh, 'stripe', null, C.xanh, null], ['050', 'Cardigan, váy suông', 'f', 'long', C.be, 'knit', null, C.naud, null],
+  // chài lưới
+  ['051', 'Bà ba xanh, chài lưới', 'm', 'baba', C.xanh, null, 'baba', C.den, 'nonla'], ['052', 'Áo thun, giỏ cá', 'm', 'tee', C.xam, null, null, C.naud, 'taibeo', C.reu],
+  ['053', 'Sơ mi cũ, khăn rằn', 'm', 'shirt', C.be, null, null, C.den, null, null, C.den], ['054', 'Ba lỗ, cần câu', 'm', 'tank', C.la, null, null, C.naud, 'nonla'],
+  ['055', 'Áo mưa ni lông', 'm', 'long', C.xanh, null, 'poncho', C.den, 'nonla'], ['056', 'Áo caro, vó bè', 'm', 'shirt', C.do, 'plaid', null, C.be, 'taibeo', C.be],
+  ['057', 'Bà ba nâu, đơm cá', 'm', 'baba', C.nau, null, 'baba', C.den, null, null, C.den], ['058', 'Áo phao cũ', 'm', 'long', C.vang, null, null, C.den, 'taibeo', C.reu],
+  ['059', 'Áo ngắn tay, thúng chai', 'm', 'shirtShort', C.cham, null, null, C.naud, 'nonla'], ['060', 'Áo khoác vải', 'm', 'long', C.reu, null, null, C.naud, null],
+  // thợ thủ công
+  ['061', 'Thợ mộc', 'm', 'tee', C.kem, null, null, C.naud, null], ['062', 'Thợ đan lát', 'f', 'baba', C.nau, null, 'baba', C.den, 'nonla'],
+  ['063', 'Thợ rèn', 'm', 'tank', C.xam, null, null, C.den, null], ['064', 'Thợ gốm', 'f', 'long', C.be, null, null, C.naud, 'moqua', C.be],
+  ['065', 'Thợ may', 'f', 'baba', C.trang, null, 'baba', C.den, null], ['066', 'Thợ làm nón', 'f', 'baba', C.hong, null, 'baba', C.den, 'nonla'],
+  ['067', 'Thợ xây, nón cối', 'm', 'shirt', C.be, null, null, C.naud, 'noncoi'], ['068', 'Thợ dệt', 'f', 'long', C.naud, null, 'tuthan', C.den, 'moqua'],
+  ['069', 'Thợ sửa xe', 'm', 'tee', C.xanh, null, null, C.cham, null], ['070', 'Thợ làm hương', 'f', 'shirtShort', C.trang, null, null, C.den, null],
+  // đi lại, áo mưa
+  ['071', 'Áo mưa cánh dơi xanh', 'm', 'long', C.xanh, null, 'poncho', C.den, 'noncoi'], ['072', 'Áo mưa hồng', 'f', 'long', C.hong, null, 'poncho', C.den, null],
+  ['073', 'Áo khoác gió', 'm', 'long', C.cham, null, null, C.be, null], ['074', 'Áo chống nắng', 'f', 'long', C.kem, null, null, C.den, 'taibeo', C.kem],
+  ['075', 'Áo mưa bộ vàng', 'm', 'long', C.vang, null, 'poncho', C.vang, null], ['076', 'Áo mưa trong, nón lá', 'f', 'long', C.kem, null, 'poncho', C.den, 'nonla'],
+  ['077', 'Áo tơi lá, nón lá', 'm', 'long', C.be, null, 'poncho', C.naud, 'nonla', '#bfa36a'], ['078', 'Áo khoác jean', 'f', 'long', C.cham, null, null, C.den, null],
+  ['079', 'Áo mưa xanh lá, nón cối', 'm', 'long', C.la, null, 'poncho', C.den, 'noncoi'], ['080', 'Áo poncho', 'f', 'long', C.do, null, 'poncho', C.den, null],
+  // lễ hội
+  ['081', 'Áo dài the xanh, khăn đóng', 'm', 'aodai', C.cham, null, 'aodai', C.trang, 'khandong', C.cham], ['082', 'Áo dài đỏ, khăn vấn', 'f', 'aodai', C.do, null, 'aodai', C.trang, 'khandong', C.do],
+  ['083', 'Áo tứ thân, quai thao', 'f', 'long', C.naud, null, 'tuthan', C.den, 'quaithao'], ['084', 'Sơ mi trắng, cà vạt', 'm', 'shirt', C.trang, null, null, C.den, null],
+  ['085', 'Áo dài trắng, nón lá', 'f', 'aodai', C.trang, null, 'aodai', C.trang, 'nonla'], ['086', 'Bà ba lụa trắng, khăn rằn đỏ', 'm', 'baba', C.trang, null, 'baba', C.den, null, null, C.do],
+  ['087', 'Bà ba lụa hồng', 'f', 'baba', C.hong, null, 'baba', C.den, null], ['088', 'Áo the đen', 'm', 'aodai', C.den, null, 'aodai', C.den, 'khandong'],
+  ['089', 'Áo dài gấm, khăn mấn', 'f', 'aodai', C.tim, 'brocade', 'aodai', C.den, 'khandong', C.den], ['090', 'Áo dài cách tân', 'm', 'aodai', C.reu, 'brocade', 'aodai', C.trang, null],
+  // nón, dép, phụ kiện: phối thêm cho các bộ cơ bản
+  ['091', 'Nón lá trơn', 'u', 'baba', C.cham, null, 'baba', C.den, 'nonla'], ['092', 'Nón quai thao', 'f', 'baba', C.nau, null, 'baba', C.den, 'quaithao'],
+  ['093', 'Nón tai bèo', 'm', 'shirtShort', C.reu, null, null, C.naud, 'taibeo', C.reu], ['094', 'Nón cối', 'm', 'shirt', C.la, null, null, C.la, 'noncoi'],
+  ['095', 'Khăn rằn', 'u', 'baba', C.naud, null, 'baba', C.den, null, null, C.den], ['096', 'Khăn mỏ quạ', 'f', 'long', C.den, null, null, C.den, 'moqua'],
+  ['097', 'Dép tổ ong', 'u', 'tee', C.trang, null, null, C.naud, null], ['098', 'Guốc mộc', 'f', 'baba', C.kem, null, 'baba', C.den, null],
+  ['099', 'Túi vải, giỏ cói', 'u', 'shirtShort', C.be, null, null, C.naud, 'nonla'], ['100', 'Nón lá rách', 'm', 'baba', C.naud, null, 'baba', C.den, 'nonla'],
+];
+export const DAN_GIA = DG.map(([id, name, g, top, color, pat, skirt, bottom, hat, hatColor, scarf]) => ({ id: 'dg' + id, code: id, name, g, top, color, pat, skirt, bottom, hat, hatColor, scarf }));
+const SHOES_DG = [['#3a3d44', 'matte'], ['#6b4a32', 'matte'], ['#1d1d22', 'matte'], ['#7a5a3a', 'matte']];
+export function randomDanGia(female, code) {
+  const list = DAN_GIA.filter(o => o.g === 'u' || o.g === (female ? 'f' : 'm'));
+  const o = (code && DAN_GIA.find(x => x.code === code)) || list[Math.floor(Math.random() * list.length)];
+  return { bar: true, dg: true, female, id: o.id, code: o.code, name: o.name, top: o.top, topColor: o.color, topFabric: 'matte', topPattern: o.pat || null,
+    skirt: o.skirt === 'poncho' ? null : o.skirt, skirtColor: null,   // vạt áo mưa còn phồng như váy xoè trên dáng chữ A → tạm chỉ dùng áo dài tay màu áo mưa collar: o.top === 'shirt' || o.top === 'shirtShort' ? o.color : null,
+    bottom: [o.bottom, 'matte'], legs: o.bottom, shoes: pick(SHOES_DG), hat: o.hat, hatColor: o.hatColor || null, scarf: o.scarf || null, torn: o.code === '100', acc: [] };
+}

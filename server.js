@@ -50,6 +50,8 @@ const DEFAULT_SETTINGS = {
   quality: 'high',          // high | medium | low
   charStyle: 'real',
   rosterEnabled: true,      // người xem nhập vai nhân vật trong roster.csv
+  outfitStyle: 'party',     // party: dạ hội + đi bar · dangia: 100 mẫu đồ dân giã miền quê
+  dressChars: false,        // mặc đồ cho cả 100 nhân vật riêng (char01–char98)
   partyMix: 25,             // % người mặc đồ dạ hội (còn lại đồ đi bar hot trend)
   costumeRate: 15,          // % người lên sàn được hoá trang sẵn (còn lại mặc đồ dạ hội)
   djName: 'DJ Tiến Khoa',   // tên DJ trên bàn DJ

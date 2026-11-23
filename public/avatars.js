@@ -5,8 +5,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { applyCostume, randomCostumeId, animateCostume, costumeTime, COSTUMES, setExtra, attachProp } from './costumes.js';
-import { applyOutfit, removeOutfit, randomOutfit, pickOutfit, setOutfitMix, barHidden, outfitLayers, fabricize, outfitTime } from './outfits.js';
-export { outfitTime, setOutfitMix };
+import { applyOutfit, removeOutfit, randomOutfit, pickOutfit, setOutfitMix, barHidden, outfitLayers, fabricize, outfitTime, setOutfitStyle, setDressChars, dressCharsOn } from './outfits.js';
+export { outfitTime, setOutfitMix, setOutfitStyle, setDressChars };
 export { COSTUMES, costumeTime, setExtra };
 
 // chuẩn hoá tên xương từ nhiều phần mềm về tên kiểu Mixamo
@@ -366,7 +366,7 @@ export function createAvatar(parent, female, tpl, costume, opts = {}) {
   av.seed = Math.random() * 10;
   if (t.rpm) av.skin = pick(SKIN_TINT);
   applyCostume(av, costume === undefined ? null : costume);
-  if (!av.costume && !t.charId) applyOutfit(av, av.baseOutfit || pickOutfit(t.female), (b, o) => attachProp(av, b, o));
+  if (!av.costume && (!t.charId || dressCharsOn())) applyOutfit(av, av.baseOutfit || pickOutfit(t.female), (b, o) => attachProp(av, b, o));
   costumeShape(av);
   restyle(av);
   return av;
@@ -517,7 +517,7 @@ export function driveAvatar(av, rig, opts) {
 // đổi hoá trang (id = null: bỏ hoá trang)
 export function setCostume(av, id) {
   applyCostume(av, id);
-  if (av.costume || av.t.charId) removeOutfit(av); else applyOutfit(av, av.baseOutfit || pickOutfit(av.t.female), (b, o) => attachProp(av, b, o));
+  if (av.costume || (av.t.charId && !dressCharsOn())) removeOutfit(av); else applyOutfit(av, av.baseOutfit || pickOutfit(av.t.female), (b, o) => attachProp(av, b, o));
   costumeShape(av); restyle(av);
 }
 if (typeof window !== 'undefined') { window._applyOutfit = (av, o) => applyOutfit(av, o, (b, x) => attachProp(av, b, x)); window._restyle = av => restyle(av); }

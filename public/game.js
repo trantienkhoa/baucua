@@ -8,7 +8,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createThemes, THEME_NAMES, themeForDate } from './themes.js';
 import { rosterOutfit, danceFor, tempoFor, hyperFor, shapeFor } from './roster.js';
-import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates, setCostume, randomCostumeId, COSTUMES, costumeTime, setExtra, outfitTime, setOutfitMix, templateForChar, hasCharModel } from './avatars.js';
+import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates, setCostume, randomCostumeId, COSTUMES, costumeTime, setExtra, outfitTime, setOutfitMix, setOutfitStyle, setDressChars, templateForChar, hasCharModel } from './avatars.js';
 import { createLCD } from './lcd.js';
 import { createFX } from './fx.js';
 import { createBar, SALONS } from './bar.js';
@@ -2383,7 +2383,7 @@ setInterval(() => { if ((S.theme || '') === 'auto' && !goals.idx) { const n = th
 socket.on('settings', s => {
   const oldQ = S.quality;
   const first = !S._got; S = Object.assign(S, s); S._got = true;
-  setOutfitMix(S.partyMix ?? 25);
+  setOutfitMix(S.partyMix ?? 25); setOutfitStyle(S.outfitStyle || 'party'); setDressChars(!!S.dressChars);
   Music.setSettings(S);
   if (first && !goals.loaded) themes.apply(S.theme || 'club');
   if (!first && s.theme && s.theme !== lastThemeSetting && !goals.idx) themes.apply(s.theme);

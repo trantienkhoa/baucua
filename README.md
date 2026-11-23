@@ -20,6 +20,14 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 👘 Trang phục dân giã 100 mẫu (bản 2.25.0)
+
+- 100 mẫu đồ dân giã miền quê theo bảng tranh (`DAN_GIA` trong `public/outfits.js`): áo bà ba, áo tứ thân, áo cánh, áo dài the / gấm, sơ mi, đồ bộ hoa, áo len, áo mưa…; nón lá (có nón rách), nón quai thao, nón cối, nón tai bèo, khăn mỏ quạ, khăn đóng, khăn rằn quàng cổ; hoạ tiết hoa nhí, caro, sọc, len, gấm.
+  Nhóm trẻ em / đồng phục học sinh được thay bằng thanh niên (người đại diện người xem phải là người lớn — CLAUDE.md).
+- Vũ Trường Neon: Cài đặt → "Phong cách trang phục" = Dân giã; "Mặc trang phục cho cả 100 nhân vật riêng" để mặc cả cho char01–char98 (mặc chồng lên đồ có sẵn của họ — chưa thử được trên mô hình thật vì không có trong repo).
+- Ngọn Lửa Cuối Cùng (3D): mặc định dân giã (Cài đặt → Trang phục người xem).
+- Hạn chế: áo mưa tạm chưa có vạt; quần của mô hình có sẵn không phải lúc nào cũng đổi màu được; mô hình nam mẫu mặc vest nên áo mặc chồng vẫn giữ dáng vest.
+
 ## 👻 Ngọn Lửa Cuối Cùng: 60 truyện, hiệu ứng ma quái mới (bản 2.24.0)
 
 - **Thêm 30 truyện** (`ma-stories-4/5/6.js`), mỗi cảnh 2–3 truyện, tự đổi sang đúng cảnh khi kể: bù nhìn quay đầu, ngọn đèn giữa ruộng, cây chuối hột, tiếng khóc trong bụi tre, gàu múc nước nửa đêm, đèn lồng cành đa, ván cờ dưới gốc đa, người gác nghĩa trang, chuyến đò cuối, phiên chợ ba giờ sáng, toa tàu thứ mười ba, chiếc đồng hồ quả lắc, trống đình nửa đêm, gánh hát bội…
