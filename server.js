@@ -133,6 +133,8 @@ const DEFAULT_SETTINGS = {
   luckyEvery: 4,                // vẽ tặng may mắn: mỗi N phút quay số một người bình luận (0 = tắt)
   voteSeconds: 12,              // chấm điểm tranh vừa vẽ (gõ 1–5) trong bao nhiêu giây (0 = tắt)
   freeCooldown: 5,              // vẽ biếm họa miễn phí lại sau bao nhiêu phút
+  partyMusic: '',               // bài phát lúc Dance party ('' = nhạc party máy tự đánh)
+  partyMusicVol: 0.8,           // âm lượng nhạc party
 };
 
 const savedSettings = readJSON('settings.json', {});

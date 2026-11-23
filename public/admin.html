@@ -569,7 +569,8 @@ $('btnFire').onclick = () => socket.emit('cmd', { type: 'fire' });
 $('btnClear').onclick = () => { if (confirm('Dọn hết nhân vật trên sàn?')) socket.emit('cmd', { type: 'clear' }); };
 $('btnResetTop').onclick = () => { if (confirm('Xoá bảng top tặng quà?')) socket.emit('resetTop'); };
 // ---------- game Họa Sĩ ----------
-let PROSTER = [];
+let PROSTER = [], PMUSIC = [];
+socket.on('music', list => { PMUSIC = Array.isArray(list) ? list : []; renderPainter(); });
 const PFIELDS = [
   ['painterName', '🎨 Tên họa sĩ (ký trên tranh)', 'text'],
   ['painterChar', '🧍 Nhân vật làm họa sĩ', 'select', () => [['', '— nhân vật nam mặc định —'], ...PROSTER.map(r => [r.id, `${r.id} · ${r.name} (${r.female ? 'nữ' : 'nam'}) — ${r.outfit}`.slice(0, 90)])]],
@@ -581,6 +582,8 @@ const PFIELDS = [
   ['painterSfx', '🔊 Âm lượng hiệu ứng (bút chì, cọ, vỗ tay…) 0–1.5', 'num', 0.1],
   ['partyGoal', '💃 Điểm mở Dance party (1 tim = 1 · 1 xu = 5 · follow = 20)', 'num', 50],
   ['partySeconds', '💃 Dance party kéo dài (giây)', 'num', 1],
+  ['partyMusic', '🎶 Nhạc Dance party', 'select', () => [['', '🥁 Nhạc party có sẵn (máy tự đánh)'], ...PMUSIC.map(n => [n, '🎵 ' + n])]],
+  ['partyMusicVol', '🎶 Âm lượng nhạc party (0–1.5)', 'num', 0.1],
   ['painterLegend', '📋 Hiện bảng thông tin (cách chơi, hàng chờ, bảng vàng)', 'check'],
   ['painterQueueMax', '👥 Số người tối đa trong hàng chờ', 'num', 10],
 ];

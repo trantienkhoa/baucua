@@ -1278,9 +1278,9 @@ function startParty() {
   bubble('Quẩy thôi!', 2.5);
   horn(); sfx.applause(1.6, 0.8); confetti(120);
   for (const p of [painter, ...bodied()]) p.dance = pickDance();
-  if (Music) Music.setDuck(1);
+  partyMusicStart();
 }
-function stopParty() { party.on = false; if (Music) Music.setDuck(0.62); bubble('Vẽ tiếp nào!', 2); }
+function stopParty() { party.on = false; partyMusicStop(); bubble('Vẽ tiếp nào!', 2); }
 function pickDance() { let i; for (let k = 0; k < 10; k++) { i = Math.floor(Math.random() * DANCES.length); if (!DANCES[i].floor) break; } return i || 0; }
 function updateParty(t, dt) {
   if (party.on && t > party.until) stopParty();
@@ -1326,7 +1326,10 @@ function idlePose(a, t) {
   return o;
 }
 function wavePose(a, t) { const o = idlePose(a, t); o.lu = -2.55 + Math.sin(t * 11) * 0.35; o.lf = -0.45; o.head = 0.1; return o; }
-function beatPB(t) { const p = Music ? Music.phase : (t * 2) % 1, b = Music ? Music.beat : Math.floor(t * 2); return [p, b]; }
+function beatPB(t) {
+  const pb = partyBeat(); if (pb) return pb;   // đang phát nhạc party máy tự đánh: nhảy đúng nhịp bài đó
+  const p = Music ? Music.phase : (t * 2) % 1, b = Music ? Music.beat : Math.floor(t * 2); return [p, b];
+}
 function dancePose(a, t) { const [p, b] = beatPB(t); const d = DANCES[a.dance] || DANCES[0]; return d ? d.f(p, b, t) : idlePose(a, t); }
 function crowdPose(a, t) {
   if (a.moving) return SP.walk(a.walkPh);
@@ -1608,6 +1611,78 @@ const sfx = {
   },
 };
 const chime = t => sfx.chime(t), horn = () => sfx.horn();
+
+// ---------- NHẠC DANCE PARTY ----------
+// Bài đã tải lên (chọn ở trang điều khiển) hoặc nhạc party máy tự đánh 128 BPM: trống, clap, hi-hat, bass, hợp âm, giai điệu.
+// Lúc party nhạc nền tạm tắt, hết party thì trở lại.
+const PM = { on: false, synth: false, el: null, bus: null, timer: 0, next: 0, step: 0, t0: 0, fade: 0 };
+const PBPM = 128, PBEAT = 60 / PBPM, PSTEP = PBEAT / 4;
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+const PCHORDS = [[45, [57, 60, 64]], [41, [57, 60, 65]], [48, [55, 60, 64]], [43, [55, 59, 62]]];   // Am F C G
+function pmVol() { return clamp(Number(S.partyMusicVol ?? 0.8), 0, 1.5); }
+function pmTone(at, f, dur, type, vol, cut) {
+  const A = Music.ctx, o = A.createOscillator(), g = A.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, at);
+  g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(vol, at + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+  if (cut) { const fl = A.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.setValueAtTime(cut, at); fl.frequency.exponentialRampToValueAtTime(Math.max(200, cut * 0.35), at + dur); o.connect(fl); fl.connect(g); } else o.connect(g);
+  g.connect(PM.bus); o.start(at); o.stop(at + dur + 0.02);
+}
+function pmNoise(at, dur, type, f, vol) {
+  const A = Music.ctx, src = A.createBufferSource(), fl = A.createBiquadFilter(), g = A.createGain();
+  src.buffer = noiseBuf; fl.type = type; fl.frequency.value = f;
+  g.gain.setValueAtTime(vol, at); g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+  src.connect(fl); fl.connect(g); g.connect(PM.bus); src.start(at, Math.random() * 0.5); src.stop(at + dur + 0.02);
+}
+function pmKick(at) {
+  const A = Music.ctx, o = A.createOscillator(), g = A.createGain();
+  o.frequency.setValueAtTime(150, at); o.frequency.exponentialRampToValueAtTime(42, at + 0.14);
+  g.gain.setValueAtTime(0.9, at); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.3);
+  o.connect(g); g.connect(PM.bus); o.start(at); o.stop(at + 0.32);
+}
+function pmStep(at, n) {
+  const s = n % 16, bar = Math.floor(n / 16), [root, ch] = PCHORDS[bar % 4], intro = bar < 1;
+  if (s % 4 === 0) pmKick(at);
+  if (s % 4 === 2) { pmNoise(at, 0.09, 'highpass', 7000, 0.16); if (!intro) pmTone(at, mtof(root + 12), 0.2, 'sawtooth', 0.16, 900); }
+  else if (s % 2 === 1) pmNoise(at, 0.03, 'highpass', 9000, 0.05);
+  if ((s === 4 || s === 12) && !intro) { pmNoise(at, 0.16, 'bandpass', 1500, 0.45); pmNoise(at + 0.012, 0.12, 'bandpass', 1100, 0.25); }
+  if (!intro && (s === 0 || s === 3 || s === 6 || s === 10)) for (const m of ch) pmTone(at, mtof(m), 0.16, 'sawtooth', 0.045, 2600);
+  if (bar % 4 >= 2 && s % 2 === 0) { const arp = [...ch, ch[0] + 12]; pmTone(at, mtof(arp[(s / 2) % 4] + 12), 0.12, 'square', 0.03, 3000); }
+  if (s === 0 && bar % 8 === 0) pmNoise(at, 1.2, 'highpass', 5000, 0.12);   // chũm chọe đầu mỗi 8 nhịp
+}
+function pmSchedule() {
+  const A = Music.ctx; if (!A || !PM.synth) return;
+  while (PM.next < A.currentTime + 0.3) { pmStep(PM.next, PM.step++); PM.next += PSTEP; }
+}
+function partyBeat() {
+  if (!PM.synth || !Music || !Music.ctx) return null;
+  const e = (Music.ctx.currentTime - PM.t0) / PBEAT; if (e < 0) return null;
+  return [e - Math.floor(e), Math.floor(e)];
+}
+function partyMusicStart() {
+  if (!Music) return;
+  partyMusicStop(true);
+  const A = sfxCtx(); if (!A) return;   // trình duyệt chưa cho phát tiếng
+  PM.on = true; Music.setDuck(0);
+  PM.bus = A.createGain(); PM.bus.gain.setValueAtTime(0, A.currentTime); PM.bus.gain.linearRampToValueAtTime(pmVol() * 0.55, A.currentTime + 0.6); PM.bus.connect(A.destination);
+  const name = S.partyMusic;
+  if (name && (Music.playlist || []).includes(name)) {
+    const el = new Audio('/music/' + encodeURIComponent(name)); el.loop = true; el.crossOrigin = 'anonymous';
+    try { A.createMediaElementSource(el).connect(PM.bus); } catch (e) {}
+    el.play().catch(() => {}); PM.el = el; PM.synth = false;
+  } else {
+    PM.synth = true; PM.step = 0; PM.t0 = PM.next = A.currentTime + 0.08;
+    PM.timer = setInterval(pmSchedule, 25); pmSchedule();
+  }
+}
+function partyMusicStop(now_) {
+  if (PM.timer) { clearInterval(PM.timer); PM.timer = 0; }
+  PM.synth = false;
+  const A = Music && Music.ctx, bus = PM.bus, el = PM.el;
+  if (bus && A) { bus.gain.cancelScheduledValues(A.currentTime); bus.gain.setValueAtTime(bus.gain.value, A.currentTime); bus.gain.linearRampToValueAtTime(0, A.currentTime + (now_ ? 0.05 : 1.2)); setTimeout(() => { try { bus.disconnect(); } catch (e) {} if (el) el.pause(); }, now_ ? 100 : 1300); }
+  PM.bus = null; PM.el = null;
+  if (PM.on && Music) Music.setDuck(0.62);
+  PM.on = false;
+}
 
 // ---------- bong bóng lời của họa sĩ (chữ, không đọc thành tiếng) ----------
 const short = n => { n = String(n || ''); return n.length > 12 ? n.slice(0, 11) + '…' : n; };
@@ -2093,5 +2168,5 @@ function checkAudio() { tap.style.display = Music && Music.suspended() && !OBS &
 const unlock = () => { if (!Music) return; Music.init(); Music.resume(); setTimeout(checkAudio, 200); };
 window.addEventListener('pointerdown', unlock);
 setInterval(checkAudio, 1500);
-window._painter = { queue, people, party, lucky, gallery, get job() { return job; }, get vote() { return vote; }, get best() { return best; }, startParty, camera, scene, inject: handleEv };   // chỉ dùng khi thử nghiệm
+window._painter = { queue, people, party, lucky, gallery, PM, get job() { return job; }, get vote() { return vote; }, get best() { return best; }, startParty, camera, scene, inject: handleEv };   // chỉ dùng khi thử nghiệm
 requestAnimationFrame(frame);

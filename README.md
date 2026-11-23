@@ -62,6 +62,7 @@ Tạo bằng Web Audio, không cần tệp: bút chì sột soạt khi phác th�
 - Nút **⏭ Vẽ xong tranh này ngay**, **💃 Dance party ngay**, **🧹 Xoá hàng chờ**, **🍀 Quay số vẽ tặng ngay** và các nút thử (khách bình luận, quà 1 / 30 / 99 / 299 xu, 300 tim, 10 phiếu chấm điểm, khách gõ “pop art”).
 - Nút *🧹 Dọn sàn* ở mục 2 cũng xoá hàng chờ vẽ; *🔥 Đốt sàn ngay* mở Dance party.
 
+- **Bản 2.11.0 — nhạc Dance Party:** khi party bắt đầu, nhạc nền tạm tắt và vào **nhạc party riêng**: mặc định là bản nhạc máy tự đánh 128 BPM (trống, clap, hi-hat, bass, hợp âm Am–F–C–G, giai điệu rải, chũm chọe mỗi 8 nhịp), mọi người nhảy đúng nhịp bài này. Muốn dùng bài của bạn: tải bài lên ở mục 🎵 Nhạc nền rồi chọn ở *🎶 Nhạc Dance party*; chỉnh to nhỏ ở *🎶 Âm lượng nhạc party*. Hết party nhạc nền tự trở lại.
 - **Bản 2.10.2:** tranh biếm họa (free) **nhìn rõ mặt hơn**: sau các nét bút dạ, họa sĩ láng thêm một lớp ảnh hoạt hình hoá (màu phẳng, lấy từ ảnh đã bóp méo) rồi đi lại nét viền — vẫn đầu to, vẫn hài, nhưng nhận ra ngay là ai. Tranh biếm họa cũng có **khung hồng** trên giá vẽ.
 - **Bản 2.10.1:** sửa lỗi màn game Họa Sĩ thỉnh thoảng **nháy đen một khung hình** (lúc đổi tranh) khi *Mức hiệu ứng: Mạnh* — một điểm ảnh lỗi bị hiệu ứng toả sáng lan ra cả màn; nay được lọc trước khi toả sáng. Đã chạy thử với đủ 98 nhân vật.
 
