@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, avatarTemplates, setOutfitMix, setOutfitStyle, setDressChars, templateForChar, hasCharModel } from './avatars.js';
+import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, avatarTemplates, setOutfitMix, setOutfitStyle, setDressChars, templateForChar, hasCharModel, charFemale } from './avatars.js';
 import { attachProp } from './costumes.js';
 
 const W = 1080, H = 1920, TAU = Math.PI * 2;
@@ -1050,14 +1050,17 @@ if (renderer && SH) {
       if (!v.seat || !v.seat.w) continue;
       seen.add(v.id);
       let e = avs.get(v.id);
+      if (e && e.gender !== (v.gender || null)) { disposeAvatar(e.av); avs.delete(v.id); e = null; }   // người xem vừa đổi nam / nữ → dựng lại nhân vật
       if (!e && modelsReady && avatarTemplates.length) {
-        const h = hash(v.id);
+        const h = hash(v.id), want = v.gender ? v.gender === 'f' : null;
         let tpl = null;
-        if (hasCharModel(CHAR_IDS[h % 98])) { tpl = templateForChar(CHAR_IDS[h % 98]); if (!tpl) continue; }
-        const av = createAvatar(scene, tpl ? tpl.female : !!(h & 1), tpl, null);
+        // chọn nhân vật char (của Vũ Trường Neon) cùng giới tính người xem đã chọn
+        const chars = CHAR_IDS.filter(id => hasCharModel(id) && (want === null || charFemale(id) === want));
+        if (chars.length) { tpl = templateForChar(chars[h % chars.length]); if (!tpl) continue; }
+        const av = createAvatar(scene, tpl ? tpl.female : want !== null ? want : !!(h & 1), tpl, null);
         if (!av) continue;
         av.holder.traverse(o => { if (o.isMesh && o.material && o.material.emissiveIntensity >= 2 && o.material.toneMapped === false) o.visible = false; });   // bỏ que phát sáng
-        e = { av, v, ghost: false }; avs.set(v.id, e);
+        e = { av, v, ghost: false, gender: v.gender || null }; avs.set(v.id, e);
       }
       if (!e) { v.has3d = false; continue; }
       e.v = v; v.has3d = true;

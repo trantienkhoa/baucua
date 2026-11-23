@@ -237,7 +237,8 @@
   fetch('/api/ma-nguoi2d').then(r => r.json()).then(list => {
     for (const f of list || []) {
       const m = /^(ngoi|so|dung|sodung|lua)-.*?-([rlfb])\.png$/i.exec(f) || [null, /^so/i.test(f) ? 'so' : 'ngoi', 'r'];
-      const im = new Image(); im.onload = () => { if (/^lua/i.test(f) && window.MA2D.onPoses) window.MA2D.onPoses(); }; im.src = B + 'nguoi/' + f; im.face = m[2].toLowerCase(); POSE[m[1].toLowerCase()].push(im);
+      const gm = /-(nam|nu)-/i.exec(f);
+      const im = new Image(); im.gender = gm ? (gm[1].toLowerCase() === 'nu' ? 'f' : 'm') : null; im.onload = () => { if (/^lua/i.test(f) && window.MA2D.onPoses) window.MA2D.onPoses(); }; im.src = B + 'nguoi/' + f; im.face = m[2].toLowerCase(); POSE[m[1].toLowerCase()].push(im);
     }
   }).catch(() => {});
   const ready = pool => pool.filter(i => i.complete && i.naturalWidth);
@@ -249,6 +250,7 @@
     let pool = front ? ready(POSE.lua) : ready(stand ? (scared && ready(POSE.sodung).length ? POSE.sodung : POSE.dung) : (scared && ready(POSE.so).length ? POSE.so : POSE.ngoi));
     if (!pool.length) pool = ready(POSE.ngoi);
     if (!pool.length) return false;
+    if (v.gender) { const g = pool.filter(i => i.gender === v.gender); if (g.length) pool = g; }   // người xem tự chọn nam / nữ
     let h = 0; for (const c of String(v.id)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
     const im = pool[h % pool.length], H = (stand ? 255 : 170) * sc, Wd = H * im.naturalWidth / im.naturalHeight;
     const want = x < LX ? 'r' : 'l', flip = im.face !== 'f' && im.face !== 'b' && im.face !== want;

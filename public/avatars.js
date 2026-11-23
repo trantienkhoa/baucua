@@ -541,3 +541,5 @@ export function templateForChar(id) {
   return null;
 }
 export function hasCharModel(id) { return lazyChars.has(String(id || '').toLowerCase()); }
+// nhân vật char là nữ? (theo danh sách nhân vật / cài đặt mô hình)
+export function charFemale(id) { const it = lazyChars.get(String(id || '').toLowerCase()); return it ? !!it.female : null; }

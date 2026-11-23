@@ -1210,6 +1210,13 @@
       if (vm) { castVote(v, +vm[1] - 1, user); return; }
     }
     // niệm Phật xua ma
+    // đổi nhân vật nam / nữ: bình luận đúng một chữ "nam" hoặc "nữ"
+    const s1 = s.replace(/[^a-z]/g, '');
+    if (v && (s1 === 'nam' || s1 === 'nu') && t - (v.genderAt || -99) > 8) {
+      const g = s1 === 'nu' ? 'f' : 'm';
+      if (v.gender !== g) { v.gender = g; v.genderAt = t; v.glow = 1.5; floatText(g === 'f' ? '👩 Nữ' : '👨 Nam', v.x, v.y - 120 * v.seat.sc, '#ffd27a', 26); }
+      return;
+    }
     if (PRAY_RE.test(s) && v && !v.taken) {
       if (window.MaAudio && MaAudio.real && t - (window.__lastMo || 0) > 4) { window.__lastMo = t; MaAudio.real('mo-go', 0.45, 2.6); }
       if (t - v.prayAt > 20) {
@@ -2276,7 +2283,7 @@
     rescue: { icon: '👻', title: 'CỨU NGƯỜI BỊ MA BẮT', color: '#9fc0ff', steps: () => [use3D() ? 'Người bị bắt thành bóng ma xanh mờ đứng trong bóng tối' : 'Người bị bắt hiện trong TẤM GƯƠNG, có số ghế trên mặt', 'Gõ: cứu 12  (thay 12 bằng số ghế người đó)', `Đủ ${S.rescueNeed} người gõ là cứu được · người cứu +2 gan dạ`] },
     trura: { icon: '☯️', title: 'TRỪ TÀ', color: '#ffd27a', steps: () => ['Người tặng ☯️ Trừ tà trở thành THẦY PHÁP của phòng', 'Cứu hết người bị ma dắt đi · lửa cháy to · âm khí về 0', 'Thầy pháp chỉ là danh hiệu trang trí, không có quyền gì hơn người khác'] },
     behind: { icon: '⚠️', title: 'MA ĐANG ĐỨNG SAU LƯNG', color: '#ff6a5a', steps: () => ['Tìm chữ đỏ "⚠ SAU LƯNG BẠN" trên đầu một người', 'Người đó (hoặc ai cũng được) gõ "nam mô" để đuổi ma', 'Hoặc tặng 🧂 Rắc muối — âm khí cao quá là ma bắt người'] },
-    general: { icon: '🔥', title: 'CÁCH CHƠI', color: '#ffd27a', steps: () => ['Bình luận bất kỳ → ngồi một ghế có số, tên bạn có thể vào truyện', 'Thả tim = thêm củi cho lửa · gõ "nam mô" = xua âm khí', 'Khi bình chọn gõ 1 hoặc 2 · gõ "cứu 12" để cứu người bị ma dắt đi', 'Không cần tặng quà vẫn chơi được: bình luận, thả tim, đoán, cứu người'] },
+    general: { icon: '🔥', title: 'CÁCH CHƠI', color: '#ffd27a', steps: () => ['Bình luận bất kỳ → ngồi một ghế có số · gõ "nam" hoặc "nữ" để đổi nhân vật', 'Thả tim = thêm củi cho lửa · gõ "nam mô" = xua âm khí', 'Khi bình chọn gõ 1 hoặc 2 · gõ "cứu 12" để cứu người bị ma dắt đi', 'Không cần tặng quà vẫn chơi được: bình luận, thả tim, đoán, cứu người'] },
   };
   let guide = null; const guideQ = []; const guideAt = {};
   function showGuide(key, cooldown = 90) {

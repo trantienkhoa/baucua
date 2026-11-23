@@ -20,6 +20,12 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 🚻 Người xem tự chọn nam / nữ (bản 2.25.1)
+
+- Bình luận đúng một chữ **"nam"** hoặc **"nữ"** (có dấu hay không đều được) → nhân vật của người đó đổi sang giới tính đã chọn, giữ nguyên chỗ ngồi. Mỗi người đổi được 8 giây một lần.
+- 2D: chọn dáng vẽ tay cùng giới tính (tên file dáng có thêm `-nam-` / `-nu-`). 3D: chọn nhân vật char của Vũ Trường Neon cùng giới tính (theo danh sách nhân vật), mặc đồ dân giã.
+- Hướng dẫn "Cách chơi" có thêm dòng gõ nam / nữ.
+
 ## 👘 Trang phục dân giã 100 mẫu (bản 2.25.0)
 
 - 100 mẫu đồ dân giã miền quê theo bảng tranh (`DAN_GIA` trong `public/outfits.js`): áo bà ba, áo tứ thân, áo cánh, áo dài the / gấm, sơ mi, đồ bộ hoa, áo len, áo mưa…; nón lá (có nón rách), nón quai thao, nón cối, nón tai bèo, khăn mỏ quạ, khăn đóng, khăn rằn quàng cổ; hoạ tiết hoa nhí, caro, sọc, len, gấm.
