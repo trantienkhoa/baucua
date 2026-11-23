@@ -84,7 +84,7 @@ document.getElementById('openGame').onclick = async () => {
 
   <div class="card" style="border:2px solid #f2c14e;background:#fffaf0">
     <h2>🎨 Game Họa Sĩ — họa sĩ 3D vẽ chân dung người xem</h2>
-    <div class="muted">Màn game thứ hai, dùng chung kết nối TikTok, nhạc và nhân vật 3D của bạn — <b>không có MC</b>, chỉ có âm thanh game. <b>Bình luận / thả tim</b> → vào hàng chờ, được vẽ <b>biếm họa</b> 🤪 · <b>tặng quà</b> → được ưu tiên, <b>quà càng lớn tranh càng giống ảnh đại diện</b> (1 xu vẽ nhanh, 30 xu sơn dầu, 99 xu chân dung khung vàng, 299 xu kiệt tác giống y ảnh) · thanh cầu vồng đầy → <b>DANCE PARTY</b>. Giữ chân người xem: số thứ tự hàng chờ, gõ <code>thứ mấy</code>, chọn kiểu tranh (<code>pop art</code>, <code>màu nước</code>, <code>neon</code>), chấm điểm tranh <code>1–5</code>, vẽ tặng may mắn, bảng vàng, chia sẻ / follow để chen hàng. Khi LIVE chỉ thêm <b>một</b> trong hai màn (sàn nhảy hoặc họa sĩ) vào OBS.</div>
+    <div class="muted">Màn game thứ hai, dùng chung kết nối TikTok, nhạc và nhân vật 3D của bạn — <b>không có MC</b>, chỉ có âm thanh game. <b>Bình luận / thả tim</b> → vào hàng chờ, được vẽ <b>tranh hoạt hình miễn phí</b> · <b>tặng quà</b> → quà càng lớn tranh càng chi tiết, giống ảnh đại diện · thanh cầu vồng đầy → <b>DANCE PARTY</b> với 10 bài nhạc có sẵn. Đã bỏ các yếu tố dễ vi phạm nguyên tắc TikTok (chê ngoại hình, nài quà, quay số may rủi, đổi follow/chia sẻ lấy quyền lợi, thưởng quà theo giờ). <b>Tự chạy khi vắng</b>: khách phố ngồi mẫu, Dance Party theo giờ, người qua đường. Khi LIVE chỉ thêm <b>một</b> trong hai màn (sàn nhảy hoặc họa sĩ) vào OBS.</div>
     <div id="pUrls" style="margin-top:8px"></div>
     <div class="row"><button class="pri" id="pOpen" title="Mở game Họa Sĩ bằng Chrome/Edge, tự phát tiếng không cần bấm vào trang">🖥️ Mở game Họa Sĩ (tự có tiếng)</button><span class="muted" id="pOpenMsg"></span></div>
     <div class="grid" id="pGrid" style="margin-top:8px"></div>
@@ -93,7 +93,7 @@ document.getElementById('openGame').onclick = async () => {
       <button id="pSkip">⏭ Vẽ xong tranh này ngay</button>
       <button id="pParty">💃 Dance party ngay</button>
       <button id="pClear">🧹 Xoá hàng chờ</button>
-      <button id="pLucky">🍀 Quay số vẽ tặng ngay</button>
+      <button id="pLucky">🍀 Vẽ tặng người chờ lâu nhất ngay</button>
     </div>
     <div class="row"><b>Thử:</b>
       <button id="pJoin">💬 +10 khách bình luận</button>
@@ -575,9 +575,13 @@ const PFIELDS = [
   ['painterName', '🎨 Tên họa sĩ (ký trên tranh)', 'text'],
   ['painterChar', '🧍 Nhân vật làm họa sĩ', 'select', () => [['', '— nhân vật nam mặc định —'], ...PROSTER.map(r => [r.id, `${r.id} · ${r.name} (${r.female ? 'nữ' : 'nam'}) — ${r.outfit}`.slice(0, 90)])]],
   ['paintSeconds', '⏱️ Thời gian vẽ mỗi tranh (giây, 6–60)', 'num', 1],
-  ['paintFree', '🤪 Không ai tặng quà → vẽ biếm họa miễn phí cho người bình luận / thả tim', 'check'],
-  ['freeCooldown', '🤪 Một người được vẽ biếm họa lại sau (phút)', 'num', 1],
-  ['luckyEvery', '🍀 Vẽ tặng may mắn: quay số mỗi (phút, 0 = tắt)', 'num', 1],
+  ['paintFree', '✨ Vẽ tranh hoạt hình miễn phí cho người bình luận / thả tim', 'check'],
+  ['freeCooldown', '✨ Một người được vẽ miễn phí lại sau (phút)', 'num', 1],
+  ['luckyEvery', '🍀 Vẽ tặng sơn dầu cho người chờ lâu nhất mỗi (phút, 0 = tắt)', 'num', 1],
+  ['autoGuests', '🤖 Vắng tương tác → khách phố tự ngồi mẫu', 'check'],
+  ['autoIdle', '🤖 Vắng bao lâu thì mời khách phố (giây)', 'num', 5],
+  ['autoPartyEvery', '🤖 Tự mở Dance party mỗi (phút, 0 = tắt)', 'num', 1],
+  ['passersby', '🚶 Người qua đường ở cuối phố', 'check'],
   ['voteSeconds', '⭐ Thời gian chấm điểm tranh (giây, 0 = tắt)', 'num', 1],
   ['painterSfx', '🔊 Âm lượng hiệu ứng (bút chì, cọ, vỗ tay…) 0–1.5', 'num', 0.1],
   ['partyGoal', '💃 Điểm mở Dance party (1 tim = 1 · 1 xu = 5 · follow = 20)', 'num', 50],

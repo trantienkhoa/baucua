@@ -42,6 +42,7 @@ Màn game thứ hai, chạy chung máy chủ, kết nối TikTok, nhạc và **n
 
 ### Thu hút và giữ chân người xem
 
+- *(Từ bản 2.13.0 các mục chen hàng, quay số may rủi, quà Dance party +1 hạng, tranh biếm họa chê ngoại hình đã bỏ — xem mục 2.13.0.)*
 - **Chọn kiểu tranh**: gõ `pop art`, `màu nước`, `neon` (hoặc `sơn dầu`) — áp dụng cho tranh vẽ bằng quà. Pop Art chấm bi màu rực, Màu nước loang nhẹ giữ nét chì, Neon nền tối phát sáng.
 - **Số thứ tự trên đầu** từng người trong hàng, người kế tiếp sáng nhấp nháy. Gõ `thứ mấy` → họa sĩ trả lời *“thứ #7 ⏳ ~2 phút”*.
 - **Chấm điểm tranh**: vẽ xong, cả phòng gõ `1`–`5` trong 12 giây. Điểm ghi dưới tranh trên dây phơi; bức điểm cao nhất thành **🏅 Tranh đẹp nhất đêm**.
@@ -62,6 +63,10 @@ Tạo bằng Web Audio, không cần tệp: bút chì sột soạt khi phác th�
 - Nút **⏭ Vẽ xong tranh này ngay**, **💃 Dance party ngay**, **🧹 Xoá hàng chờ**, **🍀 Quay số vẽ tặng ngay** và các nút thử (khách bình luận, quà 1 / 30 / 99 / 299 xu, 300 tim, 10 phiếu chấm điểm, khách gõ “pop art”).
 - Nút *🧹 Dọn sàn* ở mục 2 cũng xoá hàng chờ vẽ; *🔥 Đốt sàn ngay* mở Dance party.
 
+- **Bản 2.13.0 — tuân thủ nguyên tắc TikTok + tự chạy khi vắng:**
+  - Đã bỏ những thứ dễ bị TikTok coi là vi phạm: tranh miễn phí **không còn chê / bóp méo ngoại hình** (đổi thành *tranh hoạt hình* đáng yêu, chỉ có lời khen, bỏ dấu “BẢN FREE”, bỏ kèn hài và cảnh ôm đầu); **không nài quà** (bỏ các câu “tặng quà để…”, bỏ “quà lúc Dance party lên 1 hạng”); **không quay số may rủi** (vẽ tặng chuyển thành tặng người bình luận chờ lâu nhất); **không đổi follow / chia sẻ lấy quyền chen hàng** (chỉ cảm ơn). Bảng *Cách chơi* vẫn ghi quà nào được vẽ kiểu gì để người xem biết.
+  - **Tự chạy khi vắng:** không ai tương tác 20 giây → **khách phố** (một trong 98 nhân vật) tự ngồi cho họa sĩ vẽ, tranh vẫn treo lên dây và chấm điểm được; **Dance party tự mở mỗi 10 phút**; **người qua đường** đi lại cuối phố. Người xem thật luôn được ưu tiên. Chỉnh ở mục 🤖 trong trang điều khiển.
+  - Lưu ý: TikTok ghi rõ LIVE *thụ động / không người trông* có thể bị **mất kiếm tiền và không được đề xuất**. Game tự chạy giúp màn hình luôn có nội dung mới, nhưng không thay được việc chủ kênh có mặt; nên ghé trò chuyện, trả lời bình luận định kỳ.
 - **Bản 2.12.0 — 10 bài nhạc party có sẵn, không cần tải lên:** mỗi lần Dance Party chọn ngẫu nhiên một bài (không lặp bài vừa phát), tên bài hiện dưới chữ DANCE PARTY: 🥁 Neon Rush (house 128), Tết Bùng Nổ (132, giai điệu ngũ cung), Disco Phố (118), Moombah Vui (108, nhịp reggaeton), Trap Party (140, bass 808), Hè Rực Rỡ (tropical 124), Bass Bounce (126), Hands Up (eurodance 140), Funky Cọ Vẽ (funk 112), Đêm Hội Neon (electro 130). Máy tự đánh bằng Web Audio, không cần tệp nhạc, không lo bản quyền. Muốn cố định một bài: chọn ở *🎶 Nhạc Dance party*.
 - **Bản 2.11.0 — nhạc Dance Party:** khi party bắt đầu, nhạc nền tạm tắt và vào **nhạc party riêng**: mặc định là bản nhạc máy tự đánh 128 BPM (trống, clap, hi-hat, bass, hợp âm Am–F–C–G, giai điệu rải, chũm chọe mỗi 8 nhịp), mọi người nhảy đúng nhịp bài này. Muốn dùng bài của bạn: tải bài lên ở mục 🎵 Nhạc nền rồi chọn ở *🎶 Nhạc Dance party*; chỉnh to nhỏ ở *🎶 Âm lượng nhạc party*. Hết party nhạc nền tự trở lại.
 - **Bản 2.10.2:** tranh biếm họa (free) **nhìn rõ mặt hơn**: sau các nét bút dạ, họa sĩ láng thêm một lớp ảnh hoạt hình hoá (màu phẳng, lấy từ ảnh đã bóp méo) rồi đi lại nét viền — vẫn đầu to, vẫn hài, nhưng nhận ra ngay là ai. Tranh biếm họa cũng có **khung hồng** trên giá vẽ.
