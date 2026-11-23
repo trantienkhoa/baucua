@@ -245,9 +245,19 @@
   // vẽ một người xem bằng dáng 2D; trả về false nếu chưa có dáng nào
   // hàng sau đống lửa (vòng ngoài, phía trên) đứng xem; còn lại ngồi. Mặt luôn quay về phía đống lửa.
   function viewer(ctx, v, x, y, sc, scared, LX, LY) {
-    const front = v.seat && v.seat.front && ready(POSE.lua).length > 0;   // ngồi trước lửa: quay lưng về phía máy quay, nhìn vào lửa
-    const stand = !front && v.seat && v.seat.ring >= 3 && y < (LY ?? 1185) - 40 && ready(POSE.dung).length > 0;
-    let pool = front ? ready(POSE.lua) : ready(stand ? (scared && ready(POSE.sodung).length ? POSE.sodung : POSE.dung) : (scared && ready(POSE.so).length ? POSE.so : POSE.ngoi));
+    // chọn dáng theo vị trí so với đống lửa để ai cũng nhìn vào lửa:
+    //  · trước lửa (gần máy quay hơn lửa): dáng quay lưng / nghiêng (lua-*) — giữa thì quay lưng thẳng, hai bên thì nghiêng
+    //  · ngang lửa (hai bên): chỉ dáng nghiêng (-r / -l, lật cho mặt hướng vào lửa), không dùng dáng nhìn thẳng máy quay
+    //  · sau lửa: dáng nào cũng được (nhìn về máy quay = nhìn vào lửa); hàng ngoài đứng
+    const fy = LY ?? 1185, dx = Math.abs(x - LX), F = ready(POSE.lua);
+    const zone = y > fy + 25 && F.length ? 'front' : y > fy - 110 ? 'side' : 'back';
+    const stand = zone === 'back' && v.seat && v.seat.ring >= 3 && ready(POSE.dung).length > 0;
+    let pool;
+    if (zone === 'front') { const want = dx < 170 ? F : F.filter(i => i.face !== 'b'); pool = want.length ? want : F; }   // giữa: cả quay lưng lẫn nghiêng; hai bên: chỉ nghiêng
+    else {
+      pool = ready(stand ? (scared && ready(POSE.sodung).length ? POSE.sodung : POSE.dung) : (scared && ready(POSE.so).length ? POSE.so : POSE.ngoi));
+      if (zone === 'side') { const sideOnly = pool.filter(i => i.face === 'l' || i.face === 'r'); pool = sideOnly.length ? sideOnly : ready(POSE.ngoi).filter(i => i.face === 'l' || i.face === 'r'); }
+    }
     if (!pool.length) pool = ready(POSE.ngoi);
     if (!pool.length) return false;
     if (v.gender) { const g = pool.filter(i => i.gender === v.gender); if (g.length) pool = g; }   // người xem tự chọn nam / nữ
