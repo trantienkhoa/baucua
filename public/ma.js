@@ -1386,21 +1386,23 @@
     const scOf = y => 0.62 + (y - 960) / 580 * 0.52;
     const box = (x, y) => { const sc = scOf(y), h = (y < F.y - 40 ? 255 : 170) * sc, w = h * 0.55; return { x0: x - w / 2, x1: x + w / 2, y0: y + 22 * sc - h, y1: y + 22 * sc }; };
     const hitsT = (x, y) => { const b = box(x, y); return b.x0 < r.x1 && b.x1 > r.x0 && b.y0 < r.y1 && b.y1 > r.y0; };
-    const out = [], rings = [250, 345, 440, 535, 630, 725, 820], hasBack = window.MA2D.hasBackPoses && window.MA2D.hasBackPoses();
+    // ngồi thành các vòng tròn (ellipse vì nhìn nghiêng) kín quanh đống lửa; chỉ chừa chỗ ông Tư và bảng quà
+    const out = [], rings = [270, 360, 450, 540, 630, 720];
     rings.forEach((R, ri) => {
-      const ky = 0.5 - ri * 0.025, step = (ri < 2 ? 100 : 80) / R, a0 = -Math.PI + 0.3, a1 = Math.PI + 0.42;
-      for (let a = a0 + (ri % 2) * step / 2; a <= a1; a += step) {
-        const x = F.x + R * Math.cos(a), y = F.y - R * Math.sin(a) * ky;
-        const front = y > F.y + 40;   // nửa vòng phía trước: dùng dáng quay lưng / nghiêng (có tranh) — không có thì bỏ trống
-        if (x < 60 || x > W - 60 || y < 925 || y > 1560) continue;
-        if (front && (!hasBack || R < 345 || (Math.abs(x - F.x) < 95 && R < 440))) continue;   // vòng kín, chỉ chừa một khe nhỏ ngay trước mặt lửa
-        if (!front && y > F.y && Math.abs(x - F.x) < 300) continue;
+      const ky = 0.46, n = Math.max(8, Math.round(TAU * Math.sqrt((R * R + (R * ky) ** 2) / 2) / 92)), off = (ri % 2) * 0.5;
+      for (let k = 0; k < n; k++) {
+        const a = (k + off) / n * TAU, x = F.x + R * Math.cos(a), y = F.y - R * Math.sin(a) * ky;
+        if (x < 60 || x > W - 60 || y < 925 || y > 1610) continue;
         if (x > 690 && y > 1370) continue;                     // bảng quà
         if (hitsT(x, y)) continue;                             // chỗ ông Tư
-        out.push({ x, y, sc: scOf(y), ring: ri, front, zone: null, w: null, pose: null, face: null });
+        out.push({ x, y, sc: scOf(y), ring: ri, front: y > F.y + 25, zone: null, w: null, pose: null, face: null, a });
       }
     });
-    out.sort((p, q) => p.ring - q.ring || Math.abs(p.x - F.x) - Math.abs(q.x - F.x));   // vào trước ngồi gần lửa
+    // vào trước ngồi vòng trong; trong một vòng thì rải đều quanh lửa (không dồn một phía)
+    const spread = k => { let b = 0, m = 1; for (let i = 0; i < 8; i++) { m /= 2; if (k & (1 << i)) b += m; } return b; };
+    out.forEach(q => { q.ord = 0; });
+    for (let ri = 0; ri < rings.length; ri++) { const ring = out.filter(q => q.ring === ri).sort((p, q) => p.a - q.a); ring.forEach((q, k) => { q.ord = ring.length ? spread(k) : 0; }); }
+    out.sort((p, q) => p.ring - q.ring || p.ord - q.ord);
     while (out.length < SEAT2D.length) out.push({ x: -999, y: -999, sc: 1, ring: 9, front: false, zone: null, w: null, pose: null, face: null });
     return out.slice(0, SEAT2D.length);
   }
