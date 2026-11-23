@@ -142,7 +142,7 @@
     return { x, y: y - TELLER.h + 30, sc: 1 };
   }
   // vùng ông Tư chiếm chỗ (ghế trong vùng này dời ra chỗ khác)
-  function tellerRect(LX, LY) { return { x0: LX + TELLER.dx - 105, x1: LX + TELLER.dx + 105, y0: LY + TELLER.dy - TELLER.h + 20, y1: LY + TELLER.dy + 30 }; }
+  function tellerRect(LX, LY) { return { x0: LX + TELLER.dx - 118, x1: LX + TELLER.dx + 118, y0: LY + TELLER.dy - TELLER.h - 10, y1: LY + TELLER.dy + 14 }; }   // khung hình ông Tư + mép an toàn
 
   // ===== đống lửa: vết tro, vòng đá, củi cháy (mỗi cảnh một kiểu), đống củi để sẵn =====
   function fireBase(ctx, t, LX, LY, map, oil) {

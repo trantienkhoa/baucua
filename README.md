@@ -20,6 +20,13 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 🔊 Ngọn Lửa Cuối Cùng: âm thanh thu thật, ông Tư không bị che (bản 2.21.0)
+
+- 15 bản ghi âm thật (`public/models/ma/I/`): mỗi cảnh một bộ lớp nền (ếch dế, gió lùa tre, lá xào xạc, nước giếng, nước vỗ, tàu hỏa xa) và tiếng thưa thỉnh thoảng (chó tru, cú, quạ, chuông đình, trống, mõ).
+- Tiếng củi nổ thật to nhỏ theo lượng củi; bước chân trên lá / sỏi khi ông Tư dẫn đoàn đổi cảnh; gõ mõ khi có người niệm Phật, chuông đình khi trừ tà. Có tiếng thật thì tắt dế / cú / củi tổng hợp.
+- **Ghi công bắt buộc** (CC BY / CC BY-SA): `public/models/ma/I/GHI-CONG.txt`, có dòng ghi công ở cuối trang điều khiển. Giữ file này trong mọi bản gửi khách.
+- Bản 2D: ghế nào có hình người xem chạm vào ông Tư thì tự dời sang chỗ trống gần lửa nhất, không che đống lửa.
+
 ## 🔑 Ngọn Lửa Cuối Cùng: key bản quyền + web bán hàng (bản 2.20.0)
 
 - Game cần key mới mở được màn game và trang điều khiển (trang `/kich-hoat.html`); bản không có `license-pubkey.js` không khoá.

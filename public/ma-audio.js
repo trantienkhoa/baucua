@@ -15,6 +15,7 @@
     A.verbIn.connect(A.verb); A.verb.connect(A.master);
     A.noise = noiseBuf(2);
     startAmbient();
+    A.preload();
   };
   A.resume = () => { if (A.ctx && A.ctx.state === 'suspended') A.ctx.resume().catch(() => {}); };
   A.suspended = () => !A.ctx || A.ctx.state !== 'running';
@@ -82,12 +83,12 @@
     // dế: im dần khi âm khí cao
     if (t > nextCricket) {
       nextCricket = t + 0.6 + Math.random() * 2.5 + ten * 4;
-      if (ten < 0.85) { const n = 2 + (Math.random() * 3 | 0); for (let i = 0; i < n; i++) osc('sine', 4300 + Math.random() * 300, t + i * 0.07, 0.04, 0.012 * (1 - ten), A.master, 0.003); }
+      if (ten < 0.85 && !A.realReady()) { const n = 2 + (Math.random() * 3 | 0); for (let i = 0; i < n; i++) osc('sine', 4300 + Math.random() * 300, t + i * 0.07, 0.04, 0.012 * (1 - ten), A.master, 0.003); }
     }
     if (t > nextCreak) { nextCreak = t + 10 + Math.random() * 25; A.play('creak', 0.4); }
-    if (t > nextOwl) { nextOwl = t + 35 + Math.random() * 50; owl(t); }
+    if (t > nextOwl) { nextOwl = t + 35 + Math.random() * 50; if (!A.realReady()) owl(t); }
     // lửa củi lách tách
-    if (A.fire > 0 && Math.random() < 0.25 + A.fire * 0.5) { const n = 1 + (Math.random() * 3 | 0); for (let i = 0; i < n; i++) noise(t + Math.random() * 0.25, 0.012 + Math.random() * 0.02, 0.15 + A.fire * 0.35, A.master, 'bandpass', 1500 + Math.random() * 3500, 1.5, 0.001); }
+    if (A.fire > 0 && !A.realReady() && Math.random() < 0.25 + A.fire * 0.5) { const n = 1 + (Math.random() * 3 | 0); for (let i = 0; i < n; i++) noise(t + Math.random() * 0.25, 0.012 + Math.random() * 0.02, 0.15 + A.fire * 0.35, A.master, 'bandpass', 1500 + Math.random() * 3500, 1.5, 0.001); }
     // tim đập khi âm khí > 45%
     if (ten > 0.45) {
       const gap = 1.25 - (ten - 0.45) * 1.3;
@@ -269,5 +270,60 @@
     try { f(T() + 0.02 + delay, v); } catch (e) { /* bỏ qua */ }
   };
   A.has = name => !!FX[name];
+
+  // ---------- âm thanh môi trường thu thật (public/models/ma/I): mỗi cảnh một bộ lớp nền + tiếng thưa ----------
+  const SND = '/models/ma/I/', BUF = {}, LOADING = {};
+  function buf(n) {
+    if (BUF[n] || LOADING[n] || !A.ctx) return BUF[n];
+    LOADING[n] = fetch(SND + n + '.ogg').then(r => r.arrayBuffer()).then(b => A.ctx.decodeAudioData(b)).then(d => { BUF[n] = d; }).catch(() => {});
+    return null;
+  }
+  // [lớp lặp liền, âm lượng] · [tiếng thưa thỉnh thoảng, âm lượng]
+  const SCENE_SND = {
+    dong: { loop: [['ech-nhai-de-keu', 0.5], ['gio-lua-tre-keo-ket', 0.18]], occ: [['cho-tru-xa', 0.35]] },
+    chuoi: { loop: [['ech-nhai-de-keu', 0.4], ['la-chuoi-xao-xac', 0.55]], occ: [['cu-keu', 0.4]] },
+    rungtre: { loop: [['gio-lua-tre-keo-ket', 0.45], ['ech-nhai-de-keu', 0.2]], occ: [['cu-keu', 0.45]] },
+    gieng: { loop: [['nuoc-gieng-nho-giot', 0.35], ['ech-nhai-de-keu', 0.35]], occ: [['cho-tru-xa', 0.3]] },
+    cayda: { loop: [['la-chuoi-xao-xac', 0.5], ['ech-nhai-de-keu', 0.3]], occ: [['cu-keu', 0.45], ['qua-keu', 0.3]] },
+    nghiadia: { loop: [['gio-lua-tre-keo-ket', 0.3], ['ech-nhai-de-keu', 0.2]], occ: [['qua-keu', 0.4], ['cho-tru-xa', 0.4]] },
+    mieu: { loop: [['gio-lua-tre-keo-ket', 0.3], ['la-chuoi-xao-xac', 0.3]], occ: [['cu-keu', 0.4], ['mo-go', 0.25]] },
+    bendo: { loop: [['nuoc-vo-man-do', 0.4], ['ech-nhai-de-keu', 0.35]], occ: [['cho-tru-xa', 0.3]] },
+    choma: { loop: [['gio-lua-tre-keo-ket', 0.25], ['ech-nhai-de-keu', 0.25]], occ: [['cho-tru-xa', 0.4], ['qua-keu', 0.3]] },
+    duongray: { loop: [['gio-lua-tre-keo-ket', 0.3], ['tau-hoa-xa-xa', 0.3]], occ: [['qua-keu', 0.3]] },
+    nhahoang: { loop: [['gio-lua-tre-keo-ket', 0.4]], occ: [['qua-keu', 0.35], ['cho-tru-xa', 0.3]] },
+    dinh: { loop: [['ech-nhai-de-keu', 0.35], ['gio-lua-tre-keo-ket', 0.15]], occ: [['chuong-dinh', 0.35], ['trong-dinh-vong-lai', 0.35]] },
+    nhacu: { loop: [['gio-lua-tre-keo-ket', 0.3]], occ: [['qua-keu', 0.25]] },
+  };
+  const layers = new Map();   // tên → { src, g }
+  let curScene = null, nextOcc = 0, fireL = null, stepL = null, walking = false;
+  function loopOn(n, vol, fade = 2.5) {
+    const b = buf(n); if (!b) return false;
+    let L = layers.get(n);
+    if (!L) { const src = A.ctx.createBufferSource(); src.buffer = b; src.loop = true; const g = A.ctx.createGain(); g.gain.value = 0; src.connect(g); g.connect(A.master); src.start(T(), Math.random() * b.duration); L = { src, g }; layers.set(n, L); }
+    L.g.gain.setTargetAtTime(vol, T(), fade / 3); return true;
+  }
+  function once(n, vol, maxDur) {
+    const b = buf(n); if (!b || !A.ctx || A.ctx.state !== 'running') return;
+    const src = A.ctx.createBufferSource(), g = A.ctx.createGain(); src.buffer = b; g.gain.value = vol; src.connect(g); g.connect(A.master); if (A.verbIn) g.connect(A.verbIn);
+    const off = maxDur ? Math.random() * Math.max(0, b.duration - maxDur) : 0; src.start(T(), off, maxDur || b.duration);
+  }
+  A.realReady = () => !!BUF['cui-no-lach-tach'];
+  // gọi mỗi khung: tên cảnh hiện tại + đang đi đường (đổi cảnh 3D)
+  A.scene = function (name, travel) {
+    if (!A.ctx || A.ctx.state !== 'running') return;
+    const cfg = SCENE_SND[name] || SCENE_SND.dong, t = T();
+    const want = new Map(cfg.loop.map(([n, v]) => [n, v * (travel ? 0.5 : 1) * (1 - A.tension * 0.4)]));
+    for (const [n, L] of layers) if (!want.has(n)) L.g.gain.setTargetAtTime(0, t, 1);
+    for (const [n, v] of want) loopOn(n, v);
+    if (name !== curScene) { curScene = name; nextOcc = t + 8 + Math.random() * 10; for (const [n] of cfg.occ) buf(n); }
+    if (t > nextOcc && cfg.occ.length && !travel) { const [n, v] = cfg.occ[Math.floor(Math.random() * cfg.occ.length)]; once(n, v * (0.7 + Math.random() * 0.3), 6); nextOcc = t + 25 + Math.random() * 35; }
+    // tiếng củi cháy thật theo lượng củi
+    const fb = buf('cui-no-lach-tach');
+    if (fb) { if (!fireL) { loopOn('cui-no-lach-tach', 0); fireL = layers.get('cui-no-lach-tach'); } if (fireL) fireL.g.gain.setTargetAtTime(A.fire > 0 ? 0.35 + A.fire * 0.9 : 0, t, 0.6); }
+    // bước chân khi ông Tư dẫn đoàn đi
+    if (travel !== walking) { walking = travel; const sn = Math.random() < 0.5 ? 'buoc-chan-la-kho' : 'buoc-chan-soi'; if (travel) { loopOn(sn, 0.55, 1); stepL = sn; } else if (stepL && layers.get(stepL)) { layers.get(stepL).g.gain.setTargetAtTime(0, t, 0.5); } }
+  };
+  A.real = (n, vol = 0.6, maxDur) => once(n, vol, maxDur);   // tiếng sự kiện: mõ khi niệm Phật, chuông khi trừ tà
+  A.preload = () => { for (const n of ['cui-no-lach-tach', 'ech-nhai-de-keu', 'gio-lua-tre-keo-ket', 'mo-go', 'chuong-dinh']) buf(n); };
   window.MaAudio = A;
 })();

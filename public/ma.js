@@ -79,7 +79,7 @@
     LX = fire.x; LY = fire.y;
   }
   // ghế bị bảng "Tặng quà để…" che thì không xếp người vào
-  const seatHidden = s => S.showGiftGuide && s.x > 680 && s.y > 1430;
+  const seatHidden = s => s.x < -500 || (S.showGiftGuide && s.x > 680 && s.y > 1430);
   const seatByN = n => SEATS[n - 1];
   const RING_NAMES = ['vòng trong cùng (sát đống lửa)', 'vòng thứ hai', 'vòng thứ ba', 'vòng thứ tư', 'vòng ngoài cùng'];
 
@@ -804,6 +804,7 @@
         return;
       }
       case 'trura': {
+        if (window.MaAudio && MaAudio.real) MaAudio.real('chuong-dinh', 0.6, 5);
         if (by) thayId = by.id;
         ev = { type, block: true, t0: t, dur: 6, by };
         showGuide('trura', 30);
@@ -1175,6 +1176,7 @@
     }
     // niệm Phật xua ma
     if (PRAY_RE.test(s) && v && !v.taken) {
+      if (window.MaAudio && MaAudio.real && t - (window.__lastMo || 0) > 4) { window.__lastMo = t; MaAudio.real('mo-go', 0.45, 2.6); }
       if (t - v.prayAt > 20) {
         v.prayAt = t; yin = clamp(yin - 1.5, 0, 100);
         floatText('🙏', v.x, v.y - 110 * v.seat.sc, '#ffd27a', 34);
@@ -1250,7 +1252,7 @@
     lampFlick = 1 + (Math.sin(t * 13) * 0.02 + Math.sin(t * 7.3) * 0.025 + (Math.random() - 0.5) * 0.03) * (0.6 + yin / 100);
     if (t < lampFlickUntil) lampFlick *= Math.random() < 0.35 ? 0.35 : 1;
     if (ev && ev.type === 'blackout' && t - ev.t0 < 5.2) lampFlick = 0;
-    if (window.MaAudio) { MaAudio.setTension(yin / 100); if (MaAudio.setFire) MaAudio.setFire(oil > 0 ? oil / 100 : 0); }
+    if (window.MaAudio) { MaAudio.setTension(yin / 100); if (MaAudio.setFire) MaAudio.setFire(oil > 0 ? oil / 100 : 0); if (MaAudio.scene) MaAudio.scene(curMap, traveling()); }
     if (!use3D() && oil > 0 && Math.random() < dt * (3 + oil / 12)) particles.push({ x: LX + rand(-30, 30), y: LY - 60, vx: rand(-25, 25), vy: -rand(90, 220), life: rand(0.8, 2), max: 2, color: Math.random() < 0.5 ? '255,170,60' : '255,110,30', size: rand(1.2, 2.6), g: -10 });
 
     storyTick(dt);
@@ -1323,12 +1325,21 @@
   const out2D = () => curMap !== 'nhacu' && !!window.MA2D && !use3D();   // cảnh ngoài trời vẽ tay 2D (cả khi máy không chạy được 3D)
   // bố cục ghế 2D: dời các ghế trùng chỗ ông Tư ra hàng sau
   function layout2D() {
-    const r = window.MA2D.tellerRect(540, 1185), list = SEAT2D.map(s => ({ x: s.x, y: s.y, sc: s.sc, ring: s.ring, zone: null, w: null, pose: null, face: null }));
-    const bad = q => q.x > r.x0 - 40 && q.x < r.x1 + 40 && q.y > r.y0 && q.y < r.y1 + 40;
-    const spare = []; for (let y = 945; y <= 990 && spare.length < 40; y += 45) for (let x = 90; x <= 990; x += 64) spare.push({ x, y });
-    for (const q of list) if (bad(q)) {
-      const sp = spare.find(p => !list.some(o => Math.hypot(o.x - p.x, o.y - p.y) < 60) && !bad(p));
-      if (sp) { q.x = sp.x; q.y = sp.y; q.sc = 0.62 + (q.y - 960) / 580 * 0.52; q.ring = 4; }
+    // dáng người xem cao ~255·sc (đứng, sau lửa) hoặc ~170·sc (ngồi); ghế nào có hình chạm khung ông Tư thì dời sang chỗ trống gần lửa nhất
+    const r = window.MA2D.tellerRect(540, 1185), FX = 540, FY = 1185;
+    const scOf = y => 0.62 + (y - 960) / 580 * 0.52;
+    const box = (x, y) => { const sc = scOf(y), h = (y < FY - 40 ? 255 : 170) * sc, w = h * 0.55; return { x0: x - w / 2, x1: x + w / 2, y0: y + 22 * sc - h, y1: y + 22 * sc }; };
+    const hits = (x, y) => { const b = box(x, y); return b.x0 < r.x1 && b.x1 > r.x0 && b.y0 < r.y1 && b.y1 > r.y0; };
+    const blocked = (x, y) => hits(x, y) || (x > 690 && y > 1370) || Math.hypot((x - FX) / 1, (y - FY) / 0.55) < 230 || (y > FY && Math.abs(x - FX) < 170 && y < FY + 330);   // khung ông Tư, bảng quà, sát lửa, không che lửa
+    const list = SEAT2D.map(s => ({ x: s.x, y: s.y, sc: s.sc, ring: s.ring, zone: null, w: null, pose: null, face: null }));
+    const keep = list.filter(q => !hits(q.x, q.y)), move = list.filter(q => hits(q.x, q.y));
+    const spots = [];
+    for (let y = 950; y <= 1530; y += 26) for (let x = 70; x <= 1010; x += 30) if (!blocked(x, y)) spots.push({ x, y, d: Math.hypot(x - FX, (y - FY) / 0.55) });
+    spots.sort((a, b) => a.d - b.d);
+    for (const q of move) {
+      const sp = spots.find(p => !p.used && keep.every(o => Math.abs(o.x - p.x) > 56 || Math.abs(o.y - p.y) > 34));
+      if (!sp) { q.x = -999; continue; }   // hết chỗ: ghế này bỏ trống (vẫn còn ~70 ghế khác)
+      sp.used = true; q.x = sp.x; q.y = sp.y; q.sc = scOf(sp.y); q.ring = 4; keep.push(q);
     }
     return list;
   }
