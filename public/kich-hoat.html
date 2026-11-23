@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kích hoạt bản quyền</title>
+<style>
+  :root { --bg: #0a0b10; --card: #14151d; --line: #262838; --text: #ece6da; --mute: #9a96a4; --acc: #ff9a3c; --ok: #5fd18b; --err: #ff6b5a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 0%, #2a1608 0%, var(--bg) 60%); color: var(--text); font: 16px/1.55 "Segoe UI", system-ui, sans-serif; padding: 16px; }
+  .card { width: 100%; max-width: 480px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 28px; }
+  h1 { margin: 0 0 4px; font-size: 24px; } .sub { color: var(--mute); margin: 0 0 22px; }
+  label { display: block; font-weight: 600; margin-bottom: 6px; }
+  input { width: 100%; padding: 13px 14px; border-radius: 10px; border: 1px solid var(--line); background: #0d0e14; color: var(--text); font: 600 17px ui-monospace, Consolas, monospace; letter-spacing: 1px; text-transform: uppercase; }
+  input:focus { outline: 2px solid var(--acc); border-color: transparent; }
+  button { width: 100%; margin-top: 14px; padding: 13px; border: 0; border-radius: 10px; background: linear-gradient(90deg, #ff7a2a, #ffb347); color: #1a0d04; font: 700 16px inherit; cursor: pointer; }
+  button:disabled { opacity: .6; cursor: wait; }
+  .msg { margin-top: 14px; min-height: 22px; } .msg.err { color: var(--err); } .msg.ok { color: var(--ok); }
+  .info { margin-top: 18px; padding: 14px; border-radius: 10px; background: #0d0e14; border: 1px solid var(--line); font-size: 14px; color: var(--mute); }
+  .info b { color: var(--text); } a { color: var(--acc); }
+  .ghost { background: transparent; border: 1px solid var(--line); color: var(--mute); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🔥 Ngọn Lửa Cuối Cùng</h1>
+  <p class="sub" id="sub">Nhập key bản quyền để mở game. Mỗi key dùng được trên số máy đã mua.</p>
+  <div id="form">
+    <label for="key">Key bản quyền</label>
+    <input id="key" placeholder="NLCC-XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false">
+    <button id="go">Kích hoạt</button>
+  </div>
+  <div class="msg" id="msg"></div>
+  <div class="info" id="info"></div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const back = new URLSearchParams(location.search).get('tu') || '/ma-dieu-khien.html';
+function show(i) {
+  const shop = i.shop ? `<a href="${i.shop}" target="_blank" rel="noopener">${i.shop.replace(/^https?:\/\//, '')}</a>` : 'trang bán hàng';
+  if (i.licensed) {
+    $('form').style.display = 'none';
+    $('sub').textContent = i.dev ? 'Bản đang phát triển: không cần key.' : 'Máy này đã được kích hoạt.';
+    $('info').innerHTML = i.dev ? `<a href="${back}">Mở game →</a>` :
+      `Gói: <b>${i.plan || ''}</b> · Key: <b>${i.key || ''}</b><br>Mã máy: <b>${i.machine}</b><br><br><a href="${back}">Mở game →</a><br><br>
+       <button class="ghost" id="off">Gỡ kích hoạt khỏi máy này (để chuyển sang máy khác)</button>`;
+    const off = $('off'); if (off) off.onclick = async () => { if (!confirm('Gỡ key khỏi máy này?')) return; await fetch('/api/license/deactivate', { method: 'POST' }); location.reload(); };
+  } else {
+    $('info').innerHTML = `Mã máy: <b>${i.machine}</b><br>Chưa có key? Mua tại ${shop}. Cần hỗ trợ, gửi mã máy này cho người bán.` + (i.error ? `<br><br><span style="color:var(--err)">${i.error}</span>` : '');
+  }
+}
+fetch('/api/license').then(r => r.json()).then(show);
+$('go').onclick = async () => {
+  const key = $('key').value.trim(); if (!key) return;
+  $('go').disabled = true; $('msg').className = 'msg'; $('msg').textContent = 'Đang kích hoạt…';
+  try {
+    const r = await fetch('/api/license/activate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key }) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Kích hoạt thất bại');
+    $('msg').className = 'msg ok'; $('msg').textContent = 'Kích hoạt thành công! Đang mở game…';
+    setTimeout(() => location.href = back, 1200);
+  } catch (e) { $('msg').className = 'msg err'; $('msg').textContent = e.message; }
+  $('go').disabled = false;
+};
+$('key').addEventListener('keydown', e => { if (e.key === 'Enter') $('go').click(); });
+</script>
+</body>
+</html>

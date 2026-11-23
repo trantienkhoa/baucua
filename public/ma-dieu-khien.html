@@ -417,6 +417,7 @@ $('giftTests').querySelectorAll('[data-g]').forEach(b => b.onclick = () => {
 
 // ---------- gan dạ ----------
 socket.on('testBlocked', m => { $('testMsg').textContent = m; setTimeout(() => $('testMsg').textContent = '', 6000); });
+socket.on('ma:locked', () => { location.href = '/kich-hoat.html?tu=' + encodeURIComponent(location.pathname); });
 socket.on('ma:braveTop', list => {
   $('braveRows').innerHTML = (list || []).length ? list.map((b, i) => `<tr><td>${i + 1}</td><td>${esc(b.name)}</td><td><b>${b.pts}</b></td></tr>`).join('') : '<tr><td colspan="3" class="muted">Chưa có ai.</td></tr>';
 });

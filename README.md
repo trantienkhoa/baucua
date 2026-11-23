@@ -20,6 +20,11 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 🔑 Ngọn Lửa Cuối Cùng: key bản quyền + web bán hàng (bản 2.20.0)
+
+- Game cần key mới mở được màn game và trang điều khiển (trang `/kich-hoat.html`); bản không có `license-pubkey.js` không khoá.
+- Thư mục `web/`: trang giới thiệu, bảng giá, thanh toán VietQR, trang đơn hàng tự hiện key, trang quản trị, máy chủ cấp key (vé ký Ed25519, giới hạn số máy, mất mạng 30 ngày vẫn chạy). Hướng dẫn: `web/HUONG-DAN-BAN-HANG.md`.
+
 ## 👥 Ngọn Lửa Cuối Cùng: người xem 2D vẽ tay (bản 2.19.0)
 
 - 24 dáng người xem vẽ tay trong `public/models/ma/2D/nguoi/`: 10 dáng ngồi, 4 dáng ngồi sợ, 6 dáng đứng, 4 dáng đứng hoảng.

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Đơn hàng — Ngọn Lửa Cuối Cùng</title>
+<meta name="robots" content="noindex">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .od { display: grid; grid-template-columns: 300px 1fr; gap: 28px; align-items: start; margin-top: 24px; }
+  .od img { background: #fff; border-radius: 14px; padding: 8px; width: 100%; }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .row span { color: var(--mute); } .row b { text-align: right; word-break: break-all; }
+  .copy { cursor: pointer; color: var(--a2); font-size: 13px; margin-left: 6px; }
+  .wait { display: flex; align-items: center; gap: 10px; color: var(--a2); margin-top: 18px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--a2); animation: p 1.2s infinite; } @keyframes p { 50% { opacity: .25; } }
+  .key { font: 800 22px ui-monospace, Consolas, monospace; letter-spacing: 1px; padding: 16px; border-radius: 12px; background: #0b0b11; border: 1px dashed var(--a1); text-align: center; margin: 14px 0; word-break: break-all; }
+  @media (max-width: 700px) { .od { grid-template-columns: 1fr; } .od img { max-width: 300px; margin: 0 auto; } }
+</style>
+</head>
+<body>
+<header><div class="wrap nav"><a class="logo" href="/"><i>🔥</i> Ngọn Lửa Cuối Cùng</a></div></header>
+<div class="page" id="app"><p style="color:var(--mute)">Đang tải đơn hàng…</p></div>
+<script>
+const $ = id => document.getElementById(id);
+const vnd = n => n.toLocaleString('vi-VN') + 'đ';
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const q = new URLSearchParams(location.search), id = q.get('id'), s = q.get('s');
+const cp = t => { navigator.clipboard && navigator.clipboard.writeText(t); };
+let last = '';
+async function load() {
+  const r = await fetch(`/api/order/${encodeURIComponent(id)}?s=${encodeURIComponent(s)}`);
+  const o = await r.json();
+  if (!r.ok) { $('app').innerHTML = `<h1>Không tìm thấy đơn</h1><p>${esc(o.error)}</p><a class="btn" href="/">Về trang chủ</a>`; return; }
+  const sig = o.status + (o.key || ''); if (sig === last) return; last = sig;
+  if (o.status === 'paid') {
+    $('app').innerHTML = `<h1>✅ Thanh toán thành công</h1><p>Cảm ơn bạn đã mua <b>${esc(o.planName)}</b>. Đây là key bản quyền của bạn — <b>hãy lưu lại</b> (chụp màn hình hoặc lưu trang này).</p>
+      <div class="key" id="k">${esc(o.key)}</div><button class="btn" onclick="cp('${esc(o.key)}');this.textContent='Đã chép ✓'">Chép key</button>
+      ${o.download ? ` <a class="btn pri" href="${esc(o.download)}" target="_blank" rel="noopener">Tải game ↓</a>` : ''}
+      <h2>Cài đặt</h2><ol><li>Cài <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js bản LTS</a> (chỉ làm 1 lần).</li><li>Giải nén game, bấm đúp <b>ChayGame.bat</b>.</li><li>Mở trang điều khiển game Ngọn Lửa Cuối Cùng, nhập key ở màn hình kích hoạt.</li><li>Thêm màn game vào OBS / TikTok LIVE Studio theo hướng dẫn trong file HUONG-DAN-NHANH.txt.</li></ol>
+      <p style="color:var(--mute)">Mã đơn: ${esc(o.id)}. Cần hỗ trợ, nhắn Zalo kèm mã đơn.</p>`;
+    return;
+  }
+  if (o.status === 'cancelled') { $('app').innerHTML = `<h1>Đơn đã huỷ</h1><p>Mã đơn ${esc(o.id)}. Nếu bạn đã chuyển khoản, vui lòng nhắn Zalo kèm ảnh giao dịch.</p><a class="btn" href="/#bang-gia">Đặt lại</a>`; return; }
+  $('app').innerHTML = `<h1>Quét mã để thanh toán</h1><p style="color:var(--mute)">Mở app ngân hàng → Quét QR. Số tiền và nội dung đã điền sẵn, <b>đừng sửa nội dung chuyển khoản</b>.</p>
+    <div class="od"><img src="${esc(o.qr)}" alt="Mã VietQR thanh toán đơn ${esc(o.id)}">
+    <div>
+      <div class="row"><span>Gói</span><b>${esc(o.planName)}</b></div>
+      <div class="row"><span>Số tiền</span><b>${vnd(o.amount)}</b></div>
+      <div class="row"><span>Nội dung CK</span><b>${esc(o.id)}<span class="copy" onclick="cp('${esc(o.id)}')">chép</span></b></div>
+      <div class="row"><span>Ngân hàng</span><b>${esc(o.bank.name)}</b></div>
+      <div class="row"><span>Số tài khoản</span><b>${esc(o.bank.number)}<span class="copy" onclick="cp('${esc(o.bank.number)}')">chép</span></b></div>
+      <div class="row"><span>Chủ tài khoản</span><b>${esc(o.bank.holder)}</b></div>
+      <div class="wait"><span class="dot"></span> Đang chờ tiền về… key sẽ tự hiện ở đây, không cần tải lại trang.</div>
+      <p style="color:var(--mute);font-size:14px">Lưu lại đường dẫn trang này để xem key sau. Quá 30 phút chưa thấy, nhắn Zalo kèm mã đơn <b>${esc(o.id)}</b>.</p>
+    </div></div>`;
+}
+load(); setInterval(load, 5000);
+</script>
+</body>
+</html>

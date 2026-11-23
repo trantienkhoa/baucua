@@ -1,0 +1,14 @@
+{
+  "name": "ngon-lua-shop",
+  "version": "1.0.0",
+  "description": "Trang bán hàng và máy chủ cấp key cho game Ngọn Lửa Cuối Cùng",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "xuat-khoa": "node tools/xuat-khoa.js"
+  },
+  "dependencies": {
+    "express": "^5.3.0"
+  }
+}

@@ -2361,7 +2361,8 @@
   const socket = io();
   socket.on('connect', () => socket.emit('hello', 'ma', { obs: OBS }));
   socket.on('ma:primary', v => { isPrimary = !!v; });
-  socket.on('ma:settings', s => {
+socket.on('ma:locked', () => { location.href = '/kich-hoat.html?tu=' + encodeURIComponent(location.pathname); });
+    socket.on('ma:settings', s => {
     if (!s || typeof s !== 'object') return;
     Object.assign(S, window.MA_DEFAULTS, s);
     if (!Array.isArray(S.actions) || !S.actions.length) S.actions = window.MA_DEFAULTS.actions;

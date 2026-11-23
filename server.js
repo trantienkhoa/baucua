@@ -7,6 +7,7 @@ const express = require('express');
 const multer = require('multer');
 const { Server } = require('socket.io');
 const { TikTokLiveConnection, WebcastEvent, ControlEvent } = require('tiktok-live-connector');
+const LIC = require('./license');
 
 const PORT = Number(process.env.PORT) || 3300;
 const DATA = path.join(__dirname, 'data');
@@ -268,6 +269,20 @@ const server = http.createServer(app);
 const io = new Server(server, { maxHttpBufferSize: 1e6 });
 app.use(express.json({ limit: '1mb' }));
 app.use('/api/clips', express.raw({ type: () => true, limit: '300mb' }));
+// ---------- bản quyền: game Ngọn Lửa Cuối Cùng cần key mới mở được ----------
+const LOCKED = new Set(['/ma', '/ma.html', '/ma-dieu-khien.html']);
+app.use((req, res, next) => {
+  if (LOCKED.has(req.path) && !LIC.licensed()) return res.redirect('/kich-hoat.html?tu=' + encodeURIComponent(req.path));
+  next();
+});
+app.get('/api/license', (req, res) => res.json(LIC.info()));
+app.post('/api/license/activate', async (req, res) => {
+  try { res.json(await LIC.activate(req.body && req.body.key)); }
+  catch (e) { res.status(400).json({ error: e.name === 'TimeoutError' ? 'Không kết nối được máy chủ bản quyền, kiểm tra mạng rồi thử lại' : e.message }); }
+});
+app.post('/api/license/deactivate', async (req, res) => {
+  try { await LIC.deactivate(); res.json({ ok: true }); } catch (e) { res.status(400).json({ error: e.message }); }
+});
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/music', express.static(MUSIC));
 app.use('/three', express.static(path.join(__dirname, 'node_modules', 'three')));
@@ -820,6 +835,7 @@ app.get('/api/ma-tts/voices', async (req, res) => {
 
 io.on('connection', socket => {
   socket.on('hello', (role, info) => {
+    if ((role === 'ma' || role === 'ma-admin') && !LIC.licensed()) { socket.emit('ma:locked', LIC.info()); return; }
     if (role === 'ma' || role === 'ma-admin') {
       if (role === 'ma') {
         socket.join('ma');
