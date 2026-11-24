@@ -5,4 +5,4 @@ cằm, má, giới tính, tuổi), https://github.com/makehumancommunity/makehum
 Tài sản MakeHuman phát hành theo CC0 1.0 (từ tháng 9/2020): dùng thương mại tự do, không bắt buộc ghi công.
 Ghi lại ở đây để minh bạch. Bản gốc © Manuel Bastioni 2014; © Data Collection AB 2020.
 
-Mặt các nhân vật không có ảnh chân dung (tp-023 … tp-050) là mặt vẽ đơn giản do công cụ tạo ra (tools/nhan-vat/dau-chuan.py).
+Mặt nhân vật lấy từ ảnh chân dung của chủ game (tp-023 … tp-050: tools/nhan-vat/chan-dung/). Nhân vật nào thiếu ảnh thì công cụ vẽ mặt đơn giản.

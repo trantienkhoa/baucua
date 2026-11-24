@@ -140,7 +140,43 @@ def ve_mat(cap):
     A[keep] = C[keep]
     eu = [((ku[0] * (hx_ + sd * 0.5 * ed_) + ku[1]), (kv[0] * ey_ + kv[1])) for sd in (-1, 1)]   # ey_ theo cỡ chuẩn
     return {'img': Image.fromarray(np.clip(A, 0, 255).astype(np.uint8)), 'eyes': sorted(eu), 'mouth': (ku[0] * hx_ + ku[1], kv[0] * my_ + kv[1])}
+def chan_dung(path, cap):
+    """Ảnh chân dung toàn thân (đầu tới chân) -> ảnh mặt cùng khung với chup_mat. Khớp: chiều cao người trong ảnh = chiều cao mô hình,
+    rồi dò soi gương / lệch / cỡ sao cho giống hình chụp thẳng của chính mô hình nhất."""
+    I_ = np.asarray(Image.open(path).convert('RGB')).astype(float); ph, pw = I_.shape[:2]
+    band = I_[:, int(pw * 0.09):int(pw * 0.91)]
+    m_ = ((band.max(2) - band.min(2)) > 12) | (band.mean(2) < 150)
+    rows = np.nonzero(m_.sum(1) > 5)[0]
+    if len(rows) < 100: return None
+    top, bot = rows[0], rows[-1]
+    allX = np.concatenate([g.acc(p['attributes']['POSITION']).astype(float) for p in mesh['primitives']])
+    ymax, ymin = allX[:, 1].max(), allX[:, 1].min(); ppm = (bot - top) / (ymax - ymin)
+    hr = m_[top:top + int(0.08 * (bot - top))]
+    cxp = np.median(np.nonzero(hr)[1]) + int(pw * 0.09) if hr.any() else pw / 2
+    C = np.asarray(cap).astype(float); S_ = C.shape[0]
+    gxs, gys = np.meshgrid((np.arange(S_) + 0.5) / S_, (np.arange(S_) + 0.5) / S_)
+    X_ = (gxs - ku[1]) / ku[0]; Y_ = (gys - kv[1]) / kv[0]   # toạ độ mô hình của từng điểm ảnh khung mặt
+    hx_ = FX[0, 0]
+    from scipy.ndimage import map_coordinates
+    def samp(mir, sc, dx, dy, n=S_):
+        st = S_ // n
+        xx, yy = X_[::st, ::st], Y_[::st, ::st]
+        pu_ = cxp + mir * (xx - hx_) * ppm * sc + dx * ppm; pv_ = top + (ymax - yy) * ppm * sc + dy * ppm
+        return np.stack([map_coordinates(I_[..., k], [pv_, pu_], order=1, mode='nearest') for k in range(3)], -1)
+    Cs = ndimage.gaussian_filter(C[::4, ::4], (1.5, 1.5, 0)); valid_ = np.abs(Cs - 128).sum(-1) > 6
+    best = None
+    for mir in (1, -1):
+        for sc in (0.92, 0.96, 1.0, 1.04, 1.08):
+            for dx in np.linspace(-0.03, 0.03, 7) * SC:
+                for dy in np.linspace(-0.04, 0.04, 9) * SC:
+                    A_ = ndimage.gaussian_filter(samp(mir, sc, dx, dy, S_ // 4), (1.5, 1.5, 0))
+                    e = np.abs(A_ - Cs)[valid_].mean()
+                    if best is None or e < best[0]: best = (e, mir, sc, dx, dy)
+    e, mir, sc, dx, dy = best
+    return Image.fromarray(np.clip(samp(mir, sc, dx, dy), 0, 255).astype(np.uint8)), 'chân dung (%s, cỡ %.2f, lệch %.0f/%.0f mm)' % ('soi gương' if mir < 0 else 'thẳng', sc, dx * 1000, dy * 1000)
 VE = None
+CD = os.environ.get('DAU_CHAN_DUNG') or os.path.join(TOOL, 'chan-dung')   # thư mục ảnh chân dung toàn thân <mã>.jpg
+cd_path = os.path.join(CD, base + '.jpg') if CD else None
 if fps:
     fp = fps[0]
     FX = g.acc(fp['attributes']['POSITION']).astype(float); FU = g.acc(fp['attributes']['TEXCOORD_0']).astype(float)
@@ -148,7 +184,11 @@ if fps:
     ku = np.linalg.lstsq(np.c_[FX[ins, 0], np.ones(ins.sum())], FU[ins, 0], rcond=None)[0]
     kv = np.linalg.lstsq(np.c_[FX[ins, 1], np.ones(ins.sum())], FU[ins, 1], rcond=None)[0]
     tex = tex_of(fp); anh_mat = 'ảnh mặt có sẵn'
-else:   # không có ảnh mặt (mặt máy tạo méo, không dùng được): vẽ một khuôn mặt sạch, màu da / tóc / nón lấy từ chính nhân vật
+cdr = None
+if not fps and cd_path and os.path.exists(cd_path):   # có ảnh chân dung toàn thân: cắt vùng đầu làm ảnh mặt
+    cap, ku, kv, FX = chup_mat(); cdr = chan_dung(cd_path, cap)
+    if cdr: tex, anh_mat = cdr
+if not (fps or cdr):   # không có ảnh mặt (mặt máy tạo méo, không dùng được): vẽ một khuôn mặt sạch, màu da / tóc / nón lấy từ chính nhân vật
     cap, ku, kv, FX = chup_mat(); anh_mat = 'mặt vẽ (không có ảnh chân dung)'
     VE = ve_mat(cap)
     tex = VE['img']
