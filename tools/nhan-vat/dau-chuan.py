@@ -403,6 +403,43 @@ isgrey = (np.abs(R1 - G1) < 7) & (np.abs(G1 - B1) < 7) & (R1 > 95) & (R1 < 170)
 okb = band[(band.max(1) > 18) & ~isskin & ~isgrey]
 if len(okb) > 0.08 * len(band) and len(okb) > 30: hair_c = np.median(okb, 0)
 
+def width_ratios(Ph_):
+    """Tỉ lệ bề ngang mặt trong ảnh / đầu 3D theo từng hàng, hai phía (cột 0: phía u nhỏ, cột 1: phía u lớn)."""
+    Mk = ndimage.binary_fill_holes(ndimage.binary_closing(found[1], iterations=4))
+    edt_ = np.linalg.norm(dT) * s
+    ys_ = np.arange(mE[1] + 0.3 * edt_, mE[1] - 2.0 * edt_, -0.04 * edt_)
+    cxm = mE[0]; uc, _ = uv(cxm - SHX, mE[1])
+    rat = np.full((len(ys_), 2), np.nan)
+    for i, y in enumerate(ys_):
+        band_ = Ph_[np.abs(Ph_[:, 1] - y) < 0.03 * edt_]
+        if len(band_) < 4: continue
+        _, v_ = uv(0, y); r_ = int(v_ * 256); c_ = int(uc * 256)
+        if not (0 <= r_ < 256 and 0 <= c_ < 256) or not Mk[r_, c_]: continue
+        row = Mk[r_]; l_ = c_; rr_ = c_
+        while l_ > 0 and row[l_ - 1]: l_ -= 1
+        while rr_ < 255 and row[rr_ + 1]: rr_ += 1
+        for side, xs in ((1, band_[:, 0] - cxm), (-1, cxm - band_[:, 0])):
+            hw = xs.max()
+            if hw <= 0.2 * edt_: continue
+            k = 1 if side * ku[0] > 0 else 0
+            rat[i, k] = (((rr_ - c_) if k == 1 else (c_ - l_)) / 256) / (hw * abs(ku[0]))
+    return rat, ys_, edt_, cxm, uc
+# đầu khuôn rộng hơn mặt trong ảnh nhiều: thu hẹp má, hàm, hai bên sọ (giữ vùng mắt), phần chênh nhỏ còn lại để ảnh tự khớp
+squash = ''
+if found is not None and VE is None:
+    rat0, ys0, edt0, cx0_, _ = width_ratios(P[:nhead])
+    sel = (ys0 < mE[1] - 0.2 * edt0) & (ys0 > mE[1] - 1.6 * edt0)
+    fs = []
+    for k in range(2):
+        v_ = rat0[sel, k]; v_ = v_[np.isfinite(v_)]
+        fs.append(float(np.clip(np.median(v_), 0.82, 1.0)) if len(v_) >= 4 else 1.0)
+    if min(fs) < 0.97:
+        dx_ = P[:, 0] - cx0_; side_k = np.where(dx_ * ku[0] > 0, 1, 0)
+        f_ = np.where(side_k == 1, fs[1], fs[0])
+        w_ = np.clip((np.abs(dx_) - 0.55 * edt0) / (0.5 * edt0), 0, 1)
+        w_[nhead:] = 0   # nhãn cầu giữ nguyên
+        P[:, 0] = cx0_ + dx_ * (1 - (1 - f_) * w_)
+        squash = 'thu hẹp đầu %.2f/%.2f, ' % (fs[0], fs[1])
 # ---------- UV: đầu trải hình trụ (phần trên ảnh), hai nhãn cầu chiếu thẳng (dải dưới ảnh) ----------
 VH = 0.875   # đầu dùng v trong [0, VH]; dải dưới cho hai mắt
 nel = len(parts['EyeLeft'][0])
@@ -478,6 +515,27 @@ gl = np.mean([okpx(np.full(40, um - f * de), vv_).mean() for f in (0.5, 0.8, 1.1
 gr = np.mean([okpx(np.full(40, um + f * de), vv_).mean() for f in (0.5, 0.8, 1.1)])
 mirror = None
 if min(gl, gr) < 0.75 * max(gl, gr): mirror = 'trai' if gl > gr else 'phai'   # một bên mặt bị khuất / hỏng
+# khớp bề ngang từng hàng: mép mặt trong ảnh (má, hàm, cằm) trùng mép đầu 3D nhìn thẳng, hai bên tính riêng
+# (mặt ảnh hẹp hơn đầu thì viền hàm ảnh nằm lọt trong đầu, trông như hai lớp mặt)
+wfit = ''
+if found is not None and VE is None:
+    rat, ys_, edt_, cxm, uc = width_ratios(P[:nhead])
+    if np.isfinite(rat).sum() > 10:
+        for k in range(2):
+            col_ = rat[:, k]; ok_ = np.isfinite(col_)
+            if ok_.sum() < 4: rat[:, k] = 1; continue
+            col_ = np.interp(np.arange(len(col_)), np.nonzero(ok_)[0], col_[ok_])
+            rat[:, k] = np.clip(ndimage.gaussian_filter1d(col_, 2), 0.75, 1.35)
+        # giữa mặt (gần sống mũi) giữ nguyên, ra tới mép mới kéo: tỉ lệ theo khoảng cách ngang
+        yy = np.clip(yq, ys_[-1], ys_[0])
+        r0_ = np.interp(-yy, -ys_, rat[:, 0]); r1_ = np.interp(-yy, -ys_, rat[:, 1])
+        du = pu - uc; rr_t = np.where(du > 0, r1_, r0_)
+        tnorm = np.clip(np.abs(X3 - cxm) / (0.9 * edt_), 0, 1)   # 0 ở giữa mặt, 1 ở mép
+        fac = 1 + (rr_t - 1) * tnorm ** 1.5
+        # trên trán / dưới cằm bớt dần
+        fade = np.clip((yq - (mE[1] - 1.9 * edt_)) / (0.3 * edt_), 0, 1) * np.clip(((mE[1] + 0.6 * edt_) - yq) / (0.3 * edt_), 0, 1)
+        pu = uc + du * (1 + (fac - 1) * fade)
+        wfit = 'khớp bề ngang %.2f/%.2f, ' % (np.nanmedian(rat[:, 0]), np.nanmedian(rat[:, 1]))
 if mirror == 'trai': pu = np.where(pu > um, 2 * um - pu, pu)
 if mirror == 'phai': pu = np.where(pu < um, 2 * um - pu, pu)
 inside = (pu > 0.002) & (pu < 0.998) & (pv > 0.002) & (pv < 0.998)
@@ -586,4 +644,4 @@ mesh['primitives'].append({'attributes': {'POSITION': add(P2.astype('<f4'), 'VEC
                                           'TEXCOORD_0': add(UV.astype('<f4'), 'VEC2', 5126), 'JOINTS_0': add(jt, 'VEC4', 5121 if jt.dtype == np.uint8 else 5123), 'WEIGHTS_0': add(wt, 'VEC4', 5126)},
                            'indices': add(Fl.reshape(-1, 1).astype('<u2' if ct == 5123 else '<u4'), 'SCALAR', ct), 'material': len(J['materials']) - 1})
 J['buffers'][0]['byteLength'] = len(g.bin); g.compact(); g.save(dst)
-print(anh_mat + (' (đặt lại khung ảnh)' if reframed else '') + ', cỡ đầu cũ %.2f, ' % HS + ('khuôn %s %s tuổi%s, ' % (gioi, tuoi, ''.join(' %s %+.2f' % kv for kv in shape.items()))) + ('dời đầu %.0f mm, ' % (SHX * 1000) if SHX else '') + ('soi gương nửa ' + mirror + ', ' if mirror else '') + 'đầu chuẩn: mắt %s, cỡ %.2f×%.2f%s, nghiêng %.0f°, co %d đỉnh dưới nón/tóc, bỏ %d tam giác đầu cũ' % (src_e, s / SC, sy / SC, '' if s_ok else ' (mắt lệch, dùng cỡ mặc định)', np.degrees(roll), ncut, killed))
+print(anh_mat + (' (đặt lại khung ảnh)' if reframed else '') + ', ' + squash + wfit + 'cỡ đầu cũ %.2f, ' % HS + ('khuôn %s %s tuổi%s, ' % (gioi, tuoi, ''.join(' %s %+.2f' % kv for kv in shape.items()))) + ('dời đầu %.0f mm, ' % (SHX * 1000) if SHX else '') + ('soi gương nửa ' + mirror + ', ' if mirror else '') + 'đầu chuẩn: mắt %s, cỡ %.2f×%.2f%s, nghiêng %.0f°, co %d đỉnh dưới nón/tóc, bỏ %d tam giác đầu cũ' % (src_e, s / SC, sy / SC, '' if s_ok else ' (mắt lệch, dùng cỡ mặc định)', np.degrees(roll), ncut, killed))
