@@ -31,7 +31,11 @@ Cần python3 + numpy, playwright (chromium) và ffmpeg. Không có ffmpeg thì 
    - Đi, chạy, đứng: tay phải vịn đầu đòn phía trước, thúng nhún theo bước. Đòn luôn giữ thăng bằng khi người nghiêng.
    - Các động tác ngồi: đặt gánh xuống đất bên cạnh. Chỉnh trong `GANH` của `dong-tac.js`.
 4. `do-vat.py`: tay xách đồ (giỏ...) được giữ yên theo ngực; phần món đồ dưới bàn tay tách ra xương riêng `DoVat`. Khi ngồi (trong game và trong 3 động tác ngồi), món đồ được đặt xuống đất cạnh chân.
-5. `dau-chuan.py`: thay đầu. Lấy đầu người chuẩn, mượt (đầu + nhãn cầu của `public/models/nam-avatar.glb`), đặt đúng chỗ đầu cũ, co giãn cho khớp hai mắt và miệng trên ảnh chân dung, rồi chiếu ảnh lên mặt. Ảnh chụp nghiêng thì soi gương nửa mặt rõ hơn. Tóc, gáy tô bằng màu lấy từ ảnh. Phần đầu cũ nằm trong đầu mới bị bỏ, còn nón, khăn giữ nguyên. Mắt tự tìm sai thì chấm tay trong `mat-chinh.json`. Không thay được thì quy trình tự quay về `mat-2d.py`.
+5. `dau-chuan.py`: thay đầu. Dựng một đầu người chuẩn, mượt từ khuôn MakeHuman (CC0, gói sẵn trong `dau-mh.npz`, dựng bằng `dau_mh.py`) theo giới tính và tuổi ghi trong `gioi-tuoi.json`. Độ rộng má và cằm đo từ ảnh chân dung; không đo được thì lấy một dáng riêng cố định theo mã nhân vật. Đầu được đặt đúng chỗ đầu cũ, co giãn cho khớp hai mắt và miệng.
+   - Có lớp ảnh mặt (`Face`): chiếu ảnh chân dung lên mặt. Ảnh chụp nghiêng thì soi gương nửa mặt rõ hơn. Mắt tự tìm sai thì chấm tay trong `mat-chinh.json`. Đặt biến `DAU_DEBUG=anh.png` để xuất ảnh mặt kèm vị trí mắt tìm được mà soát.
+   - Không có lớp ảnh mặt (mặt máy tạo méo): vẽ một khuôn mặt sạch (mắt, mày, mũi, miệng; người lớn tuổi có nếp nhăn nhẹ). Màu da lấy từ chính nhân vật; tóc, nón, khăn trên trán giữ nguyên màu cũ.
+   - Tóc, gáy tô bằng màu lấy từ ảnh. Phần đầu cũ nằm trong đầu mới bị bỏ, còn nón, khăn, vành nón xa phía trước giữ nguyên. Không thay được thì quy trình tự quay về `mat-2d.py`.
+   - Đổi bộ dáng đầu: `python tao-dau-mh.py <makehuman/makehuman/data>` (clone https://github.com/makehumancommunity/makehuman; các file `targets/macrodetails/asian-*.target` lấy bằng `git show`).
    - `mat-2d.py` (dự phòng): làm mặt đẹp hơn. Tìm khuôn mặt ngay trên ảnh chân dung (texture mặt chiếu thẳng), rồi dán ảnh lên một mặt nạ mỏng cong mượt đặt trước lưới mặt (vốn góc cạnh, méo). Viền mờ dần, vá lỗ đen, cả vùng mặt theo hẳn xương đầu.
 6. `gan-dong-tac.py`: ghi các động tác vào GLB thành animation (giữ tất cả xương trong mọi clip để chuyển clip không bị lệch).
 

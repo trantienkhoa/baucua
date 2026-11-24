@@ -1907,7 +1907,7 @@ if (renderer && SH) {
   syncStyle();
   fetch('/models/ma/nhanvat/danh-sach.json').then(r => r.ok ? r.json() : []).catch(() => []).then(nv => {
     nv = (nv || []).map(x => ({ ...x, url: '/models/ma/nhanvat/' + x.id + '.glb' }));
-    return fetch('/api/models').then(r => r.json()).then(list => loadAvatars((list || []).filter(m => m.enabled).map(m => ({ url: m.url, female: m.female })))).then(() => { addLazyChars(nv); NV_IDS = nv.map(x => x.id); NV_IDS.forEach(id => templateForChar(id)); });   // tải sẵn để người vào là có ngay
+    return fetch('/api/models').then(r => r.json()).then(list => loadAvatars((list || []).filter(m => m.enabled).map(m => ({ url: m.url, female: m.female })))).then(() => { addLazyChars(nv); NV_IDS = nv.map(x => x.id); NV_IDS.slice().sort(() => Math.random() - 0.5).slice(0, 10).forEach(id => templateForChar(id)); });   // tải sẵn 10 nhân vật để người vào là có ngay, còn lại tải khi cần (50 nhân vật ~200 MB)
   }).then(() => { modelsReady = true; console.log('Cảnh 3D: đã nạp', avatarTemplates.length, 'mô hình người, nhóm F:', NV_IDS.length); }).catch(e => console.warn('Không nạp được mô hình người', e));
 
   window.MA3D = { ready: true, frame, setMap, maps: Object.keys(SCENES), sceneNames: Object.fromEntries(Object.entries(SCENES).map(([k, v]) => [k, v.name])),

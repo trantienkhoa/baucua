@@ -1,4 +1,4 @@
-# Thay đầu nhân vật máy tạo (lưới mặt méo, góc cạnh) bằng một đầu người chuẩn, mượt (đầu + nhãn cầu của nam-avatar.glb),
+# Thay đầu nhân vật máy tạo (lưới mặt méo, góc cạnh) bằng một đầu người chuẩn, mượt (khuôn MakeHuman CC0, dau_mh.py: theo giới tính, tuổi, dáng mặt),
 # co giãn cho khớp đúng hai mắt trên ảnh chân dung, rồi chiếu ảnh chân dung lên mặt.
 # Tóc, gáy, mang tai: tô màu tóc / màu da lấy từ chính ảnh. Phần đầu cũ nằm trong đầu mới bị bỏ; nón, khăn, tóc ngoài giữ nguyên.
 # python dau-chuan.py <vào.glb> <ra.glb>
@@ -20,25 +20,141 @@ if any(mname(p) in ('DauChuan', 'Face2D') for p in mesh['primitives']):
     if os.path.abspath(src) != os.path.abspath(dst): shutil.copy(src, dst)
     print('bo-qua: đã có đầu mới'); sys.exit(0)
 fps = [p for p in mesh['primitives'] if mname(p) == 'Face']
-if not fps: print('khong-co-anh-mat'); sys.exit(3)
-fp = fps[0]
 skin = J['skins'][0]; joints = skin['joints']
 name = lambda i: nodes[i].get('name', '').replace('mixamorig:', '')
 JI = {name(j): k for k, j in enumerate(joints)}
 IBM = g.acc(skin['inverseBindMatrices']).reshape(-1, 4, 4).transpose(0, 2, 1)
 Pw = lambda b: np.linalg.inv(IBM[JI[b]])[:3, 3]
 SC = Pw('Hips')[1] / 0.842
+import dau_mh   # khuôn đầu MakeHuman (CC0): giới tính + tuổi theo gioi-tuoi.json
+gt = {}
+gpath = os.path.join(TOOL, 'gioi-tuoi.json')
+if os.path.exists(gpath): gt = json.load(open(gpath))
+gioi, tuoi = gt.get(base, ['?', 38])
+nu_ = {'nam': 0.0, 'nu': 1.0}.get(gioi, 0.5)
 
 # ---------- ánh xạ (x, y) <-> (u, v) của ảnh mặt (chiếu thẳng) ----------
-FX = g.acc(fp['attributes']['POSITION']).astype(float); FU = g.acc(fp['attributes']['TEXCOORD_0']).astype(float)
-ins = (FU > 0.003).all(1) & (FU < 0.997).all(1)
-ku = np.linalg.lstsq(np.c_[FX[ins, 0], np.ones(ins.sum())], FU[ins, 0], rcond=None)[0]
-kv = np.linalg.lstsq(np.c_[FX[ins, 1], np.ones(ins.sum())], FU[ins, 1], rcond=None)[0]
+def co_dau_cu():
+    """Tỉ lệ cỡ đầu cũ so với đầu chuẩn (đo bề ngang mặt ngang tầm mắt), dùng khi không tin được cỡ mắt trong ảnh."""
+    ey_ = Pw('Head')[1] + 0.012 * SC   # ngang gò má: dưới vành nón, ít tóc
+    A_ = np.concatenate([g.acc(p['attributes']['POSITION']).astype(float) for p in mesh['primitives'] if mname(p) not in ('Lining', 'Face')])
+    nb = A_[np.abs(A_[:, 1] - ey_) < 0.02 * SC]
+    if len(nb) < 30: return 1.0
+    cx_ = np.median(nb[np.abs(nb[:, 0] - np.median(nb[:, 0])) < 0.15 * SC][:, 0]); nb = nb[np.abs(nb[:, 0] - cx_) < 0.13 * SC]
+    w_old = np.percentile(nb[:, 0], 97) - np.percentile(nb[:, 0], 3)
+    t_ = dau_mh.build(nu_, tuoi); H_ = t_['Head'][0]; et = t_['EyeLeft'][0].mean(0)[1]
+    w_t = np.ptp(H_[np.abs(H_[:, 1] - (et - 0.031)) < 0.006][:, 0])
+    return float(np.clip(w_old / (w_t * SC), 0.95, 1.1))
+HS = 1.0   # co_dau_cu() đo chưa tin được (nón, tóc làm sai bề ngang); để cỡ chuẩn theo chiều cao người
+def tex_of(p):
+    ti = J['materials'][p.get('material', 0)]['pbrMetallicRoughness']['baseColorTexture']['index']; im0 = J['images'][J['textures'][ti]['source']]
+    bv = J['bufferViews'][im0['bufferView']]; o = bv.get('byteOffset', 0)
+    return Image.open(io.BytesIO(bytes(g.bin[o:o + bv['byteLength']]))).convert('RGB')
+def chup_mat(S_=512):
+    """Không có lớp ảnh mặt: tự chụp thẳng mặt (chiếu song song từ phía trước) từ chính lưới + texture của nhân vật."""
+    hy_ = Pw('Head')[1]; y0, y1 = hy_ + 0.165 * SC, hy_ - 0.084 * SC
+    allX = np.concatenate([g.acc(p['attributes']['POSITION']).astype(float) for p in mesh['primitives']])
+    nb = allX[np.abs(allX[:, 1] - (hy_ + 0.06 * SC)) < 0.04 * SC]; hx_ = (np.percentile(nb[:, 0], 5) + np.percentile(nb[:, 0], 95)) / 2 if len(nb) > 30 else 0.0
+    x0, x1 = hx_ - 0.101 * SC, hx_ + 0.101 * SC
+    img = np.full((S_, S_, 3), 128.0); zb = np.full((S_, S_), np.inf)
+    for p in mesh['primitives']:
+        if 'TEXCOORD_0' not in p['attributes']: continue
+        X = g.acc(p['attributes']['POSITION']).astype(float); U = g.acc(p['attributes']['TEXCOORD_0']).astype(float)
+        I = g.acc(p['indices']).reshape(-1, 3).astype(np.int64); T = np.asarray(tex_of(p)).astype(float); th_, tw_ = T.shape[:2]
+        px = (X[:, 0] - x0) / (x1 - x0) * S_; py = (y0 - X[:, 1]) / (y0 - y1) * S_
+        for t in I[(px[I].max(1) > 0) & (px[I].min(1) < S_) & (py[I].max(1) > 0) & (py[I].min(1) < S_)]:
+            ax, ay = px[t], py[t]
+            c0, c1 = max(0, int(ax.min())), min(S_ - 1, int(ax.max()) + 1); r0, r1 = max(0, int(ay.min())), min(S_ - 1, int(ay.max()) + 1)
+            if c1 < c0 or r1 < r0: continue
+            gx, gy = np.meshgrid(np.arange(c0, c1 + 1) + 0.5, np.arange(r0, r1 + 1) + 0.5)
+            d = (ay[1] - ay[2]) * (ax[0] - ax[2]) + (ax[2] - ax[1]) * (ay[0] - ay[2])
+            if abs(d) < 1e-9: continue
+            l0 = ((ay[1] - ay[2]) * (gx - ax[2]) + (ax[2] - ax[1]) * (gy - ay[2])) / d
+            l1 = ((ay[2] - ay[0]) * (gx - ax[2]) + (ax[0] - ax[2]) * (gy - ay[2])) / d; l2 = 1 - l0 - l1
+            m = (l0 >= -1e-4) & (l1 >= -1e-4) & (l2 >= -1e-4)
+            if not m.any(): continue
+            z = l0 * X[t[0], 2] + l1 * X[t[1], 2] + l2 * X[t[2], 2]
+            sub = zb[r0:r1 + 1, c0:c1 + 1]; m &= z < sub   # mặt nhìn về −Z: gần người xem nhất là z nhỏ nhất
+            if not m.any(): continue
+            uu = l0 * U[t[0], 0] + l1 * U[t[1], 0] + l2 * U[t[2], 0]; vv = l0 * U[t[0], 1] + l1 * U[t[1], 1] + l2 * U[t[2], 1]
+            col = T[np.clip((vv * th_).astype(int), 0, th_ - 1), np.clip((uu * tw_).astype(int), 0, tw_ - 1)]
+            sub[m] = z[m]; img[r0:r1 + 1, c0:c1 + 1][m] = col[m]
+    ku_ = np.array([1 / (x1 - x0), -x0 / (x1 - x0)]); kv_ = np.array([-1 / (y0 - y1), y0 / (y0 - y1)])
+    return Image.fromarray(img.astype(np.uint8)), ku_, kv_, np.array([[hx_, hy_, 0.0]])
+def ve_mat(cap):
+    """Vẽ ảnh mặt thẳng (cùng khung với chup_mat): da trơn + mắt, mày, mũi, miệng; trên trán giữ nguyên tóc / nón của nhân vật."""
+    C = np.asarray(cap).astype(float); S_ = C.shape[0]; hx_ = FX[0, 0]; hy_ = FX[0, 1]
+    ed_ = 0.061 * SC * HS; ey_ = hy_ + 0.043 * SC; my_ = ey_ - (1.02 if nu_ > 0.5 else 1.1) * ed_
+    P_ = lambda x, y: ((ku[0] * x + ku[1]) * S_, (kv[0] * y + kv[1]) * S_)
+    R_, G_, B_ = C[..., 0], C[..., 1], C[..., 2]
+    sk = (R_ > 95) & (G_ > 40) & (R_ > G_) & (G_ >= B_ - 5) & (R_ - B_ > 15) & (R_ - G_ < 90)
+    x0p, y0p = P_(hx_ - 0.8 * ed_, ey_ + 0.1 * ed_); x1p, y1p = P_(hx_ + 0.8 * ed_, my_ - 0.4 * ed_)
+    reg = sk[int(y0p):int(y1p), int(x0p):int(x1p)]
+    skin = np.median(C[int(y0p):int(y1p), int(x0p):int(x1p)][reg], 0) if reg.sum() > 50 else np.array([200, 160, 130.])
+    skin = 0.75 * skin + 0.25 * np.array([214, 172, 142.])   # kéo nhẹ về tông da sáng ấm, tránh bóng tối nướng sẵn
+    gia = np.clip((tuoi - 45) / 25, 0, 1)
+    K = 4; W_ = S_ * K
+    im = Image.new('RGB', (W_, W_), tuple(int(c) for c in skin)); d = ImageDraw.Draw(im)
+    Q = lambda x, y: tuple(v * K for v in P_(x, y)); L = lambda f: ed_ * f
+    box = lambda a, b: [min(a[0], b[0]), min(a[1], b[1]), max(a[0], b[0]), max(a[1], b[1])]
+    dark = tuple(int(c) for c in skin * 0.55); mid = tuple(int(c) for c in skin * 0.8)
+    brow_c = (45, 35, 30) if gia < 0.6 else (120, 115, 110)
+    for side in (-1, 1):
+        cx_ = hx_ + side * 0.5 * ed_
+        # mắt: lòng trắng hình hạnh nhân, tròng nâu đen, mí trên đậm
+        ew, eh = L(0.24), L(0.075 if nu_ > 0.5 else 0.065)
+        pts = [Q(cx_ + ew * np.cos(t), ey_ + eh * np.sin(t) * (1.0 if np.sin(t) > 0 else 0.7)) for t in np.linspace(0, 2 * np.pi, 40)]
+        d.polygon(pts, fill=(232, 226, 218))
+        ir, pr = L(0.085), L(0.04)
+        d.ellipse(box(Q(cx_ - ir, ey_ + ir), Q(cx_ + ir, ey_ - ir)), fill=(58, 38, 28))
+        d.ellipse(box(Q(cx_ - pr, ey_ + pr), Q(cx_ + pr, ey_ - pr)), fill=(18, 12, 10))
+        d.line([Q(cx_ + ew * np.cos(t), ey_ + eh * np.sin(t)) for t in np.linspace(0.05, np.pi - 0.05, 20)], fill=(30, 22, 20), width=int(K * 2.2))
+        d.line([Q(cx_ + ew * 0.9 * np.cos(t), ey_ + eh * 1.9 * np.sin(t)) for t in np.linspace(0.3, np.pi - 0.3, 16)], fill=mid, width=int(K * 1.2))   # nếp mí
+        # mày
+        bw = L(0.62 if nu_ < 0.5 else 0.55) / 2; bth = K * (4.2 if nu_ < 0.5 else 2.8)
+        d.line([Q(cx_ + side * 0.05 * ed_ + bw * t, ey_ + L(0.36) + L(0.07) * (1 - t * t)) for t in np.linspace(-1, 1, 16)], fill=brow_c, width=int(bth))
+        if gia > 0:   # nếp nhăn nhẹ đuôi mắt cho người lớn tuổi
+            for k in range(2): d.line([Q(cx_ + side * L(0.3), ey_ - L(0.02 + 0.06 * k)), Q(cx_ + side * L(0.42), ey_ - L(0.05 + 0.08 * k))], fill=mid, width=int(K * 1.2 * gia + 1))
+    # mũi: bóng hai cánh mũi + lỗ mũi
+    ny = ey_ - L(0.62)
+    for side in (-1, 1):
+        d.arc(box(Q(hx_ + side * L(0.12), ny + L(0.1)), Q(hx_ + side * L(0.28), ny - L(0.06))), 0, 360, fill=mid, width=int(K * 1.5))
+        d.ellipse(box(Q(hx_ + side * L(0.06), ny - L(0.02)), Q(hx_ + side * L(0.15), ny - L(0.06))), fill=dark)
+    if gia > 0:   # rãnh mũi – má
+        for side in (-1, 1): d.line([Q(hx_ + side * L(0.28), ny), Q(hx_ + side * L(0.4), my_ - L(0.05))], fill=mid, width=int(K * 1.5 * gia + 1))
+    # miệng
+    lip = np.array([178, 92, 88.]) if nu_ > 0.5 else skin * np.array([0.82, 0.66, 0.64])
+    lip = tuple(int(c) for c in (0.55 * lip + 0.45 * skin * np.array([0.9, 0.7, 0.7])) * (1 - 0.2 * gia) + 0.2 * gia * skin)
+    mw = L(0.36 if nu_ > 0.5 else 0.4)
+    top = [Q(hx_ + mw * t, my_ + L(0.07) * (1 - abs(t)) ** 0.7 - L(0.025) * np.exp(-(t * 4) ** 2)) for t in np.linspace(-1, 1, 24)]
+    bot = [Q(hx_ + mw * t, my_ - L(0.1) * (1 - t * t)) for t in np.linspace(1, -1, 24)]
+    d.polygon(top + bot, fill=lip)
+    d.line([Q(hx_ + mw * t, my_ - L(0.005) * (1 - t * t)) for t in np.linspace(-1, 1, 24)], fill=tuple(int(c * 0.6) for c in lip), width=int(K * 1.6))
+    im = im.resize((S_, S_), Image.LANCZOS)
+    A = np.asarray(im).astype(float)
+    A = ndimage.gaussian_filter(A, (0.7, 0.7, 0))
+    # trên trán: giữ tóc / nón / khăn của nhân vật (chỗ không phải da)
+    _, yb = P_(hx_, ey_ + L(0.75))
+    rows = np.arange(S_)[:, None]; keep = (rows < yb) & ~sk
+    keep = ndimage.binary_opening(keep, iterations=2)
+    A[keep] = C[keep]
+    eu = [((ku[0] * (hx_ + sd * 0.5 * ed_) + ku[1]), (kv[0] * ey_ + kv[1])) for sd in (-1, 1)]   # ey_ theo cỡ chuẩn
+    return {'img': Image.fromarray(np.clip(A, 0, 255).astype(np.uint8)), 'eyes': sorted(eu), 'mouth': (ku[0] * hx_ + ku[1], kv[0] * my_ + kv[1])}
+VE = None
+if fps:
+    fp = fps[0]
+    FX = g.acc(fp['attributes']['POSITION']).astype(float); FU = g.acc(fp['attributes']['TEXCOORD_0']).astype(float)
+    ins = (FU > 0.003).all(1) & (FU < 0.997).all(1)
+    ku = np.linalg.lstsq(np.c_[FX[ins, 0], np.ones(ins.sum())], FU[ins, 0], rcond=None)[0]
+    kv = np.linalg.lstsq(np.c_[FX[ins, 1], np.ones(ins.sum())], FU[ins, 1], rcond=None)[0]
+    tex = tex_of(fp); anh_mat = 'ảnh mặt có sẵn'
+else:   # không có ảnh mặt (mặt máy tạo méo, không dùng được): vẽ một khuôn mặt sạch, màu da / tóc / nón lấy từ chính nhân vật
+    cap, ku, kv, FX = chup_mat(); anh_mat = 'mặt vẽ (không có ảnh chân dung)'
+    VE = ve_mat(cap)
+    tex = VE['img']
 uv = lambda x, y: (ku[0] * x + ku[1], kv[0] * y + kv[1])
 xy = lambda u, v: ((u - ku[1]) / ku[0], (v - kv[1]) / kv[0])
-ti = J['materials'][fp['material']]['pbrMetallicRoughness']['baseColorTexture']['index']; im0 = J['images'][J['textures'][ti]['source']]
-bv = J['bufferViews'][im0['bufferView']]; o = bv.get('byteOffset', 0)
-tex = Image.open(io.BytesIO(bytes(g.bin[o:o + bv['byteLength']]))).convert('RGB'); TA = np.asarray(tex).astype(float); TH, TW = TA.shape[:2]
+TA = np.asarray(tex).astype(float); TH, TW = TA.shape[:2]
 
 # ---------- tìm hai mắt trên ảnh ----------
 def find_eyes():
@@ -73,28 +189,66 @@ def find_eyes():
 fix = {}
 fpath = os.path.join(TOOL, 'mat-chinh.json')
 if os.path.exists(fpath): fix = json.load(open(fpath))
-found = find_eyes()
-if base in fix: eyes_uv = fix[base]; src_e = 'chấm tay'
+found = find_eyes() if VE is None else None
+if VE is not None: eyes_uv = VE['eyes']; src_e = 'vẽ sẵn'
+elif base in fix: eyes_uv = fix[base]; src_e = 'chấm tay'
 elif found: eyes_uv = found[0]; src_e = 'tự tìm'
 else: print('khong-thay-mat'); sys.exit(3)
+# ảnh mặt đặt lệch cỡ / lệch chỗ so với đầu thật (mắt trong ảnh quá to, quá nhỏ): đặt lại khung ảnh cho hai mắt rơi đúng chỗ mắt chuẩn
+reframed = False
+if VE is None:
+    (u0_, v0_), (u1_, v1_) = sorted(eyes_uv); ed_img = abs(u1_ - u0_)
+    ey_img = xy(0, (v0_ + v1_) / 2)[1]   # tầm mắt theo khung ảnh hiện tại
+    if abs(ey_img - (Pw('Head')[1] + 0.043 * SC)) > 0.03 * SC:
+        hx_ = np.median(FX[:, 0]); ey_ = Pw('Head')[1] + 0.043 * SC
+        k0 = np.sign(ku[0]) * ed_img / (0.061 * SC * HS); kv0 = kv[0] * k0 / ku[0]
+        ku = np.array([k0, (u0_ + u1_) / 2 - k0 * hx_]); kv = np.array([kv0, (v0_ + v1_) / 2 - kv0 * ey_]); reframed = True
+if os.environ.get('DAU_DEBUG'):   # ảnh mặt + mắt tìm được, để soát
+    dbg = tex.convert('RGB').copy(); dr = ImageDraw.Draw(dbg)
+    for u_, v_ in eyes_uv: dr.ellipse([u_ * TW - 6, v_ * TH - 6, u_ * TW + 6, v_ * TH + 6], outline=(255, 0, 0), width=3)
+    dbg.save(os.environ['DAU_DEBUG'])
 E = np.array([xy(u, v) for u, v in eyes_uv])   # hai mắt (x, y) trên nhân vật
 MO = None
-if base in fix and len(fix[base]) > 2: MO = np.array(xy(*fix[base][2]))
+if VE is not None: MO = np.array(xy(*VE['mouth']))
+elif base in fix and len(fix[base]) > 2: MO = np.array(xy(*fix[base][2]))
 elif found and base not in fix: MO = np.array(xy(*found[3]))
 if E[0, 0] > E[1, 0]: E = E[::-1]
 
 # ---------- đầu mẫu ----------
-tg = GLB(os.path.join(TOOL, '..', '..', 'public', 'models', 'nam-avatar.glb')); TJ = tg.j
-parts = {}
-for nd in TJ['nodes']:
-    if 'mesh' in nd and TJ['meshes'][nd['mesh']]['name'] in ('Wolf3D_Head', 'EyeLeft', 'EyeRight', 'Wolf3D_Teeth'):
-        p = TJ['meshes'][nd['mesh']]['primitives'][0]
-        parts[TJ['meshes'][nd['mesh']]['name']] = (tg.acc(p['attributes']['POSITION']).astype(float), tg.acc(p['attributes']['NORMAL']).astype(float), tg.acc(p['indices']).reshape(-1, 3).astype(np.int64))
+# dáng mặt (rộng / cằm) đo từ ảnh chân dung
+def mh_width(parts, rows):   # nửa bề ngang mặt trước (đơn vị: khoảng cách hai mắt) tại các hàng dưới mắt
+    H = parts['Head'][0]; el, er = parts['EyeLeft'][0].mean(0), parts['EyeRight'][0].mean(0); ed_ = abs(el[0] - er[0]); ey_ = (el[1] + er[1]) / 2
+    fr_ = H[H[:, 2] > el[2] - 0.6 * ed_]
+    return np.array([np.abs(fr_[np.abs(fr_[:, 1] - (ey_ - r * ed_)) < 0.08 * ed_, 0]).max() / ed_ for r in rows])
+def face_width(rows):   # nửa bề ngang khuôn da trên ảnh tại cùng các hàng (chỉ đoạn liền qua giữa mặt)
+    face, (u0, v0), (u1, v1) = found[1], eyes_uv[0], eyes_uv[1]
+    ed_ = abs(u1 - u0) * 256; cxp = (u0 + u1) / 2 * 256; eyp = (v0 + v1) / 2 * 256; out = []
+    for r in rows:
+        y = int(round(eyp + r * ed_))
+        if not (0 <= y < 256) or not face[y, int(cxp)]: return None
+        row = face[y]; l = int(cxp); rr = int(cxp)
+        while l > 0 and row[l - 1]: l -= 1
+        while rr < 255 and row[rr + 1]: rr += 1
+        out.append((rr - l + 1) / 2 / ed_)
+    return np.array(out)
+ROWS = (0.45, 0.9)   # gò má, ngang miệng
+shape = {}
+fw = face_width(ROWS) if found and base not in fix else None
+if fw is not None and (0.5 < fw).all() and (fw < 1.6).all():
+    w0 = mh_width(dau_mh.build(nu_, tuoi), ROWS)
+    Jm = np.stack([mh_width(dau_mh.build(nu_, tuoi, {k: 0.5}), ROWS) - mh_width(dau_mh.build(nu_, tuoi, {k: -0.5}), ROWS) for k in ('rong', 'cam_rong')], 1)
+    x = np.linalg.lstsq(Jm, fw - w0, rcond=None)[0]
+    shape = {k: float(np.clip(0.7 * v, -0.6, 0.6)) for k, v in zip(('rong', 'cam_rong'), x)}
+if not shape:   # không đo được trên ảnh: dáng riêng cố định theo mã nhân vật cho đỡ giống nhau
+    import zlib
+    rs = np.random.default_rng(zlib.crc32(base.encode()))
+    shape = {'rong': float(rs.uniform(-0.45, 0.45)), 'cam_rong': float(rs.uniform(-0.45, 0.45)), 'gomag': float(rs.uniform(-0.4, 0.4))}
+parts = dau_mh.build(nu_, tuoi, shape)
 V, N, F = [], [], []; off = 0
-for k in ('Wolf3D_Head', 'EyeLeft', 'EyeRight'):
+for k in ('Head', 'EyeLeft', 'EyeRight'):
     X, Nn, I = parts[k]; V.append(X); N.append(Nn); F.append(I + off); off += len(X)
 V = np.concatenate(V); N = np.concatenate(N); F = np.concatenate(F)
-nhead = len(parts['Wolf3D_Head'][0])
+nhead = len(parts['Head'][0])
 V[:, [0, 2]] *= -1; N[:, [0, 2]] *= -1   # đầu mẫu nhìn về +Z, nhân vật nhìn về −Z
 TE = np.array([parts['EyeRight'][0].mean(0), parts['EyeLeft'][0].mean(0)]); TE[:, [0, 2]] *= -1
 if TE[0, 0] > TE[1, 0]: TE = TE[::-1]
@@ -113,7 +267,7 @@ headx = (np.percentile(ring[:, 0], 5) + np.percentile(ring[:, 0], 95)) / 2 if le
 SHX = headx - mE[0] if abs(headx - mE[0]) > 0.015 * SC else 0.0
 mE = mE + np.array([SHX, 0]); E = E + np.array([SHX, 0])
 if MO is not None: MO = MO + np.array([SHX, 0])
-TM = parts['Wolf3D_Teeth'][0].mean(0).copy(); TM[[0, 2]] *= -1   # miệng đầu mẫu
+TM = parts['mouth'].copy(); TM[[0, 2]] *= -1   # miệng đầu mẫu (răng trên)
 sy = s
 if MO is not None:
     sy0 = (mE[1] - MO[1]) / (mT[1] - TM[1])
@@ -246,7 +400,7 @@ for p in mesh['primitives']:
     box = (C[:, 0] > fx0) & (C[:, 0] < fx1) & (C[:, 1] > fy0) & (C[:, 1] < brow + 0.01 * sy)
     if box.any():
         fz = front_z(C[box]); bi = np.nonzero(box)[0]
-        k[bi[(~np.isnan(fz)) & (C[box, 2] < fz + 0.012 * SC)]] = True   # mảnh cũ nằm trước / sát mặt mới
+        k[bi[(~np.isnan(fz)) & (C[box, 2] < fz + 0.012 * SC) & (C[box, 2] > fz - 0.04 * SC)]] = True   # mảnh cũ sát mặt mới (vành nón xa phía trước thì giữ)
     if k.any():
         I[k] = I[k][:, :1]; killed += int(k.sum())
         ia = J['accessors'][p['indices']]; g.put(p['indices'], I.reshape(-1, 1).astype({5123: '<u2', 5125: '<u4'}[ia['componentType']]))
@@ -268,4 +422,4 @@ mesh['primitives'].append({'attributes': {'POSITION': add(P2.astype('<f4'), 'VEC
                                           'TEXCOORD_0': add(UV.astype('<f4'), 'VEC2', 5126), 'JOINTS_0': add(jt, 'VEC4', 5121 if jt.dtype == np.uint8 else 5123), 'WEIGHTS_0': add(wt, 'VEC4', 5126)},
                            'indices': add(Fl.reshape(-1, 1).astype('<u2' if ct == 5123 else '<u4'), 'SCALAR', ct), 'material': len(J['materials']) - 1})
 J['buffers'][0]['byteLength'] = len(g.bin); g.compact(); g.save(dst)
-print(('dời đầu %.0f mm, ' % (SHX * 1000) if SHX else '') + ('soi gương nửa ' + mirror + ', ' if mirror else '') + 'đầu chuẩn: mắt %s, cỡ %.2f×%.2f%s, nghiêng %.0f°, co %d đỉnh dưới nón/tóc, bỏ %d tam giác đầu cũ' % (src_e, s / SC, sy / SC, '' if s_ok else ' (mắt lệch, dùng cỡ mặc định)', np.degrees(roll), ncut, killed))
+print(anh_mat + (' (đặt lại khung ảnh)' if reframed else '') + ', cỡ đầu cũ %.2f, ' % HS + ('khuôn %s %s tuổi%s, ' % (gioi, tuoi, ''.join(' %s %+.2f' % kv for kv in shape.items()))) + ('dời đầu %.0f mm, ' % (SHX * 1000) if SHX else '') + ('soi gương nửa ' + mirror + ', ' if mirror else '') + 'đầu chuẩn: mắt %s, cỡ %.2f×%.2f%s, nghiêng %.0f°, co %d đỉnh dưới nón/tóc, bỏ %d tam giác đầu cũ' % (src_e, s / SC, sy / SC, '' if s_ok else ' (mắt lệch, dùng cỡ mặc định)', np.degrees(roll), ncut, killed))
