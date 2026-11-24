@@ -26,8 +26,9 @@ const run = (cmd, a) => { const r = spawnSync(cmd, a, { encoding: 'utf8' }); ret
     if (!r1.ok) { console.log('LỖI sửa xương'); report.push([f, 'lỗi sửa xương', r1.out.trim().split('\n').pop()]); continue; }
     const rg = run(PY, ['-I', path.join(TOOL, 'ganh-doc.py'), fixed, fixed]);
     if (!rg.ok) { console.log('LỖI quang gánh'); report.push([f, 'lỗi quang gánh', rg.out.trim().split('\n').pop()]); continue; }
-    for (const st of ['do-vat.py', 'mat-2d.py']) {   // món đồ xách tay có xương riêng; mặt 2D từ ảnh chân dung
-      const rr = run(PY, ['-I', path.join(TOOL, st), fixed, fixed]);
+    for (const st of ['do-vat.py', 'dau-chuan.py']) {   // món đồ xách tay có xương riêng; thay đầu chuẩn + ảnh chân dung
+      let rr = run(PY, ['-I', path.join(TOOL, st), fixed, fixed]);
+      if (!rr.ok && st === 'dau-chuan.py') rr = run(PY, ['-I', path.join(TOOL, 'mat-2d.py'), fixed, fixed]);   // không thay đầu được -> dán mặt 2D
       if (!rr.ok) { console.log('LỖI', st); report.push([f, 'lỗi ' + st, rr.out.trim().split('\n').pop()]); fixed_bad = true; break; }
     }
     if (fixed_bad) { fixed_bad = false; continue; }

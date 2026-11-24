@@ -31,7 +31,8 @@ Cần python3 + numpy, playwright (chromium) và ffmpeg. Không có ffmpeg thì 
    - Đi, chạy, đứng: tay phải vịn đầu đòn phía trước, thúng nhún theo bước. Đòn luôn giữ thăng bằng khi người nghiêng.
    - Các động tác ngồi: đặt gánh xuống đất bên cạnh. Chỉnh trong `GANH` của `dong-tac.js`.
 4. `do-vat.py`: tay xách đồ (giỏ...) được giữ yên theo ngực; phần món đồ dưới bàn tay tách ra xương riêng `DoVat`. Khi ngồi (trong game và trong 3 động tác ngồi), món đồ được đặt xuống đất cạnh chân.
-5. `mat-2d.py`: làm mặt đẹp hơn. Tìm khuôn mặt ngay trên ảnh chân dung (texture mặt chiếu thẳng), rồi dán ảnh lên một mặt nạ mỏng cong mượt đặt trước lưới mặt (vốn góc cạnh, méo). Viền mờ dần, vá lỗ đen, cả vùng mặt theo hẳn xương đầu.
+5. `dau-chuan.py`: thay đầu. Lấy đầu người chuẩn, mượt (đầu + nhãn cầu của `public/models/nam-avatar.glb`), đặt đúng chỗ đầu cũ, co giãn cho khớp hai mắt và miệng trên ảnh chân dung, rồi chiếu ảnh lên mặt. Ảnh chụp nghiêng thì soi gương nửa mặt rõ hơn. Tóc, gáy tô bằng màu lấy từ ảnh. Phần đầu cũ nằm trong đầu mới bị bỏ, còn nón, khăn giữ nguyên. Mắt tự tìm sai thì chấm tay trong `mat-chinh.json`. Không thay được thì quy trình tự quay về `mat-2d.py`.
+   - `mat-2d.py` (dự phòng): làm mặt đẹp hơn. Tìm khuôn mặt ngay trên ảnh chân dung (texture mặt chiếu thẳng), rồi dán ảnh lên một mặt nạ mỏng cong mượt đặt trước lưới mặt (vốn góc cạnh, méo). Viền mờ dần, vá lỗ đen, cả vùng mặt theo hẳn xương đầu.
 6. `gan-dong-tac.py`: ghi các động tác vào GLB thành animation (giữ tất cả xương trong mọi clip để chuyển clip không bị lệch).
 
 7. `lam-nhe.py`: gộp các đỉnh trùng (lưới máy tạo là "súp tam giác", mỗi tam giác 3 đỉnh riêng chỉ để mang pháp tuyến phẳng) và bỏ pháp tuyến. Trình xem glTF tự tô phẳng từng mặt nên hình không đổi, số đỉnh giảm khoảng 3 lần, file nhẹ hơn khoảng 1/3.
