@@ -1844,7 +1844,9 @@ if (renderer && SH) {
   }
 
   let lastT = 0, resScale = 1, fpsEma = 60, lastReal = performance.now(), slowFor = 0, fastFor = 0;
+  const FIXRES = /[?&]fixres/.test(location.search);   // quay video thử: giữ nguyên độ phân giải
   function adaptRes() {   // máy chậm thì tự giảm độ phân giải 3D, máy khoẻ thì tăng lại
+    if (FIXRES) return;
     const now2 = performance.now(), rd = Math.max(1, now2 - lastReal); lastReal = now2;
     fpsEma += (1000 / rd - fpsEma) * 0.05;
     if (fpsEma < 26) { slowFor += rd; fastFor = 0; } else if (fpsEma > 50) { fastFor += rd; slowFor = 0; } else { slowFor = 0; fastFor = 0; }
