@@ -38,6 +38,7 @@ Cần python3 + numpy, playwright (chromium) và ffmpeg. Không có ffmpeg thì 
    - Ảnh chân dung toàn thân: chiều cao người trong ảnh (đo theo màu nền hai mép ảnh) khớp với chiều cao mô hình, nên tầm mắt và cổ đúng như ảnh. Mốc mặt dò trên ảnh gốc rồi quy về khung mặt.
    - Mí mắt khuôn được mở vừa (`mo_mat` 0,4); ảnh được uốn thêm theo chóp mũi để mũi, môi nằm đúng chỗ.
    - Khớp bề ngang: đầu khuôn rộng hơn mặt trong ảnh thì thu hẹp má, hàm, hai bên sọ (giữ vùng mắt); phần chênh còn lại uốn ảnh theo từng hàng cho mép mặt ảnh trùng mép đầu (không còn viền hàm lọt trong đầu như hai lớp mặt).
+   - Cỡ đầu: ảnh AI vẽ đầu to hơn người thật, nên cả cụm đầu (mặt, tóc, nón, khăn) được thu quanh khớp đầu cho khoảng cách hai mắt ≈ 6,25 cm × chiều cao/1,66 m.
    - Hai mắt, miệng trên ảnh dò bằng YuNet (`yunet.onnx`, cần `pip install opencv-python-headless`; không có thì dùng cách dò cũ, kém hơn). Khuôn đầu giữ tỉ lệ người thật, chỉ co giãn ảnh cho mắt, miệng rơi đúng chỗ.
    - Lớp ảnh mặt cắt hỏng: ghi mã vào `_ve_mat` trong `mat-chinh.json` để tạm vẽ mặt; có ảnh chân dung trong `chan-dung/` thì luôn dùng ảnh chân dung.
    - Tóc, gáy tô bằng màu lấy từ ảnh. Phần đầu cũ nằm trong đầu mới bị bỏ, còn nón, khăn, vành nón xa phía trước giữ nguyên. Không thay được thì quy trình tự quay về `mat-2d.py`.

@@ -643,5 +643,20 @@ ct = 5123 if len(P2) < 65535 else 5125
 mesh['primitives'].append({'attributes': {'POSITION': add(P2.astype('<f4'), 'VEC3', 5126, True), 'NORMAL': add((N2 / np.linalg.norm(N2, axis=1, keepdims=True)).astype('<f4'), 'VEC3', 5126),
                                           'TEXCOORD_0': add(UV.astype('<f4'), 'VEC2', 5126), 'JOINTS_0': add(jt, 'VEC4', 5121 if jt.dtype == np.uint8 else 5123), 'WEIGHTS_0': add(wt, 'VEC4', 5126)},
                            'indices': add(Fl.reshape(-1, 1).astype('<u2' if ct == 5123 else '<u4'), 'SCALAR', ct), 'material': len(J['materials']) - 1})
+# ---------- cỡ đầu theo tỉ lệ người thật: ảnh AI vẽ đầu to, thu cả cụm đầu (mặt, tóc, nón, khăn) quanh khớp đầu ----------
+allY = np.concatenate([g.acc(p['attributes']['POSITION'])[:, 1] for p in mesh['primitives']])
+ed_now = np.linalg.norm(dT) * s; ed_want = 0.0625 * (allY.max() - allY.min()) / 1.66
+KH = float(np.clip(ed_want / ed_now, 0.78, 1.0))
+if KH < 0.995:
+    piv = Pw('Head'); hi_ = [JI[n] for n in ('Head', 'HeadTop_End') if n in JI]
+    for p in mesh['primitives']:
+        a_ = p['attributes']
+        if 'JOINTS_0' not in a_: continue
+        X_ = g.acc(a_['POSITION']).astype(float); Jt = g.acc(a_['JOINTS_0']).astype(int); Wt = g.acc(a_['WEIGHTS_0']).astype(float)
+        Wt = Wt / {5121: 255.0, 5123: 65535.0}.get(J['accessors'][a_['WEIGHTS_0']]['componentType'], 1.0)
+        wh_ = (Wt * np.isin(Jt, hi_)).sum(1)
+        if not (wh_ > 0.01).any(): continue
+        X_ = X_ + ((KH - 1) * wh_)[:, None] * (X_ - piv)
+        ia = J['accessors'][a_['POSITION']]; g.put(a_['POSITION'], X_.astype('<f4')); ia['min'] = X_.min(0).tolist(); ia['max'] = X_.max(0).tolist()
 J['buffers'][0]['byteLength'] = len(g.bin); g.compact(); g.save(dst)
-print(anh_mat + (' (đặt lại khung ảnh)' if reframed else '') + ', ' + squash + wfit + 'cỡ đầu cũ %.2f, ' % HS + ('khuôn %s %s tuổi%s, ' % (gioi, tuoi, ''.join(' %s %+.2f' % kv for kv in shape.items()))) + ('dời đầu %.0f mm, ' % (SHX * 1000) if SHX else '') + ('soi gương nửa ' + mirror + ', ' if mirror else '') + 'đầu chuẩn: mắt %s, cỡ %.2f×%.2f%s, nghiêng %.0f°, co %d đỉnh dưới nón/tóc, bỏ %d tam giác đầu cũ' % (src_e, s / SC, sy / SC, '' if s_ok else ' (mắt lệch, dùng cỡ mặc định)', np.degrees(roll), ncut, killed))
+print(anh_mat + (' (đặt lại khung ảnh)' if reframed else '') + ', ' + ('thu đầu %.2f, ' % KH if KH < 0.995 else '') + squash + wfit + 'cỡ đầu cũ %.2f, ' % HS + ('khuôn %s %s tuổi%s, ' % (gioi, tuoi, ''.join(' %s %+.2f' % kv for kv in shape.items()))) + ('dời đầu %.0f mm, ' % (SHX * 1000) if SHX else '') + ('soi gương nửa ' + mirror + ', ' if mirror else '') + 'đầu chuẩn: mắt %s, cỡ %.2f×%.2f%s, nghiêng %.0f°, co %d đỉnh dưới nón/tóc, bỏ %d tam giác đầu cũ' % (src_e, s / SC, sy / SC, '' if s_ok else ' (mắt lệch, dùng cỡ mặc định)', np.degrees(roll), ncut, killed))
