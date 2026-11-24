@@ -25,6 +25,8 @@ const HAND = `"Segoe Print", "Segoe Script", "Comic Sans MS", "Chalkboard SE", $
 const BIG = '"Arial Black", "Segoe UI Black", Impact, "Helvetica Neue", sans-serif';
 const params = new URLSearchParams(location.search);
 const OBS = params.has('obs');
+// chế độ điện thoại (live bằng chia sẻ màn hình của TikTok): nhẹ hơn để điện thoại vừa chạy game vừa phát LIVE
+const PHONE = params.has('phone') || (!OBS && !params.has('pc') && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -626,7 +628,7 @@ const people = new Map();      // id -> actor
 const queue = [];              // đang chờ (đã xếp theo ưu tiên)
 let sitter = null;             // người đang được vẽ
 const walkers = [];            // người đi về sau khi được vẽ / rời hàng
-const VIS = 9;                 // số người trong hàng hiện thành nhân vật 3D
+const VIS = PHONE ? 6 : 9;     // số người trong hàng hiện thành nhân vật 3D (điện thoại ít hơn cho nhẹ)
 const queueSlot = i => V3(-0.95 - i * 0.1 + (i % 2 ? 0.26 : -0.04), 0, -2.7 - i * 0.74);
 function bodied() { const out = []; for (const w of passers) if (w.a) out.push(w.a); for (const p of queue) if (p.bodied) out.push(p); if (sitter && sitter.bodied) out.push(sitter); for (const w of walkers) if (w.bodied) out.push(w); return out; }
 function ensurePerson(user) {
@@ -1310,7 +1312,7 @@ function updateAuto(t) {
   const every = Number(S.autoPartyEvery ?? 10);
   if (every > 0 && !party.on && t - (party.lastStart || 0) > every * 60) startParty();
   // người qua đường ở cuối phố
-  const want = S.passersby === false || S.quality === 'low' ? 0 : 3;
+  const want = S.passersby === false || S.quality === 'low' || PHONE ? 0 : 3;
   while (passers.length < want) passers.push({ next: t + rand(0, 6) });
   while (passers.length > want) { const w = passers.pop(); if (w.a) dropBody(w.a); }
 }
@@ -1835,7 +1837,7 @@ const likeSpeed = () => 1 + 0.8 * clamp(likeHeat / 60, 0, 1);
 // HUD 2D
 // ======================================================================
 const particles = [];
-const qMul = () => S.quality === 'low' ? 0.35 : S.quality === 'medium' ? 0.65 : 1;
+const qMul = () => PHONE || S.quality === 'low' ? 0.35 : S.quality === 'medium' ? 0.65 : 1;
 function confetti(n) { n = Math.round(n * qMul()); for (let i = 0; i < n; i++) particles.push({ x: rand(0, W), y: rand(-200, 0), vx: rand(-60, 60), vy: rand(160, 380), g: 30, life: 5, max: 5, color: pick(['#ff3d7f', '#ffd84d', '#7cf7ff', '#a3e635', '#c084fc', '#ffffff', '#ff8a3d']), size: rand(9, 17), type: 'confetti', rot: Math.random() * TAU, vr: rand(-8, 8) }); }
 function hearts(x, y, n) { for (let i = 0; i < n; i++) particles.push({ x: x + rand(-30, 30), y, vx: rand(-40, 40), vy: rand(-220, -120), g: 0, life: 2.2, max: 2.2, color: pick(['#ff3d7f', '#ff7ab8', '#ff4d6d', '#ffb3c7']), size: rand(18, 30), type: 'heart' }); }
 function sparkleAt(sp, n) { if (!sp) return; for (let i = 0; i < n; i++) { const a = rand(0, TAU), v = rand(120, 380); particles.push({ x: sp.x + rand(-60, 60), y: sp.y + rand(-60, 60), vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 80, life: 1.2, max: 1.2, color: pick(['#fff3a3', '#ffffff', '#ffd23f', '#9be7ff']), size: rand(10, 20), type: 'star' }); } }
@@ -2196,7 +2198,7 @@ function handleEv(ev) {
 function applyLang() {
   const dir = LG().rtl ? 'rtl' : 'ltr';
   try { ctx.direction = dir; P.direction = dir; } catch (e) {}
-  const tapEl = document.getElementById('tap'); if (tapEl) tapEl.textContent = T('tap');
+  const tapEl = document.getElementById('tap'); if (tapEl) tapEl.textContent = PHONE ? '📱 ' + T('tap') : T('tap');
   document.documentElement.lang = S.painterLang || 'vi';
   idleInvite = false;
   if (job) drawPlate(job.p.name, plateSub(job));
@@ -2251,14 +2253,14 @@ function resize() {
   const ww = window.innerWidth, wh = window.innerHeight;
   const view = Math.min(ww / W, wh / H);
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const q = S.quality === 'low' ? 0.55 : S.quality === 'medium' ? 0.75 : 1;
+  const q = PHONE ? 0.6 : S.quality === 'low' ? 0.55 : S.quality === 'medium' ? 0.75 : 1;
   pxScale = Math.min(view * dpr, 1) * q;
   const cw = Math.round(W * view) + 'px', ch = Math.round(H * view) + 'px';
   for (const c of [glCanvas, hud]) { c.style.width = cw; c.style.height = ch; }
   const rw = Math.round(W * pxScale), rh = Math.round(H * pxScale);
   renderer.setSize(rw, rh, false);
   hud.width = rw; hud.height = rh;
-  if (S.quality === 'high') { if (!composer) setupComposer(); composer.setSize(rw, rh); }
+  if (S.quality === 'high' && !PHONE) { if (!composer) setupComposer(); composer.setSize(rw, rh); }
 }
 window.addEventListener('resize', resize);
 resize();
@@ -2307,7 +2309,7 @@ function frame() {
   costumeTime.value = t; outfitTime.value = t;
   updateCam(t, dt);
   if (snapReq.length) doSnapshots();
-  if (S.quality === 'high' && composer) composer.render(); else renderer.render(scene, camera);
+  if (S.quality === 'high' && composer && !PHONE) composer.render(); else renderer.render(scene, camera);
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, hud.width, hud.height);
   ctx.setTransform(pxScale, 0, 0, pxScale, 0, 0);
   drawHUD(t, dt);
@@ -2319,8 +2321,16 @@ setInterval(() => socket.emit('status', { onFloor: queue.length + (sitter ? 1 : 
 paperBg('canvas'); drawPlate(S.painterName, '');
 if (Music) { Music.init(); Music.setDuck(0.62); }
 const tap = document.getElementById('tap');
-function checkAudio() { tap.style.display = Music && Music.suspended() && !OBS && (Music.settings.musicEnabled || Music.settings.synthMusic) ? 'flex' : 'none'; }
-const unlock = () => { if (!Music) return; Music.init(); Music.resume(); setTimeout(checkAudio, 200); };
+let phoneReady = false;
+function checkAudio() { tap.style.display = (PHONE && !phoneReady) || (Music && Music.suspended() && !OBS && (Music.settings.musicEnabled || Music.settings.synthMusic)) ? 'flex' : 'none'; }
+// điện thoại: giữ màn hình luôn sáng trong lúc LIVE, bật toàn màn hình nếu trình duyệt cho phép
+let wakeLock = null;
+async function keepAwake() { try { if ('wakeLock' in navigator && (!wakeLock || wakeLock.released)) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {} }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && PHONE) keepAwake(); });
+const unlock = () => {
+  if (PHONE && !phoneReady) { phoneReady = true; keepAwake(); try { const el = document.documentElement; (el.requestFullscreen || el.webkitRequestFullscreen || (() => {})).call(el); } catch (e) {} }
+  if (!Music) return; Music.init(); Music.resume(); setTimeout(checkAudio, 200);
+};
 window.addEventListener('pointerdown', unlock);
 setInterval(checkAudio, 1500);
 window._painter = { queue, people, party, lucky, gallery, PM, get job() { return job; }, get vote() { return vote; }, get best() { return best; }, startParty, camera, scene, inject: handleEv };   // chỉ dùng khi thử nghiệm

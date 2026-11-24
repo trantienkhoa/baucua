@@ -20,6 +20,37 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 📱 Live bằng điện thoại (không cần máy tính) — bản 2.15.0
+
+TikTok có chế độ LIVE **“Trò chơi di động / Chia sẻ màn hình”** trên cả iPhone và Android: điện thoại phát lên LIVE đúng những gì đang hiện trên màn hình. Mở màn game Họa Sĩ trên trình duyệt điện thoại rồi bật chế độ đó là live được. Tài khoản phải đủ điều kiện LIVE của TikTok (thường từ 18 tuổi, khoảng 1.000 người theo dõi, tuỳ quốc gia).
+
+Máy chủ game (`server.js`, nối với TikTok) phải chạy ở đâu đó:
+
+### Cách 1 — Android: chạy luôn trên điện thoại (miễn phí)
+1. Cài **Termux** từ F-Droid (bản trên CH Play đã cũ).
+2. Mở Termux, gõ: `curl -fsSL https://raw.githubusercontent.com/trantienkhoa/baucua/main/tools/android-cai-dat.sh | bash` (kho mã riêng tư thì tải thư mục game về điện thoại rồi chạy `bash tools/android-cai-dat.sh`). Script cài Node.js, thư viện, giữ Termux không bị tắt và chạy máy chủ. Lần sau: `cd ~/baucua && node server.js`.
+3. Chrome mở `http://localhost:3300/admin.html` → mục **🎨 Game Họa Sĩ** → **📦 Gói nhân vật**: dán link Google Drive của gói nhân vật `.zip` → **⬇️ Tải về máy chủ** (máy chủ tự tải và giải nén 98 nhân vật). Nhập tên kênh → **Kết nối**.
+4. Chrome mở `http://localhost:3300/hoa-si.html` → menu ⋮ → **Thêm vào màn hình chính**, mở game từ biểu tượng đó (toàn màn hình) → chạm 1 lần để bật tiếng và giữ màn hình sáng.
+5. TikTok → **LIVE** → **Trò chơi di động / Chia sẻ màn hình** → bắt đầu → quay lại game.
+6. Trong cài đặt Android, tắt **tối ưu hoá pin** cho Termux và Chrome.
+
+### Cách 2 — iPhone (hoặc Android yếu): máy chủ trên đám mây Render.com
+iPhone không chạy được máy chủ, nên đặt máy chủ trên mạng; điện thoại chỉ mở trang game.
+1. Trên Safari: tạo tài khoản **GitHub** (đã có kho `baucua`) và **render.com** (đăng nhập bằng GitHub).
+2. Render → **New** → **Blueprint** → chọn kho `baucua` (tệp `render.yaml` có sẵn). Nhập **MODELS_URL** = link Google Drive gói nhân vật, **TIKTOK_USERNAME** = tên kênh → **Apply**. Render tự tạo **ADMIN_KEY** (mật khẩu trang điều khiển, xem ở tab *Environment*).
+3. Khi Render báo *Live*, mở `https://<tên-app>.onrender.com/admin.html?key=<ADMIN_KEY>` → kiểm tra mục **📦 Gói nhân vật** báo đã cài, bấm **Kết nối**.
+4. Safari mở `https://<tên-app>.onrender.com/hoa-si.html` → nút Chia sẻ → **Thêm vào MH chính** → mở game từ biểu tượng → chạm 1 lần.
+5. TikTok → **LIVE** → **Trò chơi di động** → **Bắt đầu phát sóng** → quay lại game.
+
+Lưu ý gói miễn phí của Render: máy chủ **ngủ sau ~15 phút không có ai truy cập** (lần mở đầu phải chờ khoảng 1 phút) và **ổ đĩa bị xoá mỗi lần khởi động lại** (nhân vật tự tải lại nhờ MODELS_URL, cài đặt trở về mặc định). Máy chủ đám mây dễ bị TikTok bắt xác minh hơn mạng nhà — nên nhập **key EulerStream** ở mục 1 trang điều khiển. Live lâu dài nên dùng gói trả phí của Render.
+
+### Mẹo khi live bằng điện thoại
+- Màn game tự nhận điện thoại và chạy **chế độ nhẹ** (ít nhân vật hơn, không hiệu ứng toả sáng, độ phân giải thấp hơn) để vừa chạy game vừa phát LIVE. Muốn ép bật/tắt: thêm `?phone=1` hoặc `?pc` vào đường dẫn.
+- Bật **Không làm phiền** (thông báo, cuộc gọi sẽ lên LIVE nếu không tắt), **cắm sạc**, để máy nơi thoáng mát.
+- Khoá xoay dọc. Không chuyển sang app khác trong lúc live: chia sẻ màn hình sẽ phát luôn app đó.
+- Trang điều khiển mở được trên chính điện thoại (tab khác) hoặc trên điện thoại thứ hai.
+- **ADMIN_KEY**: khi chạy trên đám mây, ai có đường dẫn cũng vào được trang điều khiển nếu không có mật khẩu. Đặt ADMIN_KEY thì mọi thao tác thay đổi đều cần khoá (mở trang kèm `?key=…`, hoặc nhập khi được hỏi). Màn game không cần khoá. Chạy trên máy nhà thì không cần đặt.
+
 ## 🎨 Game Họa Sĩ — họa sĩ 3D vẽ chân dung người xem (bản 2.10.0)
 
 Màn game thứ hai, chạy chung máy chủ, kết nối TikTok, nhạc và **nhân vật 3D** của Vũ Trường Neon. Một họa sĩ 3D (nhân vật trong roster, đội mũ nồi, quàng khăn, tay cầm bảng màu và cọ) đứng giữa phố đi bộ vẽ chân dung người xem lên giá vẽ. **Không có MC** — chỉ có nhạc và âm thanh game.
