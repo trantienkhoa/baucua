@@ -85,8 +85,8 @@ app.get('/api/public', (req, res) => res.json({ siteName: CFG.siteName, tiers: (
 app.post('/api/order', limit, (req, res) => {
   const b = req.body || {}, t = tier(b.tier);
   if (!t) return res.status(400).json({ error: 'Gói không tồn tại' });
-  const name = String(b.name || '').trim().slice(0, 80), contact = String(b.contact || '').trim().slice(0, 120);
-  if (!name || !contact) return res.status(400).json({ error: 'Vui lòng nhập tên và số điện thoại / Zalo / email' });
+  const name = String(b.name || '').trim().slice(0, 80) || 'Khách', contact = String(b.contact || '').trim().slice(0, 120);
+  if (!contact) return res.status(400).json({ error: 'Vui lòng nhập Zalo / số điện thoại / email để nhận hỗ trợ' });   // chỉ cần một cách liên hệ, tên không bắt buộc
   let id; do id = (CFG.orderPrefix || 'NL') + Math.floor(100000 + Math.random() * 900000); while (db.orders[id]);
   const secret = b64u(crypto.randomBytes(18));
   db.orders[id] = { id, secret, tier: t.id, planName: t.name, amount: t.price, name, contact, status: 'pending', createdAt: Date.now(), key: null };

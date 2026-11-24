@@ -342,7 +342,7 @@ function prepare(scene, url) {
 
 // ---------- một nhân vật ----------
 export function createAvatar(parent, female, tpl, costume, opts = {}) {
-  if (!templates.length) return null;
+  if (!templates.length && !tpl) return null;
   let pool = templates.filter(t => t.female === female);
   if (!pool.length) pool = templates;
   const t = tpl || pick(pool);

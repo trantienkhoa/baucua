@@ -75,7 +75,8 @@ async function nodeExe() {
 
 // file / thư mục đưa vào gói (thư mục data/, web/, git, file thử nghiệm không đưa vào)
 const INCLUDE = ['server.js', 'license.js', 'package.json', 'ChayNgonLua.bat', 'ChayGiongMa.bat', 'public', 'node_modules', 'tools/vieneu'];
-const SKIP = rel => (GOI === '2d' && ONLY3D(rel)) || (GOI === '3d' && ONLY2D(rel)) || /(^|\/)(\.git|\.cache|__pycache__)(\/|$)/.test(rel) || /^public\/_/.test(rel) || /\.(log|map)$/.test(rel) || /^public\/models\/ma\/(B|C|D|G)\/MANIFEST/.test(rel);
+const NOSELL = rel => /^public\/models\/(nam-avatar|nu-michelle)\.glb$/.test(rel);   // mô hình Ready Player Me / Mixamo: chỉ dùng cá nhân, KHÔNG được bán
+const SKIP = rel => NOSELL(rel) || (GOI === '2d' && ONLY3D(rel)) || (GOI === '3d' && ONLY2D(rel)) || /(^|\/)(\.git|\.cache|__pycache__)(\/|$)/.test(rel) || /^public\/_/.test(rel) || /\.(log|map)$/.test(rel) || /^public\/models\/ma\/(B|C|D|G)\/MANIFEST/.test(rel);
 function* walk(rel) {
   const abs = path.join(ROOT, rel), st = fs.statSync(abs);
   if (st.isDirectory()) { for (const f of fs.readdirSync(abs)) yield* walk(rel + '/' + f); }

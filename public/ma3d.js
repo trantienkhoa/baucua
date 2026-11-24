@@ -898,6 +898,7 @@ if (renderer && SH) {
   const CHAR_IDS = Array.from({ length: 98 }, (_, i) => 'char' + String(i + 1).padStart(2, '0'));
   // nhân vật người thật nhóm F (dân giã miền quê): có thì ưu tiên làm người xem
   let NV_IDS = [];
+  const TELLER_ID = 'tp-025';   // nhân vật làm ông Tư kể chuyện
   function zeroRig() { for (const k of Object.keys(rig)) if (k !== 'root' && k !== 'hips') rig[k].rotation.set(0, 0, 0); rig.shL.position.x = -0.19; rig.shR.position.x = 0.19; }
   function placeRoot(x, y0, z, yaw) { rig.root.position.set(x, 0, z); rig.root.rotation.set(0, yaw, 0); rig.root.scale.setScalar(SCALE); rig.hips.position.set(0, 0.88, 0); }
   // ngồi bệt ôm gối
@@ -1011,7 +1012,7 @@ if (renderer && SH) {
     const beardM = gMat(0xe8e4dc), beard = new THREE.Group();
     const b1 = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.17, 10).rotateX(Math.PI), beardM); b1.position.set(0, -0.06, 0.085); b1.rotation.x = 0.25; beard.add(b1);
     for (const sx of [-1, 1]) { const m = new THREE.Mesh(new THREE.CapsuleGeometry(0.008, 0.07, 3, 6), beardM); m.position.set(sx * 0.03, 0.0, 0.1); m.rotation.z = sx * 0.5; beard.add(m); }   // ria mép
-    attachProp(av, 'Head', beard);
+    if (!av.t.real) attachProp(av, 'Head', beard);   // nhân vật thật (tp-025) đã có mặt ông cụ từ ảnh, không gắn râu giả
     const hatG = new THREE.Group();
     attachProp(av, 'Head', hatG);
     return hatG;
@@ -1100,7 +1101,7 @@ if (renderer && SH) {
       seen.add(v.id);
       let e = avs.get(v.id);
       if (e && e.gender !== (v.gender || null)) { disposeAvatar(e.av); avs.delete(v.id); e = null; }   // người xem vừa đổi nam / nữ → dựng lại nhân vật
-      if (!e && modelsReady && avatarTemplates.length) {
+      if (!e && modelsReady && (avatarTemplates.length || NV_IDS.length)) {
         const h = hash(v.id), want = v.gender ? v.gender === 'f' : null;
         let tpl = null;
         // chọn nhân vật char (của Vũ Trường Neon) cùng giới tính người xem đã chọn
@@ -1158,10 +1159,13 @@ if (renderer && SH) {
 
   function tellerTick(t) {
     const L2 = built[curMap];
-    if (!L2 || !modelsReady || !avatarTemplates.length) { SH.teller = null; return; }
+    if (!L2 || !modelsReady) { SH.teller = null; return; }
     if (!teller) {
+      // ông Tư = nhân vật tp-025 (ông cụ áo bà ba, khăn rằn) của chủ game; nhân vật này không cấp cho người xem
       const males = avatarTemplates.filter(x => !x.female);
-      const av = createAvatar(scene, false, males[0] || avatarTemplates[0], null, { outfit: randomDanGia(false, '023') });
+      const tTpl = templateForChar(TELLER_ID) || (hasCharModel(TELLER_ID) ? null : (males[0] || avatarTemplates[0]));
+      if (!tTpl) { SH.teller = null; return; }   // đang tải tp-025
+      const av = createAvatar(scene, false, tTpl, null, { outfit: randomDanGia(false, '023') });
       if (!av) return;
       av.holder.traverse(o => { if (o.isMesh && o.material && o.material.emissiveIntensity >= 2 && o.material.toneMapped === false) o.visible = false; });
       const hatG = tellerProps(av); torch = makeTorch(av);
@@ -1946,7 +1950,7 @@ if (renderer && SH) {
   syncStyle();
   fetch('/models/ma/nhanvat/danh-sach.json').then(r => r.ok ? r.json() : []).catch(() => []).then(nv => {
     nv = (nv || []).map(x => ({ ...x, url: '/models/ma/nhanvat/' + x.id + '.glb' }));
-    return fetch('/api/models').then(r => r.json()).then(list => loadAvatars((list || []).filter(m => m.enabled).map(m => ({ url: m.url, female: m.female })))).then(() => { addLazyChars(nv); NV_IDS = nv.map(x => x.id); NV_IDS.slice().sort(() => Math.random() - 0.5).slice(0, 10).forEach(id => templateForChar(id)); });   // tải sẵn 10 nhân vật để người vào là có ngay, còn lại tải khi cần (50 nhân vật ~200 MB)
+    return fetch('/api/models').then(r => r.json()).then(list => loadAvatars((list || []).filter(m => m.enabled).map(m => ({ url: m.url, female: m.female })))).then(() => { addLazyChars(nv); NV_IDS = nv.map(x => x.id).filter(id => id !== TELLER_ID); templateForChar(TELLER_ID); NV_IDS.slice().sort(() => Math.random() - 0.5).slice(0, 10).forEach(id => templateForChar(id)); });   // tp-025 làm ông Tư: không cấp cho người xem   // tải sẵn 10 nhân vật để người vào là có ngay, còn lại tải khi cần (50 nhân vật ~200 MB)
   }).then(() => { modelsReady = true; console.log('Cảnh 3D: đã nạp', avatarTemplates.length, 'mô hình người, nhóm F:', NV_IDS.length); }).catch(e => console.warn('Không nạp được mô hình người', e));
 
   window.MA3D = { ready: true, frame, gestures: () => [...avs.values()].filter(e => e.g).map(e => e.g.name + (e.av._clip ? "" : "?")), setMap, maps: Object.keys(SCENES), sceneNames: Object.fromEntries(Object.entries(SCENES).map(([k, v]) => [k, v.name])),
