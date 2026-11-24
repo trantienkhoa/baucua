@@ -542,6 +542,24 @@
     startVote('story', 'Kể chuyện nào tiếp theo?', opts.map(s => s.title), S.storyVoteSeconds, idx => startStory(opts[idx]), opts.map(s => s.teaser));
     narrate('Chọn chuyện tiếp theo. Gõ 1, 2 hoặc 3.');
   }
+  // lý do đổi chỗ kể chuyện (bốc ngẫu nhiên, không lặp lại tới khi đủ 10 lý do); truyện hư cấu, chỉ hù nhẹ
+  const TRAVEL_REASONS = [
+    (w, d) => `Gió đổi chiều, khói cứ tạt vào mặt mọi người. ${w} thắp đuốc: "Dời sang ${d} cho thoáng, ngồi đây cay mắt cả đám."`,
+    (w, d) => `Củi chỗ này ẩm hết, lửa liu riu sắp tắt. ${w} cầm đuốc đứng dậy: "Ở ${d} có củi khô, qua đó nhóm lửa mới."`,
+    (w, d) => `Chó trong xóm sủa rộ lên không ngớt. ${w} lắc đầu: "Ồn quá, kể không ai nghe. Qua ${d} cho yên."`,
+    (w, d) => `Mây đen kéo tới, gió mang mùi mưa. ${w} giục: "Sắp mưa rồi, qua ${d} có chỗ đụt, đi mau."`,
+    (w, d) => `${w} dập lửa: "Chuyện sắp kể xảy ra ở ${d}. Ngồi đúng chỗ đó mà nghe mới thấm."`,
+    (w, d) => `Muỗi bu kín quanh đống lửa, ai cũng đập lia lịa. ${w} bật cười: "Thôi, qua ${d} gió nhiều, đỡ muỗi."`,
+    (w, d) => `Chủ đất đi ngang nhắc khéo: lửa sát rơm khô quá, coi chừng cháy. ${w} dập lửa, dẫn mọi người qua ${d}.`,
+    (w, d) => `Một đàn đom đóm bay về phía ${d}. ${w} nói nhỏ: "Người xưa bảo đom đóm dẫn đường là có chuyện hay. Đi theo nó."`,
+    (w, d) => `Có tiếng mõ gõ đâu đó phía ${d}, ba tiếng rồi im. ${w} cầm đuốc: "Lạ thật… qua đó coi thử, đi sát nhau nhé."`,
+    (w, d) => `Trăng lên cao. ${w} bảo: "Chỗ này nghe chuyện đủ rồi, phải để đất nghỉ. Qua ${d} nhóm lửa kể tiếp."`,
+  ];
+  let reasonBag = [];
+  function travelReason(who, where) {
+    if (!reasonBag.length) reasonBag = TRAVEL_REASONS.map((_, i) => i).sort(() => Math.random() - 0.5);
+    return TRAVEL_REASONS[reasonBag.pop()](who, where);
+  }
   const traveling = () => story.phase === 'travel' || !!(use3D() && MA3D.busy && MA3D.busy());
   function startStory(st, noTravel) {
     if (!st) return;
@@ -553,11 +571,7 @@
         // ông kể chuyện cầm đuốc dẫn mọi người qua màn đêm tới cảnh mới, tới nơi mới kể
         story.phase = 'travel'; story.travelSt = st; story.travelT0 = story.clock; story.travelSeen = false;
         const who = S.tellerName || 'Ông Tư', where = ((MA3D.sceneNames || {})[curMap] || 'chốn khác').toLowerCase();
-        const line = pick([
-          `${who} dập lửa, thắp đuốc: "Đi thôi… theo sát tôi, đừng ai quay đầu lại." Cả đoàn run rẩy băng qua màn đêm tới ${where}.`,
-          `${who} giơ cao ngọn đuốc: "Chuyện tiếp theo phải kể ở ${where}. Nắm tay nhau mà đi." Bóng tối nuốt dần con đường phía sau.`,
-          `"Chỗ này không kể tiếp được nữa rồi…" ${who} cầm đuốc dẫn đường. Mọi người co ro bước theo, tới ${where} thì nhóm lửa mới.`,
-        ]);
+        const line = travelReason(who, where);
         setLine([{ t: line, hl: 0 }], line);
         sfx('wind', 0.8); sfx('steps', 0.6, 2.5); sfx('steps', 0.5, 6);
         return;
@@ -2454,7 +2468,12 @@ socket.on('ma:locked', () => { location.href = '/kich-hoat.html?tu=' + encodeURI
     for (const a of ACTIONS) if (!S.actions.find(x => x.id === a.id)) S.actions.push({ id: a.id, gift: '', min: a.min });
     if (window.MaAudio) MaAudio.setVolume(S.volume);
     applyTTS();
+    const prevMap = curMap;
     pickMap(false);
+    if (prevMap !== curMap && use3D() && MA3D.canTravel && MA3D.canTravel() && story.phase !== 'travel') {   // chủ phòng đổi cảnh tay: ông Tư vẫn nói lý do
+      const line = travelReason(S.tellerName || 'Ông Tư', ((MA3D.sceneNames || {})[curMap] || 'chốn khác').toLowerCase());
+      if (story.phase === 'tell') toast(line, '#ffd27a'); else { setLine([{ t: line, hl: 0 }], line); sfx('steps', 0.6, 2.5); }
+    }
   });
   socket.on('gifts', g => { GIFTS = g || {}; });
   socket.on('top', list => { TOP = list || []; for (const u of TOP) { const c = coinsOf.get(u.id) || { c: 0, name: u.name }; c.c = Math.max(c.c, +u.coins || 0); c.name = u.name; coinsOf.set(u.id, c); } });
