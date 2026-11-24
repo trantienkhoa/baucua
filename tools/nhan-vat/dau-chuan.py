@@ -437,9 +437,8 @@ valid = inside & ~bad
 holes = ndimage.binary_opening(col.max(-1) < 30, iterations=5)   # chỉ mảng đen lớn (lỗ ảnh); con ngươi, lông mày nhỏ thì giữ
 valid = ndimage.binary_erosion(valid, iterations=2) & ~ndimage.binary_dilation(holes, iterations=6)
 front = np.clip((nfront - 0.2) / 0.45, 0, 1)
-w = front * valid
-w = ndimage.gaussian_filter(w.astype(float), 6) * valid   # mép mờ dần, không viền cứng
-w = np.clip(w * 1.4, 0, 1)
+w = front * ndimage.binary_erosion(valid, iterations=6)
+w = np.clip(ndimage.gaussian_filter(w.astype(float), 10) * 1.5, 0, 1)   # mép mờ dần thật rộng (chỗ hở bên dưới đã trám màu lân cận), không còn đường ranh
 brow = mE[1] + 0.03 * s
 hairm = np.clip((yq - brow) / (0.03 * s), 0, 1)
 back = np.clip((np.abs(tq) - 1.6) / 0.5, 0, 1) * np.clip((yq - (mE[1] - 0.05 * s)) / (0.04 * s), 0, 1)
@@ -463,16 +462,19 @@ if OV:
         dd, ii = _KD(OV).query(G3[hm, :3], k=6)
         wq = 1 / np.maximum(dd, 1e-4); hairc[hm] = (OC[ii] * wq[..., None]).sum(1) / wq.sum(1)[:, None]
         hairc = ndimage.gaussian_filter(hairc, (2, 2, 0))
-fill = skin_c * (1 - hairm[..., None]) + hairc * hairm[..., None]
 # vá chỗ hỏng bên trong mặt: màu lân cận làm mờ dần (không kéo dài thành sọc)
 colf = col.copy()
 if (~valid & inside).any():
-    acc = np.zeros_like(col); wsum = np.zeros(col.shape[:2]); done = valid.copy(); colf = np.where(valid[..., None], col, 0)
+    done = valid.copy(); colf = np.where(valid[..., None], col, 0)
     for sg in (2, 4, 8, 16, 32):
         nb_ = ndimage.gaussian_filter(col * valid[..., None], (sg, sg, 0)); dn = ndimage.gaussian_filter(valid.astype(float), sg)
         put = ~done & (dn > 0.08)
         colf[put] = nb_[put] / dn[put, None]; done |= put
     colf[~done] = skin_c
+edge = (w > 0.15) & (w < 0.6) & (hairm < 0.1)
+if edge.sum() > 200:   # màu da trám lấy theo má trong ảnh ngay mép (khớp tông, không lệch sáng tối)
+    skin_c = 0.4 * skin_c + 0.6 * np.median(colf[edge], 0)
+fill = skin_c * (1 - hairm[..., None]) + hairc * hairm[..., None]
 out = colf * w[..., None] + fill * (1 - w[..., None])
 out = ndimage.gaussian_filter(out, (0.6, 0.6, 0))
 bio = io.BytesIO(); Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)).save(bio, 'JPEG', quality=92); data = bio.getvalue()

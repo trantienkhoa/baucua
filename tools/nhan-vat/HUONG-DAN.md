@@ -60,10 +60,15 @@ Cần python3 + numpy, playwright (chromium) và ffmpeg. Không có ffmpeg thì 
 | `nhin_quanh` | Ngó quanh |
 | `chi_tay` | Chỉ tay |
 
+Trong game (`public/ma3d.js`): lúc chuyển cảnh, nhân vật đi theo ông kể chuyện bằng `di_bo` (đứng chờ thì `dung_yen`). Khi đang ngồi, chỉ phần thân trên (vai, tay, cổ, đầu) của động tác được ghép lên tư thế ngồi:
+- `vay_tay`: khi vào phòng, khi bình luận "chào / hello / hi", khi được cảm ơn quà. Chỉ là cử chỉ đáp lễ, không thưởng gì; ai bình luận chào cũng được vẫy như vậy.
+- `vo_tay`: khi bình luận cười (haha, hihi…).
+- `giat_minh`: khi bị hù (cả phòng giật mình).
+
 Thêm hay sửa động tác: sửa `dong-tac.js`. Mỗi động tác có `dur` (giây, một vòng lặp) và `f(t)` với t chạy từ 0 đến 1. Hàm trả về góc (độ) cho từng xương, và `hip` là độ dời hông tính bằng mét.
 
-## Nhân vật mẫu đã duyệt
-`public/models/ma/nhanvat/tp-001.glb` … `tp-010.glb` (nhóm F, bản pilot; tp-002 là mẫu đầu tiên anh duyệt)
+## Nhân vật đã làm
+`public/models/ma/nhanvat/tp-001.glb` … `tp-050.glb` (nhóm F; tp-002 là mẫu đầu tiên anh duyệt). Danh sách trong `danh-sach.json`, giới tính và tuổi trong `tools/nhan-vat/gioi-tuoi.json`.
 
 ## Soi nhanh một nhân vật
 ```
@@ -75,4 +80,6 @@ node tools/nhan-vat/chup.js <file.glb> <ra.png> [giây] '{"only":["chay_bo"],"co
 - Tay buông sát người xách đồ (giỏ của tp-011, tp-015): tay dính liền thân nên giữ yên theo ngực (tay kia vẫn cử động); khi ngồi giỏ được đặt xuống đất, còn cánh tay đó vẫn buông thẳng.
 - Lỗ có sẵn trong lưới dưới nách hiện ra khi vung tay mạnh.
 - Mặt trong cánh tay có bóng tối vẽ sẵn trong texture.
+- Mặt chiếu từ ảnh thẳng: nhìn nghiêng hẳn thì má, mang tai là màu da trám (lấy theo tông má trong ảnh), không có chi tiết ảnh.
+- Đầu cũ quá to so với mặt trong ảnh (như tp-021): tăng cỡ đầu trong `mat-chinh.json`, mục `_co_dau`.
 - Xuất mô hình ở tư thế chữ T (tay dang ngang, không chạm thân) sẽ cho kết quả tốt nhất.
