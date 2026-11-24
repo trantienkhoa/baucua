@@ -6,3 +6,6 @@ Tài sản MakeHuman phát hành theo CC0 1.0 (từ tháng 9/2020): dùng thươ
 Ghi lại ở đây để minh bạch. Bản gốc © Manuel Bastioni 2014; © Data Collection AB 2020.
 
 Mặt nhân vật lấy từ ảnh chân dung của chủ game (tp-023 … tp-050: tools/nhan-vat/chan-dung/). Nhân vật nào thiếu ảnh thì công cụ vẽ mặt đơn giản.
+
+Dò mắt, miệng trên ảnh chân dung: mô hình YuNet (tools/nhan-vat/yunet.onnx) từ https://github.com/opencv/opencv_zoo,
+giấy phép MIT, © 2020 Shiqi Yu. Chỉ dùng trong công cụ làm nhân vật, không chạy trong game.

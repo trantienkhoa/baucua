@@ -35,6 +35,8 @@ Cần python3 + numpy, playwright (chromium) và ffmpeg. Không có ffmpeg thì 
    - Có lớp ảnh mặt (`Face`): chiếu ảnh chân dung lên mặt. Ảnh chụp nghiêng thì soi gương nửa mặt rõ hơn. Mắt tự tìm sai thì chấm tay trong `mat-chinh.json`. Đặt biến `DAU_DEBUG=anh.png` để xuất ảnh mặt kèm vị trí mắt tìm được mà soát.
    - Không có lớp ảnh mặt nhưng có ảnh chân dung toàn thân `chan-dung/<mã>.jpg` (hoặc thư mục trong biến `DAU_CHAN_DUNG`): khớp chiều cao người trong ảnh với mô hình, dò soi gương / lệch / cỡ cho giống hình chụp thẳng của mô hình, rồi cắt vùng đầu làm ảnh mặt.
    - Không có cả hai (mặt máy tạo méo): vẽ một khuôn mặt sạch (mắt, mày, mũi, miệng; người lớn tuổi có nếp nhăn nhẹ). Màu da lấy từ chính nhân vật; tóc, nón, khăn trên trán giữ nguyên màu cũ.
+   - Hai mắt, miệng trên ảnh dò bằng YuNet (`yunet.onnx`, cần `pip install opencv-python-headless`; không có thì dùng cách dò cũ, kém hơn). Khuôn đầu giữ tỉ lệ người thật, chỉ co giãn ảnh cho mắt, miệng rơi đúng chỗ.
+   - Lớp ảnh mặt cắt hỏng: ghi mã vào `_ve_mat` trong `mat-chinh.json` để tạm vẽ mặt; có ảnh chân dung trong `chan-dung/` thì luôn dùng ảnh chân dung.
    - Tóc, gáy tô bằng màu lấy từ ảnh. Phần đầu cũ nằm trong đầu mới bị bỏ, còn nón, khăn, vành nón xa phía trước giữ nguyên. Không thay được thì quy trình tự quay về `mat-2d.py`.
    - Đổi bộ dáng đầu: `python tao-dau-mh.py <makehuman/makehuman/data>` (clone https://github.com/makehumancommunity/makehuman; các file `targets/macrodetails/asian-*.target` lấy bằng `git show`).
    - `mat-2d.py` (dự phòng): làm mặt đẹp hơn. Tìm khuôn mặt ngay trên ảnh chân dung (texture mặt chiếu thẳng), rồi dán ảnh lên một mặt nạ mỏng cong mượt đặt trước lưới mặt (vốn góc cạnh, méo). Viền mờ dần, vá lỗ đen, cả vùng mặt theo hẳn xương đầu.

@@ -181,6 +181,9 @@ def chan_dung(path, cap):
 VE = None
 CD = os.environ.get('DAU_CHAN_DUNG') or os.path.join(TOOL, 'chan-dung')   # thư mục ảnh chân dung toàn thân <mã>.jpg
 cd_path = os.path.join(CD, base + '.jpg') if CD else None
+_mc = json.load(open(os.path.join(TOOL, 'mat-chinh.json'))) if os.path.exists(os.path.join(TOOL, 'mat-chinh.json')) else {}
+if cd_path and os.path.exists(cd_path): fps = []   # có ảnh chân dung gốc: tốt hơn lớp ảnh mặt cắt sẵn trong mô hình
+elif base in _mc.get('_ve_mat', []): fps = []; cd_path = None   # lớp ảnh mặt hỏng (cắt mất nửa mặt...): vẽ mặt cho tới khi có ảnh chân dung
 if fps:
     fp = fps[0]
     FX = g.acc(fp['attributes']['POSITION']).astype(float); FU = g.acc(fp['attributes']['TEXCOORD_0']).astype(float)
@@ -230,12 +233,31 @@ def find_eyes():
     prof = [(L[r, int(mc - hw2):int(mc + hw2)].mean(), r) for r in rows] if len(rows) else []
     my = min(prof)[1] if prof else ey + 0.55 * W   # miệng: dòng tối nhất dưới mũi
     return [(b0[2] / 256, b0[1] / 256), (b0[3] / 256, b0[1] / 256)], face, W / 256, (mc / 256, my / 256)
+def yunet_eyes(img):
+    """Dò mặt bằng YuNet (OpenCV, mô hình MIT: yunet.onnx): trả về hai mắt và tâm miệng (toạ độ 0..1). Không có OpenCV thì None."""
+    mp = os.path.join(TOOL, 'yunet.onnx')
+    try:
+        import cv2
+    except Exception: return None
+    if not os.path.exists(mp): return None
+    a = np.asarray(img.convert('RGB'))[:, :, ::-1].copy(); h, w = a.shape[:2]; k = 1.0
+    if max(h, w) < 640: k = 640 / max(h, w); a = cv2.resize(a, (int(w * k), int(h * k)), interpolation=cv2.INTER_CUBIC); h, w = a.shape[:2]
+    try:
+        d = cv2.FaceDetectorYN.create(mp, '', (w, h), 0.5); _, f = d.detect(a)
+    except Exception: return None
+    if f is None or not len(f): return None
+    f = max(f, key=lambda r: r[14] * np.sqrt(r[2] * r[3]))   # mặt chắc chắn nhất (điểm tin cậy × cỡ)
+    eyes = sorted([(f[4] / w, f[5] / h), (f[6] / w, f[7] / h)])
+    return eyes, ((f[10] + f[12]) / 2 / w, (f[11] + f[13]) / 2 / h)
 fix = {}
 fpath = os.path.join(TOOL, 'mat-chinh.json')
 if os.path.exists(fpath): fix = json.load(open(fpath))
 found = find_eyes() if VE is None else None
+YU = yunet_eyes(tex) if VE is None else None
 if VE is not None: eyes_uv = VE['eyes']; src_e = 'vẽ sẵn'
-elif base in fix: eyes_uv = fix[base]; src_e = 'chấm tay'
+elif base in fix and isinstance(fix[base], list) and len(fix[base]) >= 2 and not YU: eyes_uv = fix[base]; src_e = 'chấm tay'
+elif YU: eyes_uv = YU[0]; src_e = 'YuNet'
+elif base in fix and isinstance(fix[base], list) and len(fix[base]) >= 2: eyes_uv = fix[base]; src_e = 'chấm tay'
 elif found: eyes_uv = found[0]; src_e = 'tự tìm'
 else: print('khong-thay-mat'); sys.exit(3)
 # ảnh mặt đặt lệch cỡ / lệch chỗ so với đầu thật (mắt trong ảnh quá to, quá nhỏ): đặt lại khung ảnh cho hai mắt rơi đúng chỗ mắt chuẩn
@@ -254,6 +276,7 @@ if os.environ.get('DAU_DEBUG'):   # ảnh mặt + mắt tìm được, để so�
 E = np.array([xy(u, v) for u, v in eyes_uv])   # hai mắt (x, y) trên nhân vật
 MO = None
 if VE is not None: MO = np.array(xy(*VE['mouth']))
+elif YU: MO = np.array(xy(*YU[1]))
 elif base in fix and len(fix[base]) > 2: MO = np.array(xy(*fix[base][2]))
 elif found and base not in fix: MO = np.array(xy(*found[3]))
 if E[0, 0] > E[1, 0]: E = E[::-1]
@@ -277,7 +300,7 @@ def face_width(rows):   # nửa bề ngang khuôn da trên ảnh tại cùng cá
     return np.array(out)
 ROWS = (0.45, 0.9)   # gò má, ngang miệng
 shape = {}
-fw = face_width(ROWS) if found and base not in fix else None
+fw = face_width(ROWS) if found and (YU or base not in fix) else None
 if fw is not None and (0.5 < fw).all() and (fw < 1.6).all():
     w0 = mh_width(dau_mh.build(nu_, tuoi), ROWS)
     Jm = np.stack([mh_width(dau_mh.build(nu_, tuoi, {k: 0.5}), ROWS) - mh_width(dau_mh.build(nu_, tuoi, {k: -0.5}), ROWS) for k in ('rong', 'cam_rong')], 1)
@@ -315,7 +338,17 @@ TM = parts['mouth'].copy(); TM[[0, 2]] *= -1   # miệng đầu mẫu (răng tr�
 sy = s
 if MO is not None:
     sy0 = (mE[1] - MO[1]) / (mT[1] - TM[1])
-    if 0.8 * s < sy0 < 1.3 * s: sy = sy0   # kéo dài / thu ngắn mặt cho miệng ảnh rơi đúng miệng đầu mẫu
+    if 0.85 * s < sy0 < 1.25 * s: sy = sy0
+# khuôn đầu giữ tỉ lệ người thật (kéo dài tối đa vài phần trăm); phần chênh còn lại thì co giãn ẢNH quanh tâm hai mắt
+# để mắt, miệng trong ảnh rơi đúng mắt, miệng của đầu mẫu (không còn mặt dài, mắt mũi lệch chỗ)
+sy_t = float(np.clip(sy, 0.96 * s, 1.05 * s))
+fx = float(np.clip(np.linalg.norm(dE) / (np.linalg.norm(dT) * s), 0.6, 1.6))
+fy = fx
+if MO is not None and 0.85 * s * fx < (mE[1] - MO[1]) / (mT[1] - TM[1]) < 1.25 * s * fx:   # miệng tìm được hợp lý (không lẫn cằm, mũi)
+    fy = float(np.clip((mE[1] - MO[1]) / ((mT[1] - TM[1]) * sy_t), 0.6, 1.6))
+cx0, cy0 = mE[0] - SHX, mE[1]
+ku = np.array([ku[0] * fx, ku[1] + ku[0] * cx0 * (1 - fx)]); kv = np.array([kv[0] * fy, kv[1] + kv[0] * cy0 * (1 - fy)])
+sy = sy_t
 P = (V - mT) * np.array([s, sy, (s + sy) / 2])
 P[:, :2] = P[:, :2] @ np.array([[cr, sr], [-sr, cr]])
 # độ sâu: mắt mới nằm ngang bề mặt mặt cũ quanh hai mắt
