@@ -513,7 +513,12 @@ out = ndimage.gaussian_filter(out, (0.6, 0.6, 0))
 bio = io.BytesIO(); Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)).save(bio, 'JPEG', quality=92); data = bio.getvalue()
 
 # ---------- trọng số: đầu theo xương Head, cổ chuyển dần sang Neck ----------
-hy = Pw('Head')[1]; wh = np.clip((P2[:, 1] - (hy - 0.05 * SC)) / (0.05 * SC), 0, 1)
+# cả mặt tới cằm theo xương Head (quay, cúi đầu không kéo méo cằm); chỉ phần cổ dưới cằm mới chuyển dần sang Neck
+hy = Pw('Head')[1]
+Ph = P[:nhead]; fr_c = Ph[(np.abs(Ph[:, 0] - mE[0]) < 0.025 * s) & (Ph[:, 2] < np.median(Ph[:, 2]))]
+chin = fr_c[:, 1].min() if len(fr_c) else mE[1] - 0.13 * sy
+chin = max(chin, mE[1] - 0.16 * sy)
+wh = np.clip((P2[:, 1] - (chin - 0.04 * SC)) / (0.035 * SC), 0, 1)
 jt = np.zeros((len(P2), 4), np.uint8 if len(joints) < 256 else np.uint16); jt[:, 0] = JI['Head']; jt[:, 1] = JI['Neck']
 wt = np.zeros((len(P2), 4), np.float32); wt[:, 0] = wh; wt[:, 1] = 1 - wh
 
