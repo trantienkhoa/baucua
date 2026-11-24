@@ -70,4 +70,13 @@ const MOVES = {
     o.RightArm = [['x', 85 * k], ['z', 10 * k]]; o.RightForeArm = [['x', 8]]; o.Spine = [['y', -12 * k], ['x', -4 * k]]; o.Head = [['y', -8 * k]];
     o.LeftArm = [['x', 5], ['z', 4]]; o.LeftForeArm = [['x', 12]]; o.LeftUpLeg = [['x', -4 * k]]; o.RightUpLeg = [['x', 10 * k]]; o.RightLeg = [['x', -8 * k]]; return o; } },
 };
-export { MOVES, D };
+// Nhân vật có quang gánh (xương Ganh): đi/chạy/đứng thì tay phải vịn đầu đòn phía trước, thúng nhún theo bước;
+// ngồi thì đặt gánh xuống đất bên cạnh. Các động tác khác giữ gánh trên vai, tay tự do.
+const GANH = {
+  vin: { di_bo: 1, chay_bo: 1, dung_yen: 1, run_so: 1 },
+  dat: { ngoi_bet: 1, ngoi_so: 1, ngoi_xom: 1 },
+  tay: { RightArm: [['x', 38], ['z', -10]], RightForeArm: [['x', 118], ['y', 18]], RightHand: [['x', -15]] },
+  nhun(name, t) { const k = name === 'chay_bo' ? 2 : name === 'di_bo' ? 1 : 0; return k ? [['x', 2.5 * k * Math.sin(Math.PI * 4 * t)]] : null; },
+  datXuong: [0.78, -0.86, 0.1],   // dời tâm đòn (mét, khung nhân vật): sang phải, hạ để đáy thúng chạm đất
+};
+export { MOVES, D, GANH };

@@ -26,7 +26,11 @@ Cần python3 + numpy, playwright (chromium) và ffmpeg. Không có ffmpeg thì 
 2. `xem.html` + `dong-tac.js`
    - Tính 14 động tác ở 30 khung/giây.
    - Trục quay tính theo khung nhân vật: mặt nhìn về -Z, tay trái ở phía -X. Vì vậy động tác không phụ thuộc trục riêng của từng xương.
-3. `gan-dong-tac.py`: ghi các động tác vào GLB thành animation (giữ tất cả xương trong mọi clip để chuyển clip không bị lệch).
+3. `ganh-doc.py` (chỉ chạy khi nhân vật có quang gánh, nhận ra qua vật liệu `Bamboo`)
+   - Đặt đòn gánh dọc trên vai phải (thúng trước, thúng sau) và gắn vào xương riêng `Ganh`.
+   - Đi, chạy, đứng: tay phải vịn đầu đòn phía trước, thúng nhún theo bước. Đòn luôn giữ thăng bằng khi người nghiêng.
+   - Các động tác ngồi: đặt gánh xuống đất bên cạnh. Chỉnh trong `GANH` của `dong-tac.js`.
+4. `gan-dong-tac.py`: ghi các động tác vào GLB thành animation (giữ tất cả xương trong mọi clip để chuyển clip không bị lệch).
 
 ## Động tác (tên animation)
 | Tên | Động tác |
@@ -58,7 +62,6 @@ node tools/nhan-vat/chup.js <file.glb> <ra.png> [giây] '{"only":["chay_bo"],"co
 
 ## Giới hạn
 - Đạo cụ dính liền thân trong lưới (cuốc của tp-001) đi theo phần cơ thể mà nó chạm vào.
-- Quang gánh tp-010 gắn vào lưng; tay không bám đòn gánh khi làm động tác.
 - Lỗ có sẵn trong lưới dưới nách hiện ra khi vung tay mạnh.
 - Mặt trong cánh tay có bóng tối vẽ sẵn trong texture.
 - Xuất mô hình ở tư thế chữ T (tay dang ngang, không chạm thân) sẽ cho kết quả tốt nhất.

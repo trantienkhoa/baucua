@@ -24,8 +24,10 @@ const run = (cmd, a) => { const r = spawnSync(cmd, a, { encoding: 'utf8' }); ret
     const fixed = path.join(TMP, base + '-xuong.glb');
     const r1 = run(PY, ['-I', path.join(TOOL, 'sua-xuong.py'), path.join(IN, f), fixed]);
     if (!r1.ok) { console.log('LỖI sửa xương'); report.push([f, 'lỗi sửa xương', r1.out.trim().split('\n').pop()]); continue; }
-    const page = await ctx.newPage({ viewport: { width: 1500, height: 1080 } }); const errs = []; page.on('pageerror', e => errs.push(e.message));
-    const open = async h => { await page.goto('about:blank'); await page.goto('http://nv.local/xem.html#' + encodeURIComponent(JSON.stringify({ m: '/m/' + encodeURIComponent(path.basename(h.file)), ...h }))); await page.waitForFunction(() => window.DONE || window.__err, null, { timeout: 180000 }); };
+    const rg = run(PY, ['-I', path.join(TOOL, 'ganh-doc.py'), fixed, fixed]);
+    if (!rg.ok) { console.log('LỖI quang gánh'); report.push([f, 'lỗi quang gánh', rg.out.trim().split('\n').pop()]); continue; }
+    const page = await ctx.newPage({ viewport: { width: 1500, height: 1080 } }); const errs = []; page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && /LOI/.test(m.text())) errs.push(m.text()); });
+    const open = async h => { await page.goto('about:blank'); await page.goto('http://nv.local/xem.html#' + encodeURIComponent(JSON.stringify({ m: '/m/' + encodeURIComponent(path.basename(h.file)), ...h }))); await page.waitForFunction(() => window.DONE || window.__err, null, { timeout: 180000 }); if (await page.evaluate(() => window.__err)) throw new Error('trang xem lỗi: ' + errs.join(' | ')); };
     try {
       await open({ file: fixed, only: ['di_bo'], cols: 1 });
       const data = await page.evaluate(() => window.bake(30)); const jf = path.join(TMP, base + '.json'); fs.writeFileSync(jf, JSON.stringify(data));
