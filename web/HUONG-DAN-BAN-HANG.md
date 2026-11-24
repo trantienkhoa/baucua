@@ -21,7 +21,7 @@ Thư mục `web/` là một máy chủ Node riêng (đặt trên VPS / hosting c
    **Sao lưu thư mục `tools/.khoa-offline/`** (USB / Drive riêng tư): mất là không cấp được key cho bản đã bán, lộ là ai cũng tự tạo được key.
 2. Đóng gói: `node tools/dong-goi.js` (tự dùng khoá trong `tools/.khoa-offline/`).
 3. Khách cài game → trang nhập key hiện **mã máy** (dạng `312C-A795-B532-BAFC`) → khách gửi mã cho anh qua Zalo.
-4. Anh nhận tiền → mở `TaoKey.bat`, dán mã máy → ra key `NLOF-…` → gửi khách → khách dán vào là chạy, không cần mạng.
+4. Anh nhận tiền → mở `TaoKey.bat`, dán mã máy, chọn gói (1 = Bản 2D, 2 = Bản 3D, 3 = Bản 2D + 3D) → ra key `NLOF-…` → gửi khách → khách dán vào là chạy, không cần mạng.
    Mọi key đã cấp được ghi vào `tools/.khoa-offline/da-cap.csv`.
 5. Nếu sau này dựng máy chủ: chạy lại `node tools/tao-key.js khoi-tao` sau khi đã có `web/license-pubkey.js` → gói game mới nhận được cả hai loại key, key theo máy đã cấp vẫn dùng được.
 
@@ -40,7 +40,8 @@ Thư mục `web/` là một máy chủ Node riêng (đặt trên VPS / hosting c
    - `publicUrl`: tên miền của web (ví dụ `https://nguonlua.vn`), **bắt buộc HTTPS**.
    - `adminPassword`: mật khẩu trang quản trị (dài, khó đoán).
    - `bank`: `bin` (mã ngân hàng VietQR, ví dụ VietinBank 970415, Vietcombank 970436, MB 970422, Techcombank 970407, ACB 970416), số tài khoản, tên chủ tài khoản viết hoa không dấu.
-   - `tiers`: tên gói, số máy, giá, quyền lợi. Giá trong file mẫu chỉ là ví dụ.
+   - `tiers`: tên gói, `edition` (`2d` / `3d` / `full`), số máy, giá, quyền lợi. Mẫu có sẵn: Bản 2D 200k, Bản 3D 400k, Bản 2D + 3D 500k.
+     Key mang loại gói: game bản 2D chỉ mở cảnh 2D, bản 3D chỉ mở cảnh 3D (ô chọn chế độ bị khoá), bản 2D + 3D đổi qua lại được. Key cũ (trước khi có gói) tính là 2D + 3D.
    - `downloadUrl`: link tải bộ game (Google Drive…), chỉ hiện cho khách đã trả tiền.
    - `contact`, `demoVideo` (link YouTube).
 3. Khởi động lại. Nên chạy bằng `pm2` để tự bật lại khi máy chủ khởi động lại.

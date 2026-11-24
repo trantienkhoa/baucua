@@ -338,6 +338,7 @@ function renderSettings() {
     const v = MS[k];
     let input;
     if (type === 'check') input = `<input type="checkbox" data-k="${k}" ${v ? 'checked' : ''}>`;
+    else if (type === 'select' && k === 'view' && (MS.edition === '2d' || MS.edition === '3d')) input = `<select data-k="${k}" disabled title="Key đang dùng là ${MS.edition === '2d' ? 'Bản 2D' : 'Bản 3D'}. Muốn đổi qua lại thì nâng lên Bản 2D + 3D.">${opt.filter(([val]) => val === MS.edition).map(([val, l]) => `<option value="${val}" selected>${esc(l)} (theo gói đã mua)</option>`).join('')}</select>`;
     else if (type === 'select') input = `<select data-k="${k}">${opt.map(([val, l]) => `<option value="${val}"${val === v ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
     else if (type === 'number') input = `<input type="number" step="${opt}" data-k="${k}" value="${esc(v)}">`;
     else input = `<input type="text" data-k="${k}" value="${esc(v)}">`;

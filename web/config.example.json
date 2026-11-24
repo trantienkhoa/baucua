@@ -22,31 +22,48 @@
   },
   "tiers": [
     {
-      "id": "1may",
-      "name": "Gói 1 máy",
+      "id": "ban2d",
+      "name": "Bản 2D",
+      "edition": "2d",
       "machines": 1,
-      "price": 990000,
-      "desc": "Dùng trên 1 máy tính",
+      "price": 200000,
+      "desc": "Cảnh vẽ tay 2D, nhẹ máy",
       "features": [
-        "Trọn bộ game, 30 truyện ma",
-        "12 cảnh 3D + 12 cảnh 2D vẽ tay",
-        "Giọng đọc VieNeu tiếng Việt",
+        "30 truyện ma, 12 cảnh 2D vẽ tay",
+        "Chạy tốt trên máy yếu, không cần card đồ hoạ",
+        "Giọng đọc tiếng Việt",
         "Cập nhật miễn phí bản mới",
         "Hỗ trợ cài đặt qua Zalo"
       ]
     },
     {
-      "id": "3may",
-      "name": "Gói 3 máy",
-      "machines": 3,
-      "price": 1990000,
-      "popular": true,
-      "desc": "Dùng trên 3 máy tính cùng lúc",
+      "id": "ban3d",
+      "name": "Bản 3D",
+      "edition": "3d",
+      "machines": 1,
+      "price": 400000,
+      "desc": "Cảnh 3D, 50 nhân vật mặt thật",
       "features": [
-        "Mọi thứ trong gói 1 máy",
-        "Kích hoạt trên 3 máy",
-        "Hỗ trợ cài đặt 1-1 qua UltraViewer",
-        "Ưu tiên nhận bản mới sớm"
+        "30 truyện ma, 12 cảnh 3D",
+        "50 nhân vật 3D có động tác, máy quay bay",
+        "Ông Tư dẫn đoàn đổi cảnh",
+        "Cần máy có card đồ hoạ",
+        "Cập nhật miễn phí bản mới"
+      ]
+    },
+    {
+      "id": "ban2d3d",
+      "name": "Bản 2D + 3D",
+      "edition": "full",
+      "machines": 1,
+      "price": 500000,
+      "popular": true,
+      "desc": "Đổi qua lại 2D / 3D tuỳ máy",
+      "features": [
+        "Mọi thứ của bản 2D và bản 3D",
+        "Đổi chế độ bất cứ lúc nào trong Cài đặt",
+        "Cập nhật miễn phí bản mới",
+        "Hỗ trợ cài đặt qua Zalo"
       ]
     }
   ]

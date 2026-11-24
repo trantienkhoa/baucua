@@ -14,7 +14,12 @@ if not exist "tools\.khoa-offline\offline-private.pem" (
 set "MA="
 set /p MA="Dan ma may khach gui (Enter de thoat): "
 if "%MA%"=="" exit /b
+set "GOI="
+set /p GOI="Goi: 1 = Ban 2D, 2 = Ban 3D, 3 = Ban 2D+3D: "
+if "%GOI%"=="1" set "GOI=2d"
+if "%GOI%"=="2" set "GOI=3d"
+if "%GOI%"=="3" set "GOI=full"
 set /p GHI="Ghi chu (ten khach, so tien): "
-"%NODE%" tools\tao-key.js %MA% %GHI%
+"%NODE%" tools\tao-key.js %MA% %GOI% %GHI%
 echo.
 goto lap

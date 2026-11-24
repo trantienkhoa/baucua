@@ -49,7 +49,7 @@ const tier = id => (CFG.tiers || []).find(t => t.id === id);
 
 function sign(rec, machine) {
   const now = Date.now();
-  const payload = { k: mask(rec.key), p: rec.planName, n: rec.machines, m: machine, iat: now, exp: now + OFFLINE_DAYS * 864e5 };
+  const payload = { k: mask(rec.key), p: rec.planName, e: rec.edition || 'full', n: rec.machines, m: machine, iat: now, exp: now + OFFLINE_DAYS * 864e5 };
   const p = b64u(JSON.stringify(payload));
   return p + '.' + b64u(crypto.sign(null, Buffer.from(p), privateKey));
 }
@@ -60,7 +60,7 @@ function readToken(token) {
 }
 function createKey(t, note, orderId) {
   const key = newKey();
-  db.keys[key] = { key, plan: t.id, planName: t.name, machines: t.machines, devices: [], createdAt: Date.now(), note: note || '', order: orderId || null, revoked: false };
+  db.keys[key] = { key, plan: t.id, planName: t.name, edition: ['2d', '3d'].includes(t.edition) ? t.edition : 'full', machines: t.machines, devices: [], createdAt: Date.now(), note: note || '', order: orderId || null, revoked: false };
   save(); return db.keys[key];
 }
 function keyByMasked(m) { return Object.values(db.keys).find(r => mask(r.key) === m); }

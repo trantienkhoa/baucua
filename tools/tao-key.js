@@ -1,7 +1,8 @@
 // Tạo key theo mã máy (KHÔNG cần máy chủ) cho game Ngọn Lửa Cuối Cùng.
 //   Lần đầu:   node tools/tao-key.js khoi-tao [link Zalo của anh]
 //              → tạo cặp khoá trong tools/.khoa-offline/ (GIỮ BÍ MẬT, nhớ sao lưu) và file license-pubkey.js để đóng gói game.
-//   Cấp key:   node tools/tao-key.js <mã máy khách gửi> [ghi chú: tên khách, số tiền…]
+//   Cấp key:   node tools/tao-key.js <mã máy khách gửi> <2d|3d|full> [ghi chú: tên khách, số tiền…]
+//              2d = Bản 2D, 3d = Bản 3D, full = Bản 2D + 3D
 //              → in ra key NLOF-… gửi cho khách; lưu nhật ký vào tools/.khoa-offline/da-cap.csv
 // Trên Windows có thể bấm đúp TaoKey.bat cho tiện.
 const crypto = require('crypto'), fs = require('fs'), path = require('path');
@@ -26,7 +27,7 @@ function writePubkeyFile(contact) {
 }
 
 const [cmd, ...rest] = process.argv.slice(2);
-if (!cmd) { console.log('Cách dùng:\n  node tools/tao-key.js khoi-tao [link Zalo]\n  node tools/tao-key.js <mã máy> [ghi chú]'); process.exit(0); }
+if (!cmd) { console.log('Cách dùng:\n  node tools/tao-key.js khoi-tao [link Zalo]\n  node tools/tao-key.js <mã máy> <2d|3d|full> [ghi chú]'); process.exit(0); }
 
 if (cmd === 'khoi-tao') {
   fs.mkdirSync(DIR, { recursive: true });
@@ -50,11 +51,15 @@ const payload = Buffer.alloc(14);
 payload[0] = 1;                                                     // phiên bản định dạng
 Buffer.from(hex, 'hex').copy(payload, 1);                            // mã máy (8 byte)
 payload.writeUInt32BE(Math.floor((Date.now() - Date.UTC(2024, 0, 1)) / 864e5), 9);   // ngày cấp
-payload[13] = 1;                                                    // gói: 1 máy
+const ED = { '2d': 2, '3d': 3, full: 4, '2d3d': 4, 'tron': 4 };
+const ed = String(rest[0] || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+if (!ED[ed]) { console.error('Thiếu loại gói. Ghi 2d (Bản 2D), 3d (Bản 3D) hoặc full (Bản 2D + 3D) ngay sau mã máy.'); process.exit(1); }
+rest.shift();
+payload[13] = ED[ed];                                               // gói: 2 = 2D, 3 = 3D, 4 = 2D + 3D
 const sig = crypto.sign(null, payload, crypto.createPrivateKey(fs.readFileSync(PRIV)));
 const key = 'NLOF-' + b32encode(Buffer.concat([payload, sig])).match(/.{1,5}/g).join('-');
 const note = rest.join(' ').replace(/[\r\n,]/g, ' ');
-fs.appendFileSync(LOG, `${new Date().toISOString()},${hex.toUpperCase().match(/.{4}/g).join('-')},${note},${key}\n`);
-console.log('\nKey cho máy', hex.toUpperCase().match(/.{4}/g).join('-'), note ? `(${note})` : '');
+fs.appendFileSync(LOG, `${new Date().toISOString()},${hex.toUpperCase().match(/.{4}/g).join('-')},${ed},${note},${key}\n`);
+console.log('\nKey', { 2: 'Bản 2D', 3: 'Bản 3D', 4: 'Bản 2D + 3D' }[ED[ed]], 'cho máy', hex.toUpperCase().match(/.{4}/g).join('-'), note ? `(${note})` : '');
 console.log('\n' + key + '\n');
 console.log('Gửi nguyên dòng trên cho khách (chép cả dấu gạch ngang). Đã lưu vào', LOG);

@@ -769,6 +769,11 @@ function testUser(i) {
 
 // ---------- game kể chuyện ma "Ngọn Đèn Cuối Cùng" ----------
 let maSettings = readJSON('ma-settings.json', {});
+// cài đặt gửi cho game: khoá chế độ hiển thị theo gói đã mua (bản 2D chỉ 2D, bản 3D chỉ 3D)
+function maOut() {
+  const e = LIC.edition();
+  return Object.assign({}, maSettings, { edition: e }, e === '2d' ? { view: '2d' } : e === '3d' ? { view: '3d' } : {});
+}
 let maBrave = readJSON('ma-brave.json', {});   // id -> { name, avatar, pts, last }
 let maBraveDirty = false;
 let maStatus = {};
@@ -849,7 +854,7 @@ io.on('connection', socket => {
         socket.emit('ma:primary', socket.id === maPrimaryId);
       }
       else { socket.join('ma-admin'); socket.emit('ma:status', maStatus); socket.emit('ma:screens', maScreens.size); }
-      socket.emit('ma:settings', maSettings);
+      socket.emit('ma:settings', maOut());
       socket.emit('ma:braveTop', maBraveTop());
       socket.emit('settings', settings);
       socket.emit('gifts', gifts);
@@ -878,7 +883,7 @@ io.on('connection', socket => {
     if (!patch || typeof patch !== 'object') return;
     Object.assign(maSettings, maSanitize(patch));
     writeJSON('ma-settings.json', maSettings);
-    io.to('ma').to('ma-admin').emit('ma:settings', maSettings);
+    io.to('ma').to('ma-admin').emit('ma:settings', maOut());
   });
   socket.on('ma:cmd', c => { if (c && typeof c.type === 'string') io.to('ma').emit('ma:cmd', c); });
   socket.on('ma:say', m => {   // màn game không có giọng Việt → trang điều khiển đọc thay

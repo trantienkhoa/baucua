@@ -37,6 +37,8 @@ function machineId() {
 const machineCode = () => machineId().slice(0, 16).toUpperCase().match(/.{4}/g).join('-');
 function machineName() { return `${os.hostname()} · ${os.platform()}`; }
 
+// gói: '2d' (chỉ cảnh 2D), '3d' (chỉ cảnh 3D), 'full' (cả hai)
+const ED_NAME = { '2d': 'Bản 2D', '3d': 'Bản 3D', full: 'Bản 2D + 3D' };
 // ---------- key theo mã máy (NLOF-…) ----------
 function verifyOffline(key) {
   if (!OFFLINE || !/^NLOF-/i.test(String(key || ''))) return null;
@@ -46,7 +48,8 @@ function verifyOffline(key) {
   try { if (!crypto.verify(null, payload, crypto.createPublicKey(CFG.offlinePublicKey), sig)) return null; } catch { return null; }
   if (payload.subarray(1, 9).toString('hex') !== machineId().slice(0, 16)) return null;
   const day = payload.readUInt32BE(9);
-  return { mode: 'offline', p: 'Key theo máy', k: 'NLOF-' + String(key).slice(5, 9).toUpperCase() + '…', n: 1, issued: Date.UTC(2024, 0, 1) + day * 864e5 };
+  const e = { 2: '2d', 3: '3d' }[payload[13]] || 'full';   // 1 (key cũ) / 4 = trọn bộ
+  return { mode: 'offline', p: 'Key theo máy · ' + ED_NAME[e], k: 'NLOF-' + String(key).slice(5, 9).toUpperCase() + '…', n: 1, e, issued: Date.UTC(2024, 0, 1) + day * 864e5 };
 }
 
 // ---------- vé từ máy chủ (NLCC-…) ----------
@@ -58,7 +61,7 @@ function verifyToken(token) {
     const data = JSON.parse(unb64u(p).toString('utf8'));
     if (data.m !== machineId()) return null;
     if (!data.exp || Date.now() > data.exp) return null;
-    return Object.assign(data, { mode: 'online' });
+    return Object.assign(data, { mode: 'online', e: ['2d', '3d'].includes(data.e) ? data.e : 'full' });
   } catch { return null; }
 }
 
@@ -110,11 +113,12 @@ async function deactivate() {
   try { if (state.token && !state.offline) await post('/api/deactivate', { token: state.token }); } finally { clear(); }
 }
 
+function edition() { return !CFG ? 'full' : (state.data && state.data.e) || 'full'; }
 function licensed() { return !CFG || !!(state.data && (state.data.mode === 'offline' || Date.now() < state.data.exp)); }
 function info() {
-  if (!CFG) return { licensed: true, dev: true };
+  if (!CFG) return { licensed: true, dev: true, edition: 'full' };
   const d = state.data;
-  return { licensed: licensed(), dev: false, mode: d && d.mode, plan: d && d.p, key: d && d.k, machines: d && d.n, until: d && d.mode === 'online' ? d.exp : null,
+  return { licensed: licensed(), dev: false, edition: edition(), mode: d && d.mode, plan: d && d.p, key: d && d.k, machines: d && d.n, until: d && d.mode === 'online' ? d.exp : null,
     machine: machineId().slice(0, 8), machineCode: machineCode(), online: ONLINE, offline: OFFLINE, error: state.error, shop: CFG.shop || CFG.server || '', contact: CFG.contact || '' };
 }
 
@@ -123,4 +127,4 @@ if (ONLINE) {
   const tick = () => { if (state.data && state.data.mode === 'online' && Date.now() - state.data.iat > REFRESH_DAYS * 864e5) refresh(); };
   setTimeout(tick, 5000); setInterval(tick, 6 * 3600e3).unref();
 }
-module.exports = { licensed, info, activate, deactivate, machineId, machineCode, enabled: () => !!CFG };
+module.exports = { licensed, edition, info, activate, deactivate, machineId, machineCode, enabled: () => !!CFG };
