@@ -459,6 +459,10 @@ if VE is None and MO is not None:
                 new_d = np.where(d_ > lim, d_, new_d)
                 P[:nhead, 1] = yn_l - new_d
                 TM = TM.copy(); TM[1] = mT[1] - (mE[1] - (yn_l - (yn_l - ym_l) * fz)) / sy   # miệng khuôn mới
+                ym_new = yn_l - (yn_l - ym_l) * fz
+                fy2 = (mE[1] - MO[1]) / max(mE[1] - ym_new, 1e-6)
+                if abs(fy2 - 1) > 0.02:   # còn lệch (đã chạm giới hạn rút): co giãn ảnh theo chiều dọc quanh tầm mắt cho miệng ảnh rơi đúng miệng khuôn
+                    fy2 = float(np.clip(fy2, 0.8, 1.25)); kv = np.array([kv[0] * fy2, kv[1] + kv[0] * mE[1] * (1 - fy2)])
                 lower = 'rút mặt dưới %.2f, ' % fz
 # hàm dưới: khuôn có phần dưới cằm thoải dài xuống cổ, nhìn thẳng thành "hai cằm" dưới cằm trong ảnh.
 # Lấy cằm ảnh (dưới miệng ~0,76 khoảng cách mắt) làm mép cằm, phần dưới cằm ép về sát mặt trước cổ (góc hàm gọn)
@@ -647,6 +651,19 @@ fr = P[:nhead][P[:nhead, 2] < np.median(P[:nhead, 2])]
 fx0, fx1 = mE[0] - 0.075 * s, mE[0] + 0.075 * s; fy0 = MO[1] - 0.05 * sy if MO is not None else mE[1] - 0.12 * sy
 def front_z(q):
     return griddata(fr[:, :2], fr[:, 2], q[:, :2], method='linear')
+from scipy.spatial import cKDTree as _KD2
+UK = np.linalg.norm(dT) * s   # đơn vị: khoảng cách hai mắt (m)
+hcK = np.array([mE[0], mE[1] - 0.5 * UK, np.median(P[:nhead, 2])])
+dK = P[:nhead] - hcK; radK = np.linalg.norm(dK, axis=1); treeK = _KD2(dK / radK[:, None])
+chinK = (MO[1] if MO is not None else mE[1] - 1.0 * UK) - 0.78 * UK
+neck_lo = chinK - 0.45 * UK   # tới ngay dưới cằm; cổ áo, ngực giữ nguyên
+# bán kính ngang của đầu mới theo (độ cao, góc quanh trục đầu)
+yb0, dyb = neck_lo - 0.1 * UK, 0.05 * UK
+nyb = int((brow + 0.3 * UK - yb0) / dyb) + 1; RB = np.zeros((nyb, 36))
+Ph2 = P[:nhead]; yi2 = ((Ph2[:, 1] - yb0) / dyb).astype(int); ok2 = (yi2 >= 0) & (yi2 < nyb)
+a2 = ((np.arctan2(Ph2[:, 0] - hcK[0], -(Ph2[:, 2] - hcK[2])) + np.pi) / (2 * np.pi) * 36).astype(int) % 36
+np.maximum.at(RB, (yi2[ok2], a2[ok2]), np.hypot(Ph2[ok2, 0] - hcK[0], Ph2[ok2, 2] - hcK[2]))
+for _ in range(3): RB = np.maximum(RB, np.maximum(np.roll(RB, 1, 1), np.roll(RB, -1, 1)) * (RB == 0))
 killed = 0
 for p in mesh['primitives']:
     Xp = g.acc(p['attributes']['POSITION']).astype(float); I = g.acc(p['indices']).reshape(-1, 3).astype(np.int64)
@@ -654,6 +671,14 @@ for p in mesh['primitives']:
     C = Xp[I].mean(1)
     k = inn[I].all(1) & (C[:, 1] < brow + 0.02 * sy)   # đầu cũ trong đầu mới, từ lông mày xuống (giữ lòng nón, tóc trên)
     if mname(p) == 'Face': k[:] = True   # lớp ảnh mặt cũ: bỏ hết
+    if mname(p) not in ('Lining',):   # mảnh đầu / cổ cũ sát ngoài đầu mới (đầu mới đã thu hẹp): bỏ, kẻo lòi ra như má, cổ thứ hai
+        zone = (C[:, 1] < brow) & (C[:, 1] > neck_lo)
+        if zone.any():
+            ang = np.arctan2(C[zone, 0] - hcK[0], -(C[zone, 2] - hcK[2])); rh = np.hypot(C[zone, 0] - hcK[0], C[zone, 2] - hcK[2])
+            yi = np.clip(((C[zone, 1] - yb0) / dyb).astype(int), 0, RB.shape[0] - 1); ai = ((ang + np.pi) / (2 * np.pi) * RB.shape[1]).astype(int) % RB.shape[1]
+            lim_ = RB[yi, ai] * np.where(C[zone, 1] < chinK, 1.04, 1.10)
+            front = np.abs(ang) < 2.0   # trước mặt và hai bên, không đụng tóc sau gáy
+            zi = np.nonzero(zone)[0]; k[zi[(rh < lim_) & front]] = True
     box = (C[:, 0] > fx0) & (C[:, 0] < fx1) & (C[:, 1] > fy0) & (C[:, 1] < brow + 0.01 * sy)
     if box.any():
         fz = front_z(C[box]); bi = np.nonzero(box)[0]
