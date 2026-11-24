@@ -215,7 +215,7 @@ export async function loadAvatars(list) {
 }
 const isNV = url => /\/nhanvat\/tp-\d+/i.test(url || '');
 function loadGltfScene(gltf, url) {
-  if (isNV(url)) { gltf.scene.traverse(o => { if (o.isMesh) o.frustumCulled = false; }); return gltf.scene; }   // nhân vật người thật đã sửa sẵn (vật liệu hai mặt)
+  if (isNV(url)) { gltf.scene.traverse(o => { if (o.isMesh) o.frustumCulled = false; }); gltf.scene.userData.clips = gltf.animations || []; return gltf.scene; }   // giữ 14 động tác nướng sẵn   // nhân vật người thật đã sửa sẵn (vật liệu hai mặt)
   const ext = (gltf.parser && gltf.parser.json && gltf.parser.json.extensionsUsed) || [];
   const isVrm = /\.vrm(\?|$)/i.test(url) || ext.some(e => /VRM/i.test(e));
   return isVrm ? fixVrm(gltf.scene) : fixOpaque(gltf.scene);
@@ -330,7 +330,7 @@ function prepare(scene, url) {
   return {
     headM: (() => { let h = null; scene.traverse(o => { if (o.userData && o.userData.vtn_head) h = o.userData.vtn_head; }); return h; })(),   // số đo đầu do công cụ gắn xương ghi
     fused: (() => { let f = false; scene.traverse(o => { if (o.userData && o.userData.vtn_fused) f = true; }); return f; })(),   // tay dính thân (nhân vật gắn xương tự động)
-    url, name, real: isNV(url), charId: (name.match(/^(char\d+|dj|tp-\d+)(?![a-z0-9])/i) || [])[1] ? name.match(/^(char\d+|dj|tp-\d+)(?![a-z0-9])/i)[1].toLowerCase() : null, scene, female, norm, footY, flip,
+    clips: scene.userData.clips || [], url, name, real: isNV(url), charId: (name.match(/^(char\d+|dj|tp-\d+)(?![a-z0-9])/i) || [])[1] ? name.match(/^(char\d+|dj|tp-\d+)(?![a-z0-9])/i)[1].toLowerCase() : null, scene, female, norm, footY, flip,
     hipH: (hips.y - footY) * norm,
     restLocal, dirLocal, restWorld,
     hipsParentInv: hipsParentWorld.clone().invert(), hipsParentQInv: hipsParentQ.clone().invert(),

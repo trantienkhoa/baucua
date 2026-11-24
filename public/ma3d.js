@@ -926,6 +926,39 @@ if (renderer && SH) {
     let minY = Infinity; for (const n of [rig.ftL, rig.ftR]) { n.getWorldPosition(_v); minY = Math.min(minY, _v.y - 0.05); }
     if (minY < floor) { rig.root.position.y += floor - minY; rig.root.updateMatrixWorld(true); }
   }
+  // ---- động tác nướng sẵn của nhân vật nhóm F (tp-xxx): đi bộ cả người; khi ngồi chỉ ghép thân trên (vẫy tay, vỗ tay, giật mình) ----
+  const UPPER = /^mixamorig(Left|Right)(Shoulder|Arm|ForeArm|Hand)$|^mixamorig(Neck|Head)$/;
+  const GEST_REPS = { vay_tay: 2, vo_tay: 3, giat_minh: 1, cui_chao: 1, chi_tay: 1 };
+  function clipFor(av, name, upper) {
+    const t = av.t; if (!t.clips || !t.clips.length) return null;
+    t._cc = t._cc || {}; const key = name + (upper ? ':u' : '');
+    if (t._cc[key] !== undefined) return t._cc[key];
+    const c = t.clips.find(x => x.name === name);
+    if (!c) return (t._cc[key] = null);
+    return (t._cc[key] = upper ? new THREE.AnimationClip(key, c.duration, c.tracks.filter(k => k.name.endsWith('.quaternion') && UPPER.test(k.name.split('.')[0]))) : c);
+  }
+  // đặt tư thế theo động tác ở thời điểm tt; w < 1: trộn với tư thế game vừa tính
+  function playClip(av, clip, tt, w = 1) {
+    if (!clip) return false;
+    av.mixer = av.mixer || new THREE.AnimationMixer(av.root);
+    const bones = clip._bones || (clip._bones = [...new Set(clip.tracks.map(k => k.name.split('.')[0]))]);
+    const keep = w < 1 ? bones.map(n => { const b = av.root.getObjectByName(n); return b ? [b, b.quaternion.clone(), b.position.clone()] : null; }).filter(Boolean) : null;
+    if (av._clip !== clip) { av.mixer.stopAllAction(); av._act = av.mixer.clipAction(clip); av._act.play(); av._clip = clip; }
+    av._act.time = ((tt % clip.duration) + clip.duration) % clip.duration; av.mixer.update(0);
+    if (keep) for (const [b, q, p] of keep) { b.quaternion.copy(q.slerp(b.quaternion, w)); b.position.lerp(p, 1 - w); }
+    return true;
+  }
+  // động tác ngắn theo sự kiện (vẫy chào, vỗ tay, giật mình) ghép lên thân trên
+  function gestureTick(e, v, t) {
+    if (!e.av.t.real) return;
+    if (v.jump > 0.3 && !(e.g && e.g.name === 'giat_minh')) v.gesture = { name: 'giat_minh' };
+    if (v.gesture && v.gesture !== e.gSrc) { e.gSrc = v.gesture; e.g = { name: v.gesture.name, t0: t }; }
+    if (!e.g) return;
+    const clip = clipFor(e.av, e.g.name, true);
+    const total = clip ? clip.duration * (GEST_REPS[e.g.name] || 1) : 0, el = t - e.g.t0;
+    if (!clip || el > total) { e.g = null; return; }
+    playClip(e.av, clip, el, Math.min(1, el / 0.25, (total - el) / 0.35));
+  }
   function drive(av, alpha, sing = 0) {
     _hp.set(0, HEAD_Y, 0).applyMatrix4(rig.head.matrixWorld);
     _ht.set(0, HEAD_Y + 0.3, 0).applyMatrix4(rig.head.matrixWorld);
@@ -1113,6 +1146,7 @@ if (renderer && SH) {
       groundRig(w.y, Math.max(0, w.y - 0.3));
       if (v.jump > 0) { rig.root.position.y += Math.sin(v.jump * Math.PI) * 0.25; rig.root.updateMatrixWorld(true); }
       drive(e.av, alpha);
+      gestureTick(e, v, t);
       if (e.ganh) placeGanh(e, x, z, yaw);
       const hs = headScreen(); v.hx = hs.x; v.hy = hs.y;
       if (si < CAP && w.y < 0.05) shadows.setMatrixAt(si++, _m4.compose(_v.set(x, 0.02, z), _q.identity(), _sc.set(1.1, 1, 0.9)));
@@ -1366,8 +1400,13 @@ if (renderer && SH) {
     zeroRig(); placeRoot(w.pos.x, 0, w.pos.z, Math.atan2(w.dir.x, w.dir.z));
     poseWalk(t, w.ph, true, false);
     if (w.moved < 0.002) { rig.hipL.rotation.x *= 0.2; rig.hipR.rotation.x *= 0.2; rig.knL.rotation.x = 0.1; rig.knR.rotation.x = 0.1; }   // đứng chờ: run tại chỗ
-    rig.root.updateMatrixWorld(true); rig.root.position.y = Math.abs(Math.sin(w.ph)) * 0.025; rig.root.updateMatrixWorld(true);
+    const real = e.av.t.real && clipFor(e.av, 'di_bo');
+    if (!real) { rig.root.updateMatrixWorld(true); rig.root.position.y = Math.abs(Math.sin(w.ph)) * 0.025; rig.root.updateMatrixWorld(true); }
     drive(e.av, Math.max(0.05, v.alpha));
+    if (real) {   // nhân vật nhóm F: dùng động tác đi bộ / đứng thở nướng sẵn (bước đúng nhịp với pha đi của game)
+      if (w.moved < 0.002) playClip(e.av, clipFor(e.av, 'dung_yen'), t + (v.seat ? v.seat.n : 0));
+      else { const c = clipFor(e.av, 'di_bo'); playClip(e.av, c, (w.ph / (2 * Math.PI)) * c.duration); }
+    }
     const hs = headScreen(); v.hx = hs.x; v.hy = hs.y;
     return true;
   }
@@ -1910,7 +1949,7 @@ if (renderer && SH) {
     return fetch('/api/models').then(r => r.json()).then(list => loadAvatars((list || []).filter(m => m.enabled).map(m => ({ url: m.url, female: m.female })))).then(() => { addLazyChars(nv); NV_IDS = nv.map(x => x.id); NV_IDS.slice().sort(() => Math.random() - 0.5).slice(0, 10).forEach(id => templateForChar(id)); });   // tải sẵn 10 nhân vật để người vào là có ngay, còn lại tải khi cần (50 nhân vật ~200 MB)
   }).then(() => { modelsReady = true; console.log('Cảnh 3D: đã nạp', avatarTemplates.length, 'mô hình người, nhóm F:', NV_IDS.length); }).catch(e => console.warn('Không nạp được mô hình người', e));
 
-  window.MA3D = { ready: true, frame, setMap, maps: Object.keys(SCENES), sceneNames: Object.fromEntries(Object.entries(SCENES).map(([k, v]) => [k, v.name])),
+  window.MA3D = { ready: true, frame, gestures: () => [...avs.values()].filter(e => e.g).map(e => e.g.name + (e.av._clip ? "" : "?")), setMap, maps: Object.keys(SCENES), sceneNames: Object.fromEntries(Object.entries(SCENES).map(([k, v]) => [k, v.name])),
     invalidate: () => { curMap = null; if (trans) { trans = null; if (torch) torch.g.visible = false; } }, relayout: () => { if (!trans && curMap && built[curMap]) applyLayout(built[curMap], false); },
     quality: () => ({ res: Math.round(resScale * 100), fps: Math.round(fpsEma) }),
     pulse: k => { if (assetsReady) pulseFx(k); },

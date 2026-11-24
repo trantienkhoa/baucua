@@ -122,6 +122,7 @@
       id: user.id, name: user.name || 'Khách', avatar: user.avatar || '', seat, x: seat.x, y: seat.y,
       joined: t, active: t, brave: 0, taken: false, alpha: 0, glow: 0, shiver: 0, jump: 0, laugh: 0,
       bubble: null, incense: 0, prayAt: -99, prayBraveAt: -99, hit: 0, eyes: 0, anim: null, rescue: new Set(),
+      gesture: { name: 'vay_tay' },   // vào phòng: vẫy chào
     };
     seat.v = v; viewers.set(v.id, v); makeSprite(v);
     lastJoiner = v.name;
@@ -1229,7 +1230,8 @@
       return;
     }
     if (v && FEAR_RE.test(s)) v.shiver = Math.max(v.shiver, 2);
-    if (v && LAUGH_RE.test(s)) { v.laugh = 1.5; if (yin > 40 && t - ghostLaughAt > 25 && Math.random() < 0.3) { ghostLaughAt = t; sfx('laugh', 0.35); toast('…có ai đó cười theo', '#c9a0ff'); } }
+    if (v && /(^|[\s,.!])(chào|hello|hi)([\s,.!]|$)/i.test(s)) v.gesture = { name: 'vay_tay' };
+    if (v && LAUGH_RE.test(s)) { v.gesture = { name: 'vo_tay' }; v.laugh = 1.5; if (yin > 40 && t - ghostLaughAt > 25 && Math.random() < 0.3) { ghostLaughAt = t; sfx('laugh', 0.35); toast('…có ai đó cười theo', '#c9a0ff'); } }
   }
   const huWish = new Map();
 
@@ -1247,6 +1249,7 @@
     const c = coinsOf.get(user.id) || { c: 0, name: user.name };
     c.c = Math.max(c.c + value, +ev0.total || 0); c.name = user.name; coinsOf.set(user.id, c);
     voteGift(user, value);
+    if (v) v.gesture = { name: 'vay_tay' };   // nhân vật vẫy tay đáp lời cảm ơn (trang trí, không thưởng gì)
     if (S.autoHost && value >= 10) hostSay(pick([`Cảm ơn ${short(user.name, 14)} nhé.`, `${short(user.name, 14)} ơi, cảm ơn nhiều.`]));
     // chọn hành động theo giá MỘT món quà; tặng nhiều (chuỗi hoa hồng…) thì nhân số lần cho nhang / muối
     const per = (ev0.gift && +ev0.gift.diamonds) || value / count;

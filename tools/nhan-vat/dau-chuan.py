@@ -45,7 +45,7 @@ def co_dau_cu():
     t_ = dau_mh.build(nu_, tuoi); H_ = t_['Head'][0]; et = t_['EyeLeft'][0].mean(0)[1]
     w_t = np.ptp(H_[np.abs(H_[:, 1] - (et - 0.031)) < 0.006][:, 0])
     return float(np.clip(w_old / (w_t * SC), 0.95, 1.1))
-HS = 1.0   # co_dau_cu() đo chưa tin được (nón, tóc làm sai bề ngang); để cỡ chuẩn theo chiều cao người
+HS = float(json.load(open(os.path.join(TOOL, 'mat-chinh.json'))).get('_co_dau', {}).get(base, 1.0)) if os.path.exists(os.path.join(TOOL, 'mat-chinh.json')) else 1.0   # cỡ đầu chỉnh tay; co_dau_cu() đo chưa tin được (nón, tóc làm sai bề ngang); để cỡ chuẩn theo chiều cao người
 def tex_of(p):
     ti = J['materials'][p.get('material', 0)]['pbrMetallicRoughness']['baseColorTexture']['index']; im0 = J['images'][J['textures'][ti]['source']]
     bv = J['bufferViews'][im0['bufferView']]; o = bv.get('byteOffset', 0)
@@ -143,6 +143,7 @@ def ve_mat(cap):
 def chan_dung(path, cap):
     """Ảnh chân dung toàn thân (đầu tới chân) -> ảnh mặt cùng khung với chup_mat. Khớp: chiều cao người trong ảnh = chiều cao mô hình,
     rồi dò soi gương / lệch / cỡ sao cho giống hình chụp thẳng của chính mô hình nhất."""
+    global ku, kv
     I_ = np.asarray(Image.open(path).convert('RGB')).astype(float); ph, pw = I_.shape[:2]
     band = I_[:, int(pw * 0.09):int(pw * 0.91)]
     m_ = ((band.max(2) - band.min(2)) > 12) | (band.mean(2) < 150)
@@ -173,6 +174,9 @@ def chan_dung(path, cap):
                     e = np.abs(A_ - Cs)[valid_].mean()
                     if best is None or e < best[0]: best = (e, mir, sc, dx, dy)
     e, mir, sc, dx, dy = best
+    # ảnh mặt ra: khung rộng gấp 1,5 (giữ tâm) để mặt lệch trong ảnh vẫn không bị cắt
+    ku = np.array([ku[0] / 1.5, 0.5 + (ku[1] - 0.5) / 1.5]); kv = np.array([kv[0] / 1.5, 0.5 + (kv[1] - 0.5) / 1.5])
+    X_[:] = (gxs - ku[1]) / ku[0]; Y_[:] = (gys - kv[1]) / kv[0]
     return Image.fromarray(np.clip(samp(mir, sc, dx, dy), 0, 255).astype(np.uint8)), 'chân dung (%s, cỡ %.2f, lệch %.0f/%.0f mm)' % ('soi gương' if mir < 0 else 'thẳng', sc, dx * 1000, dy * 1000)
 VE = None
 CD = os.environ.get('DAU_CHAN_DUNG') or os.path.join(TOOL, 'chan-dung')   # thư mục ảnh chân dung toàn thân <mã>.jpg
@@ -356,10 +360,17 @@ isgrey = (np.abs(R1 - G1) < 7) & (np.abs(G1 - B1) < 7) & (R1 > 95) & (R1 < 170)
 okb = band[(band.max(1) > 18) & ~isskin & ~isgrey]
 if len(okb) > 0.08 * len(band) and len(okb) > 30: hair_c = np.median(okb, 0)
 
-# ---------- UV trụ quanh đầu + vẽ texture ----------
+# ---------- UV: đầu trải hình trụ (phần trên ảnh), hai nhãn cầu chiếu thẳng (dải dưới ảnh) ----------
+VH = 0.875   # đầu dùng v trong [0, VH]; dải dưới cho hai mắt
+nel = len(parts['EyeLeft'][0])
 hc = P[:nhead]; cx, cz = np.median(hc[:, 0]), np.median(hc[:, 2]) + 0.01 * s
-th = np.arctan2(P[:, 0] - cx, -(P[:, 2] - cz)); ymin, ymax = P[:, 1].min(), P[:, 1].max()
-U = th / (2 * np.pi) + 0.5; Vv = (ymax - P[:, 1]) / (ymax - ymin)
+th = np.arctan2(P[:, 0] - cx, -(P[:, 2] - cz)); ymin, ymax = P[:nhead, 1].min(), P[:nhead, 1].max()
+U = th / (2 * np.pi) + 0.5; Vv = (ymax - P[:, 1]) / (ymax - ymin) * VH
+EYE = []   # (lát đỉnh, tâm, nửa cạnh, góc ô trên ảnh)
+for k, sl in enumerate((slice(nhead, nhead + nel), slice(nhead + nel, len(P)))):
+    c_ = P[sl].mean(0); h_ = np.abs(P[sl, :2] - c_[:2]).max() * 1.05; u0_ = 0.125 * k
+    U[sl] = u0_ + 0.0625 + (P[sl, 0] - c_[0]) / h_ * 0.06; Vv[sl] = VH + 0.0625 - (P[sl, 1] - c_[1]) / h_ * 0.06
+    EYE.append((c_, h_, u0_))
 # vá đường nối sau gáy: tam giác vắt qua thì nhân đôi đỉnh với u + 1 (ảnh lặp)
 Fl = F.copy(); extra = []
 wrap = (U[F].max(1) - U[F].min(1)) > 0.5
@@ -370,16 +381,37 @@ for t in np.nonzero(wrap)[0]:
 ex = np.array(extra, np.int64)
 P2 = np.concatenate([P, P[ex]]); N2 = np.concatenate([Nr, Nr[ex]]); UV = np.stack([np.concatenate([U, U[ex] + 1]), np.concatenate([Vv, Vv[ex]])], 1)
 S = 1024
-gt, gy = np.meshgrid((np.arange(S) + 0.5) / S, (np.arange(S) + 0.5) / S)
-tq = (gt - 0.5) * 2 * np.pi; yq = ymax - gy * (ymax - ymin)
-rad = np.hypot(P[:nhead, 0] - cx, P[:nhead, 2] - cz)
-pts = np.c_[th[:nhead], P[:nhead, 1]]
-pts = np.concatenate([pts, pts + [2 * np.pi, 0], pts - [2 * np.pi, 0]]); rr = np.tile(rad, 3)
-R = griddata(pts, rr, (tq, yq), method='linear')
-if np.isnan(R).any(): R = np.where(np.isnan(R), griddata(pts, rr, (tq, yq), method='nearest'), R)
-X3 = cx + R * np.sin(tq)
+# mỗi điểm ảnh của đầu -> đúng điểm trên bề mặt đầu (vẽ từng tam giác trong không gian UV), không còn nội suy trụ sinh sọc / mắt ma
+G3 = np.zeros((S, S, 6)); cov = np.zeros((S, S), bool); zb = np.full((S, S), -1.0)   # nếp gấp chồng nhau: giữ lớp ngoài cùng (xa trục đầu nhất)
+Nn2 = N2 / np.linalg.norm(N2, axis=1, keepdims=True)
+for t in Fl[(F < nhead).all(1)]:
+    q = UV[t] * S; A3 = np.c_[P2[t], Nn2[t]]
+    for off in (0.0, -S) if q[:, 0].max() > S else (0.0,):
+        ax, ay = q[:, 0] + off, q[:, 1]
+        c0, c1 = max(0, int(np.floor(ax.min()))), min(S - 1, int(np.ceil(ax.max()))); r0, r1 = max(0, int(np.floor(ay.min()))), min(S - 1, int(np.ceil(ay.max())))
+        if c1 < c0 or r1 < r0: continue
+        gx, gy = np.meshgrid(np.arange(c0, c1 + 1) + 0.5, np.arange(r0, r1 + 1) + 0.5)
+        d = (ay[1] - ay[2]) * (ax[0] - ax[2]) + (ax[2] - ax[1]) * (ay[0] - ay[2])
+        if abs(d) < 1e-12: continue
+        l0 = ((ay[1] - ay[2]) * (gx - ax[2]) + (ax[2] - ax[1]) * (gy - ay[2])) / d
+        l1 = ((ay[2] - ay[0]) * (gx - ax[2]) + (ax[0] - ax[2]) * (gy - ay[2])) / d; l2 = 1 - l0 - l1
+        m = (l0 >= -0.02) & (l1 >= -0.02) & (l2 >= -0.02)
+        if not m.any(): continue
+        val = l0[..., None] * A3[0] + l1[..., None] * A3[1] + l2[..., None] * A3[2]
+        rr_ = np.hypot(val[..., 0] - cx, val[..., 2] - cz); sub = zb[r0:r1 + 1, c0:c1 + 1]; m &= rr_ > sub
+        if not m.any(): continue
+        sub[m] = rr_[m]; G3[r0:r1 + 1, c0:c1 + 1][m] = val[m]; cov[r0:r1 + 1, c0:c1 + 1] |= m
+# hai ô mắt: điểm (x, y) chiếu thẳng
+gx, gy = np.meshgrid((np.arange(S) + 0.5) / S, (np.arange(S) + 0.5) / S)
+for c_, h_, u0_ in EYE:
+    m = (gx >= u0_) & (gx < u0_ + 0.125) & (gy >= VH) & (gy < VH + 0.125)
+    G3[m, 0] = c_[0] + (gx[m] - u0_ - 0.0625) / 0.06 * h_; G3[m, 1] = c_[1] - (gy[m] - VH - 0.0625) / 0.06 * h_; G3[m, 2] = c_[2] - h_
+    G3[m, 3:] = [0, 0, -1]; cov |= m
+if (~cov).any():
+    idx = ndimage.distance_transform_edt(~cov, return_distances=False, return_indices=True); G3 = G3[tuple(idx)]
+X3, yq, Z3 = G3[..., 0], G3[..., 1], G3[..., 2]; nfront = -G3[..., 5]
+tq = np.arctan2(X3 - cx, -(Z3 - cz))
 pu, pv = uv(X3 - SHX, yq)
-inside = (pu > 0.002) & (pu < 0.998) & (pv > 0.002) & (pv < 0.998)
 um = np.mean([u for u, v in eyes_uv]); de = abs(eyes_uv[1][0] - eyes_uv[0][0])   # tâm mắt, khoảng cách hai mắt trong ảnh (chưa dịch)
 def okpx(uu, vv):
     q = TA[np.clip((vv * TH).astype(int), 0, TH - 1), np.clip((uu * TW).astype(int), 0, TW - 1)]
@@ -392,15 +424,19 @@ if min(gl, gr) < 0.75 * max(gl, gr): mirror = 'trai' if gl > gr else 'phai'   # 
 if mirror == 'trai': pu = np.where(pu > um, 2 * um - pu, pu)
 if mirror == 'phai': pu = np.where(pu < um, 2 * um - pu, pu)
 inside = (pu > 0.002) & (pu < 0.998) & (pv > 0.002) & (pv < 0.998)
-pu_i = np.clip((pu * TW).astype(int), 0, TW - 1); pv_i = np.clip((pv * TH).astype(int), 0, TH - 1)
-col = TA[pv_i, pu_i]
+from scipy.ndimage import map_coordinates
+col = np.stack([map_coordinates(TA[..., k], [pv * TH - 0.5, pu * TW - 0.5], order=1, mode='nearest') for k in range(3)], -1)
 bad = (col.max(-1) < 18) | ((np.abs(col[..., 0] - col[..., 1]) < 7) & (np.abs(col[..., 1] - col[..., 2]) < 7) & (col[..., 0] > 95) & (col[..., 0] < 170))   # lỗ đen, nền xám
+pu_i = np.clip((pu * TW).astype(int), 0, TW - 1); pv_i = np.clip((pv * TH).astype(int), 0, TH - 1)
 if found:
     fmask = np.asarray(Image.fromarray(ndimage.binary_dilation(ndimage.binary_fill_holes(ndimage.binary_closing(found[1], iterations=6)), iterations=3).astype(np.uint8) * 255).resize((TW, TH))) > 127
     bad &= ~fmask[pv_i, pu_i]   # trong khuôn mặt: lòng trắng mắt, răng không phải nền xám
+    fwide = ndimage.binary_dilation(fmask, iterations=max(2, int(0.02 * TW)))
+    bad |= ~fwide[pv_i, pu_i] & (yq < mE[1] + 0.03 * s)   # ngoài khuôn mặt trong ảnh (tóc mai, nền, áo): không lấy ảnh, dùng màu da / tóc
 valid = inside & ~bad
-valid = ndimage.binary_erosion(valid, iterations=2) & ~ndimage.binary_dilation(col.max(-1) < 30, iterations=6)
-front = np.clip((np.cos(tq) - 0.15) / 0.45, 0, 1)
+holes = ndimage.binary_opening(col.max(-1) < 30, iterations=5)   # chỉ mảng đen lớn (lỗ ảnh); con ngươi, lông mày nhỏ thì giữ
+valid = ndimage.binary_erosion(valid, iterations=2) & ~ndimage.binary_dilation(holes, iterations=6)
+front = np.clip((nfront - 0.2) / 0.45, 0, 1)
 w = front * valid
 w = ndimage.gaussian_filter(w.astype(float), 6) * valid   # mép mờ dần, không viền cứng
 w = np.clip(w * 1.4, 0, 1)
@@ -408,11 +444,35 @@ brow = mE[1] + 0.03 * s
 hairm = np.clip((yq - brow) / (0.03 * s), 0, 1)
 back = np.clip((np.abs(tq) - 1.6) / 0.5, 0, 1) * np.clip((yq - (mE[1] - 0.05 * s)) / (0.04 * s), 0, 1)
 hairm = np.maximum(hairm, back)
-fill = skin_c * (1 - hairm[..., None]) + hair_c * hairm[..., None]
-# vá chỗ hỏng bên trong mặt bằng màu lân cận trước khi trộn
+# tóc / gáy / chỗ đầu mới lòi ra dưới nón: lấy màu bề mặt cũ gần nhất (nón, khăn, tóc thật của nhân vật)
+from scipy.spatial import cKDTree as _KD
+OV, OC = [], []
+for p in mesh['primitives']:
+    if mname(p) in ('Lining', 'Face', 'DauChuan', 'Face2D') or 'TEXCOORD_0' not in p['attributes']: continue
+    Xo = g.acc(p['attributes']['POSITION']).astype(float); Uo = g.acc(p['attributes']['TEXCOORD_0']).astype(float)
+    near_ = np.linalg.norm((Xo - np.array([mE[0], mE[1] + 0.02 * s, np.median(P[:nhead, 2])])) / np.array([1, 1.3, 1]), axis=1) < 0.16 * SC
+    if not near_.any(): continue
+    To = np.asarray(tex_of(p)).astype(float); th_, tw_ = To.shape[:2]
+    Xo, Uo = Xo[near_], Uo[near_]
+    OV.append(Xo); OC.append(To[np.clip((Uo[:, 1] * th_).astype(int), 0, th_ - 1), np.clip((Uo[:, 0] * tw_).astype(int), 0, tw_ - 1)])
+hairc = np.broadcast_to(hair_c, col.shape).copy()
+if OV:
+    OV = np.concatenate(OV); OC = np.concatenate(OC)
+    if len(OV) > 50:
+        hm = hairm > 0.01
+        dd, ii = _KD(OV).query(G3[hm, :3], k=6)
+        wq = 1 / np.maximum(dd, 1e-4); hairc[hm] = (OC[ii] * wq[..., None]).sum(1) / wq.sum(1)[:, None]
+        hairc = ndimage.gaussian_filter(hairc, (2, 2, 0))
+fill = skin_c * (1 - hairm[..., None]) + hairc * hairm[..., None]
+# vá chỗ hỏng bên trong mặt: màu lân cận làm mờ dần (không kéo dài thành sọc)
 colf = col.copy()
 if (~valid & inside).any():
-    idx = ndimage.distance_transform_edt(~valid, return_distances=False, return_indices=True); colf = col[tuple(idx)]
+    acc = np.zeros_like(col); wsum = np.zeros(col.shape[:2]); done = valid.copy(); colf = np.where(valid[..., None], col, 0)
+    for sg in (2, 4, 8, 16, 32):
+        nb_ = ndimage.gaussian_filter(col * valid[..., None], (sg, sg, 0)); dn = ndimage.gaussian_filter(valid.astype(float), sg)
+        put = ~done & (dn > 0.08)
+        colf[put] = nb_[put] / dn[put, None]; done |= put
+    colf[~done] = skin_c
 out = colf * w[..., None] + fill * (1 - w[..., None])
 out = ndimage.gaussian_filter(out, (0.6, 0.6, 0))
 bio = io.BytesIO(); Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)).save(bio, 'JPEG', quality=92); data = bio.getvalue()
