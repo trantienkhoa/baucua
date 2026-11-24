@@ -69,5 +69,14 @@
       ],
       "downloadUrl": ""
     }
-  ]
+  ],
+  "mail": {
+    "host": "smtp.gmail.com",
+    "port": 465,
+    "secure": true,
+    "user": "",
+    "pass": "",
+    "from": "Ngọn Lửa Cuối Cùng <email-cua-anh@gmail.com>",
+    "_ghi_chu": "Gmail: bật xác minh 2 bước, tạo Mật khẩu ứng dụng (16 ký tự) dán vào pass. Để trống thì không gửi mail."
+  }
 }

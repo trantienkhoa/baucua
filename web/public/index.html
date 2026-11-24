@@ -118,10 +118,11 @@
 <div class="modal" id="buy"><div class="box">
   <h3 id="buyTitle">Đặt mua</h3><p style="color:var(--mute);margin:0" id="buyPrice"></p>
   <div class="field"><label for="bName">Tên gọi (không bắt buộc)</label><input id="bName" maxlength="80" autocomplete="name"></div>
-  <div class="field"><label for="bContact">Số Zalo / điện thoại / email</label><input id="bContact" maxlength="120" autocomplete="tel"></div>
+  <div class="field"><label for="bEmail">Email nhận key và link tải</label><input id="bEmail" type="email" maxlength="120" autocomplete="email" placeholder="ban@gmail.com"></div>
+  <div class="field"><label for="bContact">Zalo / điện thoại (không bắt buộc, để được hỗ trợ nhanh)</label><input id="bContact" maxlength="120" autocomplete="tel"></div>
   <div class="err" id="bErr"></div>
   <div style="display:flex;gap:10px;margin-top:6px"><button class="btn" style="flex:1;justify-content:center" onclick="closeBuy()">Huỷ</button><button class="btn pri" style="flex:2;justify-content:center" id="bGo">Tạo đơn & lấy mã QR</button></div>
-  <p style="color:var(--mute);font-size:13px;margin:14px 0 0">Thông tin chỉ dùng để hỗ trợ đơn hàng của bạn.</p>
+  <p style="color:var(--mute);font-size:13px;margin:14px 0 0">Thanh toán xong, key và link tải được gửi tự động vào email của bạn. Thông tin chỉ dùng cho đơn hàng này.</p>
 </div></div>
 
 <script>
@@ -148,7 +149,7 @@ $('buy').onclick = e => { if (e.target.id === 'buy') closeBuy(); };
 $('bGo').onclick = async () => {
   $('bGo').disabled = true; $('bErr').textContent = '';
   try {
-    const r = await fetch('/api/order', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tier: cur.id, name: $('bName').value, contact: $('bContact').value }) });
+    const r = await fetch('/api/order', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tier: cur.id, name: $('bName').value, email: $('bEmail').value, contact: $('bContact').value }) });
     const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Không tạo được đơn');
     location.href = `/don-hang?id=${j.id}&s=${j.secret}`;
   } catch (e) { $('bErr').textContent = e.message; }

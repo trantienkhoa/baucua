@@ -45,6 +45,12 @@ Thư mục `web/` là một máy chủ Node riêng (đặt trên VPS / hosting c
      Key mang loại gói: game bản 2D chỉ mở cảnh 2D, bản 3D chỉ mở cảnh 3D (ô chọn chế độ bị khoá), bản 2D + 3D đổi qua lại được. Key cũ (trước khi có gói) tính là 2D + 3D.
    - `downloadUrl`: link tải bộ game (Google Drive…), chỉ hiện cho khách đã trả tiền.
    - `contact`, `demoVideo` (link YouTube).
+   - `mail`: gửi tự động key + link tải vào email khách khi đơn đã trả tiền. Dùng Gmail:
+     1. Vào myaccount.google.com → Bảo mật → bật **Xác minh 2 bước**.
+     2. Tìm **Mật khẩu ứng dụng** → tạo mới (đặt tên "Ngon Lua") → chép 16 ký tự.
+     3. Điền `user` = địa chỉ Gmail, `pass` = 16 ký tự vừa chép, `from` = `Ngọn Lửa Cuối Cùng <địa-chỉ-gmail>`.
+     Để trống `user`/`pass` thì không gửi mail (khách vẫn thấy key + link trên trang đơn hàng). Gmail cho gửi khoảng 500 mail/ngày.
+     Trang quản trị hiện trạng thái mail từng đơn và có nút **Gửi lại** (khi khách gõ sai email thì sửa trong `data/db.json` hoặc nhắn khách).
 3. Khởi động lại. Nên chạy bằng `pm2` để tự bật lại khi máy chủ khởi động lại.
 4. **Sao lưu `data/`** (chứa `private.pem` và `db.json`). Mất `private.pem` thì mọi key đã bán không gia hạn được; lộ `private.pem` thì người khác tự tạo được key.
 

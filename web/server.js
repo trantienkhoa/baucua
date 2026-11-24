@@ -86,10 +86,11 @@ app.post('/api/order', limit, (req, res) => {
   const b = req.body || {}, t = tier(b.tier);
   if (!t) return res.status(400).json({ error: 'Gói không tồn tại' });
   const name = String(b.name || '').trim().slice(0, 80) || 'Khách', contact = String(b.contact || '').trim().slice(0, 120);
-  if (!contact) return res.status(400).json({ error: 'Vui lòng nhập Zalo / số điện thoại / email để nhận hỗ trợ' });   // chỉ cần một cách liên hệ, tên không bắt buộc
+  const email = String(b.email || '').trim().toLowerCase().slice(0, 120);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return res.status(400).json({ error: 'Vui lòng nhập email đúng để nhận key và link tải' });   // email bắt buộc, Zalo / tên không bắt buộc
   let id; do id = (CFG.orderPrefix || 'NL') + Math.floor(100000 + Math.random() * 900000); while (db.orders[id]);
   const secret = b64u(crypto.randomBytes(18));
-  db.orders[id] = { id, secret, tier: t.id, planName: t.name, amount: t.price, name, contact, status: 'pending', createdAt: Date.now(), key: null };
+  db.orders[id] = { id, secret, tier: t.id, planName: t.name, amount: t.price, name, contact, email, status: 'pending', createdAt: Date.now(), key: null };
   save();
   res.json({ id, secret });
 });
@@ -107,12 +108,44 @@ app.get('/api/order/:id', (req, res) => {
   if (!o || o.secret !== req.query.s) return res.status(404).json({ error: 'Không tìm thấy đơn hàng' });
   res.json(orderView(o));
 });
+// ---------- gửi mail key + link tải khi đơn đã trả tiền (Gmail: mật khẩu ứng dụng) ----------
+const nodemailer = require('nodemailer');
+let mailer = null;
+function getMailer() {
+  const m = CFG.mail || {};
+  if (!m.host || !m.user || !m.pass) return null;
+  return mailer || (mailer = nodemailer.createTransport({ host: m.host, port: Number(m.port) || 465, secure: m.secure !== false, auth: { user: m.user, pass: m.pass } }));
+}
+const escH = x => String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+async function sendPaidMail(o) {
+  const tr = getMailer();
+  if (!o.email) return;
+  if (!tr) { o.mail = { ok: false, error: 'Chưa cấu hình mail trong config.json', at: Date.now() }; save(); return; }
+  const t = tier(o.tier) || {}, link = t.downloadUrl || CFG.downloadUrl || '', page = `${String(CFG.publicUrl || '').replace(/\/$/, '')}/don-hang?id=${o.id}&s=${o.secret}`;
+  const shop = CFG.siteName || 'Ngọn Lửa Cuối Cùng', contact = (CFG.contact && (CFG.contact.zalo || CFG.contact.facebook || CFG.contact.phone || CFG.contact.email)) || '';
+  const text = [`Cảm ơn bạn đã mua ${o.planName} – ${shop}.`, '', `Mã đơn: ${o.id}`, `Key: ${o.key}`, link ? `Link tải game: ${link}` : '', `Xem lại đơn hàng: ${page}`, '',
+    'Cách cài:', '1. Tải file zip, giải nén ra ổ đĩa (đừng chạy trong file nén).', '2. Bấm đúp ChayNgonLua.bat.', '3. Trang nhập key tự mở: dán key ở trên → Kích hoạt.', '',
+    'Lưu ý: phải đủ 18 tuổi mới lên LIVE và nhận quà TikTok; bật nhãn nội dung AI (AIGC) vì game có giọng đọc AI.', contact ? `Cần hỗ trợ: ${contact}` : ''].filter(x => x !== null).join('\n');
+  const html = `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#222">
+    <p>Cảm ơn bạn đã mua <b>${escH(o.planName)}</b> – ${escH(shop)}.</p>
+    <p>Mã đơn: <b>${escH(o.id)}</b><br>Key: <b style="font-family:monospace;font-size:17px">${escH(o.key)}</b></p>
+    ${link ? `<p><a href="${escH(link)}" style="background:#e8892c;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">Tải game</a></p>` : ''}
+    <p><a href="${escH(page)}">Xem lại đơn hàng</a></p>
+    <p><b>Cách cài</b><br>1. Tải file zip, giải nén ra ổ đĩa (đừng chạy trong file nén).<br>2. Bấm đúp <b>ChayNgonLua.bat</b>.<br>3. Trang nhập key tự mở: dán key ở trên → Kích hoạt.</p>
+    <p style="color:#666;font-size:13px">Lưu ý: phải đủ 18 tuổi mới lên LIVE và nhận quà TikTok; bật nhãn nội dung AI (AIGC) vì game có giọng đọc AI.${contact ? `<br>Cần hỗ trợ: ${escH(contact)}` : ''}</p></div>`;
+  try {
+    await tr.sendMail({ from: CFG.mail.from || CFG.mail.user, to: o.email, subject: `[${shop}] Key và link tải – đơn ${o.id}`, text, html });
+    o.mail = { ok: true, at: Date.now() }; console.log(`✉ Đã gửi mail đơn ${o.id}`);
+  } catch (e) { o.mail = { ok: false, error: String(e.message || e).slice(0, 200), at: Date.now() }; console.warn(`✉ Gửi mail đơn ${o.id} lỗi:`, e.message); }
+  save();
+}
 function markPaid(o, by) {
   if (o.status === 'paid') return o;
   const t = tier(o.tier) || { id: o.tier, name: o.planName, machines: 1 };
   const rec = createKey(t, `${o.name} · ${o.contact}`, o.id);
   o.status = 'paid'; o.key = rec.key; o.paidAt = Date.now(); o.paidBy = by; save();
   console.log(`✓ Đơn ${o.id} đã thanh toán (${by}) → key ${mask(rec.key)}`);
+  sendPaidMail(o);   // gửi nền, không chờ
   return o;
 }
 
@@ -167,6 +200,7 @@ function admin(req, res, next) {
 }
 app.get('/api/admin/data', limit, admin, (req, res) => res.json({ orders: Object.values(db.orders).sort((a, b) => b.createdAt - a.createdAt), keys: Object.values(db.keys).sort((a, b) => b.createdAt - a.createdAt), tiers: CFG.tiers }));
 app.post('/api/admin/order/:id/paid', admin, (req, res) => { const o = db.orders[req.params.id]; if (!o) return res.status(404).json({ error: 'Không có đơn' }); res.json(markPaid(o, 'admin')); });
+app.post('/api/admin/order/:id/mail', admin, async (req, res) => { const o = db.orders[req.params.id]; if (!o || o.status !== 'paid') return res.status(400).json({ error: 'Đơn chưa trả tiền' }); if (req.body && req.body.email) o.email = String(req.body.email).trim().toLowerCase().slice(0, 120); await sendPaidMail(o); res.json(o); });
 app.post('/api/admin/order/:id/cancel', admin, (req, res) => { const o = db.orders[req.params.id]; if (!o) return res.status(404).json({ error: 'Không có đơn' }); if (o.status === 'pending') { o.status = 'cancelled'; save(); } res.json(o); });
 app.post('/api/admin/key', admin, (req, res) => { const t = tier((req.body || {}).tier); if (!t) return res.status(400).json({ error: 'Gói không tồn tại' }); res.json(createKey(t, String(req.body.note || '').slice(0, 120))); });
 app.post('/api/admin/key/:key/:act', admin, (req, res) => {
