@@ -30,9 +30,11 @@ Cần python3 + numpy, playwright (chromium) và ffmpeg. Không có ffmpeg thì 
    - Đặt đòn gánh dọc trên vai phải (thúng trước, thúng sau) và gắn vào xương riêng `Ganh`.
    - Đi, chạy, đứng: tay phải vịn đầu đòn phía trước, thúng nhún theo bước. Đòn luôn giữ thăng bằng khi người nghiêng.
    - Các động tác ngồi: đặt gánh xuống đất bên cạnh. Chỉnh trong `GANH` của `dong-tac.js`.
-4. `gan-dong-tac.py`: ghi các động tác vào GLB thành animation (giữ tất cả xương trong mọi clip để chuyển clip không bị lệch).
+4. `do-vat.py`: tay xách đồ (giỏ...) được giữ yên theo ngực; phần món đồ dưới bàn tay tách ra xương riêng `DoVat`. Khi ngồi (trong game và trong 3 động tác ngồi), món đồ được đặt xuống đất cạnh chân.
+5. `mat-2d.py`: làm mặt đẹp hơn. Tìm khuôn mặt ngay trên ảnh chân dung (texture mặt chiếu thẳng), rồi dán ảnh lên một mặt nạ mỏng cong mượt đặt trước lưới mặt (vốn góc cạnh, méo). Viền mờ dần, vá lỗ đen, cả vùng mặt theo hẳn xương đầu.
+6. `gan-dong-tac.py`: ghi các động tác vào GLB thành animation (giữ tất cả xương trong mọi clip để chuyển clip không bị lệch).
 
-5. `lam-nhe.py`: gộp các đỉnh trùng (lưới máy tạo là "súp tam giác", mỗi tam giác 3 đỉnh riêng chỉ để mang pháp tuyến phẳng) và bỏ pháp tuyến. Trình xem glTF tự tô phẳng từng mặt nên hình không đổi, số đỉnh giảm khoảng 3 lần, file nhẹ hơn khoảng 1/3.
+7. `lam-nhe.py`: gộp các đỉnh trùng (lưới máy tạo là "súp tam giác", mỗi tam giác 3 đỉnh riêng chỉ để mang pháp tuyến phẳng) và bỏ pháp tuyến. Trình xem glTF tự tô phẳng từng mặt nên hình không đổi, số đỉnh giảm khoảng 3 lần, file nhẹ hơn khoảng 1/3.
 
 ## Động tác (tên animation)
 | Tên | Động tác |
@@ -64,7 +66,7 @@ node tools/nhan-vat/chup.js <file.glb> <ra.png> [giây] '{"only":["chay_bo"],"co
 
 ## Giới hạn
 - Đạo cụ dính liền thân trong lưới (cuốc của tp-001) đi theo phần cơ thể mà nó chạm vào.
-- Tay buông sát người xách đồ (giỏ của tp-011, tp-015): tay và món đồ dính liền thân nên được giữ yên theo ngực; tay kia vẫn cử động. Ngồi bệt sát đất thì giỏ chạm đất.
+- Tay buông sát người xách đồ (giỏ của tp-011, tp-015): tay dính liền thân nên giữ yên theo ngực (tay kia vẫn cử động); khi ngồi giỏ được đặt xuống đất, còn cánh tay đó vẫn buông thẳng.
 - Lỗ có sẵn trong lưới dưới nách hiện ra khi vung tay mạnh.
 - Mặt trong cánh tay có bóng tối vẽ sẵn trong texture.
 - Xuất mô hình ở tư thế chữ T (tay dang ngang, không chạm thân) sẽ cho kết quả tốt nhất.

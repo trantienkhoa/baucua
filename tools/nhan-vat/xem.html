@@ -10,14 +10,15 @@ const W=TW*COLS, H=TH*ROWS, r=new THREE.WebGLRenderer({antialias:true,preserveDr
 names.forEach((n,i)=>{ const e=document.createElement('div'); e.className='l'; e.textContent=P.label??MOVES[n].ten; e.style.left=(i%COLS)*TW+'px'; e.style.top=(Math.floor(i/COLS)*TH+8)+'px'; document.body.appendChild(e); });
 const sc=new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff,0x555566,2.2)); const d=new THREE.DirectionalLight(0xffffff,1.6); d.position.set(2,4,-3); sc.add(d);
 const g=new THREE.Mesh(new THREE.CircleGeometry(1.2,40),new THREE.MeshLambertMaterial({color:0x7d838c})); g.rotation.x=-Math.PI/2; sc.add(g);
-const cam=new THREE.PerspectiveCamera(30,TW/TH,.1,50); cam.position.set(0,1.05,-4.6); cam.lookAt(0,0.82,0);
+const cam=new THREE.PerspectiveCamera(30,TW/TH,.1,50); cam.position.set(0,1.05,-4.6); cam.lookAt(0,0.82,0); if(P.cam){ cam.position.set(P.cam[0],P.cam[1],P.cam[2]); cam.lookAt(P.cam[3],P.cam[4],P.cam[5]); }
 const gg=await new GLTFLoader().loadAsync(P.m); const root=gg.scene; sc.add(root); root.rotation.y=P.ry??0.75;
 const B={}; root.traverse(n=>{ if(n.isBone) B[n.name.replace(/^mixamorig:?/,'')]=n; if(n.isMesh){ n.frustumCulled=false; if(P.basic) n.material=new THREE.MeshBasicMaterial({map:n.material.map,color:n.material.map?0xffffff:0xff00ff,side:THREE.DoubleSide}); if(P.back) n.material.side=THREE.FrontSide; } });
 const arm=B.Hips.parent; root.updateMatrixWorld(true);
 const rest={}, armInv=new THREE.Quaternion(); arm.getWorldQuaternion(armInv); armInv.invert();
 for(const k in B){ const w=new THREE.Quaternion(); B[k].getWorldQuaternion(w); rest[k]={l:B[k].quaternion.clone(), w:armInv.clone().multiply(w), p:B[k].position.clone()}; }
 let ganhRest=null; const SC=rest.Hips.p.y/0.842;
-if(B.Ganh){ const w=new THREE.Vector3(); B.Ganh.getWorldPosition(w); ganhRest=w.applyMatrix4(arm.matrixWorld.clone().invert()); }   // nhân vật cao/thấp hơn mẫu thì dịch hông theo tỉ lệ
+if(B.Ganh){ const w=new THREE.Vector3(); B.Ganh.getWorldPosition(w); ganhRest=w.applyMatrix4(arm.matrixWorld.clone().invert()); }
+let dovRest=null; if(B.DoVat){ const w=new THREE.Vector3(); B.DoVat.getWorldPosition(w); dovRest=w.applyMatrix4(arm.matrixWorld.clone().invert()); }   // nhân vật cao/thấp hơn mẫu thì dịch hông theo tỉ lệ
 const AX={x:new THREE.Vector3(1,0,0),y:new THREE.Vector3(0,1,0),z:new THREE.Vector3(0,0,1)}, tq=new THREE.Quaternion(), R=new THREE.Quaternion(), wi=new THREE.Quaternion();
 const _m=new THREE.Matrix4(), _p=new THREE.Matrix4(), _v=new THREE.Vector3();
 function ganh(name,t,o){ if(!B.Ganh||!GANH) return o;
@@ -35,14 +36,20 @@ function ganhDat(name){ if(!B.Ganh||!GANH||!GANH.dat[name]) return;
   const target=new THREE.Matrix4().makeTranslation(ganhRest.x+d[0]*SC, ganhRest.y+d[1]*SC, ganhRest.z-d[2]*SC).multiply(restW);
   _p.copy(armI).multiply(B.Ganh.parent.matrixWorld).invert();
   _m.copy(_p).multiply(target); const q=new THREE.Quaternion(), s=new THREE.Vector3(); _m.decompose(B.Ganh.position,q,s); B.Ganh.quaternion.copy(q); }
+function dovDat(name){ if(!B.DoVat||!GANH||!GANH.dat[name]) return;   // ngồi: đặt món đồ xách tay xuống đất cạnh chân
+  root.updateMatrixWorld(true); const ud=B.DoVat.userData||{}, sg=ud.ben==='Left'?-1:1;
+  const restW=new THREE.Matrix4().compose(new THREE.Vector3(), rest.DoVat.w, new THREE.Vector3(1,1,1));
+  const target=new THREE.Matrix4().makeTranslation(dovRest.x+sg*0.2*SC, (ud.datY||0.1), dovRest.z-0.08*SC).multiply(restW);
+  const pI=arm.matrixWorld.clone().invert().multiply(B.DoVat.parent.matrixWorld).invert();
+  const m=pI.multiply(target), q=new THREE.Quaternion(), sc=new THREE.Vector3(); m.decompose(B.DoVat.position,q,sc); B.DoVat.quaternion.copy(q); }
 function apply(o){ for(const k in B){ B[k].quaternion.copy(rest[k].l); B[k].position.copy(rest[k].p); }
   for(const k in o){ if(k==='hip'||!B[k]) continue; R.identity(); for(const [a,deg] of o[k]){ tq.setFromAxisAngle(AX[a],deg*D); R.premultiply(tq); }
     const w=rest[k].w; wi.copy(w).invert(); B[k].quaternion.copy(rest[k].l).multiply(wi.clone().multiply(R).multiply(w)); }
   if(o.hip){ B.Hips.position.x+=o.hip[0]*SC; B.Hips.position.y+=o.hip[1]*SC; B.Hips.position.z+=-o.hip[2]*SC; } }
-window.frame=T=>{ names.forEach((n,i)=>{ const m=MOVES[n]; { const tt=(T/m.dur)%1; apply(ganh(n,tt,m.f(tt))); ganhDat(n); } const x=(i%COLS)*TW, y=H-(Math.floor(i/COLS)+1)*TH;
+window.frame=T=>{ names.forEach((n,i)=>{ const m=MOVES[n]; { const tt=(T/m.dur)%1; apply(ganh(n,tt,m.f(tt))); ganhDat(n); dovDat(n); } const x=(i%COLS)*TW, y=H-(Math.floor(i/COLS)+1)*TH;
   r.setViewport(x,y,TW,TH); r.setScissor(x,y,TW,TH); r.setClearColor(0x9aa0aa); r.clear(); r.render(sc,cam); }); };
 window.bake=fps=>{ const res={}; for(const n in MOVES){ const m=MOVES[n], N=Math.round(m.dur*fps), out={times:[],q:{},hip:[]}; for(const k in B) out.q[k]=[];
-  for(let i=0;i<=N;i++){ const tt=(i/N)%1; apply(ganh(n,tt,m.f(tt))); ganhDat(n); out.times.push(i/fps); for(const k in B) out.q[k].push(...B[k].quaternion.toArray()); out.hip.push(...B.Hips.position.toArray()); if(B.Ganh){ (out.gp=out.gp||[]).push(...B.Ganh.position.toArray()); } }
+  for(let i=0;i<=N;i++){ const tt=(i/N)%1; apply(ganh(n,tt,m.f(tt))); ganhDat(n); dovDat(n); out.times.push(i/fps); for(const k in B) out.q[k].push(...B[k].quaternion.toArray()); out.hip.push(...B.Hips.position.toArray()); if(B.Ganh){ (out.gp=out.gp||[]).push(...B.Ganh.position.toArray()); } if(B.DoVat){ (out.dp=out.dp||[]).push(...B.DoVat.position.toArray()); } }
   res[n]=out; } return res; };
 window.SIZE=[W,H]; window.frame(0); window.DONE=true;
 </script></body></html>

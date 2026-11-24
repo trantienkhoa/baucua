@@ -1051,10 +1051,11 @@ if (renderer && SH) {
   }
 
   const _gq = new THREE.Quaternion(), _gs = new THREE.Vector3(), _gm = new THREE.Matrix4(), _gp = new THREE.Vector3();
-  function placeGanh(e, x, z, yaw) {   // đòn gánh dọc, đáy thúng chạm đất, cách người ~0,6 m về bên phải
+  function placeGanh(e, x, z, yaw) {   // ngồi: đặt quang gánh (cách ~0,6 m) hoặc giỏ xách tay (~0,3 m) xuống đất bên cạnh, đáy chạm đất
     const b = e.ganh; e.av.holder.updateMatrixWorld(true);
     e.av.inner.getWorldQuaternion(_gq).multiply(e.ganhQ); e.av.inner.getWorldScale(_gs);
-    _gp.set(x - Math.cos(yaw) * 0.62, 0.49 * _gs.y, z + Math.sin(yaw) * 0.62);
+    const dv = /DoVat/.test(b.name), ud = b.userData || {}, lat = (dv ? 0.32 : 0.62) * (ud.ben === 'Left' ? -1 : 1), h = dv ? (ud.datY || 0.1) : 0.49;
+    _gp.set(x - Math.cos(yaw) * lat, h * _gs.y, z + Math.sin(yaw) * lat);
     _gm.compose(_gp, _gq, b.getWorldScale(new THREE.Vector3()));
     _gm.premultiply(b.parent.matrixWorld.clone().invert()); _gm.decompose(b.position, b.quaternion, b.scale);
   }
@@ -1078,7 +1079,7 @@ if (renderer && SH) {
         av.holder.traverse(o => { if (o.isMesh && o.material && o.material.emissiveIntensity >= 2 && o.material.toneMapped === false) o.visible = false; });   // bỏ que phát sáng
         e = { av, v, ghost: false, gender: v.gender || null }; avs.set(v.id, e);
         // người xem mang quang gánh (xương Ganh): ngồi thì đặt gánh xuống đất bên phải
-        const gb = av.root.getObjectByName('mixamorigGanh');
+        const gb = av.root.getObjectByName('mixamorigGanh') || av.root.getObjectByName('mixamorigDoVat');   // quang gánh / giỏ xách tay
         if (gb) { av.holder.updateMatrixWorld(true); const iq = new THREE.Quaternion(), bq = new THREE.Quaternion(); av.inner.getWorldQuaternion(iq); gb.getWorldQuaternion(bq); e.ganh = gb; e.ganhQ = iq.invert().multiply(bq); }
       }
       if (!e) { v.has3d = false; continue; }

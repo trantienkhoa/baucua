@@ -26,5 +26,8 @@ for an, d in data.items():
     if 'gp' in d:   # xương Ganh có dời vị trí (đặt gánh xuống)
         gp = np.array(d['gp'], np.float32).reshape(-1, 3)
         smp.append({'input': ti, 'output': add(gp, 'VEC3'), 'interpolation': 'LINEAR'}); ch.append({'sampler': len(smp)-1, 'target': {'node': name2node['Ganh'], 'path': 'translation'}})
+    if 'dp' in d:   # xương DoVat dời vị trí (đặt món đồ xuống khi ngồi)
+        dp = np.array(d['dp'], np.float32).reshape(-1, 3)
+        smp.append({'input': ti, 'output': add(dp, 'VEC3'), 'interpolation': 'LINEAR'}); ch.append({'sampler': len(smp)-1, 'target': {'node': name2node['DoVat'], 'path': 'translation'}})
     j['animations'].append({'name': an, 'samplers': smp, 'channels': ch})
 j['buffers'][0]['byteLength'] = len(g.bin); g.compact(); g.save(sys.argv[3]); print(len(j['animations']), 'animations')
