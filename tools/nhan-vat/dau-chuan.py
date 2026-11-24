@@ -5,6 +5,7 @@
 #   thoát mã 3 nếu không làm được (không có ảnh mặt...) -> quy trình dùng mat-2d.py thay thế
 # Vị trí mắt: tự tìm trên ảnh; sai thì chấm tay trong mat-chinh.json: {"tp-005": [[u1, v1], [u2, v2]]} (toạ độ 0..1 trên ảnh mặt)
 import sys, os, io, json, shutil, numpy as np
+os.environ.setdefault('OPENCV_LOG_LEVEL', 'ERROR')   # tắt cảnh báo OpenCV trong báo cáo
 TOOL = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, TOOL)
 from glbio import GLB
 from PIL import Image, ImageDraw
@@ -140,13 +141,30 @@ def ve_mat(cap):
     A[keep] = C[keep]
     eu = [((ku[0] * (hx_ + sd * 0.5 * ed_) + ku[1]), (kv[0] * ey_ + kv[1])) for sd in (-1, 1)]   # ey_ theo cỡ chuẩn
     return {'img': Image.fromarray(np.clip(A, 0, 255).astype(np.uint8)), 'eyes': sorted(eu), 'mouth': (ku[0] * hx_ + ku[1], kv[0] * my_ + kv[1])}
+def yunet_eyes(img):
+    """Dò mặt bằng YuNet (OpenCV, mô hình MIT: yunet.onnx): trả về hai mắt và tâm miệng (toạ độ 0..1). Không có OpenCV thì None."""
+    mp = os.path.join(TOOL, 'yunet.onnx')
+    try:
+        import cv2
+    except Exception: return None
+    if not os.path.exists(mp): return None
+    a = np.asarray(img.convert('RGB'))[:, :, ::-1].copy(); h, w = a.shape[:2]; k = 1.0
+    if max(h, w) < 640: k = 640 / max(h, w); a = cv2.resize(a, (int(w * k), int(h * k)), interpolation=cv2.INTER_CUBIC); h, w = a.shape[:2]
+    try:
+        d = cv2.FaceDetectorYN.create(mp, '', (w, h), 0.5); _, f = d.detect(a)
+    except Exception: return None
+    if f is None or not len(f): return None
+    f = max(f, key=lambda r: r[14] * np.sqrt(r[2] * r[3]))   # mặt chắc chắn nhất (điểm tin cậy × cỡ)
+    eyes = sorted([(f[4] / w, f[5] / h), (f[6] / w, f[7] / h)])
+    return eyes, ((f[10] + f[12]) / 2 / w, (f[11] + f[13]) / 2 / h), (f[8] / w, f[9] / h)
 def chan_dung(path, cap):
     """Ảnh chân dung toàn thân (đầu tới chân) -> ảnh mặt cùng khung với chup_mat. Khớp: chiều cao người trong ảnh = chiều cao mô hình,
     rồi dò soi gương / lệch / cỡ sao cho giống hình chụp thẳng của chính mô hình nhất."""
     global ku, kv
     I_ = np.asarray(Image.open(path).convert('RGB')).astype(float); ph, pw = I_.shape[:2]
     band = I_[:, int(pw * 0.09):int(pw * 0.91)]
-    m_ = ((band.max(2) - band.min(2)) > 12) | (band.mean(2) < 150)
+    bg = np.median(np.concatenate([I_[:, :int(pw * 0.06)], I_[:, -int(pw * 0.06):]], 1), 1)   # màu nền từng hàng (lấy ở hai mép ảnh, nền loang cũng được)
+    m_ = np.abs(band - bg[:, None, :]).max(2) > 28
     rows = np.nonzero(m_.sum(1) > 5)[0]
     if len(rows) < 100: return None
     top, bot = rows[0], rows[-1]
@@ -167,9 +185,9 @@ def chan_dung(path, cap):
     Cs = ndimage.gaussian_filter(C[::4, ::4], (1.5, 1.5, 0)); valid_ = np.abs(Cs - 128).sum(-1) > 6
     best = None
     for mir in (1, -1):
-        for sc in (0.92, 0.96, 1.0, 1.04, 1.08):
-            for dx in np.linspace(-0.03, 0.03, 7) * SC:
-                for dy in np.linspace(-0.04, 0.04, 9) * SC:
+        for sc in (0.97, 1.0, 1.03):   # ảnh toàn thân đã khớp chiều cao người: chỉ tinh chỉnh nhẹ, giữ tầm mắt / cổ đúng như ảnh
+            for dx in np.linspace(-0.015, 0.015, 5) * SC:
+                for dy in np.linspace(-0.012, 0.012, 5) * SC:
                     A_ = ndimage.gaussian_filter(samp(mir, sc, dx, dy, S_ // 4), (1.5, 1.5, 0))
                     e = np.abs(A_ - Cs)[valid_].mean()
                     if best is None or e < best[0]: best = (e, mir, sc, dx, dy)
@@ -177,8 +195,16 @@ def chan_dung(path, cap):
     # ảnh mặt ra: khung rộng gấp 1,5 (giữ tâm) để mặt lệch trong ảnh vẫn không bị cắt
     ku = np.array([ku[0] / 1.5, 0.5 + (ku[1] - 0.5) / 1.5]); kv = np.array([kv[0] / 1.5, 0.5 + (kv[1] - 0.5) / 1.5])
     X_[:] = (gxs - ku[1]) / ku[0]; Y_[:] = (gys - kv[1]) / kv[0]
+    # mốc mặt dò trên ảnh chân dung gốc (đủ ngữ cảnh, chắc hơn dò trên ảnh đã cắt), quy về khung ảnh mặt
+    global CD_YU
+    yu = yunet_eyes(Image.fromarray(I_.astype(np.uint8)))
+    if yu:
+        def to_uv(q):
+            x = hx_ + (q[0] * pw - cxp - dx * ppm) / (mir * ppm * sc); y = ymax - (q[1] * ph - top - dy * ppm) / (ppm * sc)
+            return (ku[0] * x + ku[1], kv[0] * y + kv[1])
+        CD_YU = (sorted([to_uv(yu[0][0]), to_uv(yu[0][1])]), to_uv(yu[1]), to_uv(yu[2]))
     return Image.fromarray(np.clip(samp(mir, sc, dx, dy), 0, 255).astype(np.uint8)), 'chân dung (%s, cỡ %.2f, lệch %.0f/%.0f mm)' % ('soi gương' if mir < 0 else 'thẳng', sc, dx * 1000, dy * 1000)
-VE = None
+VE = None; CD_YU = None
 CD = os.environ.get('DAU_CHAN_DUNG') or os.path.join(TOOL, 'chan-dung')   # thư mục ảnh chân dung toàn thân <mã>.jpg
 cd_path = os.path.join(CD, base + '.jpg') if CD else None
 _mc = json.load(open(os.path.join(TOOL, 'mat-chinh.json'))) if os.path.exists(os.path.join(TOOL, 'mat-chinh.json')) else {}
@@ -233,27 +259,11 @@ def find_eyes():
     prof = [(L[r, int(mc - hw2):int(mc + hw2)].mean(), r) for r in rows] if len(rows) else []
     my = min(prof)[1] if prof else ey + 0.55 * W   # miệng: dòng tối nhất dưới mũi
     return [(b0[2] / 256, b0[1] / 256), (b0[3] / 256, b0[1] / 256)], face, W / 256, (mc / 256, my / 256)
-def yunet_eyes(img):
-    """Dò mặt bằng YuNet (OpenCV, mô hình MIT: yunet.onnx): trả về hai mắt và tâm miệng (toạ độ 0..1). Không có OpenCV thì None."""
-    mp = os.path.join(TOOL, 'yunet.onnx')
-    try:
-        import cv2
-    except Exception: return None
-    if not os.path.exists(mp): return None
-    a = np.asarray(img.convert('RGB'))[:, :, ::-1].copy(); h, w = a.shape[:2]; k = 1.0
-    if max(h, w) < 640: k = 640 / max(h, w); a = cv2.resize(a, (int(w * k), int(h * k)), interpolation=cv2.INTER_CUBIC); h, w = a.shape[:2]
-    try:
-        d = cv2.FaceDetectorYN.create(mp, '', (w, h), 0.5); _, f = d.detect(a)
-    except Exception: return None
-    if f is None or not len(f): return None
-    f = max(f, key=lambda r: r[14] * np.sqrt(r[2] * r[3]))   # mặt chắc chắn nhất (điểm tin cậy × cỡ)
-    eyes = sorted([(f[4] / w, f[5] / h), (f[6] / w, f[7] / h)])
-    return eyes, ((f[10] + f[12]) / 2 / w, (f[11] + f[13]) / 2 / h)
 fix = {}
 fpath = os.path.join(TOOL, 'mat-chinh.json')
 if os.path.exists(fpath): fix = json.load(open(fpath))
 found = find_eyes() if VE is None else None
-YU = yunet_eyes(tex) if VE is None else None
+YU = (CD_YU if cdr and CD_YU else yunet_eyes(tex)) if VE is None else None
 if VE is not None: eyes_uv = VE['eyes']; src_e = 'vẽ sẵn'
 elif base in fix and isinstance(fix[base], list) and len(fix[base]) >= 2 and not YU: eyes_uv = fix[base]; src_e = 'chấm tay'
 elif YU: eyes_uv = YU[0]; src_e = 'YuNet'
@@ -262,7 +272,7 @@ elif found: eyes_uv = found[0]; src_e = 'tự tìm'
 else: print('khong-thay-mat'); sys.exit(3)
 # ảnh mặt đặt lệch cỡ / lệch chỗ so với đầu thật (mắt trong ảnh quá to, quá nhỏ): đặt lại khung ảnh cho hai mắt rơi đúng chỗ mắt chuẩn
 reframed = False
-if VE is None:
+if VE is None and not cdr:   # ảnh chân dung toàn thân: tầm mắt lấy đúng theo ảnh, không đặt lại
     (u0_, v0_), (u1_, v1_) = sorted(eyes_uv); ed_img = abs(u1_ - u0_)
     ey_img = xy(0, (v0_ + v1_) / 2)[1]   # tầm mắt theo khung ảnh hiện tại
     if abs(ey_img - (Pw('Head')[1] + 0.043 * SC)) > 0.03 * SC:
@@ -445,6 +455,20 @@ if (~cov).any():
 X3, yq, Z3 = G3[..., 0], G3[..., 1], G3[..., 2]; nfront = -G3[..., 5]
 tq = np.arctan2(X3 - cx, -(Z3 - cz))
 pu, pv = uv(X3 - SHX, yq)
+# chóp mũi: dời phần giữa mắt và miệng của ảnh cho mũi trong ảnh nằm đúng chóp mũi của đầu (không còn bóng lỗ mũi trên môi)
+nose_fix = 0.0
+if YU and VE is None:
+    Ph_ = P[:nhead]; edt = np.linalg.norm(dT) * s
+    cc = Ph_[np.abs(Ph_[:, 0] - mE[0]) < 0.1 * edt]
+    cc = cc[(cc[:, 1] < mE[1] - 0.3 * edt) & (cc[:, 1] > mE[1] - 1.0 * edt)]
+    if len(cc):
+        yn_t = cc[np.argmin(cc[:, 2]), 1]   # điểm nhô ra trước nhất (mặt nhìn về −Z)
+        ym_t = mE[1] - (mT[1] - TM[1]) * sy
+        vn_img = YU[2][1]; _, vn_lin = uv(0, yn_t)
+        if ym_t < yn_t < mE[1]:
+            r_ = vn_img - vn_lin; nose_fix = r_
+            tri = np.where(yq >= yn_t, np.clip((mE[1] - yq) / (mE[1] - yn_t), 0, 1), np.clip((yq - ym_t) / (yn_t - ym_t), 0, 1))
+            pv = pv + r_ * tri
 um = np.mean([u for u, v in eyes_uv]); de = abs(eyes_uv[1][0] - eyes_uv[0][0])   # tâm mắt, khoảng cách hai mắt trong ảnh (chưa dịch)
 def okpx(uu, vv):
     q = TA[np.clip((vv * TH).astype(int), 0, TH - 1), np.clip((uu * TW).astype(int), 0, TW - 1)]

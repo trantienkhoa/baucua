@@ -32,6 +32,7 @@ def _sphere(c, r, nu=24, nv=16):
             F += [[a, b, c2], [b, d2, c2]]
     return c + r * P, P.copy(), np.array(F, np.int64)
 def build(nu=0.5, tuoi=35, w=None):
+    w = dict(w or {}); w.setdefault('mo_mat', 0.4)   # khuôn gốc mí hơi khép: mở vừa cho mắt trong ảnh nằm đúng lòng mắt
     d = _load(); V = deform(nu, tuoi, w); nh, ne, nt = int(d['n_head']), int(d['n_eye']), int(d['n_teeth'])
     Fh = d['F'].astype(np.int64); H = V[:nh]
     parts = {'Head': (H, _normals(H, Fh), Fh)}

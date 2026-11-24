@@ -41,6 +41,7 @@ TG = {
     'cam_rong+': 'chin/chin-width-incr', 'cam_rong-': 'chin/chin-width-decr',
     'tron': 'head/head-round', 'vuong': 'head/head-square', 'oval': 'head/head-oval', 'tamgiac': 'head/head-triangular',
     'gomag+': 'cheek/l-cheek-bones-incr|cheek/r-cheek-bones-incr', 'gomag-': 'cheek/l-cheek-bones-decr|cheek/r-cheek-bones-decr',
+    'mo_mat': 'eyes/l-eye-height1-incr|eyes/r-eye-height1-incr|eyes/l-eye-height2-incr|eyes/r-eye-height2-incr|eyes/l-eye-height3-incr|eyes/r-eye-height3-incr',
 }
 arr = {}
 for k, ps in TG.items():
