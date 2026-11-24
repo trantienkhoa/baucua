@@ -14,11 +14,14 @@ import { rosterOutfit, shapeFor } from './roster.js';
 import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, avatarTemplates, templateForChar, costumeTime, outfitTime, setOutfitMix } from './avatars.js';
 import { attachProp } from './costumes.js';
 import { applyStyle, randomStyleId } from './styles.js';
+import { LANGS, POS_WORDS, STYLE_WORDS } from './painter-i18n.js';
 
 const W = 1080, H = 1920;
 const PI = Math.PI, TAU = PI * 2;
-const FONT = '"Segoe UI", "Helvetica Neue", Arial, sans-serif';
-const HAND = '"Segoe Print", "Segoe Script", "Comic Sans MS", "Chalkboard SE", cursive';
+// chữ nhiều ngôn ngữ: thêm phông dự phòng cho Thái, Khmer, Lào, Miến Điện, Hindi, Ả Rập, Trung, Nhật, Hàn
+const INTL = '"Leelawadee UI", "Khmer UI", "Lao UI", "Myanmar Text", "Nirmala UI", "Segoe UI Historic", "Microsoft YaHei", "Microsoft JhengHei", "Yu Gothic", "Malgun Gothic", "Noto Sans", "Noto Sans CJK SC", "Noto Sans Thai", "Noto Sans Khmer", "Noto Sans Lao", "Noto Sans Myanmar", "Noto Sans Devanagari", "Noto Sans Arabic"';
+const FONT = `"Segoe UI", "Helvetica Neue", Arial, ${INTL}, sans-serif`;
+const HAND = `"Segoe Print", "Segoe Script", "Comic Sans MS", "Chalkboard SE", ${INTL}, cursive`;
 const BIG = '"Arial Black", "Segoe UI Black", Impact, "Helvetica Neue", sans-serif';
 const params = new URLSearchParams(location.search);
 const OBS = params.has('obs');
@@ -47,6 +50,17 @@ let S = {
   tierNoble: 99, tierKing: 299, musicEnabled: true, synthMusic: true, volume: 0.35,
 };
 let ROSTER = [], TOP = [], isPrimary = true;
+// ---------- ngôn ngữ (chọn ở trang điều khiển: painterLang) ----------
+const LG = () => LANGS[S.painterLang] || LANGS.vi;
+function T(k, v) {
+  let t = LG()[k] ?? LANGS.en[k] ?? LANGS.vi[k] ?? k;
+  if (Array.isArray(t)) t = t[Math.floor(Math.random() * t.length)];
+  if (v) t = String(t).replace(/\{(\w+)\}/g, (m, x) => (v[x] ?? m));
+  return t;
+}
+const TA = k => LG()[k] || LANGS.en[k] || [];
+const tierName = i => TA('tiers')[i] || '';
+const artName = k => (LG().arts || LANGS.en.arts)[k] || k;
 
 // ảnh đại diện TikTok tải qua máy chủ (giữ canvas “sạch” để vẽ được lên tranh)
 const imgCache = new Map();
@@ -645,7 +659,7 @@ function leaveQueue(p) {
   if (p.bodied) { p.target = V3(-3.6, 0, p.pos.z - 0.5); p.leaveAt = now(); walkers.push(p); }
 }
 let avgJob = 16;   // thời gian trung bình một bức (giây) để ước lượng thời gian chờ
-function waitText(pos) { const s = Math.max(0, pos - 1) * avgJob + (job ? avgJob * 0.5 : 0); return s < 50 ? `~${Math.max(10, Math.round(s / 10) * 10)} giây` : `~${Math.round(s / 60)} phút`; }
+function waitText(pos) { const s = Math.max(0, pos - 1) * avgJob + (job ? avgJob * 0.5 : 0); return s < 50 ? T('sec', { n: Math.max(10, Math.round(s / 10) * 10) }) : T('min', { n: Math.round(s / 60) }); }
 
 // ======================================================================
 // VẼ CHÂN DUNG — quà càng lớn vẽ càng giống ảnh đại diện; bình luận / thả tim → tranh biếm họa
@@ -941,14 +955,14 @@ function drawSignature(k) {
 // nhãn "tranh do game vẽ": tranh giống ảnh người thật phải ghi rõ là nội dung đã chỉnh sửa / máy tạo
 function gameLabel() {
   P.save(); P.font = `700 20px ${FONT}`; P.textAlign = 'left'; P.textBaseline = 'middle';
-  const t = '🎨 Tranh do game vẽ', w = P.measureText(t).width + 20;
+  const t = T('gameLabel'), w = P.measureText(t).width + 20;
   P.fillStyle = 'rgba(255,255,255,0.78)'; rr(P, 14, PAINT_PX - 44, w, 30, 15); P.fill();
   P.fillStyle = '#3a2410'; P.fillText(t, 24, PAINT_PX - 29);
   P.restore();
 }
 // ---------- hình vẽ nghịch cho tranh biếm họa ----------
 const CAPTIONS = ['Thần thái 10 điểm ✨', 'Xinh xỉu luôn 💖', 'Ngầu ghê 😎', 'Nụ cười tỏa nắng ☀️', 'Fan cứng của phố ❤', 'Siêu dễ thương 🌸', 'Visual đỉnh nóc 💫', 'Vui vẻ cả ngày nha 🎈', 'Chào bạn mới 👋', 'Cảm ơn đã ghé chơi 🎨'];   // chỉ lời khen, không chê ngoại hình
-function pickDoodles() { return { top: pick(['crown', 'party', 'halo', 'sprout', 'bow']), side: pick(['sparkle', 'hearts']), caption: pick(CAPTIONS) }; }
+function pickDoodles() { return { top: pick(['crown', 'party', 'halo', 'sprout', 'bow']), side: pick(['sparkle', 'hearts']), caption: T('captions') }; }
 function outlined(fn) { P.lineWidth = 6; P.strokeStyle = '#1a1420'; P.lineJoin = 'round'; fn(); P.fill(); P.stroke(); }
 function drawDoodles(d) {
   P.save();
@@ -970,15 +984,15 @@ function drawDoodles(d) {
   P.fillStyle = '#1a1420'; P.textAlign = 'center'; P.textBaseline = 'middle'; P.fillText(d.caption, bx + tw / 2, by + 37);
   P.translate(PAINT_PX - 140, PAINT_PX - 60); P.rotate(-0.22);
   P.strokeStyle = 'rgba(255,111,163,0.9)'; P.lineWidth = 5; rr(P, -110, -30, 220, 60, 30); P.stroke();
-  P.fillStyle = 'rgba(255,111,163,0.9)'; P.font = `900 30px ${BIG}`; P.fillText('♥ PHỐ VẼ', 0, 2);
+  P.fillStyle = 'rgba(255,111,163,0.9)'; P.font = `900 30px ${BIG}`; P.fillText(T('sticker'), 0, 2);
   P.restore(); gameLabel(); paintTex.needsUpdate = true;
 }
 function drawInvite() {
   paperBg('sketch');
   P.save(); P.fillStyle = '#4a3a2a'; P.textAlign = 'center'; P.textBaseline = 'middle';
-  P.font = `700 62px ${HAND}`; P.fillText('Chờ người mẫu…', PAINT_PX / 2, 180);
-  P.font = `600 42px ${HAND}`; P.fillText('💬 Bình luận để vào hàng', PAINT_PX / 2, 340); P.fillText('ai cũng được vẽ ✨', PAINT_PX / 2, 404);
-  P.font = `600 34px ${HAND}`; P.fillStyle = '#7a5a3a'; P.fillText('🖌️ pop art · màu nước · neon', PAINT_PX / 2, 540); P.fillText('⭐ gõ 1–5 chấm điểm tranh', PAINT_PX / 2, 594);
+  P.font = `700 62px ${HAND}`; const IV = TA('inv'); P.fillText(IV[0], PAINT_PX / 2, 180);
+  P.font = `600 42px ${HAND}`; P.fillText(IV[1], PAINT_PX / 2, 340); P.fillText(IV[2], PAINT_PX / 2, 404);
+  P.font = `600 34px ${HAND}`; P.fillStyle = '#7a5a3a'; P.fillText(IV[3], PAINT_PX / 2, 540); P.fillText(IV[4], PAINT_PX / 2, 594);
   P.strokeStyle = 'rgba(60,50,40,0.5)'; P.lineWidth = 3; P.beginPath(); P.ellipse(PAINT_PX / 2, 372, 320, 110, -0.04, 0, TAU); P.stroke();
   P.restore(); paintTex.needsUpdate = true;
 }
@@ -989,7 +1003,7 @@ const tierOf = c => c >= (Number(S.tierKing) || 299) ? 4 : c >= (Number(S.tierNo
 const TIER_NAME = ['Hoạt hình ✨', 'Vẽ nhanh', 'Sơn dầu', 'Chân dung', 'Kiệt tác'];
 const TIER_ICON = ['✨', '🌹', '💎', '👑', '🏆'];
 const snapReq = [];   // chụp mặt nhân vật 3D làm mẫu khi không có ảnh đại diện
-function plateSub(j) { if (j.p.guest) return `Nhân vật trong game · ${TIER_NAME[j.tier]}${j.style !== 'sondau' ? ' · ' + ART[j.style].name : ''}`; return j.tier ? `${TIER_NAME[j.tier]}${j.style !== 'sondau' ? ' · ' + ART[j.style].name : ''}${j.lucky ? ' · 🍀 vẽ tặng' : ''}` : 'Tranh hoạt hình ✨'; }
+function plateSub(j) { if (j.p.guest) return `${T('npcPlate')} · ${tierName(j.tier)}${j.style !== 'sondau' ? ' · ' + artName(j.style) : ''}`; return j.tier ? `${tierName(j.tier)}${j.style !== 'sondau' ? ' · ' + artName(j.style) : ''}${j.lucky ? ' · ' + T('luckyTag') : ''}` : T('cartoonPlate'); }
 function startJob(p) {
   const i = queue.indexOf(p); if (i >= 0) queue.splice(i, 1);
   sitter = p;
@@ -1004,7 +1018,7 @@ function startJob(p) {
   job = { p, tier, style: tier ? (p.artStyle || 'sondau') : 'cartoon', lucky, t: 0, phase: 'intro', D, src: null, srcImg: null, A: null, strokes: null, si: 0, sk: 0, ci: 0, pc: 0, glazeK: 0, glazeC: 0, boost: 0, brushU: 0.5, brushV: 0.3, seated: false, wantSnap: false, t0: now() };
   drawPlate(p.name, plateSub(job));
   setFrame(null);
-  bubble(pick([`Mời ${short(p.name)} ngồi!`, 'Ngồi yên nha!', 'Cười lên nào!', 'Tạo dáng đi!']), 2.4);
+  bubble(T('bSeat', { n: short(p.name) }), 2.4);
   // nguồn ảnh: ảnh đại diện TikTok, không có thì chụp nhân vật 3D của người đó
   const myJob = job;
   (async () => {
@@ -1036,7 +1050,7 @@ function upgradeJob(j, value, bonus = 0) {
     if (j.phase !== 'reveal' && j.phase !== 'throw') {
       j.strokes = null; j.si = j.sk = j.ci = j.pc = 0; j.glazeK = j.glazeC = 0;
       j.phase = 'intro'; j.t = 1.2; canvasPop = now(); paperBg('canvas');
-      bubble('Ồ! Vẽ lại bản đẹp nha ✨', 2.6);
+      bubble(T('redo'), 2.6);
     }
   } else if (j.strokes && (j.phase === 'intro' || j.phase === 'sketch')) {
     const n0 = Math.max(1, j.strokes.sketch.length), st = buildPortrait(j.A, nt, j.style);
@@ -1047,7 +1061,7 @@ function upgradeJob(j, value, bonus = 0) {
     j.phase = 'paint'; j.t = 0;
   }
   drawPlate(j.p.name, plateSub(j));
-  if (old > 0) bubble('Nâng cấp tranh! ⬆️', 2);
+  if (old > 0) bubble(T('upgrade'), 2);
 }
 function finishSitter() {
   const p = sitter; sitter = null;
@@ -1066,8 +1080,8 @@ function updateJob(t, dt) {
     if (party.on || (lucky.spin && !lucky.spin.done)) return;
     const next = queue[0];
     if (next && (next.coins > 0 || next.lucky || S.paintFree !== false)) { startJob(next); return; }
-    if (!idleInvite) { idleInvite = true; drawInvite(); drawPlate(S.painterName || 'Họa sĩ Neon', 'Bình luận để được vẽ'); setFrame(null); }
-    if (t > nextInviteBubble) { nextInviteBubble = t + rand(20, 30); bubble(pick(['Hôm nay vẽ ai đây? 🎨', 'Phố vui ghê!', 'Bình luận để vào hàng nha!', 'Chào cả nhà 👋']), 3); }
+    if (!idleInvite) { idleInvite = true; drawInvite(); drawPlate(S.painterName || 'Họa sĩ Neon', T('invitePlate')); setFrame(null); }
+    if (t > nextInviteBubble) { nextInviteBubble = t + rand(20, 30); bubble(T('bInvite'), 3); }
     return;
   }
   idleInvite = false;
@@ -1090,7 +1104,7 @@ function updateJob(t, dt) {
     let drew = false;
     while (j.si < target) { const s = list[j.si++]; drawStroke(s); j.brushU = s.x / AN; j.brushV = s.y / AN; drew = true; }
     if (drew) { paintTex.needsUpdate = true; strokeSfx(j, t); bristleMat.color.set(j.tier ? 0x222222 : 0x111111); }
-    if (j.si >= list.length) { j.phase = 'paint'; j.t = 0; if (j.tier) bubble(pick(['Tô màu nào!', 'Thêm chút màu…', 'Đẹp dần rồi nè!']), 2); }
+    if (j.si >= list.length) { j.phase = 'paint'; j.t = 0; if (j.tier) bubble(T('bMore'), 2); }
     return;
   }
   if (j.phase === 'paint') {
@@ -1132,12 +1146,12 @@ function onReveal(j) {
   const p = j.p;
   revealFx = { t0: now(), tier: j.tier, name: p.name, caric: !j.tier };
   if (!j.tier) {
-    bubble(pick(['Dễ thương chưa? 😊', 'Tặng bạn nè!', 'Xinh xỉu! 💖', 'Ngầu quá! 😎']), 2.4);
+    bubble(T('bRevC'), 2.4);
     sfx.chime(1); sfx.applause(1.2, 0.6);
     for (const q of queue) if (q.bodied && Math.random() < 0.6) q.clapUntil = now() + 1.6;
     if (p.bodied) p.jumpT = now();
   } else {
-    bubble(pick(j.tier >= 3 ? ['Kiệt tác!', 'Tuyệt phẩm!', 'Đẹp xuất sắc!'] : ['Xong rồi!', 'Đẹp chưa nè?', 'Giống y chang!', 'Tặng bạn nè!']), 2.4);
+    bubble(T(j.tier >= 3 ? 'bRevGold' : 'bRevG'), 2.4);
     sfx.chime(j.tier); sfx.applause(j.tier >= 3 ? 2.2 : 1.4, j.tier >= 3 ? 1 : 0.7);
     if (j.tier >= 3) confetti(80); else sparkleAt(canvasScreen(), 26);
     for (const q of queue) if (q.bodied && Math.random() < 0.7) q.clapUntil = now() + 2;
@@ -1158,7 +1172,7 @@ function galleryDraw(gi) {
   g.fillStyle = gi.best ? '#ffe27a' : '#fff8e8'; rr(g, 6, S0 + F * 2 + 4, w - 12, LB - 8, 8); g.fill();
   g.fillStyle = '#3a2410'; g.font = `700 22px ${HAND}`; g.textAlign = 'center'; g.textBaseline = 'middle';
   const tail = (gi.score ? ` ⭐${gi.score.toFixed(1)}` : '') + (gi.best ? ' 🏅' : '');
-  let nmx = (gi.tier ? '' : '🤪 ') + gi.name; while (g.measureText(nmx + tail).width > w - 24 && nmx.length > 2) nmx = nmx.slice(0, -1);
+  let nmx = (gi.tier ? '' : '✨ ') + gi.name; while (g.measureText(nmx + tail).width > w - 24 && nmx.length > 2) nmx = nmx.slice(0, -1);
   g.fillText(nmx + tail, w / 2, S0 + F * 2 + LB / 2);
   gi.tex.needsUpdate = true;
 }
@@ -1234,7 +1248,7 @@ function closeVote() {
     if (best && best.g && !best.g.dead) { best.g.best = false; galleryDraw(best.g); }
     best = { g: v.g, name: v.g.name, avatar: v.g.avatar, score, n: v.n, thumb: v.g.thumb };
     v.g.best = true;
-    pushBanner({ user: { name: v.g.name, avatar: v.g.avatar }, text: `🏅 Tranh đẹp nhất đêm ⭐${score.toFixed(1)}`, gold: true, color: '#9a5a00' });
+    pushBanner({ user: { name: v.g.name, avatar: v.g.avatar }, text: T('best', { s: score.toFixed(1) }), gold: true, color: '#9a5a00' });
     sfx.chime(3); confetti(40);
   }
   if (!v.g.dead) galleryDraw(v.g);
@@ -1255,8 +1269,8 @@ function updateLucky(t) {
     if (k >= 1 && !s.done) {
       s.done = true; s.idx = s.pool.indexOf(s.winner);
       if (queue.includes(s.winner)) { s.winner.lucky = true; sortQueue(); }
-      pushBanner({ user: s.winner, text: '🍀 chờ lâu nhất · được vẽ tặng!', gold: true, color: '#1f7a3a' });
-      bubble(`Cảm ơn ${short(s.winner.name)} đã chờ! 🍀`, 2.6); sfx.win(); confetti(70);
+      pushBanner({ user: s.winner, text: T('luckyBanner'), gold: true, color: '#1f7a3a' });
+      bubble(T('luckyThanks', { n: short(s.winner.name) }), 2.6); sfx.win(); confetti(70);
       if (s.winner.bodied) s.winner.jumpT = now();
     }
     if (k > 1.45) { lucky.spin = null; lucky.next = t + every * 60; }
@@ -1281,13 +1295,13 @@ const passers = [];
 function spawnGuest() {
   const ch = pickChar(undefined, [painter.charId]);
   // tên ghi rõ NPC: không giả làm người xem thật (tránh 'tương tác giả')
-  const g = makeActor({ id: 'guest' + seq, name: 'NPC ' + (ch ? ch.name.split(' ').pop() : 'Khách phố'), avatar: '' });
+  const g = makeActor({ id: 'guest' + seq, name: T('npc') + ' ' + (ch ? ch.name.split(' ').pop() : T('guest')), avatar: '' });
   g.guest = true; g.charSet = true; assignChar(g, ch);
   g.coins = pick([1, 30, 30, 99]); g.artStyle = pick(['sondau', 'sondau', 'mauNuoc', 'popart', 'neon']);
   g.order = seq++; g.joinT = now();
   people.set(g.id, g);
   startJob(g);
-  bubble(pick([`Mời ${short(g.name)} ngồi nha!`, 'Vẽ khách phố nè 🎨', 'Phố đông vui ghê!']), 2.4);
+  bubble(T('bNpc', { n: short(g.name) }), 2.4);
 }
 function updateAuto(t) {
   // khách phố: không ai chờ, không có tương tác một lúc
@@ -1327,12 +1341,12 @@ function addParty(n) {
 }
 function startParty() {
   party.on = true; party.t0 = party.lastStart = now(); party.until = now() + clamp(Number(S.partySeconds) || 20, 8, 90); party.pts = 0; party.count++;
-  bubble('Quẩy thôi!', 2.5);
+  bubble(T('party'), 2.5);
   horn(); sfx.applause(1.6, 0.8); confetti(120);
   for (const p of [painter, ...bodied()]) p.dance = pickDance();
   partyMusicStart();
 }
-function stopParty() { party.on = false; partyMusicStop(); bubble('Vẽ tiếp nào!', 2); }
+function stopParty() { party.on = false; partyMusicStop(); bubble(T('back'), 2); }
 function pickDance() { let i; for (let k = 0; k < 10; k++) { i = Math.floor(Math.random() * DANCES.length); if (!DANCES[i].floor) break; } return i || 0; }
 function updateParty(t, dt) {
   if (party.on && t > party.until) stopParty();
@@ -1878,11 +1892,11 @@ function drawBanner(t) {
   ctx.restore();
   return true;
 }
-const HINTS = ['💬 Bình luận để vào hàng chờ vẽ', '✨ Vẽ miễn phí kiểu hoạt hình cho mọi người', '🎁 Quà càng lớn tranh càng chi tiết', '🖌️ Gõ “pop art”, “màu nước”, “neon” chọn kiểu', '⭐ Gõ 1–5 chấm điểm tranh vừa vẽ', '🍀 Người chờ lâu nhất được vẽ tặng sơn dầu', '❓ Gõ “thứ mấy” xem lượt của bạn', '❤️ Tim giúp họa sĩ vẽ nhanh hơn', '🎨 Tranh do game vẽ, không phải ảnh thật', '🤖 Khách phố “NPC” là nhân vật trong game'];
+const HINTS = () => TA('hints');
 function drawHint(t) {
-  const i = Math.floor(t / 4.5) % HINTS.length, k = (t % 4.5) / 4.5, a = Math.min(1, k * 8, (1 - k) * 8);
+  const HL = HINTS(), i = Math.floor(t / 4.5) % HL.length, k = (t % 4.5) / 4.5, a = Math.min(1, k * 8, (1 - k) * 8);
   ctx.save(); ctx.globalAlpha = 0.92 * a;
-  ctx.font = `700 32px ${FONT}`; const txt = HINTS[i], w = ctx.measureText(txt).width + 50, x = (W - w) / 2, y = 222;
+  ctx.font = `700 32px ${FONT}`; const txt = HL[i], w = ctx.measureText(txt).width + 50, x = (W - w) / 2, y = 222;
   ctx.fillStyle = 'rgba(255,255,255,0.84)'; roundRect(x, y, w, 58, 29); ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(58,36,16,0.6)'; ctx.stroke();
   ctx.fillStyle = '#3a2410'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, W / 2, y + 30);
   ctx.restore();
@@ -1957,7 +1971,7 @@ function drawPeopleTags(t) {
     const br = Math.max(11, r * 0.42);
     ctx.fillStyle = i === 0 ? '#ff3d7f' : '#3a2410'; ctx.beginPath(); ctx.arc(sp.x - r * 0.85, y - r * 0.7, br, 0, TAU); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.font = `800 ${Math.round(br * 1.1)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(i + 1), sp.x - r * 0.85, y - r * 0.7 + 1);
-    const badge = p.lucky ? '🍀 vẽ tặng' : p.coins > 0 ? '🎁' + p.coins : '';
+    const badge = p.lucky ? T('luckyBadge') : p.coins > 0 ? '🎁' + p.coins : '';
     if (badge) { ctx.font = `800 ${Math.round(r * 0.62)}px ${FONT}`; const lw = ctx.measureText(badge).width + 12; ctx.fillStyle = 'rgba(42,22,8,0.85)'; roundRect(sp.x - lw / 2, y + r + 2, lw, r * 0.8, r * 0.4); ctx.fill(); ctx.fillStyle = p.lucky ? '#a7f3c0' : '#ffe27a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(badge, sp.x, y + r + 2 + r * 0.42); }
     if (i < 3) { ctx.font = `700 ${Math.round(r * 0.62)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; const n = (i === 0 ? '⏭ ' : '') + fit(p.name, 170); ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(42,22,8,0.75)'; ctx.strokeText(n, sp.x, y - r - 4); ctx.fillStyle = i === 0 ? '#fff3a3' : '#fff'; ctx.fillText(n, sp.x, y - r - 4); }
     if (p.commentUntil > t && p.comment) {
@@ -1971,7 +1985,7 @@ function drawPeopleTags(t) {
     const extra = queue.length - Math.min(VIS, queue.length);
     const back = queue[Math.min(VIS, queue.length) - 1];
     const sp = back && back._sp ? back._sp : project(queueSlot(Math.min(VIS, queue.length) - 1).add(V3(0, 1.9, 0)));
-    const lbl = extra > 0 ? `+${extra}` : `${queue.length} chờ`;
+    const lbl = extra > 0 ? `+${extra}` : T('waiting', { n: queue.length });
     ctx.font = `800 30px ${FONT}`; const w = ctx.measureText(lbl).width + 26;
     const x = clamp(sp.x - 70, 14, W - w - 14), y = clamp(sp.y - 92, 300, H);
     ctx.fillStyle = 'rgba(255,255,255,0.92)'; roundRect(x, y, w, 44, 22); ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#3a2410'; ctx.stroke();
@@ -1992,11 +2006,11 @@ function drawJobProgress(t) {
   const j = job;
   let label, k;
   const total = j.strokes ? j.strokes.colorCost : 1;
-  if (j.phase === 'intro') { label = j.tier ? '🪑 Mời ngồi…' : '🪑 Vẽ hoạt hình…'; k = 0; }
-  else if (j.phase === 'sketch') { label = j.tier ? '✏️ Phác thảo' : '🖊️ Đi nét'; k = 0.35 * j.si / Math.max(1, j.strokes.sketch.length); }
-  else if (j.phase === 'paint') { label = j.ci >= j.strokes.color.length && j.strokes.glaze ? '✨ Láng màu giống ảnh' : j.tier ? '🖌️ Tô màu' : '🖍️ Tô màu'; k = 0.35 + 0.6 * clamp(j.pc / total, 0, 1) * (j.strokes.glaze ? 0.8 : 1) + (j.strokes.glaze ? 0.12 * j.glazeK : 0); }
-  else if (j.phase === 'sign') { label = j.tier ? '✍️ Ký tên' : '✨ Thêm hình trang trí'; k = 0.99; }
-  else { label = TIER_ICON[j.tier] + ' ' + TIER_NAME[j.tier]; k = 1; }
+  if (j.phase === 'intro') { label = T(j.tier ? 'pSeat' : 'pCartoon'); k = 0; }
+  else if (j.phase === 'sketch') { label = T(j.tier ? 'pSketch' : 'pInk'); k = 0.35 * j.si / Math.max(1, j.strokes.sketch.length); }
+  else if (j.phase === 'paint') { label = j.ci >= j.strokes.color.length && j.strokes.glaze ? T('pGlaze') : T('pPaint'); k = 0.35 + 0.6 * clamp(j.pc / total, 0, 1) * (j.strokes.glaze ? 0.8 : 1) + (j.strokes.glaze ? 0.12 * j.glazeK : 0); }
+  else if (j.phase === 'sign') { label = T(j.tier ? 'pSign' : 'pDeco'); k = 0.99; }
+  else { label = TIER_ICON[j.tier] + ' ' + tierName(j.tier); k = 1; }
   const w = 320, x = clamp(cs.x - w / 2, 20, W - w - 20), y = top.y - 62;
   ctx.save();
   ctx.fillStyle = 'rgba(42,22,8,0.78)'; roundRect(x, y, w, 46, 23); ctx.fill();
@@ -2004,7 +2018,7 @@ function drawJobProgress(t) {
   if (k > 0) { ctx.fillStyle = j.tier >= 3 ? '#ffd23f' : j.tier ? '#7cf7ff' : '#ff9ecb'; roundRect(x + 6, y + 32, (w - 12) * clamp(k, 0, 1), 8, 4); ctx.fill(); }
   ctx.fillStyle = '#fff'; ctx.font = `700 22px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, x + w / 2, y + 17);
   const spd = likeSpeed();
-  if (spd > 1.05 && j.phase !== 'reveal') { ctx.font = `800 22px ${FONT}`; const s = `⚡×${spd.toFixed(1)} nhờ ❤️`, sw = ctx.measureText(s).width + 20; ctx.fillStyle = 'rgba(255,61,127,0.9)'; roundRect(x + w - sw, y - 34, sw, 30, 15); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillText(s, x + w - sw / 2, y - 18); }
+  if (spd > 1.05 && j.phase !== 'reveal') { ctx.font = `800 22px ${FONT}`; const s = T('speed', { x: spd.toFixed(1) }), sw = ctx.measureText(s).width + 20; ctx.fillStyle = 'rgba(255,61,127,0.9)'; roundRect(x + w - sw, y - 34, sw, 30, 15); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillText(s, x + w - sw / 2, y - 18); }
   ctx.restore();
 }
 function drawReveal(t) {
@@ -2014,7 +2028,7 @@ function drawReveal(t) {
   const cs = canvasScreen();
   ctx.save(); ctx.globalAlpha = a; ctx.translate(clamp(cs.x, 300, W - 300), clamp(cs.y - 400, 330, H)); ctx.scale(s, s);
   const gold = revealFx.tier >= 3;
-  const txt = revealFx.caric ? `✨ Tranh hoạt hình ${fit(revealFx.name, 260)}` : gold ? `👑 ${revealFx.tier >= 4 ? 'Kiệt tác' : 'Chân dung'} ${fit(revealFx.name, 280)}` : `🎨 Tranh của ${fit(revealFx.name, 300)}`;
+  const txt = revealFx.caric ? T('revCartoon', { n: fit(revealFx.name, 260) }) : gold ? T(revealFx.tier >= 4 ? 'revMaster' : 'revPortrait', { n: fit(revealFx.name, 280) }) : T('revOf', { n: fit(revealFx.name, 300) });
   ctx.font = `800 40px ${FONT}`; const w = ctx.measureText(txt).width + 60;
   ctx.fillStyle = gold ? '#ffcf3a' : revealFx.caric ? '#ffd1e8' : '#ffffff'; roundRect(-w / 2, -36, w, 72, 36); ctx.fill(); ctx.lineWidth = 5; ctx.strokeStyle = '#2a1608'; ctx.stroke();
   ctx.fillStyle = '#2a1608'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, 0, 2);
@@ -2024,7 +2038,7 @@ function drawReveal(t) {
 function drawVote(t) {
   if (!vote) return;
   const left = Math.ceil(vote.until - t), avg = vote.n ? (vote.sum / vote.n).toFixed(1) : '–';
-  const txt = `⭐ Chấm tranh ${fit(vote.name, 200)}: gõ 1–5 · ${avg}${vote.n ? ` (${vote.n})` : ''} · ${left}s`;
+  const txt = T('vote', { n: fit(vote.name, 200), s: avg + (vote.n ? ` (${vote.n})` : ''), t: left });
   ctx.save(); ctx.globalAlpha = Math.min(1, (t - vote.t0) / 0.3, (vote.until - t) / 0.3);
   pillText(txt, W / 2, 594, `800 27px ${FONT}`, 'rgba(255,248,214,0.95)', '#3a2410', '#3a2410');
   ctx.restore();
@@ -2036,7 +2050,7 @@ function drawLucky(t) {
   ctx.save(); ctx.globalAlpha = clamp(a, 0, 1);
   const x = W / 2 - 280, y = 700, w = 560, h = 300;
   ctx.fillStyle = 'rgba(20,60,30,0.9)'; roundRect(x, y, w, h, 30); ctx.fill(); ctx.lineWidth = 6; ctx.strokeStyle = win ? '#ffe27a' : '#7ee2a0'; ctx.stroke();
-  ctx.fillStyle = '#c8ffd8'; ctx.font = `900 40px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🍀 VẼ TẶNG NGƯỜI CHỜ LÂU NHẤT', W / 2, y + 48);
+  ctx.fillStyle = '#c8ffd8'; ctx.font = `900 40px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(fit(T('luckyTitle'), w - 30), W / 2, y + 48);
   const pop = win ? 1 + 0.1 * Math.sin((t - s.t0) * 12) : 1;
   avatarCircle(p, W / 2, y + 150, 62 * pop, win ? '#ffe27a' : '#ffffff');
   ctx.fillStyle = win ? '#ffe27a' : '#ffffff'; ctx.font = `800 38px ${FONT}`; ctx.fillText(fit(p.name, 480), W / 2, y + 252);
@@ -2057,23 +2071,23 @@ function drawBoard(t) {
   ctx.globalAlpha = a; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   const title = s => { ctx.fillStyle = '#ffe9a3'; ctx.font = `800 24px ${FONT}`; ctx.fillText(s, x + 16, y + 28); };
   if (page === 'how') {
-    title('🎨 Cách chơi');
-    const rows = [['💬', 'Bình luận', 'tranh hoạt hình ✨'], ['🌹', '1 xu', 'vẽ nhanh'], ['💎', '30 xu', 'sơn dầu'], ['👑', `${S.tierNoble || 99} xu`, 'chân dung vàng'], ['🏆', `${S.tierKing || 299} xu`, 'giống y ảnh'], ['🖌️', 'pop art · màu nước · neon', ''], ['⭐', 'Gõ 1–5', 'chấm điểm tranh'], ['🎨', 'Tranh do game vẽ, không phải ảnh', '']];
-    rows.forEach(([ic, aa, bb], i) => { const yy = y + 62 + i * 30; ctx.font = `22px ${FONT}`; ctx.fillStyle = '#fff'; ctx.fillText(ic, x + 14, yy); ctx.font = `700 19px ${FONT}`; ctx.fillText(aa, x + 48, yy); if (bb) { ctx.fillStyle = '#ffd9a8'; ctx.font = `600 19px ${FONT}`; ctx.fillText('→ ' + bb, x + 48 + ctx.measureText(aa).width + 6, yy); } });
+    title(T('howTitle'));
+    const rows = [['💬', T('rComment'), T('rCartoon')], ['🌹', '1 ' + T('xu'), T('rQuick')], ['💎', '30 ' + T('xu'), T('rOil')], ['👑', `${S.tierNoble || 99} ${T('xu')}`, T('rPortrait')], ['🏆', `${S.tierKing || 299} ${T('xu')}`, T('rMaster')], ['🖌️', T('rStyles'), ''], ['⭐', T('rVote'), T('rRate')], ['🎨', T('rLabel'), '']];
+    rows.forEach(([ic, aa, bb], i) => { const yy = y + 62 + i * 30; ctx.font = `22px ${FONT}`; ctx.fillStyle = '#fff'; ctx.fillText(ic, x + 14, yy); ctx.font = `700 19px ${FONT}`; ctx.fillText(fit(aa, w - 60), x + 48, yy); if (bb) { ctx.fillStyle = '#ffd9a8'; ctx.font = `600 19px ${FONT}`; ctx.fillText(fit('→ ' + bb, w - 60 - ctx.measureText(aa).width), x + 48 + ctx.measureText(aa).width + 6, yy); } });
   } else if (page === 'next') {
-    title('⏳ Sắp tới lượt');
+    title(T('nextTitle'));
     queue.slice(0, 5).forEach((p, i) => { const yy = y + 72 + i * 42; avatarCircle(p, x + 50, yy, 16, p.lucky ? '#3ddc84' : p.coins ? tierRing(p.coins) : null); ctx.fillStyle = '#ffe9a3'; ctx.font = `800 20px ${FONT}`; ctx.fillText('#' + (i + 1), x + 12, yy); ctx.fillStyle = '#fff'; ctx.font = `700 20px ${FONT}`; ctx.fillText(fit(p.name, 150), x + 74, yy); ctx.fillStyle = '#ffd9a8'; ctx.font = `600 18px ${FONT}`; ctx.textAlign = 'right'; ctx.fillText(p.lucky ? '🍀' : TIER_ICON[Math.min(4, tierOf(p.coins) + (p.tierBonus || 0))], x + w - 14, yy); ctx.textAlign = 'left'; });
-    ctx.fillStyle = '#ffd9a8'; ctx.font = `600 18px ${FONT}`; ctx.fillText(`Gõ “thứ mấy” · ${queue.length} người chờ`, x + 16, y + h - 40);
+    ctx.fillStyle = '#ffd9a8'; ctx.font = `600 18px ${FONT}`; ctx.fillText(fit(T('typePos', { cmd: T('cmdPos'), n: queue.length }), w - 30), x + 16, y + h - 40);
   } else if (page === 'top') {
-    title('🏆 Bảng vàng đêm nay');
-    TOP.slice(0, 3).forEach((u, i) => { const yy = y + 84 + i * 62; ctx.font = `28px ${FONT}`; ctx.fillStyle = '#fff'; ctx.fillText(['🥇', '🥈', '🥉'][i], x + 12, yy); avatarCircle(u, x + 76, yy, 22, ['#ffd23f', '#d6dde8', '#d9925a'][i]); ctx.font = `700 21px ${FONT}`; ctx.fillStyle = '#fff'; ctx.fillText(fit(u.name, 140), x + 108, yy - 10); ctx.fillStyle = '#ffe27a'; ctx.font = `700 18px ${FONT}`; ctx.fillText(`💎 ${u.coins} xu`, x + 108, yy + 14); });
+    title(T('topTitle'));
+    TOP.slice(0, 3).forEach((u, i) => { const yy = y + 84 + i * 62; ctx.font = `28px ${FONT}`; ctx.fillStyle = '#fff'; ctx.fillText(['🥇', '🥈', '🥉'][i], x + 12, yy); avatarCircle(u, x + 76, yy, 22, ['#ffd23f', '#d6dde8', '#d9925a'][i]); ctx.font = `700 21px ${FONT}`; ctx.fillStyle = '#fff'; ctx.fillText(fit(u.name, 140), x + 108, yy - 10); ctx.fillStyle = '#ffe27a'; ctx.font = `700 18px ${FONT}`; ctx.fillText(T('coins', { c: u.coins }), x + 108, yy + 14); });
   } else {
-    title('🍀 Vẽ tặng người chờ lâu');
+    title(T('luckyBoard'));
     ctx.fillStyle = '#fff'; ctx.font = `700 21px ${FONT}`;
-    if (luckyEvery() > 0) { const left = Math.max(0, Math.ceil(lucky.next - t)); ctx.fillText(lucky.spin ? 'Đang chọn…' : `Vẽ tặng sau ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`, x + 16, y + 66); ctx.fillStyle = '#ffd9a8'; ctx.font = `600 18px ${FONT}`; ctx.fillText('Người chờ lâu nhất được vẽ sơn dầu', x + 16, y + 96); }
-    ctx.fillStyle = '#ffe9a3'; ctx.font = `800 22px ${FONT}`; ctx.fillText('🏅 Tranh đẹp nhất đêm', x + 16, y + 140);
-    if (best) { ctx.drawImage(best.thumb, x + 16, y + 160, 110, 110); ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 4; ctx.strokeRect(x + 16, y + 160, 110, 110); ctx.fillStyle = '#fff'; ctx.font = `700 21px ${FONT}`; ctx.fillText(fit(best.name, 160), x + 140, y + 195); ctx.fillStyle = '#ffe27a'; ctx.fillText(`⭐ ${best.score.toFixed(1)} (${best.n} phiếu)`, x + 140, y + 228); }
-    else { ctx.fillStyle = '#ffd9a8'; ctx.font = `600 18px ${FONT}`; ctx.fillText('Gõ 1–5 sau mỗi bức để chấm điểm', x + 16, y + 176); }
+    if (luckyEvery() > 0) { const left = Math.max(0, Math.ceil(lucky.next - t)); ctx.fillText(lucky.spin ? T('choosing') : T('luckyIn', { t: `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` }), x + 16, y + 66); ctx.fillStyle = '#ffd9a8'; ctx.font = `600 18px ${FONT}`; ctx.fillText(fit(T('luckyDesc'), w - 30), x + 16, y + 96); }
+    ctx.fillStyle = '#ffe9a3'; ctx.font = `800 22px ${FONT}`; ctx.fillText(fit(T('bestTitle'), w - 30), x + 16, y + 140);
+    if (best) { ctx.drawImage(best.thumb, x + 16, y + 160, 110, 110); ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 4; ctx.strokeRect(x + 16, y + 160, 110, 110); ctx.fillStyle = '#fff'; ctx.font = `700 21px ${FONT}`; ctx.fillText(fit(best.name, 160), x + 140, y + 195); ctx.fillStyle = '#ffe27a'; ctx.fillText(`⭐ ${best.score.toFixed(1)} ${T('votes', { n: best.n })}`, x + 140, y + 228); }
+    else { ctx.fillStyle = '#ffd9a8'; ctx.font = `600 18px ${FONT}`; ctx.fillText(fit(T('voteHint'), w - 30), x + 16, y + 176); }
   }
   ctx.restore();
 }
@@ -2095,13 +2109,18 @@ function drawHUD(t, dt) {
 // SỰ KIỆN TIKTOK
 // ======================================================================
 let lastLikeBanner = 0, lastGreet = 0;
-const POS_RE = /\b(thu may|vi tri|so may|toi thu may|bao gio toi|tm)\b/;
-const VOTE_RE = /^\s*([1-5])\s*(sao|diem|d|\*|⭐|★)?\s*$/i;
+// lệnh hỏi lượt / chọn kiểu tranh: hiểu mọi ngôn ngữ trong POS_WORDS, STYLE_WORDS
+const nt = x => (window.normText ? normText(x) : String(x).toLowerCase());
+const POS_N = POS_WORDS.map(w => nt(w));
+function isPosCmd(raw, tx) { const low = raw.toLowerCase(); return POS_N.some(w => w.length <= 2 ? new RegExp('(^|\\s)' + w + '($|\\s|\\?)').test(tx) : tx.includes(w) || low.includes(w)); }
+function styleCmd(raw, tx) { const low = ' ' + raw.toLowerCase(); for (const [id, ws] of STYLE_WORDS) if (ws.some(w => low.includes(w.toLowerCase()) || tx.includes(nt(w).trim()))) return id; return null; }
+const VOTE_RE = /^\s*([1-5١-٥])\s*(sao|diem|d|\*|⭐|★|星|점|ดาว|stars?)?\s*$/i;
+const digit = c => ('١٢٣٤٥'.indexOf(c) + 1) || Number(c);
 function greet(p) {
   if (p.greeted) return; p.greeted = true;
   const t = now();
   if (t - lastGreet < 3.5 || (speech && t < speech.until)) return;
-  lastGreet = t; bubble(`Chào ${short(p.name)}! 👋`, 1.8);
+  lastGreet = t; bubble(T('greet', { n: short(p.name) }), 1.8);
 }
 function onGift(ev) {
   const p = ensurePerson(ev.user);
@@ -2110,10 +2129,10 @@ function onGift(ev) {
   p.total += value;
   if (p === sitter && job) upgradeJob(job, value, bonus);
   else { p.coins += value; if (bonus) p.tierBonus = 1; if (!queue.includes(p)) enqueue(p, false); else sortQueue(); if (p.bodied) p.jumpT = now(); }
-  const gname = ev.gift && ev.gift.name ? ev.gift.name : 'quà';
-  pushBanner({ user: p, text: `Cảm ơn ${ev.count > 1 ? gname + ' ×' + ev.count : gname}! ✨`, gold: value >= (Number(S.tierNoble) || 99), color: '#b0182f' });
+  const gname = ev.gift && ev.gift.name ? ev.gift.name : T('gift');
+  pushBanner({ user: p, text: T('thanks', { g: ev.count > 1 ? gname + ' ×' + ev.count : gname }), gold: value >= (Number(S.tierNoble) || 99), color: '#b0182f' });
   if (!party.on) painterState.waveUntil = now() + 1.6;
-  bubble(pick(['Cảm ơn nhé!', 'Cảm ơn bạn!', 'Tuyệt quá!', 'Yêu bạn ❤', 'Hảo hạng!']), 1.8);
+  bubble(T('bThanks'), 1.8);
   sfx.coin();
   hearts(W - 120, H - 520, Math.min(12, 2 + Math.round(Math.sqrt(value))));
   if (value >= (Number(S.tierNoble) || 99)) confetti(60);
@@ -2124,22 +2143,22 @@ function onChat(ev) {
   const text = String(ev.text || ''), tx = window.normText ? normText(text) : text.toLowerCase();
   // chấm điểm tranh vừa vẽ
   const vm = text.match(VOTE_RE);
-  if (vm && castVote(p, Number(vm[1]))) { p.comment = '⭐'.repeat(Number(vm[1])); p.commentUntil = now() + 3; }
+  if (vm && castVote(p, digit(vm[1]))) { p.comment = '⭐'.repeat(digit(vm[1])); p.commentUntil = now() + 3; }
   // chọn kiểu tranh
-  const art = ART_KEYS.find(([k]) => tx.includes(k));
+  const sid = styleCmd(text, tx), art = sid ? [null, sid] : null;
   if (art) {
     p.artStyle = art[1];
     if (job && job.p === p && job.tier && job.phase === 'intro' && !job.strokes) job.style = art[1], drawPlate(p.name, plateSub(job));
-    bubble(`${short(p.name)}: ${ART[art[1]].name} nha! 🖌️`, 2.2);
+    bubble(T('styleSet', { n: short(p.name), s: artName(art[1]) }), 2.2);
   }
   const joined = enqueue(p, true);
   if (joined) greet(p);
   // hỏi lượt
-  if (POS_RE.test(tx)) {
-    if (p === sitter) bubble(`Đang vẽ ${short(p.name)} nè! 🎨`, 2.4);
-    else { const pos = queue.indexOf(p) + 1; bubble(pos > 0 ? `${short(p.name)}: thứ #${pos} ⏳ ${waitText(pos)}` : `${short(p.name)}: vừa vẽ xong nè! 🎨`, 3); }
+  if (isPosCmd(text, tx)) {
+    if (p === sitter) bubble(T('posNow', { n: short(p.name) }), 2.4);
+    else { const pos = queue.indexOf(p) + 1; bubble(pos > 0 ? T('pos', { n: short(p.name), p: pos, w: waitText(pos) }) : T('posDone', { n: short(p.name) }), 3); }
   } else if (!joined && !queue.includes(p) && p !== sitter && !p.coins && !canFree(p) && !p.toldCooldown) {
-    p.toldCooldown = true; bubble(`${short(p.name)} vừa được vẽ rồi, lát nữa vẽ tiếp nha!`, 2.6);
+    p.toldCooldown = true; bubble(T('cooldown', { n: short(p.name) }), 2.6);
   }
   if (text && !vm) { p.comment = text; p.commentUntil = now() + 4; }
   if (p.bodied && (joined || Math.random() < 0.6)) p.waveUntil = now() + 1.4;
@@ -2169,10 +2188,18 @@ function handleEv(ev) {
       case 'chat': onChat(ev); break;
       case 'gift': onGift(ev); break;
       case 'like': onLike(ev); break;
-      case 'follow': onBoost(ev, 20, 'đã follow 💖 Cảm ơn nhiều!', 2); bubble('Cảm ơn follow nha!', 2); break;
-      case 'share': onBoost(ev, 15, 'đã chia sẻ 📣 Cảm ơn nhiều!', 3); break;
+      case 'follow': onBoost(ev, 20, T('follow'), 2); bubble(T('followBubble'), 2); break;
+      case 'share': onBoost(ev, 15, T('share'), 3); break;
     }
   } catch (e) { console.error(e); }
+}
+function applyLang() {
+  const dir = LG().rtl ? 'rtl' : 'ltr';
+  try { ctx.direction = dir; P.direction = dir; } catch (e) {}
+  const tapEl = document.getElementById('tap'); if (tapEl) tapEl.textContent = T('tap');
+  document.documentElement.lang = S.painterLang || 'vi';
+  idleInvite = false;
+  if (job) drawPlate(job.p.name, plateSub(job));
 }
 socket.on('ev', handleEv);
 socket.on('connect', () => socket.emit('hello', 'game', { obs: OBS, mode: 'painter' }));
@@ -2196,7 +2223,8 @@ socket.on('cmd', c => {
   if (c.type === 'painterClear' || c.type === 'clear') { for (const p of [...queue]) leaveQueue(p); }
 });
 socket.on('settings', s => {
-  const oldQ = S.quality; S = Object.assign(S, s);
+  const oldQ = S.quality, oldL = S.painterLang; S = Object.assign(S, s);
+  if (oldL !== S.painterLang) applyLang();
   setOutfitMix(S.partyMix ?? 25);
   if (Music) Music.setSettings(S);
   if (oldQ !== S.quality) resize();

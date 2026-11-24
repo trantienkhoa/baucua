@@ -139,6 +139,7 @@ const DEFAULT_SETTINGS = {
   autoIdle: 20,                 // vắng bao nhiêu giây thì mời khách phố
   autoPartyEvery: 10,           // tự mở Dance party mỗi N phút (0 = tắt)
   passersby: true,              // người qua đường ở cuối phố
+  painterLang: 'vi',            // ngôn ngữ chữ trên màn game Họa Sĩ (22 ngôn ngữ, xem public/painter-i18n.js)
 };
 
 const savedSettings = readJSON('settings.json', {});

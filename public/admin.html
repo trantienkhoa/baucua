@@ -570,8 +570,10 @@ $('btnClear').onclick = () => { if (confirm('Dọn hết nhân vật trên sàn?
 $('btnResetTop').onclick = () => { if (confirm('Xoá bảng top tặng quà?')) socket.emit('resetTop'); };
 // ---------- game Họa Sĩ ----------
 let PROSTER = [], PMUSIC = [];
+const PLANGS = [['vi', 'Tiếng Việt'], ['en', 'English'], ['zh', '中文（简体）'], ['zh-Hant', '中文（繁體）'], ['ja', '日本語'], ['ko', '한국어'], ['th', 'ภาษาไทย'], ['id', 'Bahasa Indonesia'], ['ms', 'Bahasa Melayu'], ['fil', 'Filipino'], ['km', 'ភាសាខ្មែរ'], ['lo', 'ພາສາລາວ'], ['my', 'မြန်မာ'], ['hi', 'हिन्दी'], ['ar', 'العربية'], ['tr', 'Türkçe'], ['ru', 'Русский'], ['es', 'Español'], ['pt', 'Português'], ['fr', 'Français'], ['de', 'Deutsch'], ['it', 'Italiano']];
 socket.on('music', list => { PMUSIC = Array.isArray(list) ? list : []; renderPainter(); });
 const PFIELDS = [
+  ['painterLang', '🌐 Ngôn ngữ trên màn game (22 ngôn ngữ)', 'select', () => PLANGS],
   ['painterName', '🎨 Tên họa sĩ (ký trên tranh)', 'text'],
   ['painterChar', '🧍 Nhân vật làm họa sĩ', 'select', () => [['', '— nhân vật nam mặc định —'], ...PROSTER.map(r => [r.id, `${r.id} · ${r.name} (${r.female ? 'nữ' : 'nam'}) — ${r.outfit}`.slice(0, 90)])]],
   ['paintSeconds', '⏱️ Thời gian vẽ mỗi tranh (giây, 6–60)', 'num', 1],
