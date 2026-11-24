@@ -156,7 +156,7 @@ def yunet_eyes(img):
     if f is None or not len(f): return None
     f = max(f, key=lambda r: r[14] * np.sqrt(r[2] * r[3]))   # mặt chắc chắn nhất (điểm tin cậy × cỡ)
     eyes = sorted([(f[4] / w, f[5] / h), (f[6] / w, f[7] / h)])
-    return eyes, ((f[10] + f[12]) / 2 / w, (f[11] + f[13]) / 2 / h), (f[8] / w, f[9] / h)
+    return eyes, ((f[10] + f[12]) / 2 / w, (f[11] + f[13]) / 2 / h), (f[8] / w, f[9] / h), ((f[10] + f[12]) / 2 / w, (f[1] + f[3]) / h)
 def chan_dung(path, cap):
     """Ảnh chân dung toàn thân (đầu tới chân) -> ảnh mặt cùng khung với chup_mat. Khớp: chiều cao người trong ảnh = chiều cao mô hình,
     rồi dò soi gương / lệch / cỡ sao cho giống hình chụp thẳng của chính mô hình nhất."""
@@ -202,7 +202,7 @@ def chan_dung(path, cap):
         def to_uv(q):
             x = hx_ + (q[0] * pw - cxp - dx * ppm) / (mir * ppm * sc); y = ymax - (q[1] * ph - top - dy * ppm) / (ppm * sc)
             return (ku[0] * x + ku[1], kv[0] * y + kv[1])
-        CD_YU = (sorted([to_uv(yu[0][0]), to_uv(yu[0][1])]), to_uv(yu[1]), to_uv(yu[2]))
+        CD_YU = (sorted([to_uv(yu[0][0]), to_uv(yu[0][1])]), to_uv(yu[1]), to_uv(yu[2]), to_uv(yu[3]))
     return Image.fromarray(np.clip(samp(mir, sc, dx, dy), 0, 255).astype(np.uint8)), 'chân dung (%s, cỡ %.2f, lệch %.0f/%.0f mm)' % ('soi gương' if mir < 0 else 'thẳng', sc, dx * 1000, dy * 1000)
 VE = None; CD_YU = None
 CD = os.environ.get('DAU_CHAN_DUNG') or os.path.join(TOOL, 'chan-dung')   # thư mục ảnh chân dung toàn thân <mã>.jpg
@@ -440,6 +440,41 @@ if found is not None and VE is None:
         w_[nhead:] = 0   # nhãn cầu giữ nguyên
         P[:, 0] = cx0_ + dx_ * (1 - (1 - f_) * w_)
         squash = 'thu hẹp đầu %.2f/%.2f, ' % (fs[0], fs[1])
+# mặt dưới: ảnh AI vẽ phần mũi–cằm ngắn hơn khuôn; rút ngắn khuôn từ chóp mũi xuống cho miệng khuôn trùng miệng ảnh
+# (không thì cằm ảnh vẽ lên giữa hàm khuôn, phần hàm thừa bên dưới thành "hai cằm"); cổ nối lại êm
+lower = ''
+if VE is None and MO is not None:
+    edt_l = np.linalg.norm(dT) * s; Ph_ = P[:nhead]
+    cc_ = Ph_[(np.abs(Ph_[:, 0] - mE[0]) < 0.1 * edt_l) & (Ph_[:, 1] < mE[1] - 0.3 * edt_l) & (Ph_[:, 1] > mE[1] - 1.0 * edt_l)]
+    ym_l = mE[1] - (mT[1] - TM[1]) * sy
+    if len(cc_):
+        yn_l = cc_[np.argmin(cc_[:, 2]), 1]
+        if ym_l < MO[1] < yn_l:
+            fz = float(np.clip((yn_l - MO[1]) / (yn_l - ym_l), 0.7, 1.0))
+            if fz < 0.98:
+                dch = 1.0 * edt_l   # từ chóp mũi tới đáy cằm khuôn (xấp xỉ)
+                d_ = yn_l - P[:nhead, 1]
+                new_d = np.where(d_ <= 0, d_, np.where(d_ <= dch, d_ * fz, dch * fz + (d_ - dch) * (1 + (1 - fz) * dch / (1.2 * edt_l))))
+                lim = dch + 1.2 * edt_l   # dưới mức này (chân cổ) giữ nguyên
+                new_d = np.where(d_ > lim, d_, new_d)
+                P[:nhead, 1] = yn_l - new_d
+                TM = TM.copy(); TM[1] = mT[1] - (mE[1] - (yn_l - (yn_l - ym_l) * fz)) / sy   # miệng khuôn mới
+                lower = 'rút mặt dưới %.2f, ' % fz
+# hàm dưới: khuôn có phần dưới cằm thoải dài xuống cổ, nhìn thẳng thành "hai cằm" dưới cằm trong ảnh.
+# Lấy cằm ảnh (dưới miệng ~0,76 khoảng cách mắt) làm mép cằm, phần dưới cằm ép về sát mặt trước cổ (góc hàm gọn)
+jaw = ''
+if VE is None:
+    edt_j = np.linalg.norm(dT) * s; Ph_ = P[:nhead]; cxj = mE[0]
+    ym_t = mE[1] - (mT[1] - TM[1]) * sy
+    chin_y = ym_t - 0.78 * edt_j
+    if YU and len(YU) > 3: chin_y = xy(*YU[3])[1]   # cằm ảnh (đáy khung mặt YuNet)
+    nb_ = Ph_[(np.abs(Ph_[:, 0] - cxj) < 0.25 * edt_j) & (Ph_[:, 1] < chin_y - 0.6 * edt_j) & (Ph_[:, 1] > chin_y - 1.0 * edt_j)]
+    if len(nb_) > 5:
+        zneck = np.percentile(nb_[:, 2], 5)   # mặt trước cổ (nhìn về −Z)
+        sel_ = (np.arange(len(P)) < nhead) & (P[:, 1] < chin_y + 0.08 * edt_j) & (P[:, 2] < zneck) & (np.abs(P[:, 0] - cxj) < 1.1 * edt_j)
+        g_ = np.clip((P[sel_, 1] - (chin_y - 0.3 * edt_j)) / (0.38 * edt_j), 0, 1) ** 1.5
+        P[sel_, 2] = zneck + (P[sel_, 2] - zneck) * g_
+        jaw = 'gọn hàm %d đỉnh, ' % int((g_ < 0.98).sum())
 # ---------- UV: đầu trải hình trụ (phần trên ảnh), hai nhãn cầu chiếu thẳng (dải dưới ảnh) ----------
 VH = 0.875   # đầu dùng v trong [0, VH]; dải dưới cho hai mắt
 nel = len(parts['EyeLeft'][0])
@@ -659,4 +694,4 @@ if KH < 0.995:
         X_ = X_ + ((KH - 1) * wh_)[:, None] * (X_ - piv)
         ia = J['accessors'][a_['POSITION']]; g.put(a_['POSITION'], X_.astype('<f4')); ia['min'] = X_.min(0).tolist(); ia['max'] = X_.max(0).tolist()
 J['buffers'][0]['byteLength'] = len(g.bin); g.compact(); g.save(dst)
-print(anh_mat + (' (đặt lại khung ảnh)' if reframed else '') + ', ' + ('thu đầu %.2f, ' % KH if KH < 0.995 else '') + squash + wfit + 'cỡ đầu cũ %.2f, ' % HS + ('khuôn %s %s tuổi%s, ' % (gioi, tuoi, ''.join(' %s %+.2f' % kv for kv in shape.items()))) + ('dời đầu %.0f mm, ' % (SHX * 1000) if SHX else '') + ('soi gương nửa ' + mirror + ', ' if mirror else '') + 'đầu chuẩn: mắt %s, cỡ %.2f×%.2f%s, nghiêng %.0f°, co %d đỉnh dưới nón/tóc, bỏ %d tam giác đầu cũ' % (src_e, s / SC, sy / SC, '' if s_ok else ' (mắt lệch, dùng cỡ mặc định)', np.degrees(roll), ncut, killed))
+print(anh_mat + (' (đặt lại khung ảnh)' if reframed else '') + ', ' + ('thu đầu %.2f, ' % KH if KH < 0.995 else '') + squash + lower + jaw + wfit + 'cỡ đầu cũ %.2f, ' % HS + ('khuôn %s %s tuổi%s, ' % (gioi, tuoi, ''.join(' %s %+.2f' % kv for kv in shape.items()))) + ('dời đầu %.0f mm, ' % (SHX * 1000) if SHX else '') + ('soi gương nửa ' + mirror + ', ' if mirror else '') + 'đầu chuẩn: mắt %s, cỡ %.2f×%.2f%s, nghiêng %.0f°, co %d đỉnh dưới nón/tóc, bỏ %d tam giác đầu cũ' % (src_e, s / SC, sy / SC, '' if s_ok else ' (mắt lệch, dùng cỡ mặc định)', np.degrees(roll), ncut, killed))
