@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, avatarTemplates, setOutfitMix, setOutfitStyle, setDressChars, templateForChar, hasCharModel, charFemale } from './avatars.js';
+import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, avatarTemplates, setOutfitMix, setOutfitStyle, setDressChars, templateForChar, hasCharModel, charFemale, addLazyChars } from './avatars.js';
 import { attachProp } from './costumes.js';
 
 const W = 1080, H = 1920, TAU = Math.PI * 2;
@@ -895,6 +895,8 @@ if (renderer && SH) {
   const avs = new Map();   // id -> { av, v, ghost }
   let modelsReady = false;
   const CHAR_IDS = Array.from({ length: 98 }, (_, i) => 'char' + String(i + 1).padStart(2, '0'));
+  // nhân vật người thật nhóm F (dân giã miền quê): có thì ưu tiên làm người xem
+  let NV_IDS = [];
   function zeroRig() { for (const k of Object.keys(rig)) if (k !== 'root' && k !== 'hips') rig[k].rotation.set(0, 0, 0); rig.shL.position.x = -0.19; rig.shR.position.x = 0.19; }
   function placeRoot(x, y0, z, yaw) { rig.root.position.set(x, 0, z); rig.root.rotation.set(0, yaw, 0); rig.root.scale.setScalar(SCALE); rig.hips.position.set(0, 0.88, 0); }
   // ngồi bệt ôm gối
@@ -1043,6 +1045,14 @@ if (renderer && SH) {
     if (p >= 1) { camAnim = null; computeLostSpots(); }
   }
 
+  const _gq = new THREE.Quaternion(), _gs = new THREE.Vector3(), _gm = new THREE.Matrix4(), _gp = new THREE.Vector3();
+  function placeGanh(e, x, z, yaw) {   // đòn gánh dọc, đáy thúng chạm đất, cách người ~0,6 m về bên phải
+    const b = e.ganh; e.av.holder.updateMatrixWorld(true);
+    e.av.inner.getWorldQuaternion(_gq).multiply(e.ganhQ); e.av.inner.getWorldScale(_gs);
+    _gp.set(x - Math.cos(yaw) * 0.62, 0.49 * _gs.y, z + Math.sin(yaw) * 0.62);
+    _gm.compose(_gp, _gq, b.getWorldScale(new THREE.Vector3()));
+    _gm.premultiply(b.parent.matrixWorld.clone().invert()); _gm.decompose(b.position, b.quaternion, b.scale);
+  }
   function syncAvatars(t) {
     const seen = new Set();
     let si = 0, lost = 0;
@@ -1055,12 +1065,16 @@ if (renderer && SH) {
         const h = hash(v.id), want = v.gender ? v.gender === 'f' : null;
         let tpl = null;
         // chọn nhân vật char (của Vũ Trường Neon) cùng giới tính người xem đã chọn
-        const chars = CHAR_IDS.filter(id => hasCharModel(id) && (want === null || charFemale(id) === want));
+        const pool = NV_IDS.length ? NV_IDS : CHAR_IDS;
+        const chars = pool.filter(id => hasCharModel(id) && (want === null || charFemale(id) === want));
         if (chars.length) { tpl = templateForChar(chars[h % chars.length]); if (!tpl) continue; }
         const av = createAvatar(scene, tpl ? tpl.female : want !== null ? want : !!(h & 1), tpl, null);
         if (!av) continue;
         av.holder.traverse(o => { if (o.isMesh && o.material && o.material.emissiveIntensity >= 2 && o.material.toneMapped === false) o.visible = false; });   // bỏ que phát sáng
         e = { av, v, ghost: false, gender: v.gender || null }; avs.set(v.id, e);
+        // người xem mang quang gánh (xương Ganh): ngồi thì đặt gánh xuống đất bên phải
+        const gb = av.root.getObjectByName('mixamorigGanh');
+        if (gb) { av.holder.updateMatrixWorld(true); const iq = new THREE.Quaternion(), bq = new THREE.Quaternion(); av.inner.getWorldQuaternion(iq); gb.getWorldQuaternion(bq); e.ganh = gb; e.ganhQ = iq.invert().multiply(bq); }
       }
       if (!e) { v.has3d = false; continue; }
       e.v = v; v.has3d = true;
@@ -1093,6 +1107,7 @@ if (renderer && SH) {
       groundRig(w.y, Math.max(0, w.y - 0.3));
       if (v.jump > 0) { rig.root.position.y += Math.sin(v.jump * Math.PI) * 0.25; rig.root.updateMatrixWorld(true); }
       drive(e.av, alpha);
+      if (e.ganh) placeGanh(e, x, z, yaw);
       const hs = headScreen(); v.hx = hs.x; v.hy = hs.y;
       if (si < CAP && w.y < 0.05) shadows.setMatrixAt(si++, _m4.compose(_v.set(x, 0.02, z), _q.identity(), _sc.set(1.1, 1, 0.9)));
       if (returning) {}
@@ -1886,7 +1901,10 @@ if (renderer && SH) {
   let styleKey = '';
   function syncStyle() { const S2 = SH.S || {}, k = (S2.outfitStyle || 'dangia') + (S2.dressChars !== false); if (k === styleKey) return; styleKey = k; setOutfitStyle(S2.outfitStyle || 'dangia'); setDressChars(S2.dressChars !== false); }
   syncStyle();
-  fetch('/api/models').then(r => r.json()).then(list => loadAvatars((list || []).filter(m => m.enabled).map(m => ({ url: m.url, female: m.female })))).then(() => { modelsReady = true; console.log('Cảnh 3D: đã nạp', avatarTemplates.length, 'mô hình người'); }).catch(e => console.warn('Không nạp được mô hình người', e));
+  fetch('/models/ma/nhanvat/danh-sach.json').then(r => r.ok ? r.json() : []).catch(() => []).then(nv => {
+    nv = (nv || []).map(x => ({ ...x, url: '/models/ma/nhanvat/' + x.id + '.glb' }));
+    return fetch('/api/models').then(r => r.json()).then(list => loadAvatars((list || []).filter(m => m.enabled).map(m => ({ url: m.url, female: m.female })))).then(() => { addLazyChars(nv); NV_IDS = nv.map(x => x.id); NV_IDS.forEach(id => templateForChar(id)); });   // tải sẵn để người vào là có ngay
+  }).then(() => { modelsReady = true; console.log('Cảnh 3D: đã nạp', avatarTemplates.length, 'mô hình người, nhóm F:', NV_IDS.length); }).catch(e => console.warn('Không nạp được mô hình người', e));
 
   window.MA3D = { ready: true, frame, setMap, maps: Object.keys(SCENES), sceneNames: Object.fromEntries(Object.entries(SCENES).map(([k, v]) => [k, v.name])),
     invalidate: () => { curMap = null; if (trans) { trans = null; if (torch) torch.g.visible = false; } }, relayout: () => { if (!trans && curMap && built[curMap]) applyLayout(built[curMap], false); },
