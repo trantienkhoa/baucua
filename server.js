@@ -286,19 +286,6 @@ console.log('  Danh sách nhân vật:', roster.length);
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { maxHttpBufferSize: 1e6 });
-// ---------- mật khẩu trang điều khiển (khi chạy trên đám mây, ai có đường dẫn cũng vào được) ----------
-// Đặt biến môi trường ADMIN_KEY thì mọi thao tác thay đổi (cài đặt, kết nối, tải lên, xoá…) phải kèm khoá này.
-// Màn game không cần khoá. Chạy trên máy nhà không đặt ADMIN_KEY thì mọi thứ như cũ.
-const ADMIN_KEY = String(process.env.ADMIN_KEY || '').trim();
-const keyOk = k => !ADMIN_KEY || String(k || '') === ADMIN_KEY;
-app.use('/api', (req, res, next) => {
-  if (req.method === 'GET' || req.method === 'HEAD') return next();
-  if (req.method === 'POST' && req.path === '/clips') return next();   // màn game tự tải clip khoảnh khắc lên
-  if (keyOk(req.get('x-admin-key') || req.query.key)) return next();
-  res.status(401).json({ ok: false, error: 'Sai hoặc thiếu mật khẩu trang điều khiển (ADMIN_KEY).' });
-});
-io.use((socket, next) => { socket.data.admin = keyOk(socket.handshake.auth && socket.handshake.auth.key); next(); });
-const PRIV_EVENTS = new Set(['screen:set', 'screen:cmd', 'text:approve', 'text:reject', 'text:replay', 'text:clear', 'text:host', 'saveSettings', 'connect-tiktok', 'disconnect-tiktok', 'cmd', 'resetTop', 'test', 'models:download']);
 app.use(express.json({ limit: '1mb' }));
 app.use('/api/clips', express.raw({ type: () => true, limit: '300mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -415,50 +402,6 @@ app.delete('/api/music/:name', (req, res) => {
   if (fs.existsSync(f)) fs.unlinkSync(f);
   io.emit('music', musicList()); res.json(musicList());
 });
-
-// ---------- tải gói nhân vật (.zip) từ một đường dẫn: dùng khi chạy trên điện thoại / đám mây ----------
-// Hỗ trợ link Google Drive (chia sẻ "Bất kỳ ai có đường liên kết"). Chỉ giải nén char*.glb, dj.glb, *.glb và roster.csv.
-const zlib = require('zlib');
-let modelsDl = { status: 'idle', text: '' };
-function dlState(status, text) { modelsDl = { status, text }; io.emit('modelsDownload', modelsDl); console.log('[Nhân vật]', text); }
-function driveDirect(u) {
-  const m = String(u).match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([\w-]{20,})/) || String(u).match(/[?&]id=([\w-]{20,})/);
-  return m ? `https://drive.usercontent.google.com/download?id=${m[1]}&export=download&confirm=t` : u;
-}
-function unzipEntries(buf) {
-  let e = buf.length - 22; while (e >= 0 && buf.readUInt32LE(e) !== 0x06054b50) e--;
-  if (e < 0) throw new Error('Không phải tệp .zip');
-  const n = buf.readUInt16LE(e + 10); let p = buf.readUInt32LE(e + 16); const out = [];
-  for (let i = 0; i < n; i++) {
-    if (buf.readUInt32LE(p) !== 0x02014b50) throw new Error('Tệp .zip bị hỏng');
-    const method = buf.readUInt16LE(p + 10), csize = buf.readUInt32LE(p + 20), nl = buf.readUInt16LE(p + 28), xl = buf.readUInt16LE(p + 30), cl = buf.readUInt16LE(p + 32), off = buf.readUInt32LE(p + 42);
-    const name = buf.slice(p + 46, p + 46 + nl).toString('utf8'); p += 46 + nl + xl + cl;
-    const ds = off + 30 + buf.readUInt16LE(off + 26) + buf.readUInt16LE(off + 28), raw = buf.slice(ds, ds + csize);
-    out.push({ name, get data() { return method === 0 ? raw : method === 8 ? zlib.inflateRawSync(raw) : null; } });
-  }
-  return out;
-}
-async function downloadModels(url) {
-  if (!url || modelsDl.status === 'working') return;
-  try {
-    const u = new URL(driveDirect(String(url).trim()));
-    if (u.protocol !== 'https:') throw new Error('Chỉ nhận đường dẫn https');
-    dlState('working', 'Đang tải gói nhân vật…');
-    const r = await fetch(u.href, { redirect: 'follow' });
-    if (!r.ok) throw new Error('Máy chủ trả về ' + r.status);
-    const buf = Buffer.from(await r.arrayBuffer());
-    if (buf.readUInt32LE(0) !== 0x04034b50) throw new Error('Không tải được tệp .zip — kiểm tra link đã để chế độ “Bất kỳ ai có đường liên kết” chưa');
-    dlState('working', `Đã tải ${(buf.length / 1048576).toFixed(0)} MB, đang giải nén…`);
-    let n = 0;
-    for (const it of unzipEntries(buf)) {
-      const base = path.basename(it.name);
-      if (/\.glb$/i.test(base) && /^[\w.-]+$/.test(base)) { const d = it.data; if (d) { fs.writeFileSync(path.join(BUILTIN_MODELS, base), d); n++; } }
-      else if (base.toLowerCase() === 'roster.csv') { const d = it.data; if (d) fs.writeFileSync(path.join(DATA, 'roster.csv'), d); }
-    }
-    roster = loadRoster(); io.emit('roster', roster); io.emit('models', modelList());
-    dlState('done', `✓ Đã cài ${n} nhân vật, danh sách ${roster.length} vai`);
-  } catch (e) { dlState('error', 'Lỗi tải gói nhân vật: ' + (e.message || e)); }
-}
 
 // ---------- TikTok ----------
 let conn = null;
@@ -828,10 +771,6 @@ function testUser(i) {
 }
 
 io.on('connection', socket => {
-  // chặn thao tác thay đổi từ thiết bị không có mật khẩu (màn game vẫn báo được 'hết video')
-  socket.use(([ev, arg], next) => { if (PRIV_EVENTS.has(ev) && !socket.data.admin && !(ev === 'screen:cmd' && arg && arg.type === 'ended')) { socket.emit('needKey'); return; } next(); });
-  socket.emit('auth', { admin: socket.data.admin, keyRequired: !!ADMIN_KEY });
-  socket.on('models:download', url => downloadModels(url));
   socket.on('hello', (role, info) => {
     if (role === 'game') { socket.join('game'); screens.set(socket.id, { obs: !!(info && info.obs) }); pickPrimary(); socket.emit('goalState', goalState); }
     else if (role === 'screen') { socket.join('screenctl'); socket.emit('screenMedia', screenMedia()); socket.emit('screenStatus', screenStatus); socket.emit('textQueue', textPending); socket.emit('textHistory', textHistory); }
@@ -965,8 +904,4 @@ server.listen(PORT, '0.0.0.0', () => {
   for (const ip of ips) console.log(`  Trong mạng LAN   : http://${ip}:${PORT}/game.html`);
   console.log('');
   if (settings.username && settings.autoReconnect && process.env.AUTOCONNECT !== '0') connectTikTok();
-  // đám mây: đặt MODELS_URL là link gói nhân vật → tự tải lần đầu (ổ đĩa đám mây miễn phí bị xoá mỗi lần khởi động lại)
-  if (process.env.MODELS_URL && !modelList().some(m => /^char\d+/i.test(m.file))) downloadModels(process.env.MODELS_URL);
-  // đám mây: đặt TIKTOK_USERNAME để tự điền tên kênh
-  if (process.env.TIKTOK_USERNAME && !settings.username) { settings.username = process.env.TIKTOK_USERNAME.replace(/^@/, ''); saveSettings(); }
 });

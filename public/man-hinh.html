@@ -155,11 +155,7 @@
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-// mật khẩu trang điều khiển (chỉ cần khi máy chủ đặt ADMIN_KEY, ví dụ chạy trên đám mây): mở trang kèm ?key=… hoặc nhập khi được hỏi
-const KEY = (() => { const q = new URLSearchParams(location.search).get('key'); try { if (q) localStorage.setItem('adminKey', q); return q || localStorage.getItem('adminKey') || ''; } catch (e) { return q || ''; } })();
-if (KEY) { const _f = window.fetch.bind(window); window.fetch = (u, o = {}) => { o.headers = Object.assign({}, o.headers || {}, { 'x-admin-key': KEY }); return _f(u, o); }; const _o = XMLHttpRequest.prototype.open; XMLHttpRequest.prototype.open = function (...a) { _o.apply(this, a); try { this.setRequestHeader('x-admin-key', KEY); } catch (e) {} }; }
-const socket = io({ auth: { key: KEY } });
-socket.on('auth', a => { if (a.keyRequired && !a.admin) { const k = prompt('Nhập mật khẩu trang điều khiển (ADMIN_KEY):'); if (k) { try { localStorage.setItem('adminKey', k); } catch (e) {} location.search = '?key=' + encodeURIComponent(k); } } });
+const socket = io();
 let S = null, ST = {}, MEDIA = [], SET = {};
 socket.on('connect', () => socket.emit('hello', 'screen'));
 const set = p => socket.emit('screen:set', p);

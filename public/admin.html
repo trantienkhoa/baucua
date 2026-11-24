@@ -85,8 +85,6 @@ document.getElementById('openGame').onclick = async () => {
   <div class="card" style="border:2px solid #f2c14e;background:#fffaf0">
     <h2>🎨 Game Họa Sĩ — họa sĩ 3D vẽ chân dung người xem</h2>
     <div class="muted">Màn game thứ hai, dùng chung kết nối TikTok, nhạc và nhân vật 3D của bạn — <b>không có MC</b>, chỉ có âm thanh game. <b>Bình luận / thả tim</b> → vào hàng chờ, được vẽ <b>tranh hoạt hình miễn phí</b> · <b>tặng quà</b> → quà càng lớn tranh càng chi tiết, giống ảnh đại diện · thanh cầu vồng đầy → <b>DANCE PARTY</b> với 10 bài nhạc có sẵn. Đã bỏ các yếu tố dễ vi phạm nguyên tắc TikTok (chê ngoại hình, nài quà, quay số may rủi, đổi follow/chia sẻ lấy quyền lợi, thưởng quà theo giờ). <b>Tự chạy khi vắng</b>: khách phố ngồi mẫu, Dance Party theo giờ, người qua đường. Khi LIVE chỉ thêm <b>một</b> trong hai màn (sàn nhảy hoặc họa sĩ) vào OBS.</div>
-    <div class="row" style="margin-top:8px"><b>📦 Gói nhân vật</b> <span class="muted">(dùng khi chạy trên điện thoại / đám mây — dán link Google Drive của tệp .zip, để chế độ “Bất kỳ ai có đường liên kết”)</span></div>
-    <div class="row"><input id="mdlUrl" type="text" placeholder="https://drive.google.com/file/d/…/view" style="flex:1;min-width:220px"><button id="mdlGo" class="pri">⬇️ Tải về máy chủ</button><span id="mdlMsg" class="muted"></span></div>
     <div id="pUrls" style="margin-top:8px"></div>
     <div class="row"><button class="pri" id="pOpen" title="Mở game Họa Sĩ bằng Chrome/Edge, tự phát tiếng không cần bấm vào trang">🖥️ Mở game Họa Sĩ (tự có tiếng)</button><span class="muted" id="pOpenMsg"></span></div>
     <div class="grid" id="pGrid" style="margin-top:8px"></div>
@@ -275,11 +273,7 @@ document.getElementById('openGame').onclick = async () => {
 <script src="/tts.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-// mật khẩu trang điều khiển (chỉ cần khi máy chủ đặt ADMIN_KEY, ví dụ chạy trên đám mây): mở trang kèm ?key=… hoặc nhập khi được hỏi
-const KEY = (() => { const q = new URLSearchParams(location.search).get('key'); try { if (q) localStorage.setItem('adminKey', q); return q || localStorage.getItem('adminKey') || ''; } catch (e) { return q || ''; } })();
-if (KEY) { const _f = window.fetch.bind(window); window.fetch = (u, o = {}) => { o.headers = Object.assign({}, o.headers || {}, { 'x-admin-key': KEY }); return _f(u, o); }; const _o = XMLHttpRequest.prototype.open; XMLHttpRequest.prototype.open = function (...a) { _o.apply(this, a); try { this.setRequestHeader('x-admin-key', KEY); } catch (e) {} }; }
-const socket = io({ auth: { key: KEY } });
-socket.on('auth', a => { if (a.keyRequired && !a.admin) { const k = prompt('Nhập mật khẩu trang điều khiển (ADMIN_KEY):'); if (k) { try { localStorage.setItem('adminKey', k); } catch (e) {} location.search = '?key=' + encodeURIComponent(k); } } });
+const socket = io();
 let S = {}, GIFTS = {}, ACTIONS = [], INFO = {};
 socket.on('connect', () => socket.emit('hello', 'admin'));
 
@@ -635,9 +629,6 @@ $('pOpen').onclick = async () => {
   const m = $('pOpenMsg'); m.textContent = 'Đang mở…';
   try { const r = await (await fetch('/api/open-game', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page: 'hoa-si' }) })).json(); m.textContent = r.ok ? '✓ Đã mở bằng ' + r.browser : '⚠ ' + r.error; } catch (e) { m.textContent = '⚠ Không mở được'; }
 };
-$('mdlGo').onclick = () => { const u = $('mdlUrl').value.trim(); if (!u) return; $('mdlMsg').textContent = 'Đang gửi…'; socket.emit('models:download', u); };
-socket.on('modelsDownload', d => { $('mdlMsg').textContent = d.text; $('mdlMsg').className = d.status === 'error' ? 'bad' : d.status === 'done' ? 'ok' : 'muted'; });
-socket.on('needKey', () => alert('Cần mật khẩu trang điều khiển để thay đổi. Mở trang với ?key=… hoặc tải lại trang để nhập.'));
 $('pSkip').onclick = () => socket.emit('cmd', { type: 'painterSkip' });
 $('pParty').onclick = () => socket.emit('cmd', { type: 'painterParty' });
 $('pClear').onclick = () => { if (confirm('Xoá hết người trong hàng chờ vẽ?')) socket.emit('cmd', { type: 'painterClear' }); };

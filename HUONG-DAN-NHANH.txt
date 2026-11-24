@@ -28,9 +28,3 @@ GAME HỌA SĨ (vẽ chân dung người xem, bản 2.10.0 — không có MC, ch
 - Người xem gõ: "pop art" / "màu nước" / "neon" (kiểu tranh), "thứ mấy" (xem lượt), 1–5 (chấm điểm tranh).
 - Vẽ tặng may mắn mỗi 4 phút, chia sẻ / follow để chen hàng, thả tim để họa sĩ vẽ nhanh hơn và mở DANCE PARTY.
 - Khi LIVE chỉ thêm một trong hai màn (sàn nhảy hoặc họa sĩ).
-
-LIVE BẰNG ĐIỆN THOẠI (không cần máy tính) — xem README mục "Live bằng điện thoại"
-- Android: cài Termux (F-Droid) → chạy tools/android-cai-dat.sh → Chrome mở http://localhost:3300/admin.html
-- iPhone: đưa máy chủ lên Render.com (tệp render.yaml có sẵn) → Safari mở https://<tên-app>.onrender.com/hoa-si.html
-- Trang điều khiển → 🎨 Game Họa Sĩ → 📦 Gói nhân vật: dán link Google Drive gói nhân vật → Tải về máy chủ.
-- TikTok → LIVE → Trò chơi di động / Chia sẻ màn hình → quay lại màn game. Bật Không làm phiền, cắm sạc.
