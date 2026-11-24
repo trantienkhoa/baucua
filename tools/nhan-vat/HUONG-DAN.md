@@ -64,6 +64,7 @@ node tools/nhan-vat/chup.js <file.glb> <ra.png> [giây] '{"only":["chay_bo"],"co
 
 ## Giới hạn
 - Đạo cụ dính liền thân trong lưới (cuốc của tp-001) đi theo phần cơ thể mà nó chạm vào.
+- Tay buông sát người xách đồ (giỏ của tp-011, tp-015): tay và món đồ dính liền thân nên được giữ yên theo ngực; tay kia vẫn cử động. Ngồi bệt sát đất thì giỏ chạm đất.
 - Lỗ có sẵn trong lưới dưới nách hiện ra khi vung tay mạnh.
 - Mặt trong cánh tay có bóng tối vẽ sẵn trong texture.
 - Xuất mô hình ở tư thế chữ T (tay dang ngang, không chạm thân) sẽ cho kết quả tốt nhất.

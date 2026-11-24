@@ -39,11 +39,22 @@ allP = np.concatenate(POS)
 
 # ---- 1. đo trục tay thật từ lưới, xoay xương vai/tay cho khớp ----
 arminfo = {}
+HOLD = set()   # bên tay đang xách đồ, dính liền thân: không cho cử động riêng
 for side, sg in (('Left', -1), ('Right', 1)):
     S = P(side + 'Arm')
     pts = allP[(allP[:, 0] * sg > 0.21 * SC) & (allP[:, 1] > 0.70 * SC) & (allP[:, 1] < 1.18 * SC)]
-    lo = pts[pts[:, 1] < np.percentile(pts[:, 1], 6)]                     # cổ tay / bàn tay
-    tip = lo.mean(0)
+    if len(pts) < 300:
+        # tay buông sát người (vd. xách giỏ): không thấy tay tách khỏi thân -> giữ hướng xương gốc (thẳng xuống),
+        # lấy các điểm quanh trục xương để đo bán kính
+        S0 = P(side + 'Arm'); H0 = P(side + 'Hand'); d0 = (H0 - S0) / np.linalg.norm(H0 - S0)
+        ab = allP - S0; tt = ab @ d0; rr = np.linalg.norm(ab - tt[:, None] * d0, axis=1)
+        pts = allP[(tt > 0.05) & (tt < np.linalg.norm(H0 - S0) + 0.08) & (rr < 0.07 * SC) & (allP[:, 0] * sg > 0)]
+        tip = S0 + d0 * (np.linalg.norm(H0 - S0) + 0.08 * SC)
+        HOLD.add(side)
+        print(side, 'tay sát người (xách đồ): tay giữ yên theo thân,', len(pts), 'điểm')
+    else:
+        lo = pts[pts[:, 1] < np.percentile(pts[:, 1], 6)]                     # cổ tay / bàn tay
+        tip = lo.mean(0)
     d = tip - S; L = np.linalg.norm(d); d /= L
     ai = NID[side + 'Arm']; Wm = world(ai); old = Wm[:3, :3] @ np.array([0, 1, 0.]); old /= np.linalg.norm(old)
     v = np.cross(old, d); c = old @ d; vx = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
@@ -185,6 +196,14 @@ for pi, p in enumerate(prims):
     nreb = int((hM & ~keep).sum())
     allow[np.ix_(lowA & ~hard, armK)] = False; allow[np.ix_(lowA & hard, restK)] = False
     sArm = np.where(lowA, hard * 1.0, sArm)
+    for s_ in HOLD:   # tay xách đồ: cả tay + món đồ đi theo ngực (Spine2), không theo xương tay / chân
+        sg = -1 if s_ == 'Left' else 1
+        kk = [k for k, b in enumerate(bones) if b.startswith(s_) and b.endswith(('Arm', 'ForeArm', 'Hand'))]
+        allow[:, kk] = False
+        dleg = np.min([segdist(X, *SEG[s_ + b])[0] for b in ('UpLeg', 'Leg')], 0)   # chừa ống quần ra, chỉ giữ tay + món đồ
+        reg = (X[:, 0] * sg > 0.185 * SC) & (X[:, 1] > 0.30 * SC) & (X[:, 1] < P(s_ + 'Arm')[1] - 0.05 * SC) & ((dleg > 0.115 * SC) | (X[:, 1] > P('Hips')[1]))
+        allow[reg] = False; allow[reg, bones.index('Spine2')] = True
+        sArm[np.sign(X[:, 0]) == sg] = 0
     Wb = np.where(allow, 1 / D ** 4, 0)
     Wa = Wb.copy(); Wa[:, restK] = 0
     Wr = Wb.copy(); Wr[:, armK] = 0
@@ -225,6 +244,7 @@ for pi, p in enumerate(prims):
         ia = J['accessors'][p['indices']]; g.put(p['indices'], ni.reshape(-1, 1).astype({5123: '<u2', 5125: '<u4'}[ia['componentType']]))
     print('prim', pi, 'bỏ màng chân', int(bridge.sum()), 'bỏ gai tay–áo', int(spike.sum()), 'cắt dính tay–thân', int(fuse.sum()), 'mẩu lẻ trả về thân', nreb)
     if pi == 0: patch_hidden(p, X, idx, W, armK, ycut)
+    W = np.nan_to_num(W); z = W.sum(1) <= 1e-9; W[z, bones.index('Spine2')] = 1   # điểm mất hết trọng số (bị chặn mọi xương) -> theo ngực
     top = np.argsort(-W, 1)[:, :4]; tw = np.take_along_axis(W, top, 1); tw /= tw.sum(1, keepdims=True)
     jj = np.vectorize(lambda k: JI[bones[k]])(top)
     ja = J['accessors'][p['attributes']['JOINTS_0']]
