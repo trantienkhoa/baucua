@@ -5,6 +5,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, avatarTemplates, setOutfitMix, setOutfitStyle, setDressChars, templateForChar, hasCharModel, charFemale, addLazyChars } from './avatars.js';
 import { attachProp } from './costumes.js';
+import { randomDanGia } from './outfits.js';
 
 const W = 1080, H = 1920, TAU = Math.PI * 2;
 const SH = window.__maShared;   // ghế, đèn, gương do ma.js khai báo
@@ -973,8 +974,12 @@ if (renderer && SH) {
     cane.visible = true;
   }
   function tellerProps(av) {
-    const hat = new THREE.Mesh(new THREE.ConeGeometry(0.27, 0.13, 20, 1, true), gMat(0xc8b080, { side: THREE.DoubleSide }));   // nón lá
-    const hatG = new THREE.Group(); hatG.add(hat); hat.position.y = 0.2; hatG.rotation.x = -0.12;
+    // Ông Tư khác hẳn người xem (người xem đội nón lá, đồ làm ruộng): áo dài the đen + khăn đóng (bộ 023), râu tóc bạc
+    const beardM = gMat(0xe8e4dc), beard = new THREE.Group();
+    const b1 = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.17, 10).rotateX(Math.PI), beardM); b1.position.set(0, -0.06, 0.085); b1.rotation.x = 0.25; beard.add(b1);
+    for (const sx of [-1, 1]) { const m = new THREE.Mesh(new THREE.CapsuleGeometry(0.008, 0.07, 3, 6), beardM); m.position.set(sx * 0.03, 0.0, 0.1); m.rotation.z = sx * 0.5; beard.add(m); }   // ria mép
+    attachProp(av, 'Head', beard);
+    const hatG = new THREE.Group();
     attachProp(av, 'Head', hatG);
     return hatG;
   }
@@ -1121,7 +1126,7 @@ if (renderer && SH) {
     if (!L2 || !modelsReady || !avatarTemplates.length) { SH.teller = null; return; }
     if (!teller) {
       const males = avatarTemplates.filter(x => !x.female);
-      const av = createAvatar(scene, false, males[0] || avatarTemplates[0], null);
+      const av = createAvatar(scene, false, males[0] || avatarTemplates[0], null, { outfit: randomDanGia(false, '023') });
       if (!av) return;
       av.holder.traverse(o => { if (o.isMesh && o.material && o.material.emissiveIntensity >= 2 && o.material.toneMapped === false) o.visible = false; });
       const hatG = tellerProps(av); torch = makeTorch(av);
@@ -1516,11 +1521,7 @@ if (renderer && SH) {
     if (!teller || teller.upgraded || !assetsReady) return;
     teller.upgraded = true;
     const av = teller.av;
-    if (AS.non && teller.hatG) {
-      teller.hatG.clear();
-      const n = inst('non', 1.0); n.position.y = 0.17; teller.hatG.add(n);
-    }
-    if (AS.khan) { const k = inst('khan'); k.position.y = -1.42; const kg = new THREE.Group(); kg.add(k); attachProp(av, 'Neck', kg); }
+    // không đội nón lá / khăn rằn nữa (để khỏi giống người xem); khăn đóng + áo dài đến từ bộ đồ 023
     if (AS.binhtra) {   // bộ ấm trà + ống điếu đặt dưới đất cạnh chỗ ông ngồi (có khói mỏng bốc lên)
       const b = inst('binhtra'); const bb = new THREE.Box3().setFromObject(b); b.position.y = -bb.min.y;
       teller.tea = new THREE.Group(); teller.tea.add(b); scene.add(teller.tea);

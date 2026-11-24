@@ -32,6 +32,8 @@ Cần python3 + numpy, playwright (chromium) và ffmpeg. Không có ffmpeg thì 
    - Các động tác ngồi: đặt gánh xuống đất bên cạnh. Chỉnh trong `GANH` của `dong-tac.js`.
 4. `gan-dong-tac.py`: ghi các động tác vào GLB thành animation (giữ tất cả xương trong mọi clip để chuyển clip không bị lệch).
 
+5. `lam-nhe.py`: gộp các đỉnh trùng (lưới máy tạo là "súp tam giác", mỗi tam giác 3 đỉnh riêng chỉ để mang pháp tuyến phẳng) và bỏ pháp tuyến. Trình xem glTF tự tô phẳng từng mặt nên hình không đổi, số đỉnh giảm khoảng 3 lần, file nhẹ hơn khoảng 1/3.
+
 ## Động tác (tên animation)
 | Tên | Động tác |
 |---|---|

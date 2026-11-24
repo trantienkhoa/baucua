@@ -18,7 +18,28 @@ class GLB:
         else:
             for k in range(a['count']): s.bin[off+k*stride:off+k*stride+sz*nc]=data[k].tobytes()
     def compact(s):
-        # bỏ dữ liệu không còn dùng (ví dụ texture cũ đã thay)
+        # bỏ dữ liệu không còn dùng (accessor cũ, texture cũ đã thay)
+        J=s.j; used=set()
+        for m in J.get('meshes',[]):
+            for p in m['primitives']:
+                used|=set(p['attributes'].values())
+                if 'indices' in p: used.add(p['indices'])
+                for t in p.get('targets',[]): used|=set(t.values())
+        for sk in J.get('skins',[]):
+            if 'inverseBindMatrices' in sk: used.add(sk['inverseBindMatrices'])
+        for an in J.get('animations',[]):
+            for sm in an['samplers']: used|={sm['input'],sm['output']}
+        am={k:i for i,k in enumerate(sorted(used))}
+        J['accessors']=[J['accessors'][k] for k in sorted(used)]
+        for m in J.get('meshes',[]):
+            for p in m['primitives']:
+                p['attributes']={k:am[v] for k,v in p['attributes'].items()}
+                if 'indices' in p: p['indices']=am[p['indices']]
+                if 'targets' in p: p['targets']=[{k:am[v] for k,v in t.items()} for t in p['targets']]
+        for sk in J.get('skins',[]):
+            if 'inverseBindMatrices' in sk: sk['inverseBindMatrices']=am[sk['inverseBindMatrices']]
+        for an in J.get('animations',[]):
+            for sm in an['samplers']: sm['input']=am[sm['input']]; sm['output']=am[sm['output']]
         used=set(a['bufferView'] for a in s.j['accessors'] if 'bufferView' in a)|set(i['bufferView'] for i in s.j.get('images',[]) if 'bufferView' in i)
         nb=bytearray(); remap={}
         for k,v in enumerate(s.j['bufferViews']):

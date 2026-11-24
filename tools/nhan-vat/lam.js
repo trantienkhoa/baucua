@@ -34,6 +34,8 @@ const run = (cmd, a) => { const r = spawnSync(cmd, a, { encoding: 'utf8' }); ret
       const outGlb = path.join(OUT, base + '.glb');
       const r2 = run(PY, ['-I', path.join(TOOL, 'gan-dong-tac.py'), TOOL, fixed, outGlb, jf]);
       if (!r2.ok) throw new Error('gắn động tác: ' + r2.out.trim().split('\n').pop());
+      const r3 = run(PY, ['-I', path.join(TOOL, 'lam-nhe.py'), outGlb, outGlb]);   // gộp đỉnh trùng: nhẹ ~3 lần, hình không đổi
+      if (!r3.ok) throw new Error('làm nhẹ: ' + r3.out.trim().split('\n').pop());
       // ảnh nhỏ cho bảng tổng quan
       await page.setViewportSize({ width: 300, height: 360 }); await open({ file: fixed, only: ['chay_bo'], cols: 1, label: base });
       await page.evaluate(() => window.frame(0.12)); await page.screenshot({ path: path.join(TMP, base + '-o.png') });
