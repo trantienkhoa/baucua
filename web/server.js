@@ -79,7 +79,7 @@ function limit(req, res, next) {
 }
 
 // --- cấu hình công khai cho trang web ---
-app.get('/api/public', (req, res) => res.json({ siteName: CFG.siteName, tiers: CFG.tiers, contact: CFG.contact, bank: { name: CFG.bank.bankName, holder: CFG.bank.accountName }, download: CFG.downloadUrl, demoVideo: CFG.demoVideo }));
+app.get('/api/public', (req, res) => res.json({ siteName: CFG.siteName, tiers: (CFG.tiers || []).map(({ downloadUrl, ...t }) => t), contact: CFG.contact, bank: { name: CFG.bank.bankName, holder: CFG.bank.accountName }, demoVideo: CFG.demoVideo }));
 
 // --- đặt hàng ---
 app.post('/api/order', limit, (req, res) => {
@@ -98,7 +98,8 @@ function orderView(o) {
   return {
     id: o.id, planName: o.planName, amount: o.amount, status: o.status, createdAt: o.createdAt, key: o.status === 'paid' ? o.key : null,
     qr: `https://img.vietqr.io/image/${CFG.bank.bin}-${CFG.bank.accountNumber}-compact2.png?${q}`,
-    bank: { name: CFG.bank.bankName, number: CFG.bank.accountNumber, holder: CFG.bank.accountName }, download: CFG.downloadUrl,
+    bank: { name: CFG.bank.bankName, number: CFG.bank.accountNumber, holder: CFG.bank.accountName },
+    download: o.status === 'paid' ? ((tier(o.tier) || {}).downloadUrl || CFG.downloadUrl) : null,   // link tải đúng gói, chỉ hiện khi đã trả tiền
   };
 }
 app.get('/api/order/:id', (req, res) => {

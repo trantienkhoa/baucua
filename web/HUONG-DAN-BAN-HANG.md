@@ -16,10 +16,11 @@ Thư mục `web/` là một máy chủ Node riêng (đặt trên VPS / hosting c
 | Khoá key chia sẻ | Không khoá được | Khoá được |
 
 ### Bán bằng key theo mã máy
+0. Gửi khách đúng gói zip đã mua (xem mục 2: `--goi=2d` / `--goi=3d` / `--goi=full`).
 1. Lần đầu, ở thư mục game trên máy anh: bấm đúp `TaoKey.bat` (hoặc `node tools/tao-key.js khoi-tao <link Zalo>`).
    → tạo cặp khoá trong `tools/.khoa-offline/` và file `license-pubkey.js` dùng để đóng gói.
    **Sao lưu thư mục `tools/.khoa-offline/`** (USB / Drive riêng tư): mất là không cấp được key cho bản đã bán, lộ là ai cũng tự tạo được key.
-2. Đóng gói: `node tools/dong-goi.js` (tự dùng khoá trong `tools/.khoa-offline/`).
+2. Đóng gói: `node tools/dong-goi.js --goi=2d` (hoặc `3d`, `full`; tự dùng khoá trong `tools/.khoa-offline/`).
 3. Khách cài game → trang nhập key hiện **mã máy** (dạng `312C-A795-B532-BAFC`) → khách gửi mã cho anh qua Zalo.
 4. Anh nhận tiền → mở `TaoKey.bat`, dán mã máy, chọn gói (1 = Bản 2D, 2 = Bản 3D, 3 = Bản 2D + 3D) → ra key `NLOF-…` → gửi khách → khách dán vào là chạy, không cần mạng.
    Mọi key đã cấp được ghi vào `tools/.khoa-offline/da-cap.csv`.
@@ -49,9 +50,12 @@ Thư mục `web/` là một máy chủ Node riêng (đặt trên VPS / hosting c
 
 ## 2. Đóng gói game gửi khách (khách chỉ cần giải nén → bấm ChayNgonLua.bat → nhập key)
 1. Trên máy chủ: `npm run xuat-khoa` → tạo `web/license-pubkey.js` (chỉ chứa khoá công khai, không có bí mật). Tải file này về máy anh, đặt vào thư mục `web/` của repo.
-2. Trên máy anh, ở thư mục gốc game: `node tools/dong-goi.js` → tạo `dist/NgonLuaCuoiCung-<phiên bản>.zip` (~140 MB).
+2. Trên máy anh, ở thư mục gốc game, đóng gói riêng từng bản:
+   - `node tools/dong-goi.js --goi=2d` → `dist/NgonLuaCuoiCung-<phiên bản>-2D.zip` (~50 MB). **Không kèm nhân vật / cảnh 3D**, khách mua Bản 2D không lấy được dữ liệu 3D.
+   - `node tools/dong-goi.js --goi=3d` → `…-3D.zip` (không kèm tranh cảnh 2D).
+   - `node tools/dong-goi.js --goi=full` → `…-2D-3D.zip` (đủ cả hai).
    Gói đã kèm sẵn Node.js cho Windows (`node\node.exe`), thư viện, toàn bộ asset, file ghi công âm thanh và hướng dẫn `DOC-TRUOC.txt`.
-3. Đưa file zip lên Google Drive, dán link vào `downloadUrl` trong `config.json`.
+3. Đưa từng file zip lên Google Drive, dán link vào `downloadUrl` của **đúng gói** trong `tiers` (`config.json`). Link chỉ hiện cho khách sau khi đã trả tiền.
 4. Bản game không có `license-pubkey.js` (bản anh đang phát triển) thì không khoá.
 
 Khách KHÔNG cần cài Node.js. Giọng đọc VieNeu là tuỳ chọn (cần Python); không cài thì game tự dùng giọng có sẵn của Windows.

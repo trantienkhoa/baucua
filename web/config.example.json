@@ -34,7 +34,8 @@
         "Giọng đọc tiếng Việt",
         "Cập nhật miễn phí bản mới",
         "Hỗ trợ cài đặt qua Zalo"
-      ]
+      ],
+      "downloadUrl": ""
     },
     {
       "id": "ban3d",
@@ -49,7 +50,8 @@
         "Ông Tư dẫn đoàn đổi cảnh",
         "Cần máy có card đồ hoạ",
         "Cập nhật miễn phí bản mới"
-      ]
+      ],
+      "downloadUrl": ""
     },
     {
       "id": "ban2d3d",
@@ -64,7 +66,8 @@
         "Đổi chế độ bất cứ lúc nào trong Cài đặt",
         "Cập nhật miễn phí bản mới",
         "Hỗ trợ cài đặt qua Zalo"
-      ]
+      ],
+      "downloadUrl": ""
     }
   ]
 }

@@ -1,13 +1,23 @@
 // Đóng gói bản phát hành "Ngọn Lửa Cuối Cùng" cho khách (Windows):
-//   node tools/dong-goi.js [đường-dẫn/license-pubkey.js]
-// Kết quả: dist/NgonLuaCuoiCung-<phiên bản>.zip — khách giải nén, bấm đúp ChayNgonLua.bat, nhập key là chơi.
+//   node tools/dong-goi.js --goi=2d|3d|full [đường-dẫn/license-pubkey.js]
+//   2d   = Bản 2D: KHÔNG kèm nhân vật / cảnh 3D (khách không lấy được dữ liệu 3D)
+//   3d   = Bản 3D: không kèm tranh cảnh 2D
+//   full = Bản 2D + 3D
+// Kết quả: dist/NgonLuaCuoiCung-<phiên bản>-<gói>.zip — khách giải nén, bấm đúp ChayNgonLua.bat, nhập key là chơi.
 // Gói kèm sẵn Node.js (node\node.exe) nên khách KHÔNG cần cài Node. Không cần thư viện ngoài.
 const fs = require('fs'), path = require('path'), zlib = require('zlib');
 const ROOT = path.join(__dirname, '..');
 const PKG = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 const NAME = 'NgonLuaCuoiCung';
 const CACHE = path.join(__dirname, '.cache');
-const OUT = path.join(ROOT, 'dist', `${NAME}-${PKG.version}.zip`);
+const ARGS = process.argv.slice(2), GOI = ((ARGS.find(a => a.startsWith('--goi=')) || '').slice(6) || '').toLowerCase();
+const POS = ARGS.filter(a => !a.startsWith('--'));
+if (!['2d', '3d', 'full'].includes(GOI)) { console.error('Ghi rõ gói: node tools/dong-goi.js --goi=2d | --goi=3d | --goi=full'); process.exit(1); }
+const OUT = path.join(ROOT, 'dist', `${NAME}-${PKG.version}-${GOI === 'full' ? '2D-3D' : GOI.toUpperCase()}.zip`);
+// phần chỉ bản 3D dùng / chỉ bản 2D dùng
+const ONLY3D = rel => /^public\/models\/ma\/(nhanvat|C|D|G|H)\//.test(rel) || /^public\/models\/ma\/B\/(models|backgrounds)\//.test(rel) || /^public\/models\/[^/]+\.glb$/.test(rel)
+  || /^node_modules\/three\//.test(rel) || /^public\/(ma3d|avatars|costumes|outfits|dances)\.js$/.test(rel);
+const ONLY2D = rel => /^public\/models\/ma\/2D\//.test(rel);
 
 // ---------- CRC32 + ghi zip (deflate) ----------
 const CRC = new Uint32Array(256).map((_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
@@ -65,7 +75,7 @@ async function nodeExe() {
 
 // file / thư mục đưa vào gói (thư mục data/, web/, git, file thử nghiệm không đưa vào)
 const INCLUDE = ['server.js', 'license.js', 'package.json', 'ChayNgonLua.bat', 'ChayGiongMa.bat', 'public', 'node_modules', 'tools/vieneu'];
-const SKIP = rel => /(^|\/)(\.git|\.cache|__pycache__)(\/|$)/.test(rel) || /^public\/_/.test(rel) || /\.(log|map)$/.test(rel) || /^public\/models\/ma\/(B|C|D|G)\/MANIFEST/.test(rel);
+const SKIP = rel => (GOI === '2d' && ONLY3D(rel)) || (GOI === '3d' && ONLY2D(rel)) || /(^|\/)(\.git|\.cache|__pycache__)(\/|$)/.test(rel) || /^public\/_/.test(rel) || /\.(log|map)$/.test(rel) || /^public\/models\/ma\/(B|C|D|G)\/MANIFEST/.test(rel);
 function* walk(rel) {
   const abs = path.join(ROOT, rel), st = fs.statSync(abs);
   if (st.isDirectory()) { for (const f of fs.readdirSync(abs)) yield* walk(rel + '/' + f); }
@@ -74,7 +84,7 @@ function* walk(rel) {
 
 (async () => {
   // ưu tiên file do tools/tao-key.js tạo (có key theo máy, gộp sẵn key máy chủ nếu có), không có thì dùng file của web/
-  const pub = process.argv[2] || [path.join(__dirname, '.khoa-offline', 'license-pubkey.js'), path.join(ROOT, 'web', 'license-pubkey.js')].find(f => fs.existsSync(f)) || path.join(ROOT, 'web', 'license-pubkey.js');
+  const pub = POS[0] || [path.join(__dirname, '.khoa-offline', 'license-pubkey.js'), path.join(ROOT, 'web', 'license-pubkey.js')].find(f => fs.existsSync(f)) || path.join(ROOT, 'web', 'license-pubkey.js');
   if (!fs.existsSync(pub)) { console.error(`Thiếu license-pubkey.js.\n- Bán bằng key theo máy (không cần máy chủ): chạy "node tools/tao-key.js khoi-tao" trước.\n- Bán qua máy chủ web/: trên máy chủ chạy "npm run xuat-khoa" rồi đưa file vào thư mục web/.`); process.exit(1); }
   const pk = require(path.resolve(pub));
   console.log('Dùng khoá:', pub, '·', [pk.offlinePublicKey && 'key theo máy', pk.server && 'key qua máy chủ ' + pk.server].filter(Boolean).join(' + '));
@@ -84,8 +94,10 @@ function* walk(rel) {
   const z = zipWriter(OUT); let bytes = 0;
   for (const top of INCLUDE) for (const rel of walk(top)) { const d = fs.readFileSync(path.join(ROOT, rel)); bytes += d.length; z.add(`${NAME}/${rel}`, d); }
   z.add(`${NAME}/license-pubkey.js`, fs.readFileSync(pub));
+  if (GOI === '2d') z.add(`${NAME}/public/ma3d.js`, Buffer.from('// Bản 2D: không có cảnh 3D.\n'));   // giữ chỗ để trang không báo lỗi thiếu file
+  z.add(`${NAME}/GOI.txt`, Buffer.from({ '2d': 'Bản 2D', '3d': 'Bản 3D', full: 'Bản 2D + 3D' }[GOI] + '\r\n', 'utf8'));
   z.add(`${NAME}/node/node.exe`, fs.readFileSync(exe));
-  z.add(`${NAME}/DOC-TRUOC.txt`, Buffer.from(`NGỌN LỬA CUỐI CÙNG — bản ${PKG.version}\r\n\r\n1. Giải nén cả thư mục ra ổ đĩa (đừng chạy trong file nén).\r\n2. Bấm đúp ChayNgonLua.bat\r\n3. Trình duyệt tự mở trang nhập key → dán key → Kích hoạt.\r\n4. OBS / TikTok LIVE Studio: thêm nguồn Browser, URL http://localhost:3300/ma.html?obs=1 , rộng 1080, cao 1920.\r\n   Ở trang điều khiển nhập tên kênh TikTok → Kết nối.\r\n\r\nĐã kèm sẵn Node.js ${v}, không cần cài thêm.\r\nGiọng đọc VieNeu (tuỳ chọn): cài Python 3.10+ rồi bấm ChayGiongMa.bat một lần; không cài thì game dùng giọng có sẵn của Windows.\r\nGhi công âm thanh: public/models/ma/I/GHI-CONG.txt\r\n`, 'utf8'));
+  z.add(`${NAME}/DOC-TRUOC.txt`, Buffer.from(`NGỌN LỬA CUỐI CÙNG — bản ${PKG.version} · ${{ '2d': 'Bản 2D', '3d': 'Bản 3D', full: 'Bản 2D + 3D' }[GOI]}\r\n\r\n1. Giải nén cả thư mục ra ổ đĩa (đừng chạy trong file nén).\r\n2. Bấm đúp ChayNgonLua.bat\r\n3. Trình duyệt tự mở trang nhập key → dán key → Kích hoạt.\r\n4. OBS / TikTok LIVE Studio: thêm nguồn Browser, URL http://localhost:3300/ma.html?obs=1 , rộng 1080, cao 1920.\r\n   Ở trang điều khiển nhập tên kênh TikTok → Kết nối.\r\n\r\nĐã kèm sẵn Node.js ${v}, không cần cài thêm.\r\nGiọng đọc VieNeu (tuỳ chọn): cài Python 3.10+ rồi bấm ChayGiongMa.bat một lần; không cài thì game dùng giọng có sẵn của Windows.\r\nGhi công âm thanh: public/models/ma/I/GHI-CONG.txt\r\n${GOI !== '2d' ? 'Ghi công nhân vật 3D: public/models/ma/nhanvat/GHI-CONG.txt\r\n' : ''}Key phải đúng gói đã mua (key Bản 2D dùng với gói Bản 2D…).\r\n`, 'utf8'));
   const n = z.close();
   console.log(`✓ ${OUT}\n  ${n} file · ${(fs.statSync(OUT).size / 2 ** 20).toFixed(0)} MB (gốc ${(bytes / 2 ** 20).toFixed(0)} MB + node.exe)`);
 })().catch(e => { console.error('Lỗi:', e.message); process.exit(1); });
