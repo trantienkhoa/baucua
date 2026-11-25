@@ -1,0 +1,11 @@
+GHI CÔNG — Nhân vật nhóm F (tp-001 … tp-050)
+
+Đầu người chuẩn gắn lên nhân vật được dựng từ khuôn MakeHuman (lưới base.obj và các "target" dáng đầu,
+cằm, má, giới tính, tuổi), https://github.com/makehumancommunity/makehuman
+Tài sản MakeHuman phát hành theo CC0 1.0 (từ tháng 9/2020): dùng thương mại tự do, không bắt buộc ghi công.
+Ghi lại ở đây để minh bạch. Bản gốc © Manuel Bastioni 2014; © Data Collection AB 2020.
+
+Mặt nhân vật lấy từ ảnh chân dung của chủ game (tp-001 … tp-050: tools/nhan-vat/chan-dung/). Nhân vật nào thiếu ảnh thì công cụ vẽ mặt đơn giản.
+
+Dò mắt, miệng trên ảnh chân dung: mô hình YuNet (tools/nhan-vat/yunet.onnx) từ https://github.com/opencv/opencv_zoo,
+giấy phép MIT, © 2020 Shiqi Yu. Chỉ dùng trong công cụ làm nhân vật, không chạy trong game.

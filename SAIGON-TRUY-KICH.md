@@ -8,16 +8,25 @@ Game tương tác tặng quà cho TikTok LIVE, mang không khí các game hành 
 
 ## 1. Ý tưởng chính
 
-Người xem không chỉ ngồi xem: **mỗi người là một chiếc xe chạy trong thành phố**, có ảnh đại diện và tên TikTok trên đầu. Cả phòng chia hai phe tranh địa bàn từng khu của bản đồ. Phe nào giữ nhiều khu hơn sau một mùa thì thắng.
+Người xem không chỉ ngồi xem: **mỗi người là một nhân vật người Việt dạo phố** (bộ 50 nhân vật người thật dùng chung với game kể chuyện ma "Ngọn Lửa"), có tên TikTok trên đầu và bong bóng thoại hiện đúng câu họ vừa bình luận. Cả phòng chia hai phe tranh địa bàn từng khu của bản đồ. Phe nào giữ nhiều khu hơn sau một mùa thì thắng.
 
-| Hành động của người xem | Trong game |
+Màn hình **tập trung vào nhân vật**: máy quay chọn một người làm "ngôi sao" để bám theo (quay sau lưng, quay chính diện thấy rõ mặt, cận mặt khi người đó tặng quà). Giao diện chỉ còn một thanh trên cùng (tên khu, đồng hồ, thanh hai phe), một dòng top 3 và một dòng hướng dẫn quà. Bản đồ nhỏ chỉ hiện khi bay chuyển khu.
+
+| Hành động của người xem | Nhân vật trong game |
 |---|---|
-| 💬 Bình luận bất kỳ | Có xe chạy trong thành phố |
-| 💬 Gõ `1` / `2` | Vào phe 🐲 **Rồng Đỏ** / 🐯 **Hổ Xanh** |
-| 💬 Gõ `còi`, `nitro` | Bóp còi, tăng tốc |
-| ❤️ Thả tim | Cộng điểm phe + đếm tới mục tiêu gọi **Boss Hắc Long** |
-| ➕ Follow / ↗ Chia sẻ | Pháo hoa mang tên mình, cộng điểm phe |
-| 🎁 Tặng quà | Độ xe, gọi sự kiện lớn, đẩy thanh điểm của phe |
+| 💬 Bình luận bất kỳ | Nhân vật của bạn xuất hiện, vẫy tay chào, rồi dạo phố; câu bình luận hiện thành bong bóng thoại trên đầu |
+| 💬 Gõ `1` / `2` | Vào phe 🐲 **Rồng Đỏ** / 🐯 **Hổ Xanh** (vòng sáng dưới chân đổi màu) |
+| 💬 `chào`, `hi` | Vẫy tay |
+| 💬 `haha`, `hihi` | Vỗ tay |
+| 💬 `nhảy` | Nhảy múa 6 giây |
+| 💬 `chạy` | Chạy bộ |
+| 💬 `ngồi` / `đứng` | Ngồi chồm hổm (hoặc bó gối) ở mép đường / đứng dậy đi tiếp |
+| 💬 `cảm ơn` · `sợ quá` · `kìa` | Cúi chào · đứng run · chỉ tay |
+| ❤️ Thả tim | Tim bay lên từ đầu nhân vật, cộng điểm phe, đếm tới mục tiêu gọi **Boss Hắc Long** |
+| ➕ Follow / ↗ Chia sẻ | Pháo hoa, nhân vật cúi chào / vẫy tay |
+| 🎁 Tặng quà | Thẻ tiêu điểm mang tên bạn, máy quay cận mặt nhân vật cúi chào cảm ơn, gọi sự kiện lớn |
+
+Ai lâu không tương tác (mặc định 90 giây) thì nhân vật **ra mép đường ngồi nghỉ** kiểu vỉa hè; tương tác lại là đứng dậy đi tiếp.
 
 ## 2. Bản đồ thế giới mở “Xứ Rồng”: 10 khu, mỗi khu một giờ trong ngày
 
@@ -50,23 +59,23 @@ Nhịp này giữ người xem ở lại: lúc nào cũng có một khu đang tr
 
 | Quà (ví dụ) | Xu | Sự kiện |
 |---|---|---|
-| 🌹 Hoa hồng | 1+ | **Nitro** phun lửa ống bô + điểm cho phe |
-| 🍩 Donut | 30+ | **Drift gắt**: xe xoay vòng khói tại chỗ, máy quay cận cảnh |
-| 🎩 Mũ | 99+ | **Truy nã ⭐⭐⭐**: 3 xe đen của Hắc Long rượt theo, người tặng cắt đuôi, xe đàn em nổ tung |
-| 🐶 Corgi | 299+ | **Trực thăng thả hàng**: trực thăng màu phe bay qua, thả 3 thùng dù nổ ra xu |
-| 💸 Súng tiền | 500+ | **Mưa tiền**: tiền rơi khắp khu, Má Tư Chợ Nổi cảm ơn |
-| 🌌 Thiên hà | 1.000+ | **Mua đứt khu** ngay lập tức, tên lên bảng LED |
-| 🦁 Sư tử | 5.000+ | **TRÙM XỨ RỒNG**: dựng tượng vàng có tên ở quảng trường, pháo hoa cả khu, bảng LED trên nóc nhà Quận Neon đổi tên, vương miện 👑 trên đầu |
+| 🌹 Hoa hồng | 1+ | Nhân vật **chạy nhanh** + điểm cho phe; từ 5 xu thì cúi chào cảm ơn trước máy quay |
+| 🍩 Donut | 30+ | **Flash mob**: người tặng nhảy, tối đa 12 người xung quanh nhảy theo, máy quay xoay quanh |
+| 🎩 Mũ | 99+ | **Truy nã ⭐⭐⭐**: 3 xe đen của Hắc Long rượt theo, nhân vật chạy thoát, người xung quanh chỉ tay, xe đàn em nổ tung |
+| 🐶 Corgi | 299+ | **Trực thăng thả hàng**: nhân vật chỉ lên trời, 3 thùng dù rơi xuống nổ ra xu, người gần đó vỗ tay |
+| 💸 Súng tiền | 500+ | **Mưa tiền**: tiền rơi, cả đám đông quanh người tặng nhảy múa |
+| 🌌 Thiên hà | 1.000+ | **Mua đứt khu** ngay: nhân vật cúi chào, đồng đội vỗ tay, tên lên bảng LED |
+| 🦁 Sư tử | 5.000+ | **TRÙM XỨ RỒNG**: **đúc tượng vàng y hệt nhân vật của người tặng** (đang giơ tay vẫy) ở quảng trường, cả phố vỗ tay, vương miện 👑 trên đầu |
 
 Riêng ở **Cầu Rồng**, quà từ 30 xu còn làm **rồng phun lửa** (rồng cũng tự phun khoảng 24 giây một lần).
 
 Quà nhận theo **số xu**, không theo tên quà, nên dùng được mọi loại quà của mọi khu vực. Nhiều quà lớn liên tiếp thì xếp hàng diễn lần lượt, không đè lên nhau.
 
-### Độ xe theo tổng xu (khoe đẳng cấp)
+### Lên đời theo tổng xu (luôn thấy cả người nhân vật)
 
-🛵 Xe số cổ (0) → 🛵 Tay ga độ kiểng (10) → 🏍️ Mô tô phân khối lớn (50) → 🚗 Xe mui trần (150) → 🏎️ Siêu xe (400) → 🚁 **Trực thăng** (1.000) → 🐉 **Cưỡi Rồng Vàng** (3.000)
+🚶 Đi bộ (0) → 🛹 Xe điện cân bằng (10) → 🚗 Đứng trên xe mui trần (50) → 🏎️ Siêu xe mui trần (150) → 🎉 **Nhảy trên xe hoa diễu hành** (400) → 🎈 **Đứng trong giỏ khinh khí cầu** (1.000) → 🐉 **Đứng trên đầu Rồng Vàng** (3.000)
 
-Xe từ tay ga độ trở lên có đèn gầm màu phe. Trực thăng bay vòng trên khu, có đèn rọi. Rồng Vàng là con rồng nhiều đốt uốn lượn hình số 8 trên trời.
+Nhân vật luôn đứng trên bệ nên người xem thấy rõ mặt và động tác: trên xe hoa thì nhảy, trên xe và khinh khí cầu thì thỉnh thoảng vẫy tay, trên rồng thì nhảy múa giữa trời.
 
 ### Sao truy nã (cấp độ chơi lớn)
 
@@ -76,6 +85,7 @@ Xe từ tay ga độ trở lên có đèn gầm màu phe. Trực thăng bay vòn
 
 - Thả tim đủ mục tiêu (mặc định 2.000 tim) thì **xe bọc thép đen của Đại Ca Hắc Long** xuất hiện, kèm thanh máu và 75 giây đếm ngược.
 - Mỗi tim gây 1 sát thương, mỗi bình luận 3, mỗi xu quà 3.
+- Boss tới thì cả phố **giật mình**, vài người đứng run; hạ được boss thì cả phố nhảy mừng.
 - Hạ được boss: nổ lớn, mưa tiền, **MVP** (người gây nhiều sát thương nhất) được thưởng điểm lớn cho phe. Không kịp thì Hắc Long cười đểu bỏ chạy.
 - Boss là sự kiện để **người không tặng quà cũng có việc làm** (thả tim), kéo tương tác cho phòng.
 
@@ -131,7 +141,8 @@ Dùng chung kết nối TikTok với game sàn nhảy. Nút thử trong trang đ
 | `cap=300` | 300 | Điểm cần để chiếm khu (phòng đông quà thì tăng lên 1000–3000) |
 | `boss=2000` | 2000 | Số tim để gọi Boss Hắc Long |
 | `bosshp=1500` | 1500 | Máu tối thiểu của boss (tự tăng theo số người chơi) |
-| `max=45` | 45 | Số xe tối đa cùng lúc (máy yếu giảm xuống 25) |
+| `max=30` | 30 | Số nhân vật tối đa cùng lúc (máy yếu giảm xuống 15) |
+| `afk=90` | 90 | Số giây không tương tác thì nhân vật ngồi nghỉ vỉa hè |
 | `fx=low` | — | Đồ hoạ nhẹ cho máy yếu |
 | `music=0`, `tts=0` | bật | Tắt nhạc nền, tắt giọng MC |
 | `demo=1` | — | Bật người xem giả lập kể cả khi có máy chủ |
@@ -145,10 +156,15 @@ Phím tắt khi xem thử: **T** bảng thử, **M** bật/tắt nhạc, **N** c
 
 | File | Nội dung |
 |---|---|
-| `index.html` | Giao diện HUD, bố cục khung dọc 9:16 chừa vùng bình luận TikTok |
+| `index.html` | Giao diện gọn: thanh trên, dòng top 3, dòng hướng dẫn, thẻ tiêu điểm; khung dọc 9:16 |
+| `chars.js` | Nạp nhân vật người thật `tp-001…tp-050` (GLB khung xương Mixamo, 14 động tác), nhân bản, trộn động tác, đúc tượng vàng |
 | `main.js` | Luật chơi, máy quay tự động, chuyển cảnh bay qua bản đồ, sự kiện quà, boss, chế độ giả lập |
 | `world.js` | Dựng 10 khu, trời theo giờ, sông, biển, đường cao tốc, máy bay, thuyền, mây |
-| `vehicles.js` | 7 cấp xe, xe đàn em, xe boss, thùng dù, tượng vàng, pháo hoa / khói / mưa tiền |
+| `vehicles.js` | Bệ cho nhân vật đứng (xe điện, mui trần, siêu xe, xe hoa, khinh khí cầu, rồng), xe đàn em, xe boss, thùng dù, pháo hoa / khói / mưa tiền |
 | `cast.js` | Dàn nhân vật, chân dung SVG, lời thoại |
 | `audio.js` | Nhạc nền mỗi khu một giai điệu, hiệu ứng âm thanh, giọng MC tiếng Việt |
-| `three.js` | Nạp Three.js từ máy chủ game (offline), không có thì lấy từ CDN |
+| `three.js` | Three.js nạp qua importmap trong `index.html` (bản trong máy chủ game, chạy offline) |
+
+### Nhân vật dùng chung với game ma
+
+`public/models/ma/nhanvat/tp-001.glb … tp-050.glb` + `danh-sach.json` lấy từ game "Ngọn Lửa" (công cụ làm nhân vật ở `tools/nhan-vat/` bên nhánh game ma; ghi công trong `GHI-CONG.txt`). Mỗi tài khoản TikTok luôn ra cùng một nhân vật. `tp-025` (ông cụ khăn rằn, chống gậy) dành cho vai Chú Bảy đứng giới thiệu ở quảng trường, không cấp cho người xem, giống ông Tư bên game ma. Nhân vật tải dần khi có người vào (cả bộ khoảng 226 MB), 6 người được tải sẵn lúc mở game.

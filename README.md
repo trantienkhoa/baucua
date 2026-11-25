@@ -20,9 +20,9 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
-## 🏙️ Game mới: Sài Gòn Truy Kích — thế giới mở bản Việt (bản 2.9.0)
+## 🏙️ Game mới: Sài Gòn Truy Kích — thế giới mở bản Việt (bản 2.10.0: tập trung vào nhân vật)
 
-Game LIVE thứ hai, dùng chung kết nối TikTok: người xem là những chiếc xe chạy trong thành phố 3D, chia phe 🐲 Rồng Đỏ / 🐯 Hổ Xanh tranh 10 khu của bản đồ Xứ Rồng (Quận Neon, Chợ Lớn, Phố Cổ Hồ Gươm, Chợ Nổi, Bãi Biển Vàng, Vịnh Hạ Long, Cảng Khánh Hội, Cầu Rồng phun lửa, Đèo Mây, Sân Bay Tân Sơn). Máy quay bay qua bản đồ để chuyển khu. Quà để độ xe (lên tới trực thăng, cưỡi Rồng Vàng), gọi truy nã, thả hàng, mưa tiền, mua đứt khu, thành Trùm Xứ Rồng có tượng vàng. Thả tim gọi Boss Hắc Long.
+Game LIVE thứ hai, dùng chung kết nối TikTok: người xem là những nhân vật người thật (bộ 50 nhân vật của game ma) dạo phố trong thành phố 3D, gõ lệnh để nhân vật vẫy tay, nhảy, chạy, ngồi; máy quay bám theo nhân vật, giao diện gọn; chia phe 🐲 Rồng Đỏ / 🐯 Hổ Xanh tranh 10 khu của bản đồ Xứ Rồng (Quận Neon, Chợ Lớn, Phố Cổ Hồ Gươm, Chợ Nổi, Bãi Biển Vàng, Vịnh Hạ Long, Cảng Khánh Hội, Cầu Rồng phun lửa, Đèo Mây, Sân Bay Tân Sơn). Máy quay bay qua bản đồ để chuyển khu. Quà để lên xe hoa, khinh khí cầu, đứng trên Rồng Vàng, gọi flash mob, truy nã, thả hàng, mưa tiền, mua đứt khu, thành Trùm Xứ Rồng có tượng vàng đúc từ chính nhân vật. Thả tim gọi Boss Hắc Long.
 
 - OBS: `http://localhost:3300/saigon/?obs=1` (1080 × 1920). Xem thử: `http://localhost:3300/saigon/` → nút **🧪 Thử quà**.
 - Ý tưởng gameplay, dàn nhân vật, bảng quà và tham số tuỳ chỉnh: xem **[SAIGON-TRUY-KICH.md](SAIGON-TRUY-KICH.md)**.
