@@ -1,0 +1,7 @@
+node_modules/
+data/
+# trang thử nội bộ
+public/_*.html
+# mô hình 3D mua ngoài (giấy phép không cho phát tán lại)
+models/
+public/models/custom/
