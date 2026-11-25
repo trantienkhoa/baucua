@@ -32,12 +32,14 @@ Người xem **bình luận để ghi danh** → **32 đô vật** đánh **batt
 |---|---|
 | `fighter.fbx` | thân 32 đô vật (bắt buộc để có nhân vật đẹp) |
 | `girl.glb` | cô gái cầm biển (BlondeCheer) |
+| `fan.fbx` | khán giả người thật ở hàng đầu khán đài (Mixamo *Taunt*, có da) |
 | `chair.glb` | ghế thép khi người xem tặng quà "Đập ghế xếp" |
 | `anim/punch.fbx` | đấm liên hoàn (Mixamo *Punch To Elbow Combo*) |
 | `anim/kick.fbx` | đá (Mixamo *Kicking*) |
 | `anim/victory.fbx` | ăn mừng chiến thắng (Mixamo *Victory*) |
-| `anim/clap.fbx` | người thắng vòng 16 đứng vỗ tay chờ (Mixamo *Standing Clap*) |
-| `anim/sitcheer.fbx` | bình luận viên ngồi cổ vũ khi có chiêu kết liễu (Mixamo *Cheering While Sitting*) |
+| `anim/clap.fbx` | khán giả vỗ tay; người thắng vòng 16 vỗ tay chờ (Mixamo *Standing Clap*) |
+| `anim/fistpump.fbx`, `anim/taunt.fbx` | khán giả giơ nắm đấm / khiêu khích khi có đòn lớn |
+| `anim/sitcheer.fbx` | (dự phòng) ngồi cổ vũ |
 
 Animation Mixamo tải dạng *FBX, Without Skin*. Game đo hướng xương trong animation rồi áp lên mọi nhân vật, nên tải thêm animation khác cũng dùng được (mình sẽ gắn tên mới khi bạn gửi).
 Thiếu file nào thì game dùng động tác dựng bằng code thay thế.

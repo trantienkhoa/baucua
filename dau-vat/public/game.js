@@ -77,10 +77,11 @@ try { const r = await fetch('/models/custom/female.fbx', { method: 'HEAD' }); if
 // cô gái cầm biển (girl.glb), animation Mixamo (models/custom/anim/*.fbx) — đều tuỳ chọn
 const exists = async u => { try { return (await fetch(u, { method: 'HEAD' })).ok; } catch (e) { return false; } };
 try { if (await exists('/models/custom/girl.glb')) await loadFighter('/models/custom/girl.glb', 'girl'); } catch (e) { console.warn('Không tải được girl.glb', e); }
+try { if (await exists('/models/custom/fan.fbx')) await loadFighter('/models/custom/fan.fbx', 'fan'); } catch (e) { console.warn('Không tải được fan.fbx', e); }
 const CLIPS = {};
-await Promise.all(['punch', 'kick', 'victory', 'clap', 'sitcheer'].map(async n => { const u = `/models/custom/anim/${n}.fbx`; if (await exists(u)) try { CLIPS[n] = await loadClip(u); } catch (e) { console.warn('Lỗi animation', n, e); } }));
+await Promise.all(['punch', 'kick', 'victory', 'clap', 'sitcheer', 'fistpump', 'taunt'].map(async n => { const u = `/models/custom/anim/${n}.fbx`; if (await exists(u)) try { CLIPS[n] = await loadClip(u); } catch (e) { console.warn('Lỗi animation', n, e); } }));
 // đoạn dùng trong từng animation: [từ, tới, lúc trúng đòn (tính từ đầu đoạn)]
-const CLIP_SEG = { punch: [0.35, 1.2, 0.35], kick: [0.3, 1.4, 0.6], victory: [1.6, 8.5], clap: [1.2, 4.9], sitcheer: [0, 0] };
+const CLIP_SEG = { punch: [0.35, 1.2, 0.35], kick: [0.3, 1.4, 0.6], victory: [1.6, 8.5], clap: [1.2, 4.9], sitcheer: [0, 0], fistpump: [0, 0], taunt: [0, 0] };
 function makeBody(def) {
   if (def.girl && fighterReady('girl')) return createFighter(def, 'girl');
   if (def.female && fighterReady('female')) return createFighter(def, 'female');
@@ -168,6 +169,41 @@ if (await exists('/models/custom/chair.glb')) try {
 } catch (e) { console.warn('Lỗi ghế', e); }
 const beltMesh = makeBelt(); beltMesh.visible = false; scene.add(beltMesh);
 let chairOwner = null, beltOwner = null, followTarget = null;
+// ---------- khán giả người thật ở các hàng đầu: vỗ tay, giơ nắm đấm, khiêu khích theo không khí trận đấu ----------
+const fans = [];
+const FAN_CLOTH = ['#2a2f3c', '#7a1f2b', '#1f4f8a', '#3b5a2a', '#5a3d1e', '#444', '#8a6a1f', '#2f6f6f', '#6b2f6b'];
+const FAN_SKIN = ['#e3b08a', '#c8946c', '#a8714e', '#7a4e33', '#f0c8a8'];
+if (fighterReady('fan') || fighterReady('girl')) {
+  arena.fanSpots.forEach((p, i) => {
+    const useGirl = fighterReady('girl') && (i % 4 === 3 || !fighterReady('fan'));
+    const body = createFighter({ name: 'fan', height: useGirl ? rand(1.6, 1.72) : rand(1.68, 1.85) }, useGirl ? 'girl' : 'fan');
+    for (const m of [].concat(body.mesh.material)) {
+      const nm = (m.name || '').toLowerCase();
+      if (!useGirl && /cloth/.test(nm)) m.color.set(pick(FAN_CLOTH));
+      if (!useGirl && /skin/.test(nm)) m.color.set(pick(FAN_SKIN));
+    }
+    body.mesh.castShadow = false;
+    for (const m of [].concat(body.mesh.material)) if (m.emissive) { m.emissive.copy(m.color).multiplyScalar(0.12); }
+    body.root.position.copy(p); body.root.rotation.y = p.yaw; scene.add(body.root);
+    fans.push({ body, t: rand(0, 5), clip: pick(['clap', 'fistpump', 'clap', 'taunt']), speed: rand(0.85, 1.15), burst: 0 });
+  });
+}
+function fanBurst() { if (fans.length && G.mode === 'match' && Math.random() < 0.35) crowdCut(); for (const f of fans) { f.burst = rand(1.8, 3); f.clip = pick(['fistpump', 'taunt', 'fistpump']); } }
+let fanAcc = 0, crowdUntil = 0;
+function crowdCut() { if (cam.shot === 'pin' || cam.shot === 'aerial') return; cam.fanIdx = (Math.random() * fans.length) | 0; setShot('crowd', null, true); crowdUntil = G.time + 1.6; }
+function updateFans(dt) {
+  if (!fans.length) return;
+  fanAcc += dt; if (fanAcc < 1 / 30) return;   // 30 hình/giây là đủ cho khán giả
+  const d = fanAcc; fanAcc = 0;
+  for (const f of fans) {
+    f.t += d * f.speed * (0.7 + hype * 0.6);
+    if (f.burst > 0) { f.burst -= d; if (f.burst <= 0) f.clip = hype > 0.6 ? pick(['clap', 'fistpump']) : 'clap'; }
+    const c = CLIPS[f.clip] || CLIPS.clap;
+    if (!c) continue;
+    // không khí trầm thì chỉ vỗ tay nhẹ / đứng xem
+    f.body.apply(clipFrame(c, f.t, true), 0.5);
+  }
+}
 
 // ================== TRẠNG THÁI GIẢI ==================
 const G = {
@@ -278,7 +314,7 @@ function onMoveHit(a, d, act) {
   let dmg = m.dmg * a.powMul() * (fin ? 2.0 : sig ? 1.3 : 0.9) * rand(0.9, 1.1);
   if (G.mode === 'royal') dmg *= royalHeat();
   damage(d, dmg, a);
-  if (fin) { a.mom = 0; a.lastFin = G.time; d.finHit = G.time; staff.comm1.cheerT = staff.comm2.cheerT = 2.07; }
+  if (fin) { a.mom = 0; a.lastFin = G.time; d.finHit = G.time; fanBurst(); }
   SFX.hit(m.sound || 'slam', fin ? 1.3 : 1);
   if (m.sound === 'slam') arena.shakeRopes(0.8);
   camShake = Math.max(camShake, fin ? 0.5 : 0.25);
@@ -328,6 +364,7 @@ function knockDown(d, prone = false) { d.act = { k: 'down', t: 0, dur: downTime(
 
 // ---------- loại khỏi battle royal ----------
 function eliminate(d, a) {
+  if (Math.random() < 0.6) fanBurst();
   if (G.mode === 'multi') { d.out = true; d.inRing = false; d.act = { k: 'out', t: 0 }; if (a) pairResult(a, d, 'ném qua dây'); return; }
   // đã đủ 16 người: người bị ném bám được mép đài, lăn lại vào trong
   if (G.mode === 'royal' && G.active.filter(w => !w.out).length <= 16) {
@@ -695,7 +732,6 @@ function staffPose(s) {
   if (s === staff.announcer) return s.talking ? Object.assign({}, P.stand, { rArm: [-60, 0, -10], rFore: [-110, 0, 0], lArm: [-30 - 40 * Math.max(0, Math.sin(t * 3)), 0, 30], head: [-8, 0, 0] }) : Object.assign({}, P.stand, { rArm: [-20, 0, -10], rFore: [-90, 0, 0] });
   if (s === staff.timekeeper) return Object.assign({}, P.sit, { hips: { p: [0, 0.52, 0], r: [0, 0, 0] }, lThigh: [-88, 0, 6], rThigh: [-88, 0, -6], lShin: [88, 0, 0], rShin: [88, 0, 0], spine: [10, 0, 0], rArm: s.ring > 0 ? [-80, 0, -10] : [-40, 0, -10], rFore: s.ring > 0 ? [-60 - 40 * Math.sin(t * 30), 0, 0] : [-70, 0, 0], lArm: [-40, 0, 10], lFore: [-70, 0, 0] });
   // bình luận viên ngồi (đứng bật dậy cổ vũ khi có đòn lớn)
-  if (s.cheerT > 0 && CLIPS.sitcheer) return clipFrame(CLIPS.sitcheer, 2.07 - s.cheerT, false);
   const talk = s.talkT > 0;
   return Object.assign({}, P.sit, { hips: { p: [0, 0.52, 0], r: [0, 0, 0] }, lThigh: [-88, 0, 6], rThigh: [-88, 0, -6], lShin: [88, 0, 0], rShin: [88, 0, 0], spine: [8, 0, 0],
     rArm: talk ? [-60 - 25 * Math.sin(t * 5), 0, -20] : [-45, 0, -10], rFore: talk ? [-70, 0, 0] : [-80, 0, 0], lArm: [-45, 0, 10], lFore: [-80, 0, 0], head: [-6, s.look || 0, 0] });
@@ -773,7 +809,7 @@ function refCount(r, dt) {
     // thoát!
     if (G.mode === 'match') hud.banner('THOÁT!', `${pinned.def.name} kịp nhấc vai ở 2,9`, '#3dff6e', 1.4, 140);
     else { const p = G.headScreen(pinned); if (p) hud.float(p.x, p.y - 40, 'THOÁT!', '#3dff6e', 80); }
-    SFX.pop(1); hype = 1;
+    SFX.pop(1); hype = 1; fanBurst();
     if (G.mode === 'match' || Math.random() < 0.4) comm(fill(pick(L.kick), { d: pinned.def.name }), -1, G.mode === 'match');
     cover.act = { k: 'down', t: 0, dur: 0.5, prone: false };
     pinned.act = { k: 'down', t: 0, dur: 0.6, prone: false };
@@ -838,6 +874,7 @@ function updateCamera(dt) {
     case 'entranceRing': { const e = cam.target; if (e) { tp.set(e.px * 0.5 + 0.5, RING.y + 3.6, e.pz + 7.5); tl.set(e.px * 0.8, RING.y + 1.4, e.pz); } tf = 48; break; }
     case 'pin': { const e = cam.target || ac; tp.set(e.x + 2.6, RING.y + 1.6, e.z + 4.4); tl.set(e.x, RING.y + 0.4, e.z); tf = 44; break; }
     case 'champ': { const e = cam.target; const ang = Math.sin(t * 0.22) * 0.9; if (e) { tp.set(e.px + Math.sin(ang) * 6.4, e.py + 2.8, e.pz + Math.cos(ang) * 6.4); tl.set(e.px, e.py + 1.9, e.pz); } tf = 46; break; }
+    case 'crowd': { const f = fans[cam.fanIdx || 0]; if (f) { const p = f.body.root.position, yw = f.body.root.rotation.y; tp.set(p.x + Math.sin(yw) * 4.2, p.y + 1.9, p.z + Math.cos(yw) * 4.2); tl.set(p.x, p.y + 1.3, p.z); } tf = 50; break; }
     case 'tron': tp.set(0, 8.3, 3.4); tl.set(0, STAGE.y + 8.1, STAGE.back); tf = 57; break;
     case 'girl': { const e = cam.target; if (e) { const r = Math.hypot(e.px, e.pz) || 1; const fx = Math.sin(e.pyaw), fz = Math.cos(e.pyaw); tp.set(e.px + fx * 4.2 + e.px / r * 2.4, e.py + 1.7, e.pz + fz * 4.2 + e.pz / r * 2.4); tl.set(e.px + fx * 0.4, e.py + 1.2, e.pz + fz * 0.4); } tf = 46; break; }
     case 'aerial': { const e = cam.target || ac; tp.set(e.x * 0.5 + 3.5, RING.y + 3.2, e.z + 7); tl.set(e.x * 0.7, RING.y + 1.4, e.z * 0.7); tf = 50; break; }
@@ -1018,7 +1055,7 @@ function* entrance(w, corner, mode) {
   if (full) {
     setShot('stage', null, true);
     yield* wait(0.5);
-    arena.pyroShow(d.pyro || '#ff5a1f'); SFX.hit('boom'); SFX.pop(1);
+    arena.pyroShow(d.pyro || '#ff5a1f'); SFX.hit('boom'); SFX.pop(1); fanBurst();
     comm(`Đến từ ${d.from}, nặng ${d.kg} ki lô gam... ${nameOf(w)}!`, 2, true);
     staff.announcer.talking = true;
     yield* wait(0.6);
@@ -1501,6 +1538,8 @@ function step(dt, real, draw = true) {
   separate();
   for (const w of G.active) if (w.visible) syncBody(w, dt);
   updateStaff(dt);
+  updateFans(dt);
+  if (cam.shot === 'crowd' && crowdUntil && G.time > crowdUntil) { crowdUntil = 0; setShot(G.mode === 'royal' ? 'royal' : 'ring', null, true); }
   // ghế + đai
   if (chairOwner && chairOwner.chair && chairOwner.visible) {
     chairMesh.visible = true;
@@ -1538,6 +1577,7 @@ setTimeout(() => { if (!SFX.started() && !OBS) tap.style.display = 'flex'; }, 80
 if (TEST) {
   window.__G = G; window.__W = W; window.__step = (n, dt = 1 / 30) => { for (let i = 0; i < n; i++) step(dt * (settings.speed || 1), dt, i === n - 1); return G.phase + ' | ' + G.phaseLabel + ' | ' + G.roundLabel + ' | alive ' + G.active.filter(w => !w.out).length; };
   window.__dbg = () => JSON.stringify(W.slice(0, 5).map(w => [w.def.name, w.root.visible, w.act.k, +w.px.toFixed(2), +w.py.toFixed(2), +w.pz.toFixed(2), +w.root.scale.x.toFixed(2), w.inRing, w.out, G.headScreen(w)])) + ' cam ' + camera.position.toArray().map(v => v.toFixed(1)) + ' shot ' + cam.shot + ' active ' + G.active.length;
+  window.__crowd = (i = 0) => { cam.fanIdx = i; setShot('crowd', null, true); return fans.length; };
   window.__nan = () => JSON.stringify(W.filter(w => !isFinite(w.px) || !isFinite(w.x) || !isFinite(w.py) || !isFinite(w.root.scale.x) || !isFinite(w.pyaw) || !isFinite(w.lift)).map(w => [w.def.name, w.act.k, w.x, w.z, w.px, w.py, w.pyaw, w.root.scale.x, w.act.i, w.lift, w.pathY]).slice(0, 4));
   window.__fake = (k, n = 1) => { for (let i = 0; i < n; i++) socket.emit('test', { kind: k, n: 1 }); };
 }

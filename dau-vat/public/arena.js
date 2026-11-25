@@ -180,7 +180,7 @@ export function buildArena(scene, opts = {}) {
       box(len, y, 0.85, standMat, 0, y / 2, d, g);
       for (let x = -len / 2 + 0.35; x < len / 2 - 0.3; x += 0.56) {
         const p = new THREE.Vector3(x + (Math.random() - 0.5) * 0.12, y, d + (Math.random() - 0.5) * 0.1).applyMatrix4(new THREE.Matrix4().makeRotationY(ry)).add(new THREE.Vector3(cx, 0, cz));
-        crowdSpots.push(p);
+        p.row = r; p.yaw = Math.atan2(-p.x, -p.z); crowdSpots.push(p);
       }
     }
   };
@@ -191,7 +191,13 @@ export function buildArena(scene, opts = {}) {
   addStand(7.6, -BARRIER - 0.4, 8.5, Math.PI);
   const limit = q === 'low' ? 900 : q === 'medium' ? 1700 : 2800;
   const pct = Math.max(0.1, Math.min(1, (opts.crowd ?? 100) / 100));
-  const spots = crowdSpots.sort(() => Math.random() - 0.5).slice(0, Math.min(crowdSpots.length, Math.round(limit * pct)));
+  // hàng đầu dành cho khán giả người thật (game.js đặt vào), phần còn lại là khán giả đơn giản
+  const realN = opts.realFans ?? (q === 'low' ? 36 : q === 'medium' ? 80 : 130);
+  // hàng đầu: ưu tiên khán đài hai bên + hai bên đường dốc (máy quay chính nhìn thấy), sau đó tới khán đài phía nam
+  const front = crowdSpots.filter(p => p.row === 0).sort((a, b) => ((a.z > BARRIER - 0.5 ? 1 : 0) - (b.z > BARRIER - 0.5 ? 1 : 0)) || (Math.random() - 0.5));
+  A.fanSpots = front.slice(0, realN);
+  const used = new Set(A.fanSpots);
+  const spots = crowdSpots.filter(p => !used.has(p)).sort(() => Math.random() - 0.5).slice(0, Math.min(crowdSpots.length, Math.round(limit * pct)));
   A.crowd = buildCrowd(scene, spots);
   A.updates.push((t, dt, hype) => { A.crowd.material.userData.u.uTime.value = t; A.crowd.material.userData.u.uHype.value = hype; if (A.signs) { A.signs.material.userData.u.uTime.value = t; A.signs.material.userData.u.uHype.value = hype; } });
   A.signs = buildSigns(scene, spots.filter((_, i) => i % 9 === 0));

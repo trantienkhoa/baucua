@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { BONE_NAMES, faceTexture, buildHairGeometry } from './wrestler.js';
 
 // xương chuẩn của game -> xương Mixamo
@@ -25,6 +26,7 @@ export async function loadFighter(url, key = 'male') {
   let obj, anims = [];
   if (/\.glb$|\.gltf$/i.test(url)) { const g = await new GLTFLoader().loadAsync(url); obj = g.scene; anims = g.animations || []; }
   else { obj = await new FBXLoader().loadAsync(url); anims = obj.animations || []; }
+  const merged = mergeSkinned(obj);
   const group = new THREE.Group();
   group.add(obj);
   obj.updateMatrixWorld(true);
@@ -92,11 +94,66 @@ export async function loadFighter(url, key = 'male') {
   const meshInv3 = new THREE.Matrix3().setFromMatrix4(meshInv);
   // mô hình có sẵn ảnh vân (đã mặc đồ) thì giữ nguyên vật liệu gốc, không tô lại
   const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-  const textured = mats.some(m => m && m.map);
+  const textured = mats.some(m => m && m.map) || !!merged;
   const T = { key, anims, group, obj, mesh, byName, W, rest, Q0, armInv, armQ, cpos, cnrm, dom, head, meshInv3, unit, textured,
     hipsY: W.Hips.y, info: { verts: N, tris: N / 3, bones: Object.keys(byName).length, hipsY: +W.Hips.y.toFixed(3), head, textured } };
   TPLS[key] = T;
   return T.info;
+}
+
+// Mô hình nhiều lưới (mỗi lưới một bộ xương riêng, ví dụ Taunt.fbx): gộp thành 1 SkinnedMesh dùng chung 1 bộ xương
+function mergeSkinned(obj) {
+  const meshes = []; obj.traverse(o => { if (o.isSkinnedMesh) meshes.push(o); });
+  if (meshes.length < 2) return;
+  obj.updateMatrixWorld(true);
+  // bộ xương chính: cây xương gần gốc nhất
+  let root = null; obj.traverse(o => { if (!root && o.isBone && !(o.parent && o.parent.isBone)) root = o; });
+  // một cây xương duy nhất: bỏ các nhánh trùng tên (bản sao của từng lưới)
+  const main = [], seen = new Set(), dup = [];
+  (function walk(b) { const n = strip(b.name); if (seen.has(n)) { dup.push(b); return; } seen.add(n); main.push(b); for (const c of b.children.slice()) if (c.isBone) walk(c); })(root);
+  const idx = new Map(main.map((b, i) => [strip(b.name), i]));
+  const inv = new THREE.Matrix4().copy(obj.matrixWorld).invert();
+  const geos = [], mats = [], v = new THREE.Vector3(), n = new THREE.Vector3();
+  for (const m of meshes) {
+    if (/teeth|tongue/i.test(m.name)) continue;
+    let g = m.geometry; if (g.index) g = g.toNonIndexed();
+    const N = g.attributes.position.count, P = new Float32Array(N * 3), Nn = new Float32Array(N * 3), SI = new Uint16Array(N * 4), SW = new Float32Array(N * 4);
+    const M = new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld), NM = new THREE.Matrix3().getNormalMatrix(M);
+    const si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
+    for (let i = 0; i < N; i++) {
+      v.fromBufferAttribute(g.attributes.position, i); m.applyBoneTransform(i, v); v.applyMatrix4(inv); P.set([v.x, v.y, v.z], i * 3);
+      n.fromBufferAttribute(g.attributes.normal, i).applyMatrix3(NM).normalize(); Nn.set([n.x, n.y, n.z], i * 3);
+      for (let k = 0; k < 4; k++) { const b = m.skeleton.bones[si.getComponent(i, k)]; SI[i * 4 + k] = b ? (idx.get(strip(b.name)) ?? 0) : 0; SW[i * 4 + k] = sw.getComponent(i, k); }
+    }
+    const ng = new THREE.BufferGeometry();
+    ng.setAttribute('position', new THREE.BufferAttribute(P, 3)); ng.setAttribute('normal', new THREE.BufferAttribute(Nn, 3));
+    ng.setAttribute('uv', g.attributes.uv ? g.attributes.uv.clone() : new THREE.BufferAttribute(new Float32Array(N * 2), 2));
+    ng.setAttribute('skinIndex', new THREE.BufferAttribute(SI, 4)); ng.setAttribute('skinWeight', new THREE.BufferAttribute(SW, 4));
+    geos.push(ng); mats.push(Array.isArray(m.material) ? m.material[0] : m.material);
+  }
+  // gộp các lưới cùng vật liệu → ít lệnh vẽ hơn
+  const byMat = new Map();
+  geos.forEach((g, i) => { const k = mats[i].name || ('m' + i); if (!byMat.has(k)) byMat.set(k, { mat: mats[i], list: [] }); byMat.get(k).list.push(g); });
+  geos.length = 0; mats.length = 0;
+  for (const { mat, list } of byMat.values()) { geos.push(list.length > 1 ? mergeGeometries(list, false) : list[0]); mats.push(mat); }
+  const merged = mergeGeometries(geos, true);
+  for (const m of meshes) m.parent.remove(m);
+  // bỏ các bản sao bộ xương thừa
+  const extra = dup.slice(); obj.traverse(o => { if (o.isBone && o !== root && !(o.parent && o.parent.isBone)) extra.push(o); });
+  for (const b of extra) if (b.parent) b.parent.remove(b);
+  // ảnh vân không có trong file → tô màu trơn theo tên vật liệu
+  for (let i = 0; i < mats.length; i++) {
+    const m = mats[i];
+    if (m.map && !m.map.image) {
+      const nm = m.name.toLowerCase();
+      const c = /skin|arm|head|body/.test(nm) ? 0xc8946c : /eye/.test(nm) ? 0xf2f2f2 : /cigar/.test(nm) ? 0x6b3e1e : /cloth|jacket|pant|shirt/.test(nm) ? 0x3a3f4c : 0x777777;
+      mats[i] = new THREE.MeshStandardMaterial({ color: c, roughness: 0.75, metalness: 0.02, name: m.name });
+    }
+  }
+  const sm = new THREE.SkinnedMesh(merged, mats);
+  obj.add(sm); obj.updateMatrixWorld(true);
+  sm.bind(new THREE.Skeleton(main), sm.matrixWorld.clone());
+  return true;
 }
 
 // ---------- màu từng vùng ----------
