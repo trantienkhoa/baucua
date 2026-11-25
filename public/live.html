@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tàu Đà Lạt – Trại Mát</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@500;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root { --gold: #ffd36b; --cream: #fff4dc; --ink: #1b1410; --green: #2f6b3a; --card: rgba(24, 18, 14, .78); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif; color: var(--cream); }
+  body.obs { cursor: none; }
+  #stage { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; transform-origin: 0 0; overflow: hidden; }
+  #scene, #gl { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; }
+  .hud { position: absolute; pointer-events: none; }
+  /* --- tiêu đề + tuyến --- */
+  #top { left: 28px; top: 26px; width: 830px; }
+  #title { display: inline-flex; align-items: center; gap: 14px; background: linear-gradient(180deg, #8a2a1c, #5e1a10); border: 3px solid var(--gold); border-radius: 22px; padding: 10px 26px 12px; font-weight: 900; font-size: 44px; letter-spacing: .5px; color: var(--gold); text-shadow: 0 3px 0 #2a0c06; box-shadow: 0 8px 24px rgba(0,0,0,.45); }
+  #sub { margin-top: 10px; font-size: 30px; font-weight: 700; text-shadow: 0 2px 6px #000; display: flex; gap: 18px; align-items: center; }
+  #sub .pill { background: var(--card); border-radius: 14px; padding: 4px 16px; }
+  #route { left: 28px; top: 196px; width: 830px; height: 96px; background: var(--card); border-radius: 22px; border: 2px solid rgba(255, 211, 107, .45); }
+  #line { position: absolute; left: 70px; right: 70px; top: 40px; height: 8px; border-radius: 4px; background: repeating-linear-gradient(90deg, #6b5a48 0 14px, #3b3027 14px 22px); }
+  #done { position: absolute; left: 0; top: 0; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #ffd36b, #ff9f43); }
+  .st { position: absolute; top: 28px; width: 32px; height: 32px; margin-left: -16px; border-radius: 50%; background: #8a2a1c; border: 4px solid var(--gold); }
+  .st b { position: absolute; top: 34px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 20px; font-weight: 800; color: var(--gold); }
+  .sg { position: absolute; top: 37px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: #cfe9c8; border: 2px solid #2f6b3a; }
+  .sg i { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 16px; font-style: normal; font-weight: 700; color: #d9e8d2; opacity: .9; }
+  #trainIcon { position: absolute; top: 2px; font-size: 40px; margin-left: -22px; transition: transform .3s; filter: drop-shadow(0 2px 3px #000); }
+  #gauges { left: 28px; top: 304px; width: 830px; display: flex; gap: 14px; }
+  .g { background: var(--card); border-radius: 18px; padding: 8px 18px; font-weight: 800; font-size: 26px; display: flex; align-items: center; gap: 10px; text-shadow: 0 2px 4px #000; }
+  #speed b { font-size: 38px; color: var(--gold); min-width: 46px; text-align: right; }
+  #press { flex: 1; }
+  #pbar { flex: 1; height: 22px; border-radius: 11px; background: #2b211b; overflow: hidden; border: 2px solid #5b4636; }
+  #pfill { height: 100%; width: 30%; background: linear-gradient(90deg, #ff7a2f, #ffd36b); transition: width .25s; }
+  #boost { color: #7df9ff; display: none; }
+  #boost.on { display: flex; animation: pulse .6s infinite alternate; }
+  @keyframes pulse { to { transform: scale(1.06); } }
+  #vnmap { position: absolute; right: 22px; top: 22px; width: 176px; height: 330px; }
+  /* --- thẻ giữa (sự kiện / ga / đố vui) --- */
+  #card { left: 90px; top: 392px; width: 900px; background: rgba(30, 20, 14, .86); border: 3px solid var(--gold); border-radius: 28px; padding: 20px 30px 22px; text-align: center; box-shadow: 0 12px 34px rgba(0,0,0,.5); transform: scale(.85); opacity: 0; transition: opacity .3s, transform .3s; }
+  #card.on { opacity: 1; transform: scale(1); }
+  #card h2 { font-size: 46px; font-weight: 900; color: var(--gold); line-height: 1.15; }
+  #card p { font-size: 30px; font-weight: 700; margin-top: 8px; }
+  #card .bar { height: 30px; margin: 14px 10px 4px; border-radius: 15px; background: #2b211b; overflow: hidden; border: 2px solid #6b5341; position: relative; }
+  #card .bar div { height: 100%; background: linear-gradient(90deg, #47d16b, #c6f36b); transition: width .25s; }
+  #card .bar span { position: absolute; inset: 0; font-size: 22px; font-weight: 900; line-height: 26px; color: #fff; text-shadow: 0 1px 3px #000; }
+  #card .opts { display: flex; gap: 14px; margin-top: 14px; }
+  #card .opts div { flex: 1; background: #3a2a1f; border: 2px solid #8a6a4a; border-radius: 16px; padding: 10px 8px; font-size: 26px; font-weight: 800; }
+  #card .opts div.ok { background: #1f6b35; border-color: #8ff0a4; }
+  #card .opts b { color: var(--gold); margin-right: 6px; }
+  #card .time { font-size: 26px; color: #ffcf9a; margin-top: 6px; font-weight: 800; }
+  #card.fail { border-color: #ff6b6b; }
+  #card.win { border-color: #8ff0a4; }
+  /* --- băng-rôn quà --- */
+  #feed { left: 0; top: 640px; width: 1080px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .ban { display: flex; align-items: center; gap: 12px; padding: 6px 22px 6px 8px; border-radius: 50px; background: linear-gradient(90deg, rgba(120, 30, 20, .9), rgba(60, 14, 8, .9)); border: 2px solid var(--gold); font-size: 25px; font-weight: 800; box-shadow: 0 6px 16px rgba(0,0,0,.4); animation: banIn .45s cubic-bezier(.2, 1.4, .4, 1); max-width: 760px; }
+  .ban.t2 { background: linear-gradient(90deg, #b8860b, #6b4a00); }
+  .ban.t3 { background: linear-gradient(90deg, #6a1b9a, #b8860b, #6a1b9a); font-size: 28px; }
+  .ban.out { animation: banOut .4s forwards; }
+  .ban img, .ban .av { width: 52px; height: 52px; border-radius: 50%; border: 3px solid var(--gold); object-fit: cover; background: #3a2a1f; display: flex; align-items: center; justify-content: center; font-size: 34px; flex: none; }
+  .ban .gi { width: 44px; height: 44px; border: 0; background: none; }
+  .ban small { font-size: 19px !important; }
+  .ban em { font-style: normal; color: var(--gold); }
+  .ban small { display: block; font-size: 22px; color: #ffe2b0; font-weight: 700; }
+  @keyframes banIn { from { transform: translateY(-30px) scale(.6); opacity: 0; } }
+  @keyframes banOut { to { transform: translateX(120px); opacity: 0; } }
+  /* --- người lên tàu --- */
+  #board { left: 28px; top: 1240px; width: 1024px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .tk { background: rgba(255, 244, 220, .92); color: var(--ink); border-radius: 30px; padding: 6px 16px 6px 6px; font-size: 24px; font-weight: 800; display: flex; align-items: center; gap: 8px; animation: banIn .35s; }
+  .tk .av { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; background: #8a2a1c; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .tk.out { animation: banOut .4s forwards; }
+  #hint { left: 0; top: 1176px; width: 1080px; text-align: center; font-size: 26px; font-weight: 800; text-shadow: 0 2px 6px #000, 0 0 2px #000; color: #fff8e6; }
+  #hint span { background: rgba(0,0,0,.45); border-radius: 16px; padding: 6px 18px; }
+  /* --- tổng kết chuyến --- */
+  #finish { left: 70px; top: 380px; width: 940px; background: rgba(28, 18, 12, .93); border: 4px solid var(--gold); border-radius: 34px; padding: 30px; text-align: center; display: none; box-shadow: 0 16px 50px rgba(0,0,0,.6); }
+  #finish.on { display: block; animation: banIn .6s; }
+  #finish h1 { font-size: 54px; color: var(--gold); font-weight: 900; }
+  #finish .stat { font-size: 32px; font-weight: 700; margin: 10px 0 18px; }
+  #finish .podium { display: flex; justify-content: center; gap: 22px; align-items: flex-end; }
+  #finish .pd { width: 250px; background: #3a2a1f; border-radius: 22px; padding: 14px 10px; border: 2px solid #8a6a4a; }
+  #finish .pd .av { width: 110px; height: 110px; margin: 0 auto 8px; border-radius: 50%; border: 4px solid var(--gold); object-fit: cover; background: #8a2a1c; display: flex; align-items: center; justify-content: center; font-size: 50px; }
+  #finish .pd b { display: block; font-size: 28px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #finish .pd span { color: var(--gold); font-size: 26px; font-weight: 800; }
+  #finish .photo { margin: 18px auto 0; background: #fffaf0; color: #3a2a1e; padding: 14px 14px 10px; border-radius: 8px; width: 760px; transform: rotate(-1.5deg); box-shadow: 0 10px 26px rgba(0,0,0,.5); }
+  #finish .photo .ppl { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; background: linear-gradient(#9fd0f0, #cfe9c8); padding: 12px; border-radius: 4px; }
+  #finish .photo .av { width: 64px; height: 64px; border-radius: 50%; border: 3px solid #fff; object-fit: cover; display: flex; align-items: center; justify-content: center; font-size: 30px; color: #fff; }
+  #finish .photo i { display: block; font-style: normal; font-size: 22px; font-weight: 800; margin-top: 8px; }
+  #finish .extra { display: flex; gap: 14px; justify-content: center; margin-top: 16px; font-size: 24px; font-weight: 700; }
+  #finish .extra div { background: #3a2a1f; border-radius: 14px; padding: 8px 16px; }
+  #lucky { left: 120px; top: 640px; width: 840px; text-align: center; background: linear-gradient(180deg, #8a2a1c, #5e1a10); border: 4px solid var(--gold); border-radius: 30px; padding: 22px; display: none; box-shadow: 0 16px 50px rgba(0,0,0,.6); }
+  #lucky.on { display: block; animation: banIn .5s; }
+  #lucky h2 { font-size: 40px; color: var(--gold); font-weight: 900; }
+  #lucky .spin { font-size: 52px; font-weight: 900; margin: 14px 0 6px; min-height: 70px; }
+  #lucky .av { width: 120px; height: 120px; border-radius: 50%; border: 5px solid var(--gold); object-fit: cover; margin: 10px auto 0; display: flex; align-items: center; justify-content: center; font-size: 56px; }
+  #lucky small { font-size: 24px; color: #ffe2b0; font-weight: 700; }
+  #souvenir { left: 30px; top: 250px; width: 1020px; background: #fffaf0; padding: 22px 22px 12px; border-radius: 6px; box-shadow: 0 24px 60px rgba(0,0,0,.65); display: none; transform: rotate(-2deg); text-align: center; }
+  #souvenir.on { display: block; animation: develop 1.2s ease-out; }
+  #souvenir canvas { width: 100%; display: block; border-radius: 2px; }
+  #souvenir i { display: block; font-style: normal; color: #3a2a1e; font-size: 30px; font-weight: 800; margin-top: 10px; }
+  @keyframes develop { from { transform: rotate(8deg) scale(.4) translateY(400px); filter: brightness(3) saturate(0); } 60% { filter: brightness(1.4) saturate(.6); } }
+  #finish .next { margin-top: 18px; font-size: 30px; color: #ffcf9a; font-weight: 800; }
+  #sound { position: absolute; right: 30px; bottom: 30px; background: #8a2a1c; color: #fff; border: 2px solid var(--gold); border-radius: 18px; padding: 14px 22px; font-size: 26px; font-weight: 800; cursor: pointer; pointer-events: auto; }
+  body.obs #sound { display: none; }
+  /* --- thẻ lên tàu (giấy in nhiệt) --- */
+  #pass { left: 34px; top: 610px; width: 400px; padding: 18px 20px 14px 46px; background: linear-gradient(180deg, #f7f7f4, #ecece8); color: #1a1a1a; font-family: "Times New Roman", Times, serif; border-radius: 3px;
+    box-shadow: 0 14px 34px rgba(0,0,0,.45); transform: rotate(-2.5deg) translateX(-480px); transition: transform .45s cubic-bezier(.2,1.2,.4,1); }
+  #pass.on { transform: rotate(-2.5deg) translateX(0); }
+  #pass::before { content: ""; position: absolute; left: 0; right: 0; top: -9px; height: 10px; background: radial-gradient(circle at 6px 10px, transparent 6px, #f7f7f4 6.5px) 0 0 / 12px 10px repeat-x; } /* mép xé răng cưa */
+  #pass .side { position: absolute; left: 6px; top: 0; bottom: 0; width: 30px; display: flex; align-items: center; justify-content: center; }
+  #pass .side span { transform: rotate(-90deg); white-space: nowrap; color: #1f4fa0; font: 800 15px "Be Vietnam Pro", sans-serif; letter-spacing: .5px; }
+  #pass .hd { text-align: center; font-weight: 700; font-size: 15px; letter-spacing: .3px; }
+  #pass .hd2 { text-align: center; font-size: 15px; margin: 2px 0 8px; letter-spacing: .5px; }
+  #pass canvas { display: block; width: 320px; height: 52px; margin: 0 auto; }
+  #pass .tid { text-align: center; font-size: 20px; margin: 6px 0 8px; }
+  #pass .row2 { display: flex; justify-content: space-between; font-size: 17px; padding: 0 6px; }
+  #pass .st { display: flex; justify-content: space-between; font-weight: 700; font-size: 24px; padding: 0 6px; margin-bottom: 6px; }
+  #pass .ln { display: flex; font-size: 18px; margin: 3px 0; }
+  #pass .ln span { width: 150px; flex: none; }
+  #pass .ln b { font-size: 19px; }
+  #pass .two { display: flex; gap: 20px; }
+  #pass .nm { display: flex; align-items: center; gap: 8px; }
+  #pass .nm img, #pass .nm .av { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; display: inline-flex; align-items: center; justify-content: center; color: #fff; font: 800 15px sans-serif; }
+  #pass .ft { font-style: italic; font-size: 13px; margin-top: 8px; color: #333; border-top: 1px dashed #999; padding-top: 6px; }
+  #pass .up { position: absolute; right: 14px; top: 92px; transform: rotate(12deg); border: 3px solid #c0392b; color: #c0392b; font: 900 18px "Be Vietnam Pro", sans-serif; padding: 2px 10px; border-radius: 6px; opacity: .85; }
+  #osmCredit { position: absolute; right: 16px; top: 362px; font-size: 15px; color: rgba(255,255,255,.75); text-shadow: 0 1px 2px #000; display: none; pointer-events: none; }
+  body.v3d #osmCredit { display: block; }
+  #mutedBadge { position: absolute; left: 30px; bottom: 30px; max-width: 700px; display: none; background: rgba(0,0,0,.7); color: #fff; border: 2px solid #888; border-radius: 16px; padding: 12px 18px; font-size: 24px; font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="gl"></canvas>
+  <canvas id="scene" width="1080" height="1920"></canvas>
+  <div id="top" class="hud">
+    <div id="title">🚂 <span id="titleTxt">TÀU ĐÀ LẠT – TRẠI MÁT</span></div>
+    <div id="sub"><span class="pill" id="trip">Tàu DL1</span><span class="pill" id="clockTxt">🕗 07:50</span><span class="pill" id="paxN">🎫 0 khách</span><span id="leg" style="display:none"></span></div>
+  </div>
+  <div id="route" class="hud">
+    <div id="line"><div id="done"></div></div>
+    <div id="trainIcon">🚂</div>
+  </div>
+  <div id="gauges" class="hud">
+    <div class="g" id="speed">🚄 <b id="spd">0</b> km/h</div>
+    <div class="g" id="press">🔥 Than <div id="pbar"><div id="pfill"></div></div></div>
+    <div class="g" id="boost">⚡ <span id="boostS">0</span>s</div>
+    <div class="g" id="goal">❤️ <span id="goalTxt">0/1500</span></div>
+    <div class="g" id="kmBox"><b id="kmTxt" style="color:var(--gold)">0.0</b>/7 km</div>
+  </div>
+  <canvas id="vnmap" width="176" height="330" class="hud"></canvas>
+  <div id="card" class="hud"></div>
+  <div id="feed" class="hud"></div>
+  <div id="finish" class="hud"></div>
+  <div id="lucky" class="hud"></div>
+  <div id="souvenir" class="hud"></div>
+  <div id="pass" class="hud"></div>
+  <div id="hint" class="hud"><span>💬 Bình luận = lên tàu · ❤️ Tim = xúc than · 🎁 Quà = toa riêng · gõ "tu tu" = kéo còi</span></div>
+  <div id="board" class="hud"></div>
+  <button id="sound">🔊 Bấm để bật tiếng</button>
+  <div id="osmCredit">Bản đồ © OpenStreetMap · Độ cao: Terrain Tiles</div>
+  <div id="mutedBadge">🔇 Màn hình phụ — tiếng đang phát ở màn hình khác (OBS). Thêm ?voice=1 vào link để phát tiếng ở đây.</div>
+</div>
+<script type="importmap">
+{ "imports": { "three": "/three/build/three.module.js", "three/addons/": "/three/examples/jsm/" } }
+</script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="tts.js"></script>
+<script src="game.js"></script>
+<script>
+  // cảnh 3D (Three.js); thêm ?2d=1 vào link để dùng bản vẽ 2D nhẹ cho máy yếu
+  if (!/[?&]2d=1/.test(location.search)) { const s = document.createElement('script'); s.type = 'module'; s.src = 'scene3d.js'; document.body.appendChild(s); }
+</script>
+</body>
+</html>

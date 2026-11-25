@@ -1,0 +1,192 @@
+TÀU ĐÀ LẠT – TRẠI MÁT — game tương tác nhận quà cho TikTok LIVE
+================================================================
+
+Đoàn tàu kéo bằng đầu máy hơi nước chạy 7 km từ ga Đà Lạt tới ga Trại Mát rồi quay đầu chạy về.
+Có tàu ngày và tàu đêm. Số hiệu tàu theo bảng giờ ở ga: DL lẻ là chiều đi (DL1, DL3…), DL chẵn là chiều về.
+
+CHẠY GAME
+1. Bấm đúp ChayGame.bat. Cửa sổ đen là server, đóng cửa sổ là tắt game.
+   Máy chưa có Node.js thì tự tải bản portable (~30 MB). Lần đầu tự cài thư viện (cần Internet).
+2. Trình duyệt tự mở trang điều khiển: http://127.0.0.1:3340/admin.html
+3. OBS → Browser Source, khổ 1080 x 1920:   http://127.0.0.1:3340/live.html?obs=1
+   TikTok LIVE Studio → Liên kết: lấy link có địa chỉ IP ở trang điều khiển (đổi Wi-Fi thì IP đổi).
+   Hoặc bấm "Mở màn hình LIVE trong cửa sổ riêng" rồi dùng Chụp cửa sổ.
+4. Bấm LIVE trên TikTok trước, rồi vào trang điều khiển nhập @kênh → Kết nối.
+5. Xem thử không cần LIVE: trang điều khiển → "Bật demo tự động". NHỚ TẮT demo trước khi LIVE thật.
+
+CẢNH THẬT THEO BẢN ĐỒ (OpenStreetMap + độ cao địa hình thật)
+  - Tuyến đường sắt, nhà cửa, quán xá, đường phố, hồ, rừng, khu nhà kính, khuôn viên chùa lấy từ OpenStreetMap
+    (bản đồ mở, được phép dùng có ghi nguồn — dòng "Bản đồ © OpenStreetMap" ở góc màn hình 3D, đừng xoá).
+    Không dùng dữ liệu Google Maps vì điều khoản của Google không cho trích dữ liệu bản đồ ra dùng.
+  - Tuyến thật dài 6,53 km; ga Đà Lạt cao 1.498 m, ga Trại Mát 1.551 m. Đồi núi hai bên theo độ cao thật (Terrain Tiles).
+  - 1.068 ngôi nhà dọc tuyến dựng đúng mặt bằng và vị trí thật, cao theo số tầng (có số tầng trên bản đồ thì lấy đúng);
+    mặt tường có cửa sổ từng tầng, ban đêm cửa sổ sáng đèn. 64 quán xá / khách sạn / chùa gắn biển tên thật
+    (vd. quán cà phê, nhà hàng, homestay có tên trên bản đồ). Tháp chuông 7 tầng chùa Linh Phước đúng chỗ.
+  - Đường ray được "trải thẳng": các khúc cua thật được duỗi thành đường thẳng, nhà cửa giữ đúng thứ tự, đúng bên trái /
+    bên phải và đúng khoảng cách tới đường ray như ngoài đời.
+  - Cảnh vẫn là đồ hoạ 3D (không phải ảnh chụp). Muốn cảnh dựng từ ảnh vệ tinh như Google Earth phải dùng
+    "Photorealistic 3D Tiles" của Google (cần khoá API có thanh toán, có giới hạn khi phát công khai).
+  - Cập nhật bản đồ: tải lại dữ liệu OSM rồi chạy  node tools\build-route.js <thư mục dữ liệu>  → public\route.json.
+    Thêm ?osm=0 vào link để quay về cảnh mô phỏng cũ.
+  - Tốc độ thời gian mặc định giờ là 3 (tuyến thật dài hơn): một chiều khoảng 4–6 phút.
+
+MÀN HÌNH 3D (mặc định)
+  Cảnh dựng bằng Three.js: đồi thông Đà Lạt, ruộng rau bậc thang có người đội nón lá, cánh đồng cẩm tú cầu, nhà kính,
+  biệt thự mái màu, núi Langbiang, mây, trời ngày / hoàng hôn / đêm sao theo giờ tàu. Ga Đà Lạt 3D (3 mái nhọn, đồng hồ,
+  bảng DALAT, mái che cột đỏ), ga Trại Mát (mái nhọn, cờ màu, tháp chùa Linh Phước), phòng vé có bảng giờ tàu.
+  Đầu máy hơi nước 3D: bánh đỏ, thanh truyền chạy theo bánh, khói trắng, đèn pha ban đêm. Ở ga Trại Mát đầu máy
+  chạy vòng sang đầu kia đoàn tàu (có phụt hơi) để kéo tàu về.
+  6 toa có cửa sổ kính nhìn xuyên vào trong. Khách ngồi trên băng ghế dọc hai vách (như toa Lareine thật), quay mặt
+  ra phía cửa sổ. Khách ở gần máy quay là nhân vật VRoid (.vrm) dùng chung với Vũ Trường Neon, có ảnh đại diện +
+  tên TikTok; khách ở xa là hình người đơn giản để máy chạy nhẹ (tối đa ~30 nhân vật VRoid cùng lúc).
+  Game tự lấy nhân vật trong TauDaLat\models; không có thì lấy ở VuTruongNeon\public\models (phải để 2 thư mục cạnh nhau).
+  Khách mua vé: đi bộ từ toà ga ra sân ga rồi bước lên toa của mình. Tàu dừng ở Trại Mát: khách bước xuống sân ga
+  đi dạo rồi lên lại trước giờ tàu chạy. Về ga Đà Lạt: khách bước xuống ra về.
+  Nhà dân dọc đường: nhà ống 3 tầng sơn màu (ban công sắt, chậu hoa, bảng CÀ PHÊ / TẠP HÓA / HOMESTAY…), biệt thự Pháp
+  (cửa chớp, cửa vòm, ống khói), nhà vườn mái tôn; nhà kính trồng hoa thành dãy (khung vòm sắt, màng nylon, luống hoa).
+  Máy quay chọn góc theo tình huống và chuyển cảnh lúc cắt, lúc lướt mượt: đón đầu đầu máy, lia dọc cả đoàn tàu, cận cửa
+  sổ khách, flycam bay vòng quanh / cẩu máy bay lên mở toàn cảnh / nhìn từ trên cao, máy đặt bên đường tàu chạy ngang
+  qua, góc lái tàu, quay từ cuối tàu. Qua thung lũng hoa, nhà kính → hay dùng flycam; lên dốc → góc thấp đón đầu;
+  có bò / cây đổ → quay phía trước thấy vật cản; vừa rời ga / sắp vào ga → máy đặt ở ga. Ở ga: sân ga ngang tầm mắt
+  thấy khách đi lên tàu, phòng vé, toàn cảnh nhà ga, flycam quanh ga. Máy quay không bao giờ chui xuống đất.
+  Khách vừa lên toa VIP / Lareine → máy quay dí sát cửa sổ người đó. Chụp ảnh lưu niệm → zoom sát cửa sổ toa VIP 1.
+  Máy yếu: thêm ?q=low vào link (giảm độ phân giải, tắt bóng đổ, ít cây hơn), hoặc ?2d=1 / tắt "Màn hình 3D" ở trang
+  điều khiển để dùng bản vẽ 2D cũ. OBS cần bật tăng tốc phần cứng cho Browser Source.
+
+TRỰC BAN GA (đón tiễn tàu)
+  Mỗi ga 1 trực ban (mũ trắng viền đỏ, biển "Trực ban ga Đà Lạt / Trại Mát") đứng trên sân ga trước toà ga.
+  ~7 giây trước giờ tàu chạy: giơ cao cờ xanh phất phới, tay kia đưa còi lên miệng, còi "tuýt – tuýyyt" vang lên,
+  máy quay cận trực ban với đoàn tàu phía sau. Tàu chạy qua và lúc tàu vào ga: tiếp tục giơ cờ, thổi còi đón tàu.
+  Lúc khác đứng nghiêm cầm cờ cuộn.
+
+PHÁT THANH TÀU CHẠY: câu "Đoàn tàu … sắp bắt đầu chuyển bánh" đọc ~15 giây cuối trước giờ chạy (đọc xong là tàu lăn bánh)
+  và NGẮT NGANG mọi câu MC / thuyết minh đang đọc để nói ngay.
+
+CẢNH ĐÚNG LỜI GIỚI THIỆU + LÊN DỐC THẬT
+  - Đồi thông: thông dày hai bên. Làng rau: ruộng bắp cải, xà lách, cà rốt kín hai bên, người làm vườn đội nón lá.
+    Thung lũng hoa: luống hoa hồng, cúc vàng, hoa tím, dâu tây + hàng cẩm tú cầu dọc đường ray. Nhà kính: các dãy nhà kính.
+    (Đặt trên phần đất trống; nhà cửa, đường phố thật theo bản đồ vẫn giữ nguyên.)
+  - Đường ray có độ cao: tổng chênh đúng thực tế (Trại Mát cao hơn Đà Lạt ~53 m), phần lớn dồn vào đoạn "Dốc cao"
+    (~43 m trên 800 m). Đoàn tàu nghiêng theo dốc, tàu chậm lại khi leo dốc; ga, sân ga, khách, máy quay đều bám độ cao.
+  - Lượt về: đầu máy chạy vòng sang đầu phía tây, móc vào trước toa ngồi cứng, mũi hướng về Đà Lạt.
+
+100 KIỂU HÀNH KHÁCH: 10 nhân vật VRoid × 10 diện mạo (nhuộm tóc; đổi màu quần áo nhưng giữ màu da và nếp vải;
+  thêm mũ len, nón lá, mũ nồi, mũ lưỡi trai, khăn len). Mỗi người xem luôn mang cùng một diện mạo.
+  (Kiểu tóc gắn với bộ xương riêng của từng nhân vật nên không ghép tóc từ nhân vật này sang nhân vật khác được.)
+
+NHÂN VIÊN MỖI TOA
+  Mỗi toa có 1 tiếp viên (nhân vật VRoid đội mũ kepi xanh viền vàng, biển tên "Tiếp viên · Toa VIP 1"…).
+  Ở ga: đứng trên sân ga cạnh cửa toa, tay chắp trước bụng đón khách; khách đi bộ từ ga tới đúng cửa đó,
+  tiếp viên vẫy tay chào. Tàu dừng: vẫy chào khách xuống tàu. Tàu chạy: tiếp viên đứng ở đầu toa, phía trong.
+
+SỐ GHẾ (chỉnh ở trang điều khiển → Luật chơi)
+  2 toa Lareine: 24 ghế mỗi toa (48) · VIP 1 + VIP 2: 32 ghế mỗi toa (64) · ngồi mềm 20 · ngồi cứng 20.
+  Khách giữ nguyên ghế suốt chuyến. Toa ngồi cứng đầy thì xếp sang ngồi mềm và ngược lại; cả hai đầy thì báo
+  "hết vé" và MC mời tặng quà để lên toa VIP.
+
+THÀNH PHẦN ĐOÀN TÀU (cố định)
+  Đầu máy hơi nước + 2 toa Lareine + toa VIP 1, VIP 2 + toa ngồi mềm + toa ngồi cứng.
+  Số hiệu toa xe (in trên biển tên dưới cửa sổ): La Reine 1 = 51612, La Reine 2 = 51618, VIP 1 = 51620, VIP 2 = 51622.
+  Giọng đọc vẫn gọi là "toa La Reine", "toa VIP 1", "toa VIP 2" (không đọc số hiệu).
+  Mỗi toa 4 cửa sổ, nhìn qua cửa sổ thấy hành khách đang ngồi (đầu là ảnh đại diện TikTok).
+  Hạng ghế theo xu tặng cộng dồn trong chuyến:
+    🪑 Ngồi cứng / 🛋 Ngồi mềm : bình luận là được lên tàu, xếp xen kẽ vào hai toa này
+                                 (tặng quà nhỏ hoặc follow / share thì chắc chắn được ngồi mềm)
+    ✨ VIP 1, 2  : từ 10 xu (tên khách hiện dưới cửa sổ)
+    👑 Lareine   : từ 100 xu (toa xanh navy viền vàng, có vương miện)
+  Lên toa VIP / Lareine: camera lia tới toa đó, toa sáng lên, hiện cảnh trong khoang
+  (VIP: vách gỗ, rèm be, sofa da · Lareine: trần hoa, rèm đỏ, đèn nến). Tàu đêm có người thổi saxophone.
+
+GIỜ TÀU THEO BẢNG GIỜ Ở GA
+  Mỗi chuyến khứ hồi lấy một cặp số hiệu và giờ theo đúng bảng giờ ở ga, lần lượt:
+  DL1 07:50→08:20 / DL2 08:50→09:20 · DL3 09:55 / DL4 10:55 · DL5 12:00 / DL6 13:00 · DL7 14:05 / DL8 15:05
+  · DL9 16:10 / DL10 17:10 · DL11 18:15 / DL12 19:15 · DL13 20:20 / DL14 21:20, rồi quay lại DL1.
+  Phát thanh đọc đúng giờ của số hiệu đó (vd. "tàu đê lờ 1 khởi hành lúc 7 giờ 50").
+  Bầu trời, đồng hồ trên ga Đà Lạt và đồng hồ góc trên chạy theo giờ tàu: DL1 nắng sớm, DL9 chiều vàng, DL11 hoàng hôn, DL13 đêm.
+  "Theo giờ tàu" (mặc định): DL11 – DL14 là tàu đêm (toa viền đèn LED, ban nhạc saxophone).
+
+GIỮ CHÂN NGƯỜI XEM
+  ⭐ Khách quen  : game nhớ mỗi người đã đi bao nhiêu chuyến (qua các buổi live). Lên tàu sẽ hiện "khách quen ×N",
+                   MC chào "khách quen quay lại, chuyến thứ N". Danh sách xem ở trang điều khiển.
+  🎫 Vé may mắn  : đến ga Trại Mát thì bốc thăm ngẫu nhiên 1 hành khách (ai bình luận cũng có cơ hội), tên quay vòng rồi dừng.
+                   MC nhắc từ lúc tàu chạy: "nhớ ở lại đến ga Trại Mát". Bạn có thể tặng quà nhỏ / ghim tên người trúng.
+  🍓 Hái dâu     : dừng ở ga Trại Mát, cả phòng bình luận "dâu" để hái, bảng 3 người hái nhiều nhất chạy trực tiếp.
+  ❤️ Mục tiêu tim: mỗi chuyến cần đủ 1.500 tim (sửa được) → pháo hoa + tàu chạy hết tốc lực 20 giây.
+  📸 Ảnh lưu niệm: tàu về ga Đà Lạt thì camera lia tới toa VIP / Lareine đông khách nhất, zoom sát cửa sổ, khung ngắm +
+                   đếm 3-2-1, "tách" + đèn flash. Bức ảnh là ảnh chụp thật từ máy quay 3D (khách VRoid ngồi trong toa, có ảnh +
+                   tên TikTok), lồng khung ảnh lưu niệm có số hiệu tàu, ngày, kèm hàng ảnh đại diện TikTok của hành khách.
+                   Ảnh hiện to giữa màn hình, không lưu file. (Bản 2D: ảnh tập thể vẽ trước ga Đà Lạt.)
+  🎫 Thẻ lên tàu : mỗi người mua vé / đổi vé lên VIP, Lareine hiện một thẻ lên tàu kiểu giấy in nhiệt: mã vé, ga đi – ga đến,
+                   tàu, ngày, giờ đi, toa, chỗ, loại chỗ, loại vé, họ tên (tên TikTok). Mã vạch chỉ để trang trí.
+                   Ô Toa/Coach là số thứ tự toa 1 → 6 (1-2 La Reine, 3 VIP 1, 4 VIP 2, 5 ngồi mềm, 6 ngồi cứng);
+                   ô loại chỗ ghi "La Reine", "VIP 1", "VIP 2", "Ngồi mềm", "Ngồi cứng".
+  📣 Lời mời     : lúc yên ắng MC xen các câu mời bình luận, thả tim, follow, hỏi quê quán…
+
+MỘT CHUYẾN TÀU
+- 🎫 Phòng vé ga Đà Lạt: đợi khách 25 giây. Phát thanh viên báo tàu sắp chuyển bánh. Ai bình luận là mua vé lên tàu.
+- 🚂 Tàu chạy qua: Đồi thông → Làng rau → Dốc cao → Thung lũng hoa → Nhà kính → ga Trại Mát.
+  Hướng dẫn viên thuyết minh suốt chặng: vài câu cố định (chào khách, sắp đến ga) và khoảng 22 giây lại bốc ngẫu nhiên
+  một câu trong kho 30 câu (lịch sử ga, đường sắt răng cưa, Yersin, Langbiang, hồ Xuân Hương, hoa, dâu, atisô, món ngon…),
+  không lặp lại cho tới khi đọc hết kho. Thêm / sửa câu trong server.js, mục FACTS.
+- 🛕 Ga Trại Mát (gần chùa Linh Phước): dừng 32 giây. Phát thanh tàu đến ga, rồi phát thanh tàu chiều về sắp chạy.
+- 🔁 Tàu quay đầu chạy về Đà Lạt (lượt về đầu máy hướng sang trái).
+- 🎉 Về ga Đà Lạt (30 giây): chụp ảnh lưu niệm, rồi tổng kết: bục vinh danh 3 người tặng nhiều nhất, người trúng vé may mắn,
+  khách quen nhất, số tim, pháo hoa; sau đó sang chuyến mới với cặp số hiệu kế tiếp.
+
+NGƯỜI XEM CHƠI THẾ NÀO
+- 💬 Bình luận bất kỳ = mua vé lên tàu (ảnh đại diện ngồi trong cửa sổ toa khách).
+- ❤️ Thả tim = xúc than → áp suất nồi hơi tăng → tàu chạy nhanh hơn, leo dốc khoẻ hơn.
+- Gõ "tu tu" = kéo còi tàu.
+- 🎁 Quà = tàu tăng tốc + lên hạng ghế (xem "Thành phần đoàn tàu"). Quà từ 100 xu có pháo hoa, từ 500 xu pháo hoa lớn.
+  Người tặng nhiều nhất chuyến = 👑 LÁI TÀU, ảnh hiện trong ca-bin đầu máy.
+- Follow / share: hoa rơi + thêm than.
+
+SỰ KIỆN DỌC ĐƯỜNG (ngẫu nhiên, sửa ở trang điều khiển)
+- 🌫️ Sương mù: thả đủ tim để bật đèn pha (không đủ thì tàu bò chậm).
+- 🐄 Đàn bò chắn đường ray: tàu dừng, cả phòng gõ "tu tu" để kéo còi đuổi bò.
+- 🌲 Cây thông đổ: tàu dừng, tặng quà để thuê đội dọn cây.
+- ❓ Đố vui Đà Lạt: gõ A, B hoặc C, người đúng đầu tiên được xướng tên.
+  Hết giờ mà chưa xong thì tàu vẫn chạy tiếp (chỉ bị chậm).
+
+TÀU NGÀY / TÀU ĐÊM (trang điều khiển → 🌗)
+- Theo giờ tàu (DL11 – DL14 là tàu đêm) · Luôn ngày · Luôn đêm · Xen kẽ mỗi chuyến.
+- Tàu ngày: toa gỗ ván xám trắng khung nâu, bảng "DALAT PLATEAU RAILROAD", rèm be; trời xanh.
+- Tàu đêm: toa gỗ tối màu, cửa sổ bo tròn khung đỏ nâu, viền đèn LED vàng; ga Đà Lạt viền đèn;
+  đèn đường, đèn pha; trong khoang có trần hoa, rèm đỏ, đèn nến và ban nhạc saxophone biểu diễn.
+
+QUÀ KHÔNG CHE MÀN HÌNH
+- Tối đa 2 băng-rôn quà; cùng một người tặng liên tiếp thì cộng dồn vào băng-rôn đang hiện (x5, tổng xu).
+- Cánh hoa tối đa 45 cái, pháo hoa tối đa 2 chùm cùng lúc và chỉ nổ ở khoảng trời dưới bảng thông tin;
+  đèn chớp nhẹ, chỉ quà từ 100 xu; hiệu ứng lớn tối đa 1 lần mỗi 2,5 giây.
+
+KHÔNG ĐÈ GIỌNG
+- Chỉ MỘT màn hình LIVE được phát tiếng (giọng MC, phát thanh, thuyết minh, tiếng tàu, nhạc). Mở thêm màn hình ở
+  trình duyệt / điện thoại thì các màn hình đó tự tắt tiếng (hiện nhãn "Màn hình phụ"). Ưu tiên màn hình OBS (?obs=1).
+  Đổi màn hình phát tiếng: trang điều khiển → Đưa lên LIVE → "Phát tiếng ở đây", hoặc thêm ?voice=1 vào link.
+- Các câu đọc xếp hàng lần lượt, không bao giờ hai giọng cùng lúc. Phát thanh được ưu tiên: chờ câu đang đọc dứt,
+  rung chuông "ting – tong", đọc xong mới tới câu khác.
+
+ÂM THANH
+- Tiếng tàu tổng hợp sẵn (không cần file): phì phò hơi nước (nhanh dần theo tốc độ), bánh qua mối ray,
+  còi hơi "tu tu", xì hơi khi lăn bánh / đỗ ga, phanh rít khi vào ga, chuông ga, tiếng quà, pháo hoa.
+- Giọng đọc: bộ đọc AI VieNeu-TTS giống game Thắp Sáng Quê Hương, chạy offline trên máy.
+  Game tự tìm thư mục VieNeu-TTS nằm cạnh thư mục TauDaLat (livetiktok\VieNeu-TTS), tự bật khi mở game
+  (lần đầu có thể mất vài phút), tự tắt khi đóng game. Trạng thái xem ở trang điều khiển → MC & âm thanh.
+  Ba vai, mỗi vai một giọng (đổi ở trang điều khiển):
+    · Phát thanh viên kiểu hàng không (mặc định Mai Anh): có chuông "ting – tong" trước khi đọc.
+      "Kính thưa quý khách. Đoàn tàu Đà Lạt đi Trại Mát, số hiệu DL…, khởi hành lúc … giờ …, sắp bắt đầu
+      chuyển bánh. Quý khách có vé đi tàu DL… vui lòng ổn định chỗ ngồi để đoàn tàu chuyển bánh được an toàn.
+      Xin cảm ơn và hẹn gặp lại quý khách." — đọc khi đón khách ở ga Đà Lạt, khi đến / rời ga Trại Mát, khi về ga.
+    · Hướng dẫn viên thuyết minh (mặc định Thiện Minh): đọc suốt chặng, bật/tắt được.
+    · MC (mặc định Adam bựa): cảm ơn quà, chào khách, sự kiện.
+  Nút "Thử phát thanh" / "Thử thuyết minh" để nghe trước. Sửa lời thuyết minh trong server.js (mục GUIDE).
+- Nhạc nền riêng: chép mp3 vào public\music.
+- OBS: Browser Source → bật "Control audio via OBS". Mở bằng trình duyệt thường thì bấm nút "Bật tiếng" 1 lần.
+
+HÌNH ẢNH
+- Mọi hình đều được vẽ bằng code, mô phỏng theo ảnh thật (ga Đà Lạt 3 mái nhọn, ga Trại Mát, toa
+  Dalat Plateau Railroad, bảng giờ tàu DL1–DL14). Game không dùng ảnh / video lấy trên mạng để tránh vi phạm bản quyền khi LIVE.
+- Bản đồ Việt Nam thu nhỏ ở góc phải có ghi Hoàng Sa (Việt Nam), Trường Sa (Việt Nam).
+
+Vùng an toàn: mọi thứ quan trọng nằm phía trên; phần dưới màn hình để trống cho khung chat TikTok.
+Game KHÔNG tự bấm nút hay gửi gì lên TikTok, chỉ đọc sự kiện của phiên LIVE.

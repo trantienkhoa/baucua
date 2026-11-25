@@ -1,0 +1,17 @@
+{
+  "name": "tau-da-lat-trai-mat",
+  "version": "1.0.0",
+  "description": "Tàu Đà Lạt – Trại Mát: game tương tác nhận quà cho TikTok LIVE",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "ISC",
+  "private": true,
+  "dependencies": {
+    "express": "^5.3.0",
+    "socket.io": "^4.8.4",
+    "three": "^0.187.0",
+    "tiktok-live-connector": "^2.5.0"
+  }
+}

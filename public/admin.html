@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Điều khiển — Tàu Đà Lạt</title>
+<style>
+  :root { --bg: #f6f1e7; --card: #fff; --ink: #2a1d14; --mut: #7a6a5a; --acc: #8a2a1c; --gold: #c9952e; --ok: #1f7a3a; --bad: #b3261e; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 'Segoe UI', system-ui, sans-serif; }
+  header { position: sticky; top: 0; z-index: 2; background: var(--acc); color: #ffe7a8; padding: 12px 20px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  header h1 { font-size: 20px; margin: 0; }
+  #st { background: rgba(0,0,0,.25); border-radius: 20px; padding: 4px 14px; }
+  #st.connected { background: var(--ok); color: #fff; }
+  #st.error { background: #e0533f; color: #fff; }
+  main { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; padding: 16px; max-width: 1400px; margin: auto; }
+  section { background: var(--card); border-radius: 14px; padding: 16px 18px; box-shadow: 0 2px 10px rgba(60,40,20,.08); }
+  h2 { font-size: 16px; margin: 0 0 12px; color: var(--acc); }
+  label { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 8px 0; }
+  input[type=text], input[type=number], select { padding: 7px 9px; border: 1px solid #d8cbb8; border-radius: 8px; font: inherit; }
+  input[type=number] { width: 90px; }
+  button { padding: 8px 14px; border: 0; border-radius: 9px; background: var(--acc); color: #fff; font: inherit; font-weight: 600; cursor: pointer; margin: 3px 2px; }
+  button.alt { background: #e9dfcf; color: var(--ink); }
+  button.gold { background: var(--gold); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .mut { color: var(--mut); font-size: 13px; }
+  code { background: #f1e8d8; padding: 3px 7px; border-radius: 6px; word-break: break-all; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
+  .stats div { background: #f6efe2; border-radius: 10px; padding: 8px; }
+  .stats b { display: block; font-size: 20px; color: var(--acc); }
+  ol { margin: 6px 0 0; padding-left: 22px; }
+</style>
+</head>
+<body>
+<header><h1>🚂 Tàu Đà Lạt – Trại Mát · Điều khiển</h1><span id="st">…</span><span id="ph"></span></header>
+<main>
+  <section>
+    <h2>🔌 Kết nối TikTok LIVE</h2>
+    <label>Tên kênh <input type="text" id="user" placeholder="@kenhcuaban"></label>
+    <label>Khoá ký (không bắt buộc) <input type="text" id="key" placeholder="để trống nếu không có"></label>
+    <div class="row"><button onclick="connectTk()">Kết nối</button><button class="alt" onclick="emit('admin:disconnect')">Ngắt</button></div>
+    <p class="mut">Bấm LIVE trên TikTok trước rồi mới kết nối.</p>
+    <div class="stats"><div><b id="sv">0</b>người xem</div><div><b id="sl">0</b>tim</div><div><b id="sc">0</b>xu quà</div></div>
+  </section>
+  <section>
+    <h2>📺 Đưa lên LIVE</h2>
+    <p>OBS → Browser Source, khổ <b>1080 × 1920</b>:<br><code id="obs"></code> <button class="alt" onclick="copy('obs')">📋 Chép</button></p>
+    <p>TikTok LIVE Studio → Liên kết:<br><code id="lan">…</code> <button class="alt" onclick="copy('lan')">📋 Chép</button></p>
+    <button onclick="fetch('/api/open-live',{method:'POST'}).then(r=>r.json()).then(d=>!d.ok&&alert(d.error))">Mở màn hình LIVE trong cửa sổ riêng</button>
+    <p style="margin-top:12px"><b>🔊 Màn hình đang phát tiếng</b> <span class="mut">(chỉ 1 màn hình phát tiếng để giọng không đè nhau)</span></p>
+    <div id="screens" class="mut">Chưa mở màn hình LIVE nào</div>
+    <p class="mut">Xem thử: <a href="/live.html" target="_blank">màn hình game</a> · <a href="/live.html?time=night" target="_blank">thử trời đêm</a></p>
+  </section>
+  <section>
+    <h2>🌗 Tàu ngày / Tàu đêm</h2>
+    <label>Loại tàu
+      <select id="trainMode" onchange="cfg({trainMode:this.value})">
+        <option value="auto">Theo giờ tàu (DL11–DL14 sau 18:00 là tàu đêm)</option>
+        <option value="day">Luôn là tàu ngày</option>
+        <option value="night">Luôn là tàu đêm</option>
+        <option value="alt">Xen kẽ ngày / đêm mỗi chuyến</option>
+      </select></label>
+    <p class="mut">Tàu ngày: toa gỗ xám trắng, rèm be. Tàu đêm: toa gỗ tối viền đèn vàng, ga lên đèn, ban nhạc biểu diễn trong khoang. Đổi lúc tàu đang đợi khách thì áp dụng ngay, còn không thì áp dụng từ chuyến sau.</p>
+  </section>
+  <section>
+    <h2>🎮 Điều khiển nhanh</h2>
+    <div class="row"><button onclick="emit('admin:skip')">⏭ Sang bước tiếp</button><button class="alt" onclick="confirm('Bắt đầu lại chuyến mới?')&&emit('admin:reset')">🔄 Chuyến mới</button></div>
+    <div class="row" style="margin-top:8px">Sự kiện:
+      <button class="alt" onclick="emit('admin:event','fog')">🌫️ Sương mù</button><button class="alt" onclick="emit('admin:event','cow')">🐄 Bò chắn</button>
+      <button class="alt" onclick="emit('admin:event','tree')">🌲 Cây đổ</button><button class="alt" onclick="emit('admin:event','quiz')">❓ Đố vui</button></div>
+    <div class="row" style="margin-top:8px"><button class="alt" onclick="emit('admin:photo')">📸 Thử chụp ảnh lưu niệm</button></div>
+    <div class="row" style="margin-top:8px">Giữ chân:
+      <button class="alt" onclick="emit('admin:lucky')">🎫 Bốc vé may mắn</button><button class="alt" onclick="emit('admin:berry')">🍓 Hái dâu</button><button class="alt" onclick="emit('admin:fact')">🎤 Câu thuyết minh</button></div>
+    <label style="margin-top:12px">MC nói <input type="text" id="sayTxt" style="flex:1" placeholder="gõ câu cho MC đọc"> <button onclick="emit('admin:say',v('sayTxt'));$('sayTxt').value=''">Nói</button></label>
+  </section>
+  <section>
+    <h2>🧪 Thử không cần LIVE</h2>
+    <label>Bật demo tự động (người xem giả) <input type="checkbox" id="demo" onchange="emit('admin:demo',this.checked)"></label>
+    <p class="mut" style="color:#b3261e">Nhớ TẮT demo trước khi LIVE thật.</p>
+    <label>Tên người thử <input type="text" id="simName" value="Khoa"></label>
+    <div class="row">
+      <button class="alt" onclick="sim({kind:'chat',text:v('simTxt')||'lên tàu'})">💬 Bình luận</button><input type="text" id="simTxt" placeholder="lên tàu / tu tu / a" style="width:140px">
+    </div>
+    <div class="row">
+      <button class="alt" onclick="sim({kind:'like',n:50})">❤️ 50 tim</button>
+      <button class="alt" onclick="sim({kind:'gift',coins:1,gift:'Hoa hồng'})">🌹 1 xu</button>
+      <button class="alt" onclick="sim({kind:'gift',coins:10,gift:'Bánh donut'})">🍩 10 xu</button>
+      <button class="gold" onclick="sim({kind:'gift',coins:100,gift:'Xe thể thao'})">🏎 100 xu</button>
+      <button class="gold" onclick="sim({kind:'gift',coins:500,gift:'Sư tử'})">🦁 500 xu</button>
+      <button class="alt" onclick="sim({kind:'follow'})">➕ Follow</button>
+    </div>
+  </section>
+  <section>
+    <h2>⚙️ Luật chơi</h2>
+    <label>Tốc độ thời gian (6 = 1 chiều ~2–5 phút) <input type="number" id="timeX" min="1" max="30" step="1"></label>
+    <label>Đợi khách ở ga Đà Lạt (giây) <input type="number" id="boardSec"></label>
+    <label>Dừng ở ga Trại Mát (giây) <input type="number" id="stopSec"></label>
+    <label>Màn tổng kết (giây) <input type="number" id="finishSec"></label>
+    <label>Mỗi tim + % than <input type="number" id="likePow" step="0.05"></label>
+    <label>Sự kiện dọc đường <input type="checkbox" id="events"></label>
+    <label>Khoảng cách giữa sự kiện (giây) <input type="number" id="eventEvery"></label>
+    <label>Sương mù: cần bao nhiêu tim <input type="number" id="fogLikes"></label>
+    <label>Bò chắn: cần bao nhiêu lần "tu tu" <input type="number" id="cowHonks"></label>
+    <label>Cây đổ: cần bao nhiêu xu <input type="number" id="treeCoins"></label>
+    <label>Màn hình 3D (tắt → bản 2D nhẹ cho máy yếu) <input type="checkbox" id="view3d"></label>
+    <label>Số ghế mỗi toa La Reine (51612, 51618) <input type="number" id="cap.lareine" min="1" max="80"></label>
+    <label>Số ghế mỗi toa VIP 1, 2 (51620, 51622) <input type="number" id="cap.vip" min="1" max="80"></label>
+    <label>Số ghế toa ngồi mềm <input type="number" id="cap.mem" min="1" max="80"></label>
+    <label>Số ghế toa ngồi cứng <input type="number" id="cap.cung" min="1" max="80"></label>
+    <label>Mục tiêu tim mỗi chuyến (đủ → pháo hoa) <input type="number" id="likeGoal"></label>
+    <label>Thuyết minh ngẫu nhiên mỗi (giây) <input type="number" id="factEvery"></label>
+    <label>Tiêu đề <input type="text" id="title"></label>
+  </section>
+  <section>
+    <h2>🔊 MC & âm thanh</h2>
+    <p>Bộ đọc AI <b>VieNeu-TTS</b> (giống Thắp Sáng Quê Hương): <span id="ttsSt">…</span> <button class="alt" onclick="fetch('/api/tts/restart',{method:'POST'})">Bật lại</button></p>
+    <label>Bật MC / phát thanh <input type="checkbox" id="tts"></label>
+    <label>Giọng MC (người dẫn) <select id="voice"></select></label>
+    <label>Giọng phát thanh viên (kiểu hàng không) <select id="annVoice"></select></label>
+    <label>Giọng hướng dẫn viên thuyết minh <select id="guideVoice"></select></label>
+    <label>Thuyết minh suốt chặng <input type="checkbox" id="guide"></label>
+    <label>Tốc độ đọc <input type="number" id="rate" min="0.7" max="1.5" step="0.05"></label>
+    <div class="row"><button class="alt" onclick="emit('admin:testAnn')">🔔 Thử phát thanh</button><button class="alt" onclick="emit('admin:testGuide')">🎤 Thử thuyết minh</button></div>
+    <label>Tiếng tàu & hiệu ứng <input type="range" id="vol.sfx" min="0" max="100"></label>
+    <label>Giọng MC <input type="range" id="vol.voice" min="0" max="100"></label>
+    <label>Nhạc nền <input type="range" id="vol.music" min="0" max="100"></label>
+    <p class="mut">Nhạc nền riêng: chép file mp3 vào thư mục <code>public\music</code> rồi tải lại màn hình game. OBS: bật "Control audio via OBS" để nghe tiếng tàu.</p>
+  </section>
+  <section>
+    <h2>💎 Hành khách hào phóng hôm nay</h2>
+    <ol id="top"></ol>
+    <button class="alt" onclick="confirm('Xoá bảng hôm nay?')&&emit('admin:resetTop')">Xoá bảng</button>
+  </section>
+  <section>
+    <h2>⭐ Khách quen (số chuyến đã đi)</h2>
+    <ol id="riders"></ol>
+    <h2 style="margin-top:14px">🎫 Trúng vé may mắn gần đây</h2>
+    <ol id="luckyList"></ol>
+    <p class="mut">Gợi ý: tặng quà nhỏ / ghim bình luận / nhắc tên người trúng vé may mắn trên LIVE để mọi người ở lại đến ga Trại Mát.</p>
+  </section>
+</main>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const $ = id => document.getElementById(id), v = id => $(id).value.trim();
+const s = io(); s.on('connect', () => s.emit('admin:hello'));
+const emit = (e, d) => s.emit(e, d), cfg = o => emit('admin:cfg', o);
+const sim = d => emit('admin:sim', { name: v('simName'), ...d });
+function connectTk() { emit('admin:connect', { username: v('user'), apiKey: v('key') }); }
+function copy(id) { navigator.clipboard.writeText($(id).textContent); }
+$('obs').textContent = location.origin.replace('localhost', '127.0.0.1') + '/live.html?obs=1';
+const NUM = ['likeGoal', 'factEvery', 'timeX', 'boardSec', 'stopSec', 'finishSec', 'likePow', 'eventEvery', 'fogLikes', 'cowHonks', 'treeCoins'];
+for (const k of NUM) $(k).addEventListener('change', e => cfg({ [k]: e.target.value }));
+for (const k of ['events', 'tts']) $(k).addEventListener('change', e => cfg({ [k]: e.target.checked }));
+for (const k of ['voice', 'annVoice', 'guideVoice']) $(k).addEventListener('change', e => cfg({ [k]: e.target.value }));
+$('guide').addEventListener('change', e => cfg({ guide: e.target.checked }));
+$('view3d').addEventListener('change', e => cfg({ view3d: e.target.checked }));
+for (const k of ['lareine', 'vip', 'mem', 'cung']) $('cap.' + k).addEventListener('change', e => cfg({ ['cap.' + k]: e.target.value }));
+$('rate').addEventListener('change', e => cfg({ rate: e.target.value }));
+let voiceKey = '';
+const ST = { ready: '✅ sẵn sàng', starting: '⏳ đang bật (lần đầu có thể vài phút)…', missing: '❌ chưa cài (cần thư mục VieNeu-TTS cạnh thư mục game)', error: '⚠️ lỗi', off: 'đang tắt' };
+function fillVoices(a) {
+  const vs = a.voices || [], S = a.settings, key = vs.map(v => v.id).join('|') + S.voice + S.annVoice + S.guideVoice;
+  if (key === voiceKey) return; voiceKey = key;
+  const opts = (cur, blank) => (blank ? `<option value="">${blank}</option>` : '') + (vs.some(v => v.id === cur) || !cur ? '' : `<option>${cur}</option>`) + vs.map(v => `<option value="${v.id}"${v.id === cur ? ' selected' : ''}>${v.id}${v.desc ? ' — ' + v.desc : ''}</option>`).join('');
+  $('voice').innerHTML = opts(S.voice); $('annVoice').innerHTML = opts(S.annVoice); $('guideVoice').innerHTML = opts(S.guideVoice, '(giống giọng MC)');
+  $('voice').value = S.voice; $('annVoice').value = S.annVoice; $('guideVoice').value = S.guideVoice || '';
+}
+$('title').addEventListener('change', e => cfg({ title: e.target.value }));
+for (const k of ['vol.sfx', 'vol.voice', 'vol.music']) $(k).addEventListener('change', e => cfg({ [k]: e.target.value }));
+let first = true;
+const PH = { board: '🎫 Đợi khách ở ga Đà Lạt', run: '🚂 Đang chạy', stop: '🛕 Dừng ở ga Trại Mát', finish: '🎉 Tổng kết' };
+s.on('admin', a => {
+  $('st').textContent = a.tk.text; $('st').className = a.tk.state;
+  $('ph').textContent = `Chuyến ${a.trip} · ${PH[a.phase] || ''}`;
+  $('sv').textContent = a.stats.viewers; $('sl').textContent = a.stats.likes; $('sc').textContent = a.stats.coins;
+  $('lan').textContent = a.lan[0] || 'Không tìm thấy mạng LAN';
+  $('demo').checked = a.demo;
+  const e2 = s => String(s).replace(/</g, '&lt;');
+  const sk = JSON.stringify(a.screens || []);
+  if (sk !== window.__sk) {
+    window.__sk = sk;
+    $('screens').innerHTML = (a.screens || []).map(x => `<div class="row" style="margin:4px 0">${x.voice ? '🔊' : '🔇'} Màn hình ${x.n}: ${x.obs ? 'OBS / LIVE' : 'trình duyệt'}${x.local ? '' : ' (máy khác)'} ${x.voice ? '<b style="color:#1f7a3a">— đang phát tiếng</b>' : `<button class="alt" onclick="emit('admin:voiceScreen','${x.id}')">Phát tiếng ở đây</button>`}</div>`).join('') || 'Chưa mở màn hình LIVE nào';
+  }
+  $('riders').innerHTML = (a.riders || []).map(r => `<li>${e2(r.name)} — <b>${r.rides}</b> chuyến</li>`).join('') || '<li class="mut">Chưa có</li>';
+  $('luckyList').innerHTML = (a.lucky || []).map(r => `<li>${e2(r.name)} — tàu ${r.code} (${r.day})</li>`).join('') || '<li class="mut">Chưa có</li>';
+  $('top').innerHTML = a.top.map(p => `<li>${p.name.replace(/</g, '&lt;')} — <b>${p.coins}</b> xu</li>`).join('') || '<li class="mut">Chưa có</li>';
+  const S = a.settings;
+  const ti = a.ttsInfo || {}; $('ttsSt').textContent = (ST[ti.status] || ti.status || '') + (ti.error ? ' — ' + ti.error : '');
+  fillVoices(a);
+  if (first) {
+    $('guide').checked = S.guide; $('rate').value = S.rate; $('view3d').checked = S.view3d !== false;
+    for (const k of ['lareine', 'vip', 'mem', 'cung']) $('cap.' + k).value = S.cap[k];
+    first = false; $('user').value = S.username || ''; $('key').placeholder = S.hasKey ? '(đã lưu)' : 'để trống nếu không có';
+    for (const k of NUM) $(k).value = S[k];
+    $('events').checked = S.events; $('tts').checked = S.tts; $('title').value = S.title; $('trainMode').value = S.trainMode;
+    for (const k of ['sfx', 'voice', 'music']) $('vol.' + k).value = S.vol[k];
+  }
+});
+</script>
+</body>
+</html>
