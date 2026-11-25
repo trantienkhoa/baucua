@@ -1,0 +1,159 @@
+NATION RUSH — game TikTok LIVE: các quốc gia đua tên lửa lên vũ trụ (giao diện tiếng Anh)
+=====================================================================================
+
+CHẠY GAME
+1. Bấm đúp ChayGame.bat. Cửa sổ đen là server — đóng cửa sổ là tắt game.
+   KHÔNG cần cài Node.js: thư mục node\ đã có sẵn Node.js bản portable (v24, 64-bit, tải từ nodejs.org).
+   ChayGame.bat dùng theo thứ tự: node\ đi kèm → Node.js đã cài trên máy → nếu cả hai đều không có thì tự tải
+   bản portable chính thức từ nodejs.org (~30 MB, có kiểm tra mã SHA256, không cần quyền admin) vào thư mục node\.
+   Thiếu thư mục node_modules thì lần đầu tự cài thư viện (cần Internet).
+   Mang sang máy khác: chép NGUYÊN thư mục NationRush (cả node\ và node_modules\) là chạy được ngay, không cần mạng để cài.
+   Máy Windows ARM thì tự tải bản ARM64. Đường dẫn thư mục game nên ngắn (vd. D:\NationRush) để tránh lỗi đường dẫn quá dài.
+2. Trình duyệt tự mở trang điều khiển: http://localhost:3330/admin.html
+3. OBS / TikTok LIVE Studio → thêm Browser Source: http://localhost:3330/  khổ 1080 x 1920.
+   (Muốn tắt tiếng game: http://localhost:3330/?mute=1)
+4. Bấm LIVE trên TikTok trước, rồi vào trang điều khiển nhập @kênh → Kết nối.
+5. Xem thử không cần LIVE: trang điều khiển → "Bật demo tự động". NHỚ TẮT demo trước khi LIVE thật.
+
+BA KIỂU MÀN HÌNH
+- Địa cầu 3D (mặc định): http://localhost:3330/
+  Các nước đang chơi nổi khối lên khỏi mặt địa cầu (càng nhiều điểm càng cao, càng sáng), khí quyển phát sáng,
+  cột sáng khi có quà / dẫn đầu, sóng lan khi MEGA BOOST, cung sáng nối hai nước đang đối đầu, pháo hoa khi thắng.
+  Cần bật tăng tốc phần cứng cho Browser Source trong OBS. Máy yếu thì dùng bản đồ phẳng bên dưới.
+- Bản đồ phẳng: http://localhost:3330/?view=flat
+  Nước nào có người chơi thì sáng lên theo màu quốc kỳ, càng nhiều điểm càng sáng; camera tự bay tới nước
+  vừa có người vào / tặng quà; avatar người xem hiện ngay trên đất nước mình; có đường "đối đầu" khi hạng 1
+  và hạng 2 sát nút; thanh CONTINENT BATTLE (châu lục nào đang dẫn); thông báo NEW NATION khi có nước mới.
+  Bản đồ có ghi Hoàng Sa (Vietnam), Trường Sa (Vietnam).
+- Đua tên lửa (kiểu cũ): http://localhost:3330/?view=rockets
+
+KIẾN TRÚC THEO THỜI ĐẠI (mới)
+- Mỗi nước trong top 8 có một "thành phố" 3D đặt trên lãnh thổ, kiến trúc đổi theo 8 thời đại:
+  🪨 Đồ đá (lều tranh, vòng đá, lửa trại) → 🏺 Đồ đồng (tháp bậc, nhà đất) → ⚔️ Đồ sắt (làng rào cọc, nhà dài, tháp canh)
+  → 🏛️ Cổ đại (đền cột đá, mái ngói đỏ) → 🏰 Trung cổ (lâu đài, tháp mái nhọn, cờ nước mình) → ⛪ Phục hưng (nhà thờ mái vòm, tháp chuông)
+  → 🏭 Công nghiệp (nhà máy, ống khói nhả khói, tháp đồng hồ) → 🏙️ Hiện đại (nhà chọc trời sáng đèn, công viên).
+- Lên thời đại theo ĐIỂM TÍCH LUỸ TRONG NGÀY của nước đó (cộng dồn qua các vòng). Mặc định: 0 · 2.000 · 8.000 · 25.000 · 60.000
+  · 150.000 · 350.000 · 800.000. Sửa ở trang điều khiển → "🏛 Thời đại & kiến trúc". Sang ngày mới các nước quay về thời đồ đá.
+- Lên thời đại: thành phố cũ thu lại, thành phố mới bật lên, cột sáng + sóng lan, băng-rôn "VIETNAM ENTERS THE MEDIEVAL AGE!"
+  kèm tên người đẩy lên, MC đọc. Lên thời hiện đại có pháo hoa. Thời đồ đồng đến rất nhanh nên chỉ báo nhẹ ở bảng tin.
+- Bảng xếp hạng ghi thời đại + thanh tiến độ tới thời đại kế tiếp; tên nước trên bản đồ có biểu tượng thời đại.
+- Kiến trúc rải KHẮP LÃNH THỔ: thủ đô lớn ở giữa (chỗ cắm cờ) + 2–14 làng / thị trấn cùng thời đại chia đều trên đất liền
+  và các đảo (nước càng rộng càng nhiều làng; Việt Nam ~7 làng dọc hình chữ S). Mỗi thời đại có 3 kiểu làng khác nhau
+  (vd. thời trung cổ: tháp canh / cối xay gió / nhà thờ nhỏ). Lên thời đại: thủ đô đổi trước, các làng mọc lan dần ra.
+- Làng có kích thước theo lãnh thổ: nhìn toàn cảnh thì nhỏ lại hoặc ẩn bớt, camera vào gần mới thấy rõ.
+- Thành phố chỉ có ở "Bản đồ trên biển 3D" và "Địa cầu 3D".
+
+TRANG ĐIỀU KHIỂN (kiểu Thắp Sáng Quê Hương)
+- http://127.0.0.1:3330/admin.html — thanh trạng thái trên cùng, các ô: Kết nối TikTok · Đưa lên LIVE (link + nút 📋 Chép,
+  nút "Mở màn hình LIVE trong cửa sổ riêng" để LIVE Studio dùng Chụp cửa sổ) · Thời đại & kiến trúc · Bảng xếp hạng trực tiếp ·
+  Giao diện (10 giao diện, tự đổi mỗi N phút, 0 = tắt) · Điều khiển nhanh (+ MC nói câu tự gõ) · Luật chơi · Giữ chân người xem ·
+  MC & nhạc (tải nhạc lên / xoá ngay trong trang) · Thử không cần LIVE.
+- Mỗi ô tự lưu ngay khi đổi, không cần bấm Lưu (trừ mốc điểm thời đại: bấm "Lưu mốc điểm").
+
+CÁC LINK (giống kiểu Thắp Sáng Quê Hương)
+- OBS → Browser Source, khổ 1080 x 1920:        http://127.0.0.1:3330/live.html?obs=1
+- TikTok LIVE Studio → Liên kết / điện thoại:    http://192.168.1.2:3330/live.html?obs=1   (IP lấy ở trang điều khiển, đổi Wi-Fi là đổi)
+- Trang điều khiển:                              http://127.0.0.1:3330/admin.html
+- ?obs=1: ẩn con trỏ chuột và dòng nhắc "Click once to turn sound on" để không lọt lên LIVE. Link cũ http://localhost:3330/ vẫn dùng được.
+
+LINK CHO TIKTOK LIVE STUDIO / ĐIỆN THOẠI
+- TikTok LIVE Studio không nhận link localhost. Mở trang điều khiển → mục "🔗 Link cho TikTok LIVE Studio",
+  chép link có địa chỉ IP (dạng http://192.168.x.x:3330/) → LIVE Studio: Thêm nguồn → Liên kết → dán, khổ 1080 x 1920.
+- Lần đầu Windows hỏi tường lửa thì bấm Allow / Cho phép. Link chỉ dùng trong mạng nhà bạn; đổi Wi-Fi thì IP đổi, lấy lại link.
+- Máy khác trong mạng chỉ xem được màn hình game. Trang điều khiển và mọi lệnh điều khiển chỉ nhận từ chính máy chạy game.
+
+KIỂU MÀN HÌNH (trang điều khiển → Kiểu màn hình; đổi là màn hình game tự tải lại)
+- 🌊 Bản đồ thế giới trên biển 3D (mặc định): biển xanh có sóng và nắng lấp lánh tràn toàn màn hình, các nước nổi khối.
+  Muốn biển xanh nhất thì chọn giao diện "Biển Xanh" (đang đặt sẵn).
+- 🌍 Địa cầu 3D · Bản đồ phẳng 2D (máy yếu) · 🚀 Đua tên lửa.
+
+THUYỀN CỦA NGƯỜI TẶNG QUÀ
+- Ai tặng quà thì có một chiếc thuyền căng buồm mang ảnh và tên mình, đi vòng quanh nước mình đến hết vòng.
+  Tặng càng nhiều thuyền càng to; người tặng nhiều nhất có thuyền vàng đội vương miện. Hiện tối đa 8 thuyền.
+
+NGÀY – ĐÊM, GIỜ ĐỊA PHƯƠNG VÀ THỜI TIẾT TỪNG NƯỚC
+- Ngày – đêm theo vị trí mặt trời thật (giờ máy tính): nửa trái đất đang là đêm bị phủ tối, có dải cam bình minh / hoàng hôn.
+  Biểu tượng ☀️ NOON ở nơi mặt trời đang đứng bóng và 🌙 MIDNIGHT ở phía đối diện. Chỉ có ở "Bản đồ trên biển 3D" và "Địa cầu 3D".
+- Dưới điểm số của 8 nước dẫn đầu có dòng: ☀️/🌙 giờ địa phương · biểu tượng thời tiết · nhiệt độ (lấy ở thủ đô).
+- Camera vào gần một nước: hiện thẻ "VIETNAM · ☀️ 16:44 · ☀️ 29°C Clear" ở góc trái, và mưa / tuyết / sương / chớp rơi trên bản đồ
+  nếu nước đó đang có thời tiết như vậy.
+- Thời tiết và múi giờ lấy từ Open-Meteo (miễn phí, không cần key, chỉ gửi toạ độ thủ đô), 15 phút cập nhật một lần.
+  Mất mạng hoặc tắt "Lấy thời tiết thật" thì dùng nhiệt độ ước lượng theo vĩ độ + mùa và múi giờ chuẩn (không tính giờ mùa hè).
+- Bật / tắt ở trang điều khiển: "Ngày – đêm theo mặt trời thật" và "Lấy thời tiết thật từng nước".
+
+TÀU 3D GIỐNG THẬT (bản mới)
+- Vỏ tàu cong dựng theo từng khung sườn, có ván gỗ, vạch mớn nước, sơn đáy đỏ; boong lát ván; cột, xà, dây chằng;
+  buồm căng gió bằng vải có đường may, BUỒM CHÍNH IN QUỐC KỲ; quốc kỳ ở đuôi tàu; cờ đuôi nheo trên đỉnh cột; vệt bọt sóng trôi.
+- Hai hạng: thuyền một cột buồm (quà dưới 100 xu) và tàu ba cột buồm vuông có lầu đuôi, đèn lồng (quà từ 100 xu,
+  hoặc người tặng nhiều nhất — tàu này vỏ ánh vàng và luôn được ghi tên).
+- Vùng đêm giờ chỉ làm tối biển và đất chưa sáng; các nước đang chơi vẫn giữ màu rực rỡ trong đêm.
+- Thẻ thời tiết góc trái tự dời xuống khi có băng-rôn hoặc khung đố vui.
+
+THUYỀN 3D + CHỐNG RỐI MÀN HÌNH
+- Thuyền của người tặng quà giờ là thuyền buồm 3D (thân, boong, cột, hai cánh buồm theo màu cờ, cờ, vệt sóng), dập dềnh
+  trên mặt biển; thuyền đầu bảng thân vàng. Ảnh + tên người tặng hiện phía trên thuyền khi còn chỗ.
+- Mọi nhãn trên bản đồ phải "giữ chỗ" trước khi vẽ, theo thứ tự ưu tiên: cờ + điểm top 8 → danh thắng → tên thuyền → avatar.
+  Hết chỗ thì thu nhỏ, dời sang bên (có vạch chỉ về vị trí thật) hoặc bỏ qua. Danh thắng chỉ hiện của MỘT nước camera đang xem.
+  Nhìn toàn cảnh thì chỉ còn 4 thuyền lớn nhất và thuyền nhỏ lại.
+
+MC ĐỔI NGÔN NGỮ THEO TỪNG NƯỚC (kiểu giọng Bắc – Trung – Nam) + CHÀO NGƯỜI VÀO PHÒNG
+- Trang điều khiển → "Ngôn ngữ của MC":
+  · Tiếng Anh là chính + chen tiếng từng nước (mặc định): MC luôn nói câu tiếng Anh; ở khoảnh khắc lớn của một nước thì nói
+    thêm trọn một câu bằng tiếng và giọng nước đó, có tên nước bằng tiếng bản xứ. Luôn nói: nước mới tham gia, thắng vòng,
+    quà từ 100 xu. Thỉnh thoảng: đổi ngôi đầu (50%), đèn sắp tắt (60%), quà 10–99 xu (30%), chào người quen (35%),
+    và hai câu bản xứ cách nhau ít nhất 18 giây. Sự kiện chung (đố vui, Final Rush, Golden Hour…) luôn bằng tiếng Anh.
+  · Câu về nước nào đọc hẳn bằng tiếng nước đó · Chỉ tiếng Anh.
+- 46 ngôn ngữ, 93 nước; nước nói tiếng Anh thì MC nói tiếng Anh. Sửa câu / thêm ngôn ngữ trong languages.js
+  (6 mẫu câu mỗi ngôn ngữ). Các câu chưa được người bản xứ soát lại, nhất là ngôn ngữ ít gặp.
+- Có người vào phòng: hiện thẻ "👋 ... joined the LIVE" và MC chào khi đang rảnh (bật / tắt ở trang điều khiển).
+- Game KHÔNG tự bấm nút hay giải captcha trên TikTok — chỉ đọc sự kiện của phiên LIVE.
+
+GIAO DIỆN MATRIX + 10 HOẠT ĐỘNG
+- Giao diện Matrix (mưa mã xanh). Thách đấu (gõ "vs Japan"), Sóng like 1.000, Kho báu (gõ GO), Đèn tắt dần (nước im 40 giây
+  bị cảnh báo, quá 50 giây mất dần điểm), Đội trưởng, Bản tin giữa vòng, Phục thù (á quân vòng trước ×2 trong 30 giây),
+  Mốc thế giới (5, 10, 15, 20… nước), đếm ngược sự kiện kế tiếp, "fan #N". Trang điều khiển có ô gõ bình luận thử.
+
+HOẠT ĐỘNG GIỮ CHÂN & KÍCH QUÀ (bản mới)
+- 🏛 Danh thắng / di tích: 58 nước, 127 địa danh (Việt Nam 6: Hạ Long, Phố cổ Hà Nội, Cố đô Huế, Hội An,
+  Phong Nha - Kẻ Bàng, Dinh Độc Lập). Nước đạt mốc điểm thì mở khóa từng địa danh: băng-rôn + camera bay tới +
+  cột sáng + bình luận viên đọc một câu giới thiệu. Camera vào gần sẽ thấy biểu tượng địa danh trên bản đồ,
+  cái kế tiếp hiện ổ khóa. Sửa / thêm địa danh trong file landmarks.js (cần chạy lại game).
+- 🎁 Quà từ 30 xu: mở khóa NGAY địa danh kế tiếp của nước mình, ghi tên người tặng.
+- ⚡ Quà từ 99 xu: nước mình ×2 điểm trong 30 giây (tặng thêm thì cộng dồn thời gian).
+- 🌟 Mục tiêu quà chung cả phòng (thanh vàng): đủ xu thì GOLDEN HOUR, mọi điểm ×2 trong 30 giây, pháo hoa;
+  mục tiêu sau khó dần.
+- 🍀 Lucky Gift ×5: sự kiện ngẫu nhiên, món quà ĐẦU TIÊN trong 20 giây được ×5.
+- 🧠 Đố vui: "Where is Ha Long Bay?" — người xem gõ A, B hoặc C. Đúng +300 cho nước mình, người đúng đầu tiên ×2.
+- 🔥 Điểm danh nhiều ngày liên tiếp: thưởng 50 × số ngày (tối đa 7) khi gõ tên nước lần đầu trong ngày.
+- 🎖 Danh hiệu theo điểm tích luỹ qua các buổi live: Rookie → Patriot → Hero → Legend (hiện trước tên).
+- 💎 Top supporter hôm nay hiện ở màn hình thắng vòng.
+- Trang điều khiển có nút thử từng sự kiện (Đố vui, Lucky Gift, Underdog…).
+
+GIAO DIỆN (kiểu Thắp Sáng Quê Hương)
+- 9 giao diện: Đêm Sao · Neon · Cực Quang · Sơn Mài · Radar Chỉ Huy · Biển Xanh · Tết Rộn Ràng · Giấy Cổ · Hoa Sen.
+  Chọn ở trang điều khiển → Giao diện, hoặc để "Tự đổi ngẫu nhiên" mỗi N phút.
+  Xem nhanh một giao diện: http://localhost:3330/?theme=festival  (night, neon, aurora, lacquer, radar, ocean, festival, paper, lotus)
+
+ÂM THANH & BÌNH LUẬN VIÊN TIẾNG ANH
+- Bình luận viên tự đọc tiếng Anh: bắt đầu vòng, nước mới, quà từ 10 xu, MEGA BOOST, đổi ngôi đầu, đối đầu,
+  sự kiện, Final Rush, nước thắng + người hùng; lúc yên ắng thì mời người xem gõ tên nước.
+  Giọng Microsoft Edge (cần Internet; lỗi thì tự chuyển giọng Google). Chọn giọng / tắt / âm lượng ở trang điều khiển.
+  Tên người xem có ký tự lạ sẽ được đọc là "A viewer".
+- Hiệu ứng âm thanh tổng hợp sẵn (không cần file): nền không gian, tiếng like, quà, nổ MEGA, reo hò, nhịp tim nước rút, pháo hoa.
+- Nhạc nền riêng: chép file mp3 vào public\music rồi tải lại màn hình game (tự giảm nhỏ khi bình luận viên nói).
+- OBS: Browser Source → bật "Control audio via OBS" để chỉnh / nghe tiếng game. Mở bằng trình duyệt thường thì bấm chuột 1 lần để có tiếng.
+
+NGƯỜI XEM CHƠI THẾ NÀO
+- Gõ tên nước (Vietnam, Japan, USA, "việt nam", "日本"...), mã nước (vn) hoặc cờ emoji để vào đội.
+- Like +2, bình luận +10, follow +100, share +100, quà: 1 xu = +100 km (đổi được ở trang điều khiển).
+- Quà từ 10 xu: hiện băng-rôn tên người tặng. Từ 100 xu: MEGA BOOST toàn màn hình.
+- Tặng quà khi chưa chọn nước / lúc nghỉ giữa vòng: điểm được giữ, cộng khi vào đội hoặc đầu vòng sau.
+
+CƠ CHẾ GIỮ CHÂN
+- Vòng 3 phút, 30 giây cuối FINAL RUSH x2 điểm, 10 giây cuối đếm ngược lớn.
+- Sự kiện ngẫu nhiên: Underdog Boost x3 (nước hạng 4 trở xuống), Like Storm x5, Roll Call x10, Double Gifts x2.
+- Mốc độ cao: The Sky → Space → Orbit → The Moon → Mars → Jupiter → Galaxy Edge (hiện băng-rôn khi chạm mốc).
+- Cuối vòng: lễ trao giải có quốc kỳ, 3 "người hùng" đóng góp nhiều nhất, chuỗi thắng, bảng vương miện.
+- Vương miện lưu trong data\state.json nên hôm sau mở lại vẫn còn (xoá bằng nút ở trang điều khiển).
+
+Vùng an toàn: mọi thứ quan trọng nằm ở giữa khung hình; phần dưới để trống cho khung chat TikTok đè lên.

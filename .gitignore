@@ -1,0 +1,6 @@
+node_modules/
+data/
+*.log
+
+# Node.js portable - ChayGame.bat tự tải về (tools/cai-node.ps1), không đưa vào git
+node/

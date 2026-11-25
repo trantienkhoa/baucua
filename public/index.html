@@ -1,0 +1,1155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nation Rush</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  body { display: flex; align-items: center; justify-content: center; }
+  #stage { position: relative; height: min(100vh, 177.78vw); aspect-ratio: 9 / 16; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="gl" width="1080" height="1920"></canvas><canvas id="c" width="1080" height="1920"></canvas></div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/view.js"></script>
+<script>
+'use strict';
+// Khung 1080x1920. Phần quan trọng nằm trong y = 235..1480 (trên là thanh TikTok, dưới là khung chat đè lên).
+const W = 1080, H = 1920, cv = document.getElementById('c'), g = cv.getContext('2d');
+const TAU = Math.PI * 2, lerp = (a, b, k) => a + (b - a) * k, clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const FONT = '"Segoe UI", "Helvetica Neue", Arial, sans-serif';
+const QS = new URLSearchParams(location.search), MUTE = QS.has('mute'), OBS = QS.has('obs'); // ?obs=1: đang chạy trong OBS / LIVE Studio
+if (OBS) document.documentElement.style.cursor = 'none';
+// kiểu màn hình (chọn ở trang điều khiển, hoặc ?view=...): sea = bản đồ thế giới trên biển 3D · globe = địa cầu 3D
+// · flat = bản đồ phẳng 2D (máy yếu) · rockets = đua tên lửa
+const VIEW = QS.get('view') || window.__VIEW || 'sea', MAPVIEW = VIEW !== 'rockets', UNIT = MAPVIEW ? 'pts' : 'km';
+let G3 = null; // quả địa cầu 3D (globe.js), null = chưa tải / không dùng
+// ---------- bộ giao diện (đổi ở trang điều khiển, hoặc tự đổi ngẫu nhiên)
+// sea: màu biển (cực → xích đạo) · land: đất chưa sáng · border/atmo/bg: viền nước, khí quyển, nền trời · fall: vật rơi trang trí
+const THEMES = {
+  night:    { sea: ['#050d24', '#0a2152'], land: '#18264f', grid: 'rgba(110,160,255,.16)', border: 0x4666c4, atmo: 0x3d8bff, bg: 0x02040d, panel: 'rgba(6,14,40,.84)',  line: 'rgba(90,140,255,.5)',   cta: ['#1766ff', '#18c6ff'], title: ['#fff3b0', '#ff9d2e'], dark: '3,8,22',   sub: '#9fc4ff' },
+  matrix:   { sea: ['#000300', '#001a06'], land: '#03300d', grid: 'rgba(0,255,90,.3)',     border: 0x00ff5a, atmo: 0x00ff66, bg: 0x000000, panel: 'rgba(0,10,2,.9)',    line: 'rgba(0,255,90,.75)',    cta: ['#036b1c', '#0fae3a'], title: ['#c8ffd4', '#00ff5a'], dark: '0,3,0',    sub: '#5dff8a', rain: true },
+  neon:     { sea: ['#0a0220', '#1a0545'], land: '#2a0f5e', grid: 'rgba(255,60,220,.2)',   border: 0xff3fd8, atmo: 0xff2fd0, bg: 0x06010f, panel: 'rgba(20,4,44,.86)',  line: 'rgba(255,80,220,.65)',  cta: ['#ff2fd0', '#7b2bff'], title: ['#7dfcff', '#ff4fe0'], dark: '10,2,24',  sub: '#ff9df0' },
+  aurora:   { sea: ['#021a1c', '#04403a'], land: '#0d5a4c', grid: 'rgba(120,255,200,.16)', border: 0x5dffc0, atmo: 0x35ffb0, bg: 0x010b0d, panel: 'rgba(2,28,30,.86)',  line: 'rgba(90,255,190,.55)',  cta: ['#00a37a', '#19c3ff'], title: ['#d6fff0', '#39ffb0'], dark: '1,14,16',  sub: '#9dffe0' },
+  lacquer:  { sea: ['#1a0503', '#3a0c06'], land: '#6b1a0c', grid: 'rgba(255,200,90,.16)',  border: 0xffc45a, atmo: 0xffa63d, bg: 0x0c0201, panel: 'rgba(40,8,4,.88)',   line: 'rgba(255,196,90,.65)',  cta: ['#b3261a', '#e8a021'], title: ['#fff1c2', '#ffb52e'], dark: '18,4,2',   sub: '#ffd58a' },
+  radar:    { sea: ['#010d04', '#03200a'], land: '#0a3a14', grid: 'rgba(60,255,110,.26)',  border: 0x39ff6a, atmo: 0x22ff66, bg: 0x000602, panel: 'rgba(0,20,6,.88)',   line: 'rgba(60,255,110,.65)',  cta: ['#0c7a2a', '#2fbf4a'], title: ['#d8ffe0', '#39ff6a'], dark: '0,8,2',    sub: '#8dffab' },
+  ocean:    { sea: ['#0a3c78', '#1672c4'], land: '#0d2f5e', grid: 'rgba(255,255,255,.18)', border: 0x9fd8ff, atmo: 0x7fd0ff, bg: 0x031530, panel: 'rgba(4,30,70,.86)',  line: 'rgba(150,215,255,.65)', cta: ['#0a84ff', '#22c8e8'], title: ['#ffffff', '#8fe3ff'], dark: '3,18,44',  sub: '#c8ecff', fall: ['🫧'] },
+  festival: { sea: ['#3d0408', '#7a0a12'], land: '#a8151c', grid: 'rgba(255,215,90,.18)',  border: 0xffd75a, atmo: 0xff5a3d, bg: 0x1a0204, panel: 'rgba(70,6,10,.88)',  line: 'rgba(255,215,90,.75)',  cta: ['#d4151c', '#f0a000'], title: ['#fff6c8', '#ffd23d'], dark: '30,3,5',   sub: '#ffe08a', fall: ['🌸', '🧧', '🏮'] },
+  paper:    { sea: ['#cdb98a', '#e3d3a8'], land: '#a8895a', grid: 'rgba(90,60,20,.22)',    border: 0x5a3c14, atmo: 0xf0d9a0, bg: 0x2a2114, panel: 'rgba(58,42,22,.9)',  line: 'rgba(230,200,140,.75)', cta: ['#8a5a22', '#c18a2c'], title: ['#fff3d0', '#f0c060'], dark: '34,26,14', sub: '#f0dcae', fall: ['🍂'] },
+  lotus:    { sea: ['#2a0a2c', '#5a1a55'], land: '#8a2f78', grid: 'rgba(255,180,230,.18)', border: 0xffb4e6, atmo: 0xff8fd8, bg: 0x12040f, panel: 'rgba(48,10,44,.87)', line: 'rgba(255,170,230,.65)', cta: ['#c8338e', '#f078b8'], title: ['#fff0fa', '#ff9fd8'], dark: '22,5,20',  sub: '#ffc8ec', fall: ['🪷', '🌸'] },
+};
+let TH = THEMES[QS.get('theme')] || THEMES.night, themeId = '', themeG3 = null;
+const fallers = Array.from({ length: 12 }, (_, i) => ({ x: Math.random() * 1080, y: 640 + Math.random() * 760, v: 22 + Math.random() * 30, s: 22 + Math.random() * 16, p: Math.random() * 9, k: i }));
+// mưa mã kiểu Matrix: 30 cột ký tự rơi, đầu sáng trắng, đuôi xanh mờ dần
+const RAIN_CH = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉ0123456789VIETNAM'.split('');
+const rain = Array.from({ length: 30 }, (_, i) => ({ x: 18 + i * 36, y: 640 + Math.random() * 800, v: 150 + Math.random() * 230, ch: Array.from({ length: 11 }, () => RAIN_CH[Math.floor(Math.random() * RAIN_CH.length)]), sw: 0 }));
+function drawRain(t, dt) {
+  g.font = `700 24px Consolas, "MS Gothic", monospace`; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  for (const c of rain) {
+    c.y += c.v * dt; if (c.y > 1700) { c.y = 620 - Math.random() * 200; c.v = 150 + Math.random() * 230; }
+    c.sw += dt; if (c.sw > .09) { c.sw = 0; c.ch[Math.floor(Math.random() * c.ch.length)] = RAIN_CH[Math.floor(Math.random() * RAIN_CH.length)]; }
+    for (let k = 0; k < c.ch.length; k++) {
+      const y = c.y - k * 28; if (y < 650 || y > 1400) continue;
+      g.fillStyle = k === 0 ? 'rgba(210,255,220,.95)' : `rgba(0,255,90,${.5 * (1 - k / c.ch.length)})`; g.fillText(c.ch[k], c.x, y);
+    }
+  }
+}
+function drawFallers(t, dt) { // vật rơi trang trí theo giao diện (hoa đào, bao lì xì, sen…)
+  if (TH.rain) drawRain(t, dt);
+  if (!TH.fall) return;
+  for (const f of fallers) {
+    f.y += f.v * dt; if (f.y > 1400) { f.y = 640; f.x = Math.random() * 1080; }
+    g.globalAlpha = .55 * Math.min(1, (f.y - 640) / 60, (1400 - f.y) / 60);
+    T(TH.fall[f.k % TH.fall.length], f.x + Math.sin(t * .8 + f.p) * 26, f.y, f.s, '#fff', 'center');
+  }
+  g.globalAlpha = 1;
+}
+let LMDB = {}; fetch('/landmarks.json').then(r => r.json()).then(d => { LMDB = d; }).catch(() => {}); // danh thắng các nước
+const lmOpen = new Map(); // nước → số danh thắng đã mở khóa trong vòng này
+const GLOW = ['SPARKING', 'GLOWING', 'SHINING', 'BLAZING', 'RADIANT', 'LEGENDARY', 'A SUPERNOVA'];
+const MILES = [[500, 'THE SKY', '☁️'], [2000, 'SPACE', '✨'], [10000, 'ORBIT', '🛰️'], [50000, 'THE MOON', '🌙'], [250000, 'MARS', '🔴'], [1000000, 'JUPITER', '🪐'], [5000000, 'GALAXY EDGE', '🌌']];
+const FY0 = 632, BASE = 1318, TOPY = 835; // sân đua: mép trên, y tên lửa ở độ cao 0, y tên lửa dẫn đầu
+
+const fmt = n => { n = Math.floor(n || 0); return n >= 1e7 ? (n / 1e6).toFixed(1) + 'M' : n.toLocaleString('en-US'); };
+const short = n => n >= 1e6 ? +(n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? +(n / 1e3).toFixed(1) + 'K' : '' + n;
+const hue = s => { let h = 0; for (const ch of String(s)) h = (h * 31 + ch.codePointAt(0)) % 360; return h; };
+
+// ---------- vẽ cơ bản
+function T(str, x, y, size, color, align, weight) {
+  g.font = `${weight || 800} ${size}px ${FONT}`; g.textAlign = align || 'left'; g.textBaseline = 'alphabetic'; g.fillStyle = color || '#fff';
+  g.fillText(str, x, y);
+}
+function fit(str, maxW, size, weight) { // cỡ chữ vừa bề ngang
+  g.font = `${weight || 800} ${size}px ${FONT}`;
+  const w = g.measureText(str).width; return w > maxW ? Math.max(10, Math.floor(size * maxW / w)) : size;
+}
+function rr(x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r); }
+const FL = new Map();
+function flag(cc, sq) {
+  const k = cc + (sq ? 's' : ''); let f = FL.get(k);
+  if (!f) {
+    f = { ok: false, cv: document.createElement('canvas') }; f.cv.width = sq ? 160 : 400; f.cv.height = sq ? 160 : 300;
+    const im = new Image(); im.onload = () => {
+      const x = f.cv.getContext('2d'); x.drawImage(im, 0, 0, f.cv.width, f.cv.height); f.ok = true;
+      if (sq) try { // màu chủ đạo của lá cờ (bỏ qua trắng / đen / xám)
+        const d = x.getImageData(0, 0, 160, 160).data, bins = new Array(12).fill(0), sx = new Array(12).fill(0), sy = new Array(12).fill(0);
+        for (let i = 0; i < d.length; i += 16) {
+          const r = d[i] / 255, gg = d[i + 1] / 255, b = d[i + 2] / 255, mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), c = mx - mn;
+          if (c < .3 || mx < .25) continue;
+          const h = (mx === r ? ((gg - b) / c + 6) % 6 : mx === gg ? (b - r) / c + 2 : (r - gg) / c + 4) * 60, k = Math.floor(((h + 15) % 360) / 30);
+          bins[k]++; sx[k] += Math.cos(h * Math.PI / 180); sy[k] += Math.sin(h * Math.PI / 180);
+        }
+        let k = bins.indexOf(Math.max(...bins));
+        // quá nhiều cờ có màu đỏ: nếu cờ còn một màu lớn thứ hai (xanh của Thái Lan, Mỹ, Pháp…) thì dùng màu đó cho dễ phân biệt
+        if (k === 0) { let k2 = -1; for (let i = 1; i < 12; i++) if (bins[i] > bins[0] * .3 && (k2 < 0 || bins[i] > bins[k2])) k2 = i; if (k2 > 0) k = k2; }
+        if (bins[k] > 60) f.hue = Math.round((Math.atan2(sy[k], sx[k]) * 180 / Math.PI + 360) % 360);
+      } catch {}
+    };
+    im.src = `/flags/${sq ? '1x1' : '4x3'}/${cc}.svg`; FL.set(k, f);
+  }
+  return f;
+}
+function drawFlag(cc, x, y, w, h, r) {
+  const f = flag(cc); g.save(); rr(x, y, w, h, r); g.clip();
+  if (f.ok) g.drawImage(f.cv, x, y, w, h); else { g.fillStyle = '#334'; g.fillRect(x, y, w, h); }
+  g.restore(); rr(x, y, w, h, r); g.lineWidth = 2; g.strokeStyle = 'rgba(255,255,255,.55)'; g.stroke();
+}
+const AV = new Map();
+function avatarImg(url) {
+  if (!url) return null; let a = AV.get(url);
+  if (!a) { if (AV.size > 400) AV.clear(); a = new Image(); a.referrerPolicy = 'no-referrer'; a.src = url; AV.set(url, a); }
+  return a.complete && a.naturalWidth ? a : null;
+}
+function drawAvatar(user, x, y, r, ring) {
+  const im = avatarImg(user && user.avatar), name = (user && user.name) || '?';
+  g.save(); g.beginPath(); g.arc(x, y, r, 0, TAU); g.clip();
+  if (im) g.drawImage(im, x - r, y - r, r * 2, r * 2);
+  else { g.fillStyle = `hsl(${hue(name)},55%,42%)`; g.fillRect(x - r, y - r, r * 2, r * 2); T([...name][0].toUpperCase(), x, y + r * .36, r * 1.05, '#fff', 'center', 800); }
+  g.restore(); g.beginPath(); g.arc(x, y, r, 0, TAU); g.lineWidth = Math.max(2, r * .12); g.strokeStyle = ring || '#fff'; g.stroke();
+}
+
+// ---------- âm thanh (tổng hợp, không cần file)
+let AC = null, master = null, noiseBuf = null, padGain = null, ducked = false;
+const vol = k => (S && S.cfg ? S.cfg.vol[k] : 70) / 100;
+function ac() {
+  if (MUTE) return null;
+  if (!AC) try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    master = AC.createGain(); const comp = AC.createDynamicsCompressor(); master.connect(comp); comp.connect(AC.destination);
+    noiseBuf = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  } catch {}
+  if (AC && AC.state === 'suspended') AC.resume().catch(() => {});
+  if (AC && AC.state === 'running' && !padGain) startPad();
+  return AC;
+}
+function startPad() { // nền không gian: vài nốt trầm ngân dài, lọc tiếng thay đổi chậm
+  padGain = AC.createGain(); padGain.gain.value = .0001; padGain.gain.exponentialRampToValueAtTime(.05, AC.currentTime + 4);
+  const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500; lp.Q.value = 2;
+  const lfo = AC.createOscillator(), lg = AC.createGain(); lfo.frequency.value = .06; lg.gain.value = 260; lfo.connect(lg); lg.connect(lp.frequency); lfo.start();
+  for (const [f, type, det] of [[55, 'sawtooth', 0], [82.4, 'sawtooth', 6], [110, 'triangle', -5], [164.8, 'sine', 4], [220.5, 'sine', 0]]) { const o = AC.createOscillator(); o.type = type; o.frequency.value = f; o.detune.value = det; o.connect(lp); o.start(); }
+  lp.connect(padGain); padGain.connect(master);
+}
+function noise(d, v, delay, f1, f2, type, q) { // tiếng ồn lọc: gió rít, pháo nổ, đám đông
+  const a = ac(); if (!a || a.state !== 'running') return;
+  const s = a.createBufferSource(), fl = a.createBiquadFilter(), gn = a.createGain(), t0 = a.currentTime + (delay || 0);
+  s.buffer = noiseBuf; s.loop = true; fl.type = type || 'bandpass'; fl.Q.value = q || 1;
+  fl.frequency.setValueAtTime(f1, t0); if (f2) fl.frequency.exponentialRampToValueAtTime(f2, t0 + d);
+  gn.gain.setValueAtTime(.0001, t0); gn.gain.exponentialRampToValueAtTime(v, t0 + Math.min(.08, d * .3)); gn.gain.exponentialRampToValueAtTime(.0001, t0 + d);
+  s.connect(fl); fl.connect(gn); gn.connect(master); s.start(t0, Math.random()); s.stop(t0 + d + .05);
+}
+addEventListener('pointerdown', ac);
+function tone(f, d, type, v, delay, f2) {
+  const a = ac(); if (!a || a.state !== 'running') return;
+  const o = a.createOscillator(), gn = a.createGain(), t0 = a.currentTime + (delay || 0);
+  o.type = type || 'sine'; o.frequency.setValueAtTime(f, t0); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t0 + d);
+  gn.gain.setValueAtTime(v || .1, t0); gn.gain.exponentialRampToValueAtTime(.001, t0 + d);
+  o.connect(gn); gn.connect(master); o.start(t0); o.stop(t0 + d + .03);
+}
+const PENTA = [523, 587, 659, 784, 880, 1047, 1175, 1319];
+let lastTick = 0, lastWhoosh = 0;
+const sfx = {
+  join: () => { tone(660, .1, 'triangle', .07, 0, 990); tone(1320, .12, 'sine', .04, .07); },
+  tick: () => { const n = performance.now(); if (n - lastTick < 110) return; lastTick = n; tone(PENTA[Math.floor(Math.random() * PENTA.length)], .09, 'sine', .035); }, // like / bình luận
+  gift: () => { [784, 988, 1175, 1568].forEach((f, i) => tone(f, .22, 'triangle', .09, i * .07)); noise(.5, .05, 0, 3000, 9000, 'highpass'); },
+  mega: () => {
+    tone(90, 1.4, 'sine', .5, 0, 28); noise(1.2, .22, 0, 200, 4000); noise(1.6, .12, .1, 6000, 800, 'highpass');
+    [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => { tone(f, .5, 'square', .06, .3 + i * .09); tone(f * 1.005, .5, 'sawtooth', .04, .3 + i * .09); });
+    sfx.cheer(.9);
+  },
+  lead: () => { [659, 880, 1109, 1319].forEach((f, i) => tone(f, .2, 'triangle', .1, i * .09)); noise(.4, .04, 0, 800, 4000); },
+  chime: () => { tone(880, .5, 'sine', .08); tone(1319, .7, 'sine', .07, .12); tone(1760, .9, 'sine', .04, .24); }, // nước mới
+  beep: hi => tone(hi ? 1320 : 880, hi ? .25 : .12, 'square', .08),
+  alarm: () => { [0, .22, .44].forEach(d => tone(520, .18, 'sawtooth', .1, d, 780)); noise(.7, .05, 0, 400, 2500); },
+  clash: () => { noise(.25, .3, 0, 5000, 1500, 'highpass'); tone(196, .7, 'sawtooth', .12, 0, 98); [0, .35, .7, 1.05].forEach(d => tone(73, .22, 'sine', .3, .3 + d, 50)); }, // đối đầu
+  heart: fast => { tone(62, .16, 'sine', .45, 0, 40); tone(58, .16, 'sine', .32, fast ? .13 : .2, 38); }, // nhịp tim nước rút
+  whoosh: () => { const n = performance.now(); if (n - lastWhoosh < 1500) return; lastWhoosh = n; noise(.7, .07, 0, 250, 2200, 'bandpass', 1.5); }, // camera bay
+  pop: () => { noise(.35, .16, 0, 2500, 300, 'lowpass'); noise(.5, .06, .08, 7000, 3000, 'highpass'); },
+  cheer: v => { noise(3, .13 * (v || 1), 0, 900, 1500, 'bandpass', .6); noise(2.6, .07 * (v || 1), .2, 2400, 3200, 'bandpass', .8); }, // đám đông reo hò
+  win: () => {
+    [[523, 0], [523, .16], [523, .32], [698, .48], [659, .9], [698, 1.06], [784, 1.22], [1047, 1.5]].forEach(([f, d], i) => { tone(f, i === 7 ? 1.4 : .2, 'square', .08, d); tone(f / 2, i === 7 ? 1.4 : .2, 'sawtooth', .05, d); });
+    sfx.cheer(1.3);
+  },
+};
+
+// ---------- bình luận viên tiếng Anh (server tạo giọng đọc, lưu đệm) + nhạc nền riêng (public/music)
+const sayQ = []; let saying = null, lastSaid = 0, music = null, tracks = [], trackI = 0;
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const spoken = n => { const s = String(n || '').replace(/[^A-Za-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 18); return s.length >= 2 ? s : 'A viewer'; }; // tên đọc được
+function setDuck(on) { ducked = on; if (music) music.volume = vol('music') * (on ? .3 : 1); if (padGain && AC) padGain.gain.setTargetAtTime(on ? .02 : .05, AC.currentTime, .2); }
+// MC đổi ngôn ngữ theo nước. Tiếng Anh là ngôn ngữ chính; tiếng bản xứ chen vào ở khoảnh khắc lớn của nước đó.
+// Mẫu câu (languages.js): 0 nước mới · 1 dẫn đầu · 2 thắng vòng · 3 cảm ơn quà · 4 đèn sắp tắt · 5 chào người vào
+let LANGS = { tpl: {}, byCc: {}, name: {} }, natAt = -1e9; fetch('/lang.json').then(r => r.json()).then(d => { LANGS = d; }).catch(() => {});
+// sayNat: câu nói về nước cc. en = câu tiếng Anh; chance = xác suất nói thêm tiếng bản xứ (1 = luôn nói).
+//   mix (mặc định): luôn nói tiếng Anh trước, rồi thêm câu bản xứ theo xác suất, cách nhau ít nhất 18 giây (trừ khi chance = 1)
+//   native: câu về nước nào đọc hẳn bằng tiếng nước đó · en: chỉ tiếng Anh
+function sayNat(cc, i, en, pri, user, chance) {
+  const mode = (S && S.cfg.mcLang) || 'mix', l = mode !== 'en' && LANGS.byCc[cc], tp = l && LANGS.tpl[l];
+  if (!tp) return say(en, pri);
+  const t = tp[i].replace(/\{c\}/g, LANGS.name[cc] || '').replace(/\{u\}/g, user || '');
+  if (mode === 'native') return say(t, pri, null, l);
+  const now = performance.now(), ok = chance >= 1 || (Math.random() < chance && now - natAt > 18000);
+  if (ok) natAt = now;
+  say(en, pri, ok ? { l, t } : null);
+}
+function say(text, pri, extra, lang) { // pri càng cao càng ưu tiên; câu cũ quá 7 giây thì bỏ; extra = câu tiếng bản xứ đọc nối theo; lang = đọc cả câu bằng ngôn ngữ này
+  if (MUTE || !S || !S.cfg || !S.cfg.tts) return; pri = pri || 1;
+  if (sayQ.length >= 2) { const low = sayQ.findIndex(q => q.pri < pri); if (low < 0) return; sayQ.splice(low, 1); }
+  sayQ.push({ text, pri, extra, lang, at: performance.now() }); sayQ.sort((a, b) => b.pri - a.pri); pumpSay();
+}
+function pumpSay() {
+  if (saying) return; let q = null;
+  while (sayQ.length) { const c = sayQ.shift(); if (performance.now() - c.at < 7000 || c.pri >= 3) { q = c; break; } }
+  if (!q) return;
+  const a = new Audio(`/tts?${q.lang ? 'l=' + encodeURIComponent(q.lang) : 'v=' + encodeURIComponent(S.cfg.voice)}&t=${encodeURIComponent(q.text)}`); a.volume = vol('voice'); saying = a; lastSaid = performance.now();
+  const done = () => {
+    if (saying !== a) return; saying = null; setDuck(false); lastSaid = performance.now();
+    if (q.extra) sayQ.unshift({ text: q.extra.t, lang: q.extra.l, pri: 9, at: performance.now() }); // đọc nối câu tiếng bản xứ
+    setTimeout(pumpSay, q.extra ? 60 : 200);
+  };
+  a.onended = done; a.onerror = done; a.onplaying = () => setDuck(true);
+  a.play().catch(done); setTimeout(() => { if (saying === a) { a.pause(); done(); } }, 14000);
+}
+if (!MUTE) fetch('/api/music').then(r => r.json()).then(l => { tracks = l.sort(() => Math.random() - .5); }).catch(() => {});function musicTick() { // phát lần lượt các bài trong public/music
+  if (MUTE || !tracks.length || !S) return;
+  if (!music) { music = new Audio(); music.onended = () => { trackI++; music.src = ''; }; music.onerror = () => { trackI++; music.src = ''; }; }
+  if (!music.src || music.src === location.href) { music.src = '/music/' + encodeURIComponent(tracks[trackI % tracks.length]); music.play().catch(() => {}); }
+  else if (music.paused && !music.ended) music.play().catch(() => {});
+  music.volume = vol('music') * (ducked ? .3 : 1);
+}
+setInterval(musicTick, 2000);
+const EVENT_SAY = {
+  underdog: 'Underdog boost! Triple points for every nation ranked fourth and below!', likestorm: 'Like storm! Tap the screen! Every like counts five times!',
+  rollcall: 'Roll call! Type your country now for ten times the join bonus!', giftx2: 'Double gifts! Every gift is worth double!',
+  lucky: 'Lucky gift! The very next gift is worth five times the points!', treasure: 'Treasure drop! Type GO in the chat right now! Three lucky players will win!',
+};
+let cheerAt = 0;
+
+// ---------- trạng thái
+const sock = io();
+sock.on('music', l => { tracks = (l || []).sort(() => Math.random() - .5); trackI = 0; if (music && !tracks.length) { music.pause(); music.src = ''; } }); // tải nhạc lên / xoá ở trang điều khiển
+let S = null, sAt = 0, scale = 400, shake = 0, flash = 0, lastBeep = -1;
+const nodes = new Map(), parts = [], feedList = [], bq = [];
+let banner = null;
+const laneX = i => 128 + i * 122;
+const altY = v => BASE - Math.pow(clamp(v / scale, 0, 1), .6) * (BASE - TOPY);
+
+sock.on('state', s => {
+  S = s; sAt = performance.now();
+  if (!QS.get('theme') && s.cfg.theme !== themeId && THEMES[s.cfg.theme]) { themeId = s.cfg.theme; TH = THEMES[themeId]; }
+  lmOpen.clear(); for (const [cc, n] of s.lms) lmOpen.set(cc, n);
+  if (!QS.get('view') && s.cfg.view && s.cfg.view !== VIEW) location.reload(); // đổi kiểu màn hình ở trang điều khiển
+  const seen = new Set();
+  s.list.forEach((c, i) => {
+    seen.add(c.cc); let n = nodes.get(c.cc);
+    if (!n) { n = { cc: c.cc, disp: 0, score: 0, x: laneX(i), y: BASE + 60, heat: .4, seed: Math.random() * 9, a: 0, hue: hue(c.cc + c.name) }; nodes.set(c.cc, n); }
+    const d = c.score - n.score; if (d > 0) n.heat = Math.min(1.6, n.heat + d / Math.max(80, scale * .03) * .5);
+    Object.assign(n, { name: c.name, score: c.score, players: c.players, mvp: c.mvp, rank: i, live: true });
+  });
+  for (const n of nodes.values()) if (!seen.has(n.cc)) n.live = false;
+  if (MAPVIEW) { // mọi nước đang có điểm đều sáng trên bản đồ
+    const on = new Set();
+    s.all.forEach(([cc, sc], i) => {
+      on.add(cc); let a = act.get(cc); if (!a) { a = { cc, score: 0, heat: 1, hue: hueOf(cc) }; act.set(cc, a); }
+      if (sc > a.score) { a.heat = Math.min(1, a.heat + .35); if (a.score) { sparks(cc, Math.min(7, 1 + Math.floor((sc - a.score) / 25))); sfx.tick(); } }
+      a.score = sc; a.rank = i;
+    });
+    for (const cc of [...act.keys()]) if (!on.has(cc)) act.delete(cc);
+  }
+});
+function feed(cc, user, text, pts) { feedList.unshift({ cc, user, text, pts, t0: performance.now() / 1000 }); if (feedList.length > 5) feedList.pop(); }
+function pushBanner(b) { if (b.mega) bq.unshift(b); else if (bq.length < 4) bq.push(b); }
+function burst(cc, n, gold) {
+  let x, y, h;
+  if (MAPVIEW) { if (!G[cc]) return; [x, y] = scr(...anchor(G[cc])); h = hueOf(cc); if (x < 0 || x > W || y < 640 || y > 1400) return; }
+  else { const nd = nodes.get(cc); if (!nd) return; nd.heat = Math.min(1.6, nd.heat + n * .03); x = nd.x; y = nd.y; h = nd.hue; }
+  for (let i = 0; i < n; i++) { const a = Math.random() * TAU, sp = 60 + Math.random() * 260; parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0, max: .5 + Math.random() * .6, size: 3 + Math.random() * 5, col: gold ? `hsl(${40 + Math.random() * 20},100%,${55 + Math.random() * 30}%)` : `hsl(${h},90%,72%)`, gy: 120, glow: true }); }
+}
+function firework(x, y) { // pháo hoa
+  const h = Math.random() * 360, n = 46;
+  for (let i = 0; i < n; i++) { const a = i / n * TAU + Math.random() * .2, sp = 180 + Math.random() * 260; parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0, max: .9 + Math.random() * .7, size: 4 + Math.random() * 3, col: `hsl(${h + Math.random() * 40},100%,${60 + Math.random() * 25}%)`, gy: 160, glow: true, drag: 1.6, fw: true }); }
+  sfx.pop();
+}
+function sparks(cc, n) { // tia sáng bay lên khi nước được cộng điểm (like, bình luận)
+  if (!G[cc] || parts.length > 500) return; const [x, y] = scr(...anchor(G[cc])); if (x < 30 || x > W - 30 || y < 680 || y > 1340) return;
+  const h = hueOf(cc);
+  for (let i = 0; i < n; i++) parts.push({ x: x + (Math.random() - .5) * 70, y: y + (Math.random() - .5) * 40, vx: (Math.random() - .5) * 30, vy: -70 - Math.random() * 110, life: 0, max: .7 + Math.random() * .6, size: 2.5 + Math.random() * 3, col: `hsl(${h},100%,${70 + Math.random() * 20}%)`, gy: -30, glow: true });
+}
+function confetti(n, cx, cy) {
+  for (let i = 0; i < n; i++) parts.push({ x: cx + (Math.random() - .5) * 700, y: cy + (Math.random() - .5) * 120, vx: (Math.random() - .5) * 500, vy: -200 - Math.random() * 500, life: 0, max: 2 + Math.random() * 2, size: 6 + Math.random() * 8, col: `hsl(${Math.random() * 360},95%,60%)`, gy: 520, rect: true, rot: Math.random() * 6 });
+}
+sock.on('fx', e => {
+  const NAME = (e.name || '').toUpperCase();
+  switch (e.t) {
+    case 'join': feed(e.cc, e.title && e.title !== 'Rookie' ? { ...e.user, name: `[${e.title}] ${e.user.name}` } : e.user, e.ready ? `is ready for ${e.name}` : (e.moved ? `moved to ${e.name}` : `joined ${e.name}${e.nth > 1 ? ` · fan #${e.nth}` : ''}`), (e.pts || 0) + (e.fuel || 0)); burst(e.cc, 6); sfx.join(); spawnAv(e.cc, e.user); focus(e.cc, 2.2, 1); break;
+    case 'head': feed(e.cc, e.user, `head start for ${e.name}`, e.pts); burst(e.cc, 14, true); spawnAv(e.cc, e.user, true); break;
+    case 'follow': feed(e.cc, e.user, 'followed', e.pts); burst(e.cc, 8); spawnAv(e.cc, e.user); break;
+    case 'share': feed(e.cc, e.user, 'shared the LIVE', e.pts); burst(e.cc, 8); spawnAv(e.cc, e.user); break;
+    case 'newnation': pushBanner({ cc: e.cc, user: e.user, title: `NEW NATION: ${NAME}!`, sub: `🌍 ${e.total} nations have joined — who's next?`, dur: 2.4 }); focus(e.cc, 3, 2); break;
+    case 'duel':
+      pushBanner({ icon: '⚔️', title: `${e.an.toUpperCase()} vs ${e.bn.toUpperCase()}`, sub: `Only ${fmt(e.gap)} ${UNIT} apart — every tap counts!`, dur: 3, hot: true });
+      duel = { a: e.a, b: e.b, t0: performance.now() / 1000 }; focusPair(e.a, e.b, 5, 3); sfx.alarm(); break;
+    case 'gift': {
+      const what = `${e.gift}${e.count > 1 ? ' ×' + e.count : ''}`;
+      const sub = e.pts ? `+${fmt(e.pts)} ${UNIT} for ${NAME}` : `+${fmt(e.banked)} ${UNIT} HEAD START next round`;
+      spawnAv(e.cc, e.user, e.coins >= 10); focus(e.cc, e.coins >= 100 ? 4.5 : e.coins >= 10 ? 3 : 2.2, e.coins >= 100 ? 4 : e.coins >= 10 ? 3 : 1);
+      if (e.coins >= 100) rings.push({ cc: e.cc, t0: performance.now() / 1000 });
+      if (e.coins >= 100) { pushBanner({ mega: true, cc: e.cc, user: e.user, title: `${e.user.name} — MEGA BOOST!`, sub, dur: 4 }); }
+      else if (e.coins >= 10) { pushBanner({ cc: e.cc, user: e.user, title: `${e.user.name} sent ${what}`, sub, dur: 2.4 }); sfx.gift(); }
+      else { feed(e.cc, e.user, `sent ${what}`, e.pts || e.banked); sfx.join(); }
+      burst(e.cc, Math.min(80, 10 + e.coins), true); break;
+    }
+    case 'hint': pushBanner({ icon: '🎁', user: e.user, title: `${e.user.name} sent ${e.gift}!`, sub: 'Type your COUNTRY to launch it 🚀', dur: 3 }); break;
+    case 'lead': pushBanner({ cc: e.cc, title: `${NAME} TAKES THE LEAD!`, sub: '👑 New leader', dur: 2 }); sfx.lead(); focus(e.cc, 3, 2); break;
+    case 'mile':
+      if (MAPVIEW) pushBanner({ cc: e.cc, title: `${NAME} IS NOW ${GLOW[e.i] || 'LEGENDARY'}!`, sub: '✨ The whole nation shines brighter', dur: 2.2 });
+      else pushBanner({ cc: e.cc, title: `${NAME} REACHED ${e.label}!`, sub: '🚀 Milestone unlocked', dur: 2.2 });
+      burst(e.cc, 30, true); sfx.lead(); focus(e.cc, 2.5, 2); break;
+    case 'event': pushBanner({ icon: '⚡', title: e.label, sub: e.sub, dur: 3, hot: true }); sfx.alarm(); break;
+    case 'final': pushBanner({ icon: '🔥', title: 'FINAL RUSH — ALL POINTS ×2', sub: 'Last seconds! Give it everything!', dur: 3, hot: true }); sfx.alarm(); break;
+    case 'start': nodes.clear(); act.clear(); mapAv.length = 0; duel = null; camHold = 0; scale = 400; bq.length = 0;
+      pushBanner({ icon: MAPVIEW ? '🌍' : '🚀', title: `ROUND ${e.round} — ${MAPVIEW ? 'LIGHT UP THE MAP!' : 'LIFT OFF!'}`, sub: 'Type your COUNTRY to join the battle', dur: 2.6 }); sfx.lead(); break;
+    case 'end': bq.length = 0; banner = null; if (e.result && e.result.winner) { confetti(160, W / 2, 620); sfx.win(); } break;
+  }
+});
+// hiệu ứng 3D + lời bình luận viên cho từng sự kiện
+sock.on('fx', e => {
+  const who = e.user && spoken(e.user.name);
+  switch (e.t) {
+    case 'join': fx3(e.cc); break;
+    case 'head': fx3(e.cc, 'gold'); break;
+    case 'member': // có người vào phòng: thẻ chào + MC chào khi đang rảnh
+      feed(e.cc, e.title ? { ...e.user, name: `[${e.title}] ${e.user.name}` } : e.user, e.back ? '👋 is back in the LIVE' : '👋 joined the LIVE', 0);
+      if (!saying && performance.now() - lastSaid > 15000) { // người quen đã có nước: thỉnh thoảng chào thêm bằng tiếng nước họ
+        const en = e.back ? `Welcome back${e.title ? ' ' + e.title : ''} ${who}!` : pick([`Welcome ${who}! Type your country to join!`, `Hello ${who}! Where are you watching from?`]);
+        e.cc ? sayNat(e.cc, 5, en, 1, who, .35) : say(en, 1);
+      }
+      break;
+    case 'streak': feed(e.cc, e.user, `🔥 ${e.days}-day streak!`, e.pts); break;
+    case 'era': { // lên thời đại: băng-rôn + camera bay tới + cột sáng; thành phố 3D tự đổi kiến trúc
+      const E = ERAS[e.era] || ERAS[0], NAME = e.name.toUpperCase();
+      if (e.era <= 1) { feed(e.cc, e.user || { name: e.name }, `${E.i} entered the ${E.n}`, 0); fx3(e.cc); sfx.chime(); break; } // thời đồ đồng đến rất nhanh: chỉ báo nhẹ
+      pushBanner({ cc: e.cc, user: e.user, title: `${NAME} ENTERS THE ${E.n.toUpperCase()}!`, sub: `${E.i} Era ${e.era + 1}/8 · ${e.user ? `built by ${e.user.name}` : 'new architecture unlocked'}`, dur: 3.4, mega: e.era >= 7 });
+      focus(e.cc, 3.6, 3); fx3(e.cc, 'gold'); if (G3) { const p = ll(e.cc); if (p) G3.wave(p[0], p[1], 0xffe27a); }
+      if (e.era < 7) { sfx.lead(); sfx.chime(); } else { cheerAt = performance.now(); for (let i = 0; i < 6; i++) setTimeout(() => firework(150 + Math.random() * 780, 720 + Math.random() * 480), i * 300); }
+      say(e.era >= 7 ? `${e.name} has reached the Modern Age! A true world power!${e.user ? ' Thank you ' + who + '!' : ''}` : pick([`${e.name} enters the ${E.n}!`, `${e.name} advances to the ${E.n}!`, `A new era for ${e.name}: the ${E.n}!`]) + (e.user ? ` Built by ${who}!` : ''), 3);
+      break;
+    }
+    case 'say': say(e.text, 5); break; // MC đọc câu gõ ở trang điều khiển
+    case 'fading': // đèn sắp tắt: gọi người của nước đó quay lại
+      pushBanner({ cc: e.cc, title: `${e.name.toUpperCase()} IS FADING!`, sub: '⚠️ No activity — tap or comment to keep the lights on!', dur: 2.6, hot: true });
+      focus(e.cc, 2.6, 1); sfx.alarm(); sayNat(e.cc, 4, pick([`${e.name} is fading! Where are the fans of ${e.name}?`, `The lights are going out in ${e.name}! Tap the screen to save your nation!`]), 2, '', .6); break;
+    case 'captain':
+      pushBanner({ cc: e.cc, user: e.user, title: `${e.user.name} — NEW CAPTAIN!`, sub: `🎖️ Top supporter of ${e.name.toUpperCase()}${e.old ? ` · overtook ${e.old}` : ''}`, dur: 2.4 });
+      sfx.lead(); say(`${who} is the new captain of ${e.name}!`, 1); break;
+    case 'treasureend':
+      if (e.winners.length) { pushBanner({ icon: '💰', user: e.winners[0].user, title: `TREASURE: ${e.winners.map(w => w.user.name).join(', ')}`, sub: `+500 ${UNIT} each · ${e.total} players typed GO`, dur: 3.2 }); for (const w of e.winners) { fx3(w.cc, 'gold'); spawnAv(w.cc, w.user, true); } sfx.gift(); sfx.cheer(.6); say(`The treasure goes to ${e.winners.map(w => spoken(w.user.name)).join(', ')}! Five hundred points each!`, 2); }
+      else say('Nobody grabbed the treasure this time!', 1);
+      break;
+    case 'likewave':
+      pushBanner({ icon: '❤️', title: 'LIKE WAVE — +300 FOR EVERY NATION!', sub: 'One thousand likes together. Keep tapping!', dur: 2.8, hot: true });
+      if (G3) for (const c of S.list.slice(0, 5)) { const p = ll(c.cc); if (p) G3.wave(p[0], p[1], 0xff5a8f); }
+      sfx.cheer(.8); sfx.chime(); say('Like wave! One thousand likes! Every nation gets a bonus!', 2); break;
+    case 'world':
+      pushBanner({ icon: '🌍', title: `${e.total} NATIONS ON THE MAP!`, sub: `World milestone — +${e.bonus} ${UNIT} for every nation`, dur: 3, mega: true });
+      cheerAt = performance.now(); say(`World milestone! ${e.total} nations have joined the map! A bonus for everyone!`, 3); break;
+    case 'news': {
+      const s = e.lead < e.gain ? `${e.second} is only ${fmt(e.lead)} behind ${e.leader}` : `${e.leader} leads by ${fmt(e.lead)}`;
+      pushBanner({ cc: e.cc, title: `📰 FASTEST RISER: ${e.name.toUpperCase()}`, sub: `+${fmt(e.gain)} ${UNIT} in 40 seconds · ${s}`, dur: 3.4 });
+      focus(e.cc, 3.4, 2); say(`News flash! ${e.name} is the fastest rising nation right now. ${s}!`, 2); break;
+    }
+    case 'revenge':
+      pushBanner({ cc: e.cc, title: `REVENGE BOOST — ${e.name.toUpperCase()} ×2!`, sub: '🔥 Last round\'s runner-up gets double points for 30s', dur: 3, hot: true });
+      say(`${e.name} wants revenge! Double points for thirty seconds!`, 2); break;
+    case 'challenge': {
+      pushBanner({ icon: '⚔️', user: e.user, title: `${e.an.toUpperCase()} CHALLENGES ${e.bn.toUpperCase()}!`, sub: `45 seconds — most points gained wins a bonus`, dur: 3.2, hot: true });
+      duel = { a: e.a, b: e.b, t0: performance.now() / 1000 }; focusPair(e.a, e.b, 5, 3); sfx.clash();
+      const a = ll(e.a), b = ll(e.b); if (G3 && a && b) G3.arc(a[0], a[1], b[0], b[1]);
+      say(`${who} challenges ${e.bn} on behalf of ${e.an}! Forty five seconds! Go!`, 3); break;
+    }
+    case 'challengeend':
+      pushBanner({ cc: e.w, title: `${e.wn.toUpperCase()} WINS THE CHALLENGE!`, sub: `⚔️ Beat ${e.ln} · +${fmt(e.bonus)} ${UNIT} bonus`, dur: 3 });
+      fx3(e.w, 'mega'); sfx.win(); say(`${e.wn} wins the challenge against ${e.ln}!`, 3); break;
+    case 'landmark': { // mở khóa danh thắng: băng-rôn + camera bay tới + cột sáng + lời giới thiệu
+      const NAME = e.name.toUpperCase(), by = e.user ? `${e.user.name} unlocked` : `${NAME} unlocked`;
+      pushBanner({ cc: e.cc, user: e.user, title: `${by} ${e.lm.n.toUpperCase()}!`, sub: `${e.lm.i} ${e.lm.f}`, dur: 3.6 });
+      const t = performance.now() / 1000;
+      if (MAPVIEW && (t >= camHold || camPri <= 2)) { const [x, y] = prj(e.lm.lo, e.lm.la); tgt.x = x; tgt.y = y; tgt.z = 5.5 * zoomMul(); camHold = t + 3.6; camPri = 2; sfx.whoosh(); }
+      if (G3) G3.beam(e.lm.lo, e.lm.la, 45, false);
+      sfx.chime(); say(`${e.user ? spoken(e.user.name) + ' unlocks' : e.name + ' unlocks'} ${e.lm.n}! ${e.lm.f}`, e.user ? 2 : 1); break;
+    }
+    case 'power':
+      pushBanner({ cc: e.cc, user: e.user, title: `${e.user.name} — ×2 POWER!`, sub: `⚡ All points for ${e.name.toUpperCase()} doubled for ${e.sec}s`, dur: 3, hot: true });
+      fx3(e.cc, 'mega'); sfx.lead(); say(`${who} activates double power for ${e.name}! Thirty seconds of double points!`, 3); break;
+    case 'luckyhit':
+      pushBanner({ cc: e.cc, user: e.user, title: `LUCKY GIFT ×5 — ${e.user.name}!`, sub: `🍀 +${fmt(e.pts)} ${UNIT} for ${e.name.toUpperCase()}`, dur: 3, hot: true });
+      sfx.gift(); sfx.cheer(.8); say(`Lucky gift! ${who} wins five times the points for ${e.name}!`, 3); break;
+    case 'golden':
+      pushBanner({ icon: '🌟', user: e.user, title: 'GOLDEN HOUR — ALL POINTS ×2!', sub: `World gift goal reached! Next goal: ${fmt(e.next)} coins`, dur: 3.6, mega: true });
+      cheerAt = performance.now(); for (let i = 0; i < 5; i++) setTimeout(() => firework(150 + Math.random() * 780, 720 + Math.random() * 480), i * 350);
+      say(`Golden hour! The world gift goal is complete! Double points for everyone for thirty seconds! Thank you ${who}!`, 4); break;
+    case 'quiz': sfx.alarm(); say(`Quiz time! Where is ${e.name}? A, ${e.opts[0]}. B, ${e.opts[1]}. C, ${e.opts[2]}.`, 3); break;
+    case 'quizend':
+      pushBanner({ cc: e.cc, user: e.first, title: `ANSWER ${e.letter}: ${e.name.toUpperCase()}`, sub: e.winners ? `✅ ${e.winners} correct${e.first ? ` · fastest: ${e.first.name} (×2)` : ''}` : `${e.lm.i} ${e.lm.f}`, dur: 3.4 });
+      e.winners ? sfx.cheer(.7) : sfx.pop(); focus(e.cc, 3.4, 2);
+      say(`The answer is ${e.letter}, ${e.name}! ${e.winners ? `${e.winners} ${e.winners === 1 ? 'player' : 'players'} got it right${e.first ? `, and ${spoken(e.first.name)} was the fastest` : ''}!` : 'Nobody got it this time!'}`, 3); break;
+    case 'newnation': fx3(e.cc, 'gold'); sfx.chime(); sayNat(e.cc, 0, pick([`${e.name} has joined the map! ${e.total} nations and counting!`, `Welcome ${e.name}! That makes ${e.total} nations!`, `A new nation appears! Hello ${e.name}!`]), 1, '', 1); break; // nước mới: luôn chào bằng tiếng nước đó
+    case 'gift':
+      fx3(e.cc, e.coins >= 100 ? 'mega' : 'gold'); sfx.whoosh();
+      if (e.coins >= 100) sayNat(e.cc, 3, pick([`Mega boost! ${who} powers up ${e.name}!`, `Incredible! ${who} sends ${e.gift} for ${e.name}!`, `What a gift! ${who} lights up ${e.name}!`]), 3, who, 1); // quà lớn: luôn cảm ơn bằng tiếng nước đó
+      else if (e.coins >= 10) sayNat(e.cc, 3, pick([`${who} sends ${e.gift} for ${e.name}!`, `Thank you ${who}! ${e.name} gets a boost!`, `Big support for ${e.name} from ${who}!`]), 2, who, .3);
+      break;
+    case 'hint': say(`${who}, type your country to use your gift!`, 2); break;
+    case 'lead': fx3(e.cc, 'gold'); sfx.whoosh(); sfx.cheer(.6); sayNat(e.cc, 1, pick([`${e.name} takes the lead!`, `We have a new leader! It's ${e.name}!`, `${e.name} jumps to first place!`]), 2, '', .5); break;
+    case 'mile': fx3(e.cc, 'gold'); say(MAPVIEW ? `${e.name} is now ${(GLOW[e.i] || 'legendary').toLowerCase()}!` : `${e.name} reached ${e.label.toLowerCase()}!`, 1); break;
+    case 'duel': { sfx.clash(); const a = ll(e.a), b = ll(e.b); if (G3 && a && b) G3.arc(a[0], a[1], b[0], b[1]); say(pick([`It's a duel! ${e.an} versus ${e.bn}! Only ${Math.round(e.gap)} points apart!`, `${e.an} and ${e.bn} are neck and neck! Every tap counts!`]), 2); break; }
+    case 'event': say(EVENT_SAY[e.type] || e.label, 2); break;
+    case 'final': say(pick(['Final rush! All points are doubled! Give it everything!', 'Thirty seconds left! Double points! Go go go!']), 3); break;
+    case 'start': say(pick([`Round ${e.round}! Type your country in the chat to join the battle!`, `Round ${e.round} begins! Which nation will take the crown?`]), 3); break;
+    case 'end': {
+      const r = e.result; if (!r || !r.winner) break; cheerAt = performance.now();
+      let s = `${r.winner.name} wins round ${r.round}!`;
+      if (r.streak > 1) s += ` That's ${r.streak} wins in a row!`; else if (r.dethroned) s += ` ${r.dethroned} has been dethroned!`;
+      if (r.mvps && r.mvps[0]) s += ` The hero is ${spoken(r.mvps[0].name)}!`;
+      sayNat(r.winner.cc, 2, s, 4, '', 1); break; // thắng vòng: luôn chúc mừng bằng tiếng nước thắng
+    }
+  }
+});
+// lúc yên ắng: bình luận viên mời gọi người xem
+setInterval(() => {
+  if (!S || S.phase !== 'race' || S.final || saying || performance.now() - lastSaid < 38000) return;
+  const top = S.list[0], lines = ['Where are you watching from? Type your country in the chat!', 'Tap the screen to power up your nation!', 'Send a gift for a mega boost and put your name on the map!', 'Which nation will take the crown? It is up to you!', `${S.seen} nations have joined so far. Is yours missing?`];
+  if (top) lines.push(`${top.name} is in the lead with ${Math.round(top.score)} points. Who can catch them?`, `${top.name} is on top. Can anyone stop them?`);
+  say(pick(lines), 1);
+}, 5000);
+
+// ---------- bản đồ thế giới
+const K = 1.08, MAPCY = 1012, HOME = { x: 590, y: 425, z: 1.12 };
+const zoomMul = () => clamp(Number(S && S.cfg && S.cfg.camZoom) || 2, 1, 3); // trang điều khiển → "Độ zoom": camera vào gần một nước bao nhiêu lần so với bản cũ (1 = như cũ)
+const ISLES = [['Hoàng Sa (Vietnam)', 112.0, 16.5], ['Trường Sa (Vietnam)', 114.2, 9.8]];
+const CONT_COL = { Asia: '#ff6b6b', Europe: '#5b9bff', Africa: '#ffb02e', 'North America': '#35d07f', 'South America': '#c97bff', Oceania: '#22d3ee' };
+const BASE_S = 3.6, BASE_Y0 = 60, BASE_Y1 = 820;
+let GEO = null, baseMap = null, camHold = 0, camPri = 0, idleI = 0, duel = null;
+const G = {}, act = new Map(), mapAv = [], rings = [];
+const cam = { ...HOME }, tgt = { ...HOME };
+const hit = document.createElement('canvas').getContext('2d'); // chỉ dùng để thử điểm nằm trong lãnh thổ
+const prj = (lon, lat) => { const p = clamp(lat, -84, 84) * Math.PI / 180; return [(lon + 180) / 360 * 1000, (1 - Math.log(Math.tan(Math.PI / 4 + p / 2)) / Math.PI) / 2 * 1000]; };
+const inv = (wx, wy) => [wx / 1000 * 360 - 180, (2 * Math.atan(Math.exp(Math.PI * (1 - 2 * wy / 1000))) - Math.PI / 2) * 180 / Math.PI]; // → kinh độ, vĩ độ
+const scr = (wx, wy) => G3 ? (G3.project(...inv(wx, wy)) || [-9999, -9999]) : [W / 2 + (wx - cam.x) * K * cam.z, MAPCY + (wy - cam.y) * K * cam.z];
+const ll = cc => G[cc] ? inv(...anchor(G[cc])) : null;
+function fx3(cc, kind) { // hiệu ứng 3D trên địa cầu: cột sáng / sóng lan
+  const p = G3 && ll(cc); if (!p) return;
+  G3.beam(p[0], p[1], kind === 'gold' ? 45 : hueOf(cc), kind === 'mega');
+  if (kind === 'mega') G3.wave(p[0], p[1]);
+}
+const hueOf = cc => { const f = flag(cc, true); return f.hue ?? hue(cc + '#' + cc); }; // màu nước = màu chủ đạo của quốc kỳ
+const level = sc => MILES.reduce((n, m) => n + (sc >= m[0] ? 1 : 0), 0);
+if (MAPVIEW) fetch('/map.json').then(r => r.json()).then(list => {
+  GEO = list.map(f => {
+    const path = new Path2D(), bb = [1e9, 1e9, -1e9, -1e9]; // bb: khung bao toàn bộ lãnh thổ, để bỏ qua nước nằm ngoài màn hình
+    for (const poly of f.p) for (const ring of poly) {
+      ring.forEach(([lo, la], i) => { const [x, y] = prj(lo, la); i ? path.lineTo(x, y) : path.moveTo(x, y); bb[0] = Math.min(bb[0], x); bb[1] = Math.min(bb[1], y); bb[2] = Math.max(bb[2], x); bb[3] = Math.max(bb[3], y); });
+      path.closePath();
+    }
+    const [x0, y1] = prj(f.b[0], f.b[1]), [x1, y0] = prj(f.b[2], f.b[3]);
+    const o = { cc: f.cc, path, bb, c: prj(f.c[0], f.c[1]), b: [x0, y0, x1, y1] };
+    if (f.cc) G[f.cc] = o; return o;
+  });
+  if (VIEW === 'globe' || VIEW === 'sea') import('/globe.js').then(m => m.init(document.getElementById('gl'), list, { flat: VIEW === 'sea' })).then(api => { G3 = api; })
+    .catch(e => { console.warn('Không dựng được địa cầu 3D, dùng bản đồ phẳng:', e); buildBase(); });
+  else buildBase();
+}).catch(() => {});
+function buildBase() {
+  // bản đồ phẳng: vẽ sẵn toàn bộ đất liền ra một ảnh nền (vẽ vector 240 nước mỗi khung hình là quá nặng); nước đang chơi vẽ vector đè lên
+  const c = document.createElement('canvas'), x = c.getContext('2d');
+  c.width = 1000 * BASE_S; c.height = (BASE_Y1 - BASE_Y0) * BASE_S;
+  x.scale(BASE_S, BASE_S); x.translate(0, -BASE_Y0); x.lineJoin = 'round';
+  x.fillStyle = '#131d3a'; x.strokeStyle = '#30468a'; x.lineWidth = 1.5 / BASE_S;
+  for (const f of GEO) { x.fill(f.path); x.stroke(f.path); }
+  baseMap = c;
+}
+function inside(o) { // một điểm ngẫu nhiên nằm trong lãnh thổ chính
+  const [x0, y0, x1, y1] = o.b;
+  for (let i = 0; i < 16; i++) { const x = x0 + Math.random() * (x1 - x0), y = y0 + Math.random() * (y1 - y0); if (hit.isPointInPath(o.path, x, y)) return [x, y]; }
+  return null;
+}
+// rải làng đều khắp lãnh thổ (kể cả đảo): ước lượng diện tích, chọn số làng theo diện tích, rồi gieo điểm cách đều nhau
+// (đơn vị bản đồ: cả thế giới rộng 1000). Kết quả cố định cho mỗi nước để làng không nhảy chỗ.
+const SITES = {};
+function sitesOf(cc) {
+  if (SITES[cc]) return SITES[cc];
+  const o = G[cc], [x0, y0, x1, y1] = o.bb, bw = Math.max(1, x1 - x0), bh = Math.max(1, y1 - y0);
+  let seed = [...cc].reduce((a, ch) => a * 31 + ch.charCodeAt(0), 7) % 2147483647 || 1;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  let hits = 0; const cand = [];
+  for (let i = 0; i < 700; i++) { const x = x0 + rnd() * bw, y = y0 + rnd() * bh; if (hit.isPointInPath(o.path, x, y)) { hits++; cand.push([x, y]); } }
+  const area = hits / 700 * bw * bh, n = clamp(Math.round(Math.sqrt(area) * .55), 2, 14), s = Math.sqrt(area / n) * .9, a = anchor(o), pts = [];
+  for (const p of cand) { // gieo điểm: cách thủ đô ≥ 1.3s, cách các làng khác ≥ s
+    if (pts.length >= n - 1) break;
+    if (Math.hypot(p[0] - a[0], p[1] - a[1]) < s * 1.3 || pts.some(q => Math.hypot(p[0] - q[0], p[1] - q[1]) < s)) continue;
+    pts.push(p);
+  }
+  pts.sort((p, q) => Math.hypot(p[0] - a[0], p[1] - a[1]) - Math.hypot(q[0] - a[0], q[1] - a[1])); // gần thủ đô mọc trước
+  return (SITES[cc] = { pts: pts.map(p => inv(p[0], p[1])), s: Math.max(2.2, s * 1.02) });
+}
+function anchor(o) { // chỗ cắm cờ: tâm lãnh thổ, nếu tâm rơi ra ngoài (nước hình chữ S…) thì lấy điểm trong gần tâm nhất
+  if (!o.a) {
+    let best = o.c, bd = 1e9;
+    if (!hit.isPointInPath(o.path, o.c[0], o.c[1])) for (let i = 0; i < 40; i++) { const p = inside(o); if (!p) continue; const d = (p[0] - o.c[0]) ** 2 + (p[1] - o.c[1]) ** 2; if (d < bd) { bd = d; best = p; } }
+    o.a = best;
+  }
+  return o.a;
+}
+function focus(cc, dwell, pri) { // camera bay tới một nước
+  const o = G[cc], t = performance.now() / 1000; if (!MAPVIEW || !o || (t < camHold && pri <= camPri)) return;
+  const w = Math.max(5, o.b[2] - o.b[0]), h = Math.max(5, o.b[3] - o.b[1]);
+  const zm = zoomMul(); tgt.z = clamp(Math.min(400 / w, 290 / h) * zm, 1.5, 7 * zm); tgt.x = (o.b[0] + o.b[2]) / 2; tgt.y = (o.b[1] + o.b[3]) / 2;
+  camHold = t + dwell; camPri = pri; camCc = cc; if (pri >= 2) sfx.whoosh();
+}
+let camCc = ''; // nước camera đang chủ động bay tới (để chọn danh thắng / tên thuyền cần hiện)
+function frameAll(pts, zmax) {
+  camCc = '';
+  if (!pts.length) { Object.assign(tgt, HOME); return; }
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const [x, y] of pts) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  tgt.z = clamp(Math.min(700 / Math.max(40, x1 - x0), 470 / Math.max(30, y1 - y0)), 1.05, zmax); tgt.x = (x0 + x1) / 2; tgt.y = (y0 + y1) / 2;
+}
+function focusPair(a, b, dwell, pri) {
+  const t = performance.now() / 1000; if (!MAPVIEW || !G[a] || !G[b] || (t < camHold && pri <= camPri)) return;
+  frameAll([anchor(G[a]), anchor(G[b])], 5); camHold = t + dwell; camPri = pri;
+}
+function spawnAv(cc, user, big) { // avatar người xem hiện ngay trên đất nước mình
+  const o = G[cc]; if (!MAPVIEW || !o || !user) return;
+  const p = inside(o) || anchor(o);
+  mapAv.push({ user, wx: p[0], wy: p[1], t0: performance.now() / 1000, life: big ? 9 : 6, big }); if (mapAv.length > 45) mapAv.shift();
+}
+function drawMap(t, dt) {
+  if (G3) g.clearRect(-40, -40, W + 80, H + 80); // địa cầu 3D nằm ở canvas phía dưới
+  else { const og = g.createLinearGradient(0, 0, 0, H); og.addColorStop(0, '#030816'); og.addColorStop(.5, '#07173a'); og.addColorStop(1, '#030816'); g.fillStyle = og; g.fillRect(0, 0, W, H); }
+  if (!GEO) return;
+  // đạo diễn camera: rảnh thì luân phiên toàn cảnh ↔ từng nước dẫn đầu
+  if (t >= camHold) {
+    camPri = 0; idleI++;
+    const tops = S.list.map(c => G[c.cc]).filter(Boolean);
+    if (idleI % 2 === 0 || !tops.length) { frameAll(tops.map(anchor), 3.2); camHold = t + 5; }
+    else { const c = S.list[(idleI >> 1) % Math.min(3, S.list.length)]; camHold = 0; focus(c.cc, 4, 0); camHold = t + 4; }
+  }
+  if (G3 && !G3.flat) { while (tgt.x - cam.x > 500) tgt.x -= 1000; while (cam.x - tgt.x > 500) tgt.x += 1000; } // địa cầu: bay theo đường ngắn nhất (bản đồ phẳng thì không vòng qua mép)
+  const k = 1 - Math.pow(G3 ? .06 : .03, dt); cam.x = lerp(cam.x, tgt.x, k); cam.y = lerp(cam.y, tgt.y, k); cam.z = lerp(cam.z, tgt.z, k);
+  const s = K * cam.z;
+  for (const a of act.values()) { a.heat = Math.max(0, a.heat - dt * 1.1); a.hue = hueOf(a.cc); }
+  SUN = sunPos();
+  if (G3) {
+    if (themeG3 !== TH) { themeG3 = TH; G3.setTheme(TH); }
+    G3.sync([...act.values()].map(a => ({ cc: a.cc, hue: a.hue, level: level(a.score), heat: a.heat, rank: a.rank })), dt);
+    const ld = S.list[0] && G[S.list[0].cc], hp = ld && inv(...anchor(ld));
+    hp ? G3.setHalo(hp[0], hp[1], Math.max(ld.b[2] - ld.b[0], ld.b[3] - ld.b[1]) * .2 + 1.5) : G3.setHalo(null);
+    const [lo, la] = inv(cam.x, cam.y);
+    // thành phố theo thời đại của các nước trong top 8 (cỡ theo thời đại + độ phóng; chỗ chật thì nhỏ lại)
+    townTops = S.cfg.eras ? G3.setTowns(S.list.filter(c => G[c.cc]).map(c => {
+      const n = nodes.get(c.cc), a = anchor(G[c.cc]), [tl, ta] = inv(...a), e = eraOf(c.cc), st = sitesOf(c.cc);
+      // thủ đô: to hơn làng khoảng 1,6 lần khi nhìn gần; nhìn xa vẫn giữ cỡ tối thiểu để thấy được
+      const [ax, ay] = scr(...a), [bx2, by2] = scr(a[0] + st.s, a[1]), sPx = ax < -9000 || bx2 < -9000 ? 0 : Math.hypot(bx2 - ax, by2 - ay);
+      const zm = zoomMul(); // zoom gần hơn thì cho nhà cửa to theo, thấy rõ kiến trúc
+      const px = clamp(Math.max(sPx * 1.6, (48 + e * 5) * clamp(cam.z / 3.2, .6, 1)), 36, 165 * zm) * (n && n.big === false ? .6 : 1);
+      return { cc: c.cc, lon: tl, lat: ta, era: e, hue: hueOf(c.cc), px, sites: st.pts, siteSize: st.s, vMax: clamp(cam.z * 14, 26, 105 * zm) }; // nhìn xa: làng nhỏ lại
+    }), t) : G3.setTowns([], t);
+    G3.setSun(SUN[0], SUN[1], S.cfg.dayNight !== false);
+    G3.frame(t, dt, lo + Math.sin(t * .23) * 2.5 * clamp(4 / cam.z, .3, 1), clamp(la, -55, 68), cam.z, S.phase === 'race' && S.final, zoomMul()); // vào gần thì lắc ngang ít lại
+  } else {
+  // lưới kinh vĩ tuyến
+  g.strokeStyle = 'rgba(90,140,230,.12)'; g.lineWidth = 1; g.beginPath();
+  for (let lon = -180; lon <= 180; lon += 15) { const x = scr(prj(lon, 0)[0], 0)[0]; if (x > 0 && x < W) { g.moveTo(x, 0); g.lineTo(x, H); } }
+  for (let lat = -75; lat <= 75; lat += 15) { const y = scr(0, prj(0, lat)[1])[1]; if (y > 0 && y < H) { g.moveTo(0, y); g.lineTo(W, y); } }
+  g.stroke();
+  if (baseMap) g.drawImage(baseMap, W / 2 - cam.x * s, MAPCY + (BASE_Y0 - cam.y) * s, 1000 * s, (BASE_Y1 - BASE_Y0) * s);
+  g.save(); g.translate(W / 2 - cam.x * s, MAPCY - cam.y * s); g.scale(s, s); g.lineJoin = 'round';
+  for (const a of [...act.values()].sort((p, q) => q.rank - p.rank)) { // nước đang chơi: càng nhiều điểm càng sáng
+    const o = G[a.cc]; if (!o) continue;
+    const [vx0, vy0] = scr(o.bb[0], o.bb[1]), [vx1, vy1] = scr(o.bb[2], o.bb[3]);
+    if (vx1 < -20 || vx0 > W + 20 || vy1 < 600 || vy0 > 1500) continue; // ngoài khung nhìn
+    g.fillStyle = `hsl(${a.hue},80%,${Math.min(72, 26 + level(a.score) * 5 + a.heat * 16 + (a.rank ? 0 : 5))}%)`; g.fill(o.path);
+    if (a.heat > .03 && a.rank) { g.lineWidth = (4 + a.heat * 8) / s; g.strokeStyle = `hsla(${a.hue},100%,72%,${.15 + a.heat * .3})`; g.stroke(o.path); } // loé sáng khi vừa được cộng điểm
+    if (a.rank === 0) { g.lineWidth = (9 + 4 * Math.sin(t * 5)) / s; g.strokeStyle = 'rgba(255,215,106,.5)'; g.stroke(o.path); }
+    g.lineWidth = 1.8 / s; g.strokeStyle = a.rank ? `hsl(${a.hue},100%,82%)` : '#fff0b8'; g.stroke(o.path);
+  }
+  g.restore();
+  }
+  // quần đảo Hoàng Sa, Trường Sa
+  const vn = act.get('vn');
+  for (const [label, lon, lat] of ISLES) {
+    const [x, y] = scr(...prj(lon, lat)); if (x < 0 || x > W || y < 640 || y > 1400) continue;
+    g.fillStyle = vn ? `hsl(${vn.hue},90%,70%)` : '#4a62a8';
+    for (const [dx, dy] of [[0, 0], [1.6, .8], [-1.2, 1.4], [.6, -1.5], [-1.8, -.6]]) { g.beginPath(); g.arc(x + dx * cam.z * 1.5, y + dy * cam.z * 1.5, Math.max(1.6, cam.z * .55), 0, TAU); g.fill(); }
+    if (cam.z >= 2) T(label, x + 12, y + 5, 15, 'rgba(215,230,255,.9)', 'left', 700);
+  }
+  // sóng lan từ quà lớn
+  for (let i = rings.length - 1; i >= 0; i--) {
+    const r = rings[i], age = t - r.t0, o = G[r.cc]; if (age > 1.6 || !o || G3) { rings.splice(i, 1); continue; }
+    const [x, y] = scr(...anchor(o));
+    for (const d of [0, .25]) { const a = age - d; if (a < 0) continue; g.beginPath(); g.arc(x, y, a * 620, 0, TAU); g.lineWidth = 10 * (1 - a / 1.6) + 1; g.strokeStyle = `rgba(255,215,106,${.8 * (1 - a / 1.6)})`; g.stroke(); }
+  }
+  // đường đối đầu hạng 1 – hạng 2
+  if (duel && G[duel.a] && G[duel.b]) {
+    const age = t - duel.t0; if (age > 6) duel = null; else if (!G3) {
+      const [ax, ay] = scr(...anchor(G[duel.a])), [bx, by] = scr(...anchor(G[duel.b])), mx = (ax + bx) / 2, my = (ay + by) / 2 - Math.hypot(bx - ax, by - ay) * .28;
+      g.globalAlpha = clamp(Math.min(age * 3, (6 - age) * 2), 0, 1); g.setLineDash([18, 12]); g.lineDashOffset = -t * 90; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(ax, ay); g.quadraticCurveTo(mx, my, bx, by); g.lineWidth = 9; g.strokeStyle = 'rgba(255,60,60,.45)'; g.stroke(); g.lineWidth = 4; g.strokeStyle = '#ffd76a'; g.stroke();
+      g.setLineDash([]); T('⚔️', (ax + bx) / 4 + mx / 2, (ay + by) / 4 + my / 2 + 18, 50 + 6 * Math.sin(t * 8), '#fff', 'center'); g.globalAlpha = 1;
+    }
+  }
+  // Chống rối: mỗi thứ vẽ lên bản đồ phải "giữ chỗ" (take) trước; chỗ đã có thứ khác thì thu nhỏ, dời nhãn hoặc bỏ qua.
+  // Thứ tự ưu tiên: cờ + điểm của top 8 → danh thắng của nước đang được camera nhìn → thuyền người tặng quà → avatar.
+  occ.length = 0;
+  // cờ + điểm của top 8
+  const placed = [];
+  for (const n of [...nodes.values()]) {
+    if (!n.live) { nodes.delete(n.cc); continue; }
+    n.disp = lerp(n.disp, n.score, 1 - Math.pow(.004, dt));
+    const o = G[n.cc]; if (!o) continue;
+    const [x, y] = scr(...anchor(o)); n.x = x; n.y = y; n.pin = n.rank;
+  }
+  for (const n of [...nodes.values()].sort((p, q) => p.rank - q.rank)) {
+    const { x, y } = n; if (!G[n.cc] || x < 50 || x > W - 50 || y < 700 || y > 1255) continue;
+    const big = !placed.some(p => Math.abs(p[0] - x) < 126 && Math.abs(p[1] - y) < 96), r = big ? (n.rank ? 25 : 31) : 13, f = flag(n.cc, true);
+    n.big = big;
+    // có thành phố 3D ở vị trí nước: cờ cắm phía trên thành phố, tên + điểm nằm dưới chân thành phố
+    const th = (G3 && townTops[n.cc]) || 0, fy = th ? y - th - r : y, ty = th ? y + th * .45 : y + r;
+    if (big) { placed.push([x, y]); take(x, (fy - r + ty + 70) / 2, 164, ty + 70 - (fy - r), true); } else take(x, fy, 30, 30, true);
+    if (th) { g.beginPath(); g.moveTo(x, fy + r); g.lineTo(x, y - th * .5); g.lineWidth = 2; g.strokeStyle = 'rgba(255,255,255,.7)'; g.stroke(); } // cán cờ
+    g.save(); g.beginPath(); g.arc(x, fy, r, 0, TAU); g.clip(); if (f.ok) g.drawImage(f.cv, x - r, fy - r, r * 2, r * 2); else { g.fillStyle = '#334'; g.fill(); } g.restore();
+    g.beginPath(); g.arc(x, fy, r, 0, TAU); g.lineWidth = big ? 4 : 2; g.strokeStyle = n.rank ? '#fff' : '#ffd76a'; g.stroke();
+    if (!big) continue;
+    g.save(); g.shadowColor = 'rgba(0,0,0,.95)'; g.shadowBlur = 7;
+    const e = S.cfg.eras ? eraOf(n.cc) : -1, nm = (e >= 0 ? ERAS[e].i + ' ' : '') + n.name.toUpperCase(), sc = `${fmt(n.disp)} ${UNIT}`;
+    T(nm, x, ty + 22, fit(nm, 170, 20), '#fff', 'center', 900); T(sc, x, ty + 44, fit(sc, 150, 20), '#ffcf4d', 'center', 800);
+    if (n.rank === 0) T('👑', x, fy - r - 6 + Math.sin(t * 4) * 3, 38, '#fff', 'center');
+    const w = S.cfg.dayNight !== false && wxOf(n.cc, SUN); // giờ địa phương + thời tiết ngay dưới điểm số
+    if (w) { const s = `${w.day ? '☀️' : '🌙'} ${w.time} · ${w.ico} ${w.t}°C`; T(s, x, ty + 64, fit(s, 160, 17), w.day ? '#fff3c4' : '#cfe0ff', 'center', 800); }
+    g.restore();
+  }
+  if (S.cfg.dayNight !== false) drawSky(t, SUN);
+  drawLandmarks(t); drawShips(t);
+  // avatar người chơi: cái nào không còn chỗ thì bỏ qua (avatar lớn thì thu nhỏ, bỏ tên)
+  for (let i = mapAv.length - 1; i >= 0; i--) {
+    const a = mapAv[i], age = t - a.t0; if (age > a.life) { mapAv.splice(i, 1); continue; }
+    const [x, y] = scr(a.wx, a.wy); if (x < 20 || x > W - 20 || y < 660 || y > 1345) continue;
+    const p = Math.min(1, age / .35), pop = 1 + 2.2 * Math.pow(p - 1, 3) + 1.2 * Math.pow(p - 1, 2), fade = clamp((a.life - age) * 2, 0, 1);
+    let big = a.big; if (big && !take(x, y + 8, 76, 96)) big = false;
+    if (!big && !take(x, y, 34, 34)) continue;
+    const r = (big ? 32 : 17) * pop * fade; if (r < 2) continue;
+    drawAvatar(a.user, x, y - r * .4 + Math.sin(t * 3 + i) * 2, r, a.big ? '#ffd76a' : '#fff');
+    if (big) { g.save(); g.shadowColor = '#000'; g.shadowBlur = 6; T(a.user.name, x, y + r + 16, 18, '#ffe9a8', 'center', 800); g.restore(); }
+  }
+  drawFallers(t, dt);
+  // làm tối mép trên / dưới cho chữ dễ đọc; ở chế độ biển thì để biển tràn hết màn hình, chỉ phủ nhẹ phía trên
+  const sea = G3 && G3.flat, a1 = sea ? .5 : 1, a2 = sea ? .42 : .93, a3 = sea ? .18 : .96;
+  const vt = g.createLinearGradient(0, 0, 0, 660); vt.addColorStop(0, `rgba(${TH.dark},${a1})`); vt.addColorStop(.94, `rgba(${TH.dark},${a2})`); vt.addColorStop(1, `rgba(${TH.dark},0)`); g.fillStyle = vt; g.fillRect(0, 0, W, 660);
+  const vb = g.createLinearGradient(0, 1340, 0, 1560); vb.addColorStop(0, `rgba(${TH.dark},0)`); vb.addColorStop(1, `rgba(${TH.dark},${a3})`); g.fillStyle = vb; g.fillRect(0, 1340, W, H - 1340);
+}
+function drawShips(t) { // thuyền của người tặng quà: căng buồm mang ảnh người tặng, đi vòng quanh nước mình suốt vòng đấu; quà càng nhiều thuyền càng to
+  const list3 = [];
+  (S.ships || []).forEach((sh, i) => {
+    const o = G[sh.cc]; if (!o) return;
+    // mỗi thuyền một quỹ đạo riêng quanh nước mình (3 vòng lồng nhau) để không chồng lên nhau
+    const far = cam.z < 2, a = anchor(o), R = (Math.max(o.b[2] - o.b[0], o.b[3] - o.b[1]) * .62 + 9 + (far ? 16 : 0)) * (1 + (i % 3) * .42), dir = i % 2 ? 1 : -1, ang = i * 2.4 + t * .07 * dir;
+    const wx = a[0] + Math.cos(ang) * R, wy = a[1] + Math.sin(ang) * R * .8, top = i === 0;
+    if (G3) { // thuyền buồm 3D chạy trên mặt biển; phía trên chỉ vẽ ảnh + tên người tặng nếu còn chỗ
+      if (far && i >= 4) return; // nhìn toàn cảnh: chỉ 4 thuyền lớn nhất, và thu nhỏ lại
+      const tall = top || sh.coins >= 100; // quà từ 100 xu hoặc người tặng nhiều nhất: tàu ba cột buồm
+      const px = clamp(62 + Math.log10(sh.coins + 1) * 30, 70, 150) * (tall ? 1.3 : 1) * clamp(cam.z / 3.2, .42, 1), [lo, la] = inv(wx, wy), [lo2, la2] = inv(a[0] + Math.cos(ang + .03 * dir) * R, a[1] + Math.sin(ang + .03 * dir) * R * .8);
+      list3.push({ key: sh.name + '|' + sh.cc + (tall ? '|T' : ''), cc: sh.cc, tall, lon: lo, lat: la, lon2: lo2, lat2: la2, px, gold: top, hue: hueOf(sh.cc) });
+      const [x, y] = scr(wx, wy); if (x < 60 || x > W - 60 || y < 740 || y > 1250) return;
+      const r = clamp(13 + Math.log10(sh.coins + 1) * 5, 15, 28) * (far ? .8 : 1), ay = y - px * (tall ? .86 : .78) - r;
+      if (cam.z >= 2.4 && !top && sh.cc !== focusCc) return;          // camera vào gần: chỉ ghi tên thuyền của nước đang xem (và thuyền đầu bảng)
+      if (!take(x, ay + r * .5 + 10, Math.max(r * 2 + 8, 86), r * 2 + 44, top)) return; // hết chỗ thì chỉ còn chiếc thuyền, không ghi tên (tàu đầu bảng thì luôn ghi)
+      drawAvatar(sh, x, ay, r, top ? '#ffd76a' : '#fff');
+      g.save(); g.shadowColor = 'rgba(0,0,0,.95)'; g.shadowBlur = 6;
+      if (top) T('👑', x, ay - r - 2, r * .95, '#fff', 'center');
+      T(sh.name, x, ay + r + 15, 15, '#fff', 'center', 800); T(`💎 ${fmt(sh.coins)}`, x, ay + r + 31, 14, '#ffd76a', 'center', 800);
+      g.restore(); return;
+    }
+    const [x, y0] = scr(wx, wy); if (x < 60 || x > W - 60 || y0 < 720 || y0 > 1235) return;
+    if (!take(x, y0 - 10, 120, 130)) return;
+    const s = clamp(20 + Math.log10(sh.coins + 1) * 13, 22, 60), y = y0 + Math.sin(t * 2 + i) * 3;
+    g.save(); g.translate(x, y); g.rotate(Math.sin(t * 1.6 + i) * .06);
+    g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 2; g.beginPath(); g.moveTo(-s * 1.3, s * .34); g.quadraticCurveTo(0, s * .66, s * 1.3, s * .34); g.stroke(); // sóng rẽ
+    g.beginPath(); g.moveTo(-s, 0); g.lineTo(s, 0); g.lineTo(s * .62, s * .42); g.lineTo(-s * .62, s * .42); g.closePath();
+    g.fillStyle = top ? '#e8a021' : '#7a4a22'; g.fill(); g.lineWidth = 2; g.strokeStyle = top ? '#fff3b0' : '#d9a066'; g.stroke(); // thân thuyền (thuyền đầu bảng màu vàng)
+    g.fillStyle = '#fff'; g.fillRect(-1.5, -s * 1.5, 3, s * 1.5);
+    drawAvatar(sh, 0, -s * .86, s * .6, top ? '#ffd76a' : '#fff'); // cánh buồm = ảnh người tặng
+    drawFlag(sh.cc, 3, -s * 1.9, s * .56, s * .42, 2);
+    g.restore();
+    g.save(); g.shadowColor = 'rgba(0,0,0,.95)'; g.shadowBlur = 6;
+    if (top) T('👑', x, y - s * 1.95, s * .55, '#fff', 'center');
+    T(sh.name, x, y + s * .42 + 17, 15, '#fff', 'center', 800); T(`💎 ${fmt(sh.coins)}`, x, y + s * .42 + 33, 14, '#ffd76a', 'center', 800);
+    g.restore();
+  });
+  if (G3) G3.setShips(list3, t);
+}
+// ---------- chống rối trên bản đồ
+const occ = []; let focusCc = '', SUN = [0, 0], townTops = {};
+// ---------- thời đại: 8 mốc, điểm mỗi mốc do trang điều khiển đặt (S.cfg.eraPts), điểm tích luỹ trong ngày ở S.civ
+const ERAS = [
+  { n: 'Stone Age', i: '🪨', c: '#a8a29e' }, { n: 'Bronze Age', i: '🏺', c: '#d4a05a' }, { n: 'Iron Age', i: '⚔️', c: '#9aa4b1' }, { n: 'Classical Age', i: '🏛️', c: '#f2ead3' },
+  { n: 'Medieval Age', i: '🏰', c: '#8fa3d8' }, { n: 'Renaissance', i: '⛪', c: '#e3a066' }, { n: 'Industrial Age', i: '🏭', c: '#c76a4a' }, { n: 'Modern Age', i: '🏙️', c: '#7fd0ff' },
+];
+const civPts = cc => (S && S.civ && S.civ[cc]) || 0;
+function eraOf(cc) { const th = (S && S.cfg.eraPts) || [0]; let e = 0; th.forEach((v, i) => { if (civPts(cc) >= v) e = i; }); return e; }
+function eraProg(cc) { const th = S.cfg.eraPts, e = eraOf(cc); return e >= 7 ? 1 : clamp((civPts(cc) - th[e]) / (th[e + 1] - th[e]), 0, 1); }
+function take(x, y, w, h, force) { // giữ một ô chữ nhật tâm (x, y); trả về false nếu đã có thứ khác ở đó
+  const r = [x - w / 2, y - h / 2, x + w / 2, y + h / 2];
+  if (!force && occ.some(o => r[0] < o[2] && r[2] > o[0] && r[1] < o[3] && r[3] > o[1])) return false;
+  occ.push(r); return true;
+}
+// ---------- ngày / đêm + giờ địa phương + thời tiết từng nước
+function sunPos() { // điểm mặt trời đang chiếu thẳng đứng lúc này: [kinh độ, vĩ độ]
+  const d = new Date(), doy = (d - Date.UTC(d.getUTCFullYear(), 0, 0)) / 864e5, B = 2 * Math.PI * (doy - 81) / 364;
+  const eot = 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B); // phương trình thời gian (phút)
+  const h = d.getUTCHours() + d.getUTCMinutes() / 60 + d.getUTCSeconds() / 3600;
+  let lon = -(h - 12 + eot / 60) * 15; lon = ((lon + 540) % 360) - 180;
+  return [lon, -23.44 * Math.cos(2 * Math.PI * (doy + 10) / 365)];
+}
+function isDay(lon, lat, sun) { const r = Math.PI / 180; return Math.sin(lat * r) * Math.sin(sun[1] * r) + Math.cos(lat * r) * Math.cos(sun[1] * r) * Math.cos((lon - sun[0]) * r) > -.01; }
+function wxInfo(code, day) { // mã thời tiết WMO → [biểu tượng, tên, kiểu hạt: rain / snow / storm / fog]
+  if (code <= 0) return [day ? '☀️' : '🌙', 'Clear', ''];
+  if (code <= 2) return [day ? '🌤️' : '☁️', 'Partly cloudy', ''];
+  if (code === 3) return ['☁️', 'Cloudy', ''];
+  if (code <= 48) return ['🌫️', 'Fog', 'fog'];
+  if (code <= 67) return ['🌧️', code <= 57 ? 'Drizzle' : 'Rain', 'rain'];
+  if (code <= 77) return ['❄️', 'Snow', 'snow'];
+  if (code <= 82) return ['🌦️', 'Showers', 'rain'];
+  if (code <= 86) return ['🌨️', 'Snow showers', 'snow'];
+  return ['⛈️', 'Thunderstorm', 'storm'];
+}
+function wxOf(cc, sun) { // → { time 'HH:MM', day, ico, name, kind, t } hoặc null
+  const w = S.wx && S.wx[cc], o = G[cc]; if (!w || !o) return null;
+  const d = new Date(Date.now() + w[2] * 1000), [lo, la] = inv(...anchor(o)), day = isDay(lo, la, sun), [ico, name, kind] = wxInfo(w[1], day);
+  return { time: String(d.getUTCHours()).padStart(2, '0') + ':' + String(d.getUTCMinutes()).padStart(2, '0'), day, ico, name, kind, t: w[0] };
+}
+function drawSky(t, sun) { // mặt trời và mặt trăng ngay trên bản đồ + thẻ thời tiết và mưa / tuyết của nước camera đang xem
+  for (const [ico, lo, la, lab] of [['☀️', sun[0], sun[1], 'NOON'], ['🌙', ((sun[0] + 360) % 360) - 180, -sun[1], 'MIDNIGHT']]) {
+    const [x, y] = scr(...prj(lo, clamp(la, -60, 70))); if (x < 40 || x > W - 40 || y < 700 || y > 1280 || !take(x, y, 70, 70)) continue;
+    g.save(); g.shadowColor = ico === '☀️' ? 'rgba(255,200,60,.9)' : 'rgba(170,200,255,.9)'; g.shadowBlur = 26; T(ico, x, y + 16, 46, '#fff', 'center'); g.restore();
+    g.save(); g.shadowColor = '#000'; g.shadowBlur = 5; T(lab, x, y + 38, 13, '#fff', 'center', 800); g.restore();
+  }
+  const cc = cam.z >= 2.2 ? (camCc || focusCc) : '', w = cc && wxOf(cc, sun); if (!w) return;
+  // hạt thời tiết phủ vùng bản đồ
+  g.save(); g.beginPath(); g.rect(0, 650, W, 750); g.clip();
+  if (w.kind === 'rain' || w.kind === 'storm') {
+    g.strokeStyle = 'rgba(190,220,255,.55)'; g.lineWidth = 2; g.beginPath();
+    for (let i = 0; i < 70; i++) { const x = (i * 157.3 + t * 90) % (W + 60) - 30, y = 650 + (i * 89.7 + t * (780 + (i % 5) * 90)) % 750; g.moveTo(x, y); g.lineTo(x - 7, y + 22); }
+    g.stroke();
+    if (w.kind === 'storm' && Math.sin(t * 1.3) > .985) { g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(0, 650, W, 750); }
+  } else if (w.kind === 'snow') {
+    g.fillStyle = 'rgba(255,255,255,.85)';
+    for (let i = 0; i < 60; i++) { const y = 650 + (i * 71.3 + t * (60 + (i % 4) * 22)) % 750, x = (i * 173.1 + Math.sin(t * .9 + i) * 26) % W; g.beginPath(); g.arc(x, y, 2 + (i % 3), 0, TAU); g.fill(); }
+  } else if (w.kind === 'fog') {
+    for (let i = 0; i < 4; i++) { const y = 760 + i * 150, gr = g.createLinearGradient(0, y - 60, 0, y + 60); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(.5, 'rgba(235,240,250,.22)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, y - 60 + Math.sin(t * .4 + i) * 20, W, 120); }
+  }
+  g.restore();
+  // thẻ: cờ · tên nước · giờ địa phương · thời tiết
+  const nm = (S.all && nodes.get(cc) ? nodes.get(cc).name : (LANGS.name[cc] || cc.toUpperCase())).toUpperCase();
+  const txt = `${nm} · ${w.day ? '☀️' : '🌙'} ${w.time} · ${w.ico} ${w.t}°C ${w.name}`;
+  const fs = fit(txt, 440, 22); g.font = `800 ${fs}px ${FONT}`; const tw = Math.min(440, g.measureText(txt).width); // gọn trong nửa trái, không chạm bảng tin bên phải
+  const cy = S.quiz ? 926 : banner ? (banner.mega ? 914 : 814) : 664; // né khung đố vui / băng-rôn đang hiện
+  rr(34, cy, tw + 76, 46, 23); g.fillStyle = w.day ? 'rgba(10,40,90,.86)' : 'rgba(6,8,34,.9)'; g.fill(); g.lineWidth = 2; g.strokeStyle = w.day ? '#ffd76a' : '#9fb8ff'; g.stroke();
+  drawFlag(cc, 44, cy + 9, 38, 28, 4); T(txt, 92, cy + 31, fs, '#fff', 'left', 800);
+  take(34 + (tw + 76) / 2, cy + 23, tw + 76, 46, true);
+}
+function drawConts() { // thanh "trận chiến châu lục"
+  const tot = S.conts.reduce((a, c) => a + c[1], 0); if (!tot) return;
+  const y = 1366, h = 34; let x = 30;
+  T('🌍 CONTINENT BATTLE', 34, y - 8, 16, '#9fc4ff', 'left', 800);
+  g.save(); rr(30, y, 1020, h, 17); g.clip();
+  for (const [name, v] of S.conts) {
+    const w = v / tot * 1020, lab = `${name.toUpperCase()} ${Math.round(v / tot * 100)}%`;
+    g.fillStyle = CONT_COL[name] || '#8894b8'; g.fillRect(x, y, w + 1, h);
+    if (w > 110) T(lab, x + w / 2, y + 24, fit(lab, w - 18, 19, 900), '#06142e', 'center', 900);
+    x += w;
+  }
+  g.restore(); rr(30, y, 1020, h, 17); g.lineWidth = 2; g.strokeStyle = 'rgba(255,255,255,.5)'; g.stroke();
+}
+
+// ---------- nền
+const stars = Array.from({ length: 150 }, () => ({ x: Math.random() * W, y: Math.random() * H, z: .25 + Math.random() }));
+function drawBg(t, dt, rush) {
+  const bg = g.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#02030c'); bg.addColorStop(.5, '#071233'); bg.addColorStop(.85, '#10275c'); bg.addColorStop(1, '#1b3f86');
+  g.fillStyle = bg; g.fillRect(0, 0, W, H);
+  const sp = 26 + rush * 150;
+  for (const s of stars) {
+    s.y += s.z * sp * dt; if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
+    g.globalAlpha = .35 + .5 * s.z * (.7 + .3 * Math.sin(t * 2 + s.x)); g.fillStyle = '#fff';
+    g.fillRect(s.x, s.y, s.z * 2.2, s.z * 2.2 + rush * s.z * 10);
+  }
+  g.globalAlpha = 1;
+  // Trái Đất
+  const ey = 1425, er = 1900;
+  const atm = g.createRadialGradient(W / 2, ey + er, er - 10, W / 2, ey + er, er + 130);
+  atm.addColorStop(0, 'rgba(90,190,255,.55)'); atm.addColorStop(1, 'rgba(90,190,255,0)');
+  g.fillStyle = atm; g.beginPath(); g.arc(W / 2, ey + er, er + 130, 0, TAU); g.fill();
+  const eg = g.createLinearGradient(0, ey, 0, H);
+  eg.addColorStop(0, '#2b7fd6'); eg.addColorStop(.25, '#14509c'); eg.addColorStop(1, '#06204a');
+  g.fillStyle = eg; g.beginPath(); g.arc(W / 2, ey + er, er, 0, TAU); g.fill();
+}
+
+// ---------- đầu trang, bảng xếp hạng
+function drawHeader(t, left) {
+  const grad = g.createLinearGradient(0, 245, 0, 300); grad.addColorStop(0, TH.title[0]); grad.addColorStop(1, TH.title[1]);
+  g.save(); g.shadowColor = 'rgba(255,150,40,.7)'; g.shadowBlur = 22;
+  const ttl = (S.cfg.title || 'NATION RUSH').toUpperCase(); T(ttl, 34, 296, fit(ttl, 420, 58, 900), grad, 'left', 900); g.restore();
+  T(S.cfg.subtitle || (MAPVIEW ? (S.cfg.eras ? 'BUILD YOUR NATION FROM STONE AGE TO TODAY' : 'LIGHT UP YOUR COUNTRY ON THE MAP') : 'WHICH COUNTRY FLIES HIGHEST?'), 37, 326, 20, TH.sub, 'left', 700);
+  // vương miện hôm nay
+  if (S.today.length) {
+    T("👑 TODAY'S WINS", 482, 266, 16, '#ffd76a', 'left', 800);
+    S.today.slice(0, 3).forEach(([cc, n], i) => { const x = 482 + i * 92; drawFlag(cc, x, 278, 40, 30, 5); T('×' + n, x + 46, 302, 20, '#fff', 'left', 800); });
+  }
+  // đồng hồ
+  const fin = S.final && S.phase === 'race', pulse = fin ? .5 + .5 * Math.sin(t * 9) : 0;
+  rr(778, 240, 268, 92, 18); g.fillStyle = fin ? `rgba(${150 + 90 * pulse},20,30,.92)` : TH.panel; g.fill();
+  g.lineWidth = 3; g.strokeStyle = fin ? '#ff6a5c' : TH.line; g.stroke();
+  const mm = Math.floor(left / 60), ss = Math.floor(left % 60);
+  T(S.phase === 'race' ? `ROUND ${S.round}` + (fin ? ' · ×2' : '') : 'NEXT ROUND IN', 912, 266, 18, fin ? '#ffd0c8' : '#8fb4ff', 'center', 800);
+  T(`${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`, 912, 318, 52, '#fff', 'center', 900);
+}
+function drawCta(t) {
+  let txt, c1, c2;
+  if (S.phase === 'race' && S.final) { txt = '🔥 FINAL RUSH — ALL POINTS ×2 🔥'; c1 = '#ff3b3b'; c2 = '#ff9a1f'; }
+  else if (S.golden > 0) { txt = `🌟 GOLDEN HOUR — ALL POINTS ×2 — ${Math.ceil(S.golden - (performance.now() - sAt) / 1000)}s`; c1 = '#c98a00'; c2 = '#ffcf4d'; }
+  else if (S.event) { txt = `⚡ ${S.event.label} — ${Math.ceil(S.event.left - (performance.now() - sAt) / 1000)}s`; c1 = '#8a2be2'; c2 = '#ff3fa4'; }
+  else {
+    const m = MAPVIEW
+      ? ['💬 TYPE YOUR COUNTRY TO PUT IT ON THE MAP', '❤️ TAP TAP TAP = MAKE YOUR NATION SHINE', '🎁 GIFTS = MEGA BOOST FOR YOUR NATION', '👑 BRIGHTEST NATION WINS THE CROWN', `🌍 ${S.seen} NATIONS JOINED — IS YOURS MISSING?`]
+      : ['💬 TYPE YOUR COUNTRY TO JOIN THE RACE', '❤️ TAP TAP TAP = ROCKET FUEL', '🎁 GIFTS = MEGA BOOST FOR YOUR NATION', '👑 HIGHEST NATION WINS THE CROWN'];
+    m.push('⚔️ TYPE "VS JAPAN" TO CHALLENGE ANOTHER NATION', '⚠️ STAY ACTIVE — IDLE NATIONS FADE AWAY',
+      '🏛️ 30+ COINS = UNLOCK YOUR NEXT LANDMARK', '⚡ 99+ COINS = ×2 POWER FOR YOUR NATION', '🧠 QUIZ: ANSWER A, B OR C TO SCORE');
+    txt = m[Math.floor(t / 4) % m.length]; [c1, c2] = TH.cta;
+  }
+  const gr = g.createLinearGradient(30, 0, 1050, 0); gr.addColorStop(0, c1); gr.addColorStop(1, c2);
+  const p = 1 + .012 * Math.sin(t * 5);
+  g.save(); g.translate(W / 2, 370); g.scale(p, p);
+  rr(-510, -27, 1020, 54, 27); g.fillStyle = gr; g.fill();
+  T(txt, 0, 12, fit(txt, 960, 32, 900), '#fff', 'center', 900); g.restore();
+}
+function drawBoard() {
+  rr(30, 408, 1020, 214, 16); g.fillStyle = TH.panel; g.fill(); g.lineWidth = 2; g.strokeStyle = TH.line; g.stroke();
+  if (!S.list.length) { T('NO ROCKETS YET — TYPE YOUR COUNTRY! 🚀', W / 2, 526, 34, '#cfe0ff', 'center', 800); return; }
+  S.list.forEach((c, i) => {
+    const x = i < 4 ? 38 : 546, y = 414 + (i % 4) * 51, w = 496;
+    if (i === 0) { rr(x, y, w, 48, 10); g.fillStyle = 'rgba(255,200,60,.2)'; g.fill(); }
+    if (i === 0) T('👑', x + 24, y + 35, 28, '#fff', 'center'); else T(i + 1, x + 24, y + 34, 26, i < 3 ? '#ffd76a' : '#8ea6d8', 'center', 800);
+    drawFlag(c.cc, x + 50, y + 5, 52, 38, 6);
+    T(c.name, x + 114, y + 26, fit(c.name, 200, 26), '#fff', 'left', 800);
+    const e = S.cfg.eras ? eraOf(c.cc) : -1, lmN = lmOpen.get(c.cc);
+    const info = `${e >= 0 ? `${ERAS[e].i} ${ERAS[e].n} · ` : ''}${c.players}👤${lmN ? ` · 🏛️${lmN}` : ''}${c.pw ? ` · ⚡×2 ${c.pw}s` : ''}`;
+    const fade = S.fading && S.fading.includes(c.cc), it = fade ? `⚠️ FADING — ${info}` : info;
+    T(it, x + 114, y + 44, fit(it, 210, 15, 700), fade ? (Math.sin(performance.now() / 120) > 0 ? '#ff6a5c' : '#ffb0a8') : c.pw ? '#ffd76a' : TH.sub, 'left', 700);
+    if (e >= 0) { // thanh tiến độ lên thời đại kế tiếp
+      const k = eraProg(c.cc); rr(x + 114, y + 47, 210, 3, 1.5); g.fillStyle = 'rgba(255,255,255,.15)'; g.fill();
+      if (k > 0) { rr(x + 114, y + 47, 210 * k, 3, 1.5); g.fillStyle = ERAS[Math.min(7, e + 1)].c; g.fill(); }
+    }
+    const sc = `${fmt(c.score)} ${UNIT}`; T(sc, x + w - 10, y + 34, fit(sc, 165, 26), '#ffcf4d', 'right', 800);
+  });
+  T(`${S.players} players · ${S.nations} nations`, 1040, 646, 17, '#8fb0ee', 'right', 700);
+}
+
+// ---------- sân đua
+function drawField(t, dt) {
+  const top = S.list[0] ? S.list[0].score : 0;
+  scale = lerp(scale, Math.max(400, top * 1.08), 1 - Math.pow(.02, dt));
+  // mốc độ cao
+  let lastY = -99;
+  for (const [v, label, ico] of MILES.filter(m => m[0] <= scale).reverse().slice(0, 3)) {
+    const y = altY(v); if (y - lastY < 30) continue; lastY = y; // mốc thấp dồn sát nhau thì bỏ bớt
+    g.setLineDash([10, 12]); g.strokeStyle = 'rgba(255,215,106,.3)'; g.lineWidth = 2; g.beginPath(); g.moveTo(30, y); g.lineTo(1050, y); g.stroke(); g.setLineDash([]);
+    T(`${ico} ${label} · ${short(v)} km`, 34, y - 8, 16, 'rgba(255,225,140,.8)', 'left', 700);
+  }
+  const arr = [...nodes.values()].sort((a, b) => b.rank - a.rank);
+  for (const n of arr) {
+    n.a = lerp(n.a, n.live ? 1 : 0, .08); if (!n.live && n.a < .03) { nodes.delete(n.cc); continue; }
+    n.disp = lerp(n.disp, n.score, 1 - Math.pow(.004, dt));
+    n.x = lerp(n.x, laneX(n.rank), 1 - Math.pow(.01, dt));
+    n.y = lerp(n.y, altY(n.disp), 1 - Math.pow(.01, dt));
+    n.heat = Math.max(.25, n.heat * Math.pow(.25, dt));
+    drawRocket(n, t, dt);
+  }
+}
+function drawRocket(n, t, dt) {
+  const x = n.x + Math.sin(t * 2.3 + n.seed) * 2, y = n.y + Math.sin(t * 3 + n.seed) * 3, pw = clamp(n.heat, 0, 1.6);
+  g.save(); g.globalAlpha = n.a;
+  // lửa
+  const len = 34 + pw * 95 + Math.random() * 14;
+  const fg = g.createLinearGradient(0, y + 58, 0, y + 58 + len);
+  fg.addColorStop(0, 'rgba(255,255,220,.98)'); fg.addColorStop(.3, 'rgba(255,190,40,.9)'); fg.addColorStop(.7, 'rgba(255,80,20,.55)'); fg.addColorStop(1, 'rgba(255,40,0,0)');
+  g.fillStyle = fg; g.beginPath(); g.moveTo(x - 17, y + 56); g.quadraticCurveTo(x - 12 - pw * 6, y + 58 + len * .5, x, y + 58 + len); g.quadraticCurveTo(x + 12 + pw * 6, y + 58 + len * .5, x + 17, y + 56); g.fill();
+  if (Math.random() < .25 + pw * .5) parts.push({ x: x + (Math.random() - .5) * 16, y: y + 60 + len * .6, vx: (Math.random() - .5) * 40, vy: 120 + Math.random() * 160, life: 0, max: .4 + Math.random() * .5, size: 3 + Math.random() * 5, col: 'rgba(255,170,60,1)', gy: 0 });
+  // cánh
+  const col = `hsl(${n.hue},85%,55%)`, colD = `hsl(${n.hue},85%,38%)`;
+  g.fillStyle = colD;
+  g.beginPath(); g.moveTo(x - 26, y + 14); g.lineTo(x - 50, y + 62); g.lineTo(x - 26, y + 52); g.fill();
+  g.beginPath(); g.moveTo(x + 26, y + 14); g.lineTo(x + 50, y + 62); g.lineTo(x + 26, y + 52); g.fill();
+  // thân
+  const bgd = g.createLinearGradient(x - 30, 0, x + 30, 0); bgd.addColorStop(0, '#c3cde4'); bgd.addColorStop(.45, '#ffffff'); bgd.addColorStop(1, '#9aa7c6');
+  g.fillStyle = bgd; g.beginPath(); g.moveTo(x - 28, y + 58); g.lineTo(x - 28, y - 30); g.quadraticCurveTo(x - 26, y - 78, x, y - 100); g.quadraticCurveTo(x + 26, y - 78, x + 28, y - 30); g.lineTo(x + 28, y + 58); g.closePath(); g.fill();
+  // mũi
+  g.fillStyle = col; g.beginPath(); g.moveTo(x - 24.5, y - 56); g.quadraticCurveTo(x - 18, y - 84, x, y - 100); g.quadraticCurveTo(x + 18, y - 84, x + 24.5, y - 56); g.closePath(); g.fill();
+  g.fillRect(x - 28, y + 44, 56, 8);
+  // cờ
+  const f = flag(n.cc, true);
+  g.save(); g.beginPath(); g.arc(x, y - 8, 24, 0, TAU); g.clip(); if (f.ok) g.drawImage(f.cv, x - 24, y - 32, 48, 48); else { g.fillStyle = '#334'; g.fill(); } g.restore();
+  g.beginPath(); g.arc(x, y - 8, 24, 0, TAU); g.lineWidth = 4; g.strokeStyle = col; g.stroke();
+  // MVP ngồi cạnh
+  if (n.mvp) drawAvatar(n.mvp, x + 34, y + 30, 17, '#ffd76a');
+  // nhãn
+  const nm = n.name.toUpperCase();
+  g.shadowColor = 'rgba(0,0,0,.9)'; g.shadowBlur = 6;
+  T(fmt(n.disp) + ' km', x, y - 110, fit(fmt(n.disp) + ' km', 118, 21), '#ffcf4d', 'center', 800);
+  T(nm, x, y - 134, fit(nm, 118, 20), '#fff', 'center', 900);
+  if (n.rank === 0) T('👑', x, y - 158 + Math.sin(t * 4) * 3, 34, '#fff', 'center');
+  g.restore();
+}
+function drawParts(dt, confettiOnly) {
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i]; if (confettiOnly && !p.rect && !p.fw) continue; p.life += dt; if (p.life >= p.max) { parts.splice(i, 1); continue; }
+    if (p.drag) { const d = Math.pow(1 / (1 + p.drag), dt); p.vx *= d; p.vy *= d; }
+    p.vy += (p.gy || 0) * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    g.globalAlpha = 1 - p.life / p.max; g.fillStyle = p.col; g.globalCompositeOperation = p.glow ? 'lighter' : 'source-over';
+    if (p.glow) { g.globalAlpha *= .22; g.beginPath(); g.arc(p.x, p.y, p.size * 1.9, 0, TAU); g.fill(); g.globalAlpha = 1 - p.life / p.max; } // quầng sáng
+    if (p.rect) { g.save(); g.translate(p.x, p.y); g.rotate(p.rot + p.life * 6); g.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2); g.restore(); }
+    else { g.beginPath(); g.arc(p.x, p.y, p.size * (1 - p.life / p.max * .6), 0, TAU); g.fill(); }
+  }
+  g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; if (parts.length > 900) parts.splice(0, parts.length - 900);
+}
+function drawLegend() { // luân phiên: bảng điểm ↔ đặc quyền khi tặng quà
+  const p = S.pts, perks = Math.floor(performance.now() / 7000) % 2 === 1;
+  const items = perks
+    ? [['30+ COINS', '🏛️'], ['99+ COINS', '⚡×2'], ['100+ COINS', 'MEGA'], ['🧠 QUIZ', '+' + short(p.quiz)], ['🔥 DAILY', 'BONUS']]
+    : [['💬 COUNTRY', '+' + short(p.join)], ['❤️ LIKE', '+' + short(p.like)], ['➕ FOLLOW', '+' + short(p.follow)], ['↗️ SHARE', '+' + short(p.share)], ['🎁 1 COIN', '+' + short(p.coin)]];
+  const w = 198, gap = 7.5;
+  items.forEach(([k, v], i) => {
+    const x = 30 + i * (w + gap);
+    rr(x, 1412, w, 56, 14); g.fillStyle = TH.panel; g.fill(); g.lineWidth = 2; g.strokeStyle = perks ? 'rgba(255,215,106,.7)' : TH.line; g.stroke();
+    const vs = fit(v, 84, 24, 900); g.font = `900 ${vs}px ${FONT}`; const vw = g.measureText(v).width;
+    T(k, x + 10, 1448, fit(k, w - vw - 28, 20), '#dce8ff', 'left', 800); T(v, x + w - 10, 1449, vs, '#ffcf4d', 'right', 900);
+  });
+}
+function drawGoal() { // thanh mục tiêu chung, luân phiên: quà cả phòng → GOLDEN HOUR ↔ sóng like → thưởng mọi nước
+  const gl = S.goal, lw = S.likeWave; if (!gl) return; const y = 1304, gold = S.golden > 0, likes = !gold && lw && Math.floor(performance.now() / 6000) % 2 === 1;
+  const k = likes ? clamp(lw.cur / lw.target, 0, 1) : clamp(gl.cur / gl.target, 0, 1);
+  rr(30, y, 1020, 30, 15); g.fillStyle = TH.panel; g.fill();
+  if (k > 0 || gold) { g.save(); rr(30, y, 1020, 30, 15); g.clip(); const gr = g.createLinearGradient(30, 0, 1050, 0); gr.addColorStop(0, likes ? '#ff3d7f' : '#ff9d2e'); gr.addColorStop(1, likes ? '#ff9ac0' : '#ffe27a'); g.fillStyle = gr; g.fillRect(30, y, 1020 * (gold ? 1 : k), 30); g.restore(); }
+  rr(30, y, 1020, 30, 15); g.lineWidth = 2; g.strokeStyle = likes ? 'rgba(255,140,180,.8)' : 'rgba(255,215,106,.75)'; g.stroke();
+  const txt = gold ? '🌟 GOLDEN HOUR — ALL POINTS ×2!' : likes ? `❤️ LIKE WAVE ${fmt(lw.cur)} / ${fmt(lw.target)} likes → +300 FOR EVERY NATION` : `🎁 WORLD GIFT GOAL ${fmt(gl.cur)} / ${fmt(gl.target)} coins → GOLDEN HOUR ×2`;
+  g.save(); g.shadowColor = 'rgba(0,0,0,.9)'; g.shadowBlur = 5; T(txt, W / 2, y + 22, 18, '#fff', 'center', 900); g.restore();
+  // thách đấu đang diễn ra: thanh kéo co ngay phía trên
+  const ch = S.chal;
+  if (ch) {
+    const cy = 1262, tot = Math.max(1, ch.ga + ch.gb), ka = ch.ga + ch.gb ? ch.ga / tot : .5, left = Math.max(0, Math.ceil(ch.left - (performance.now() - sAt) / 1000));
+    g.save(); rr(30, cy, 1020, 34, 17); g.clip(); g.fillStyle = `hsl(${hueOf(ch.a)},80%,45%)`; g.fillRect(30, cy, 1020 * ka, 34); g.fillStyle = `hsl(${hueOf(ch.b)},80%,45%)`; g.fillRect(30 + 1020 * ka, cy, 1020 * (1 - ka), 34); g.restore();
+    rr(30, cy, 1020, 34, 17); g.lineWidth = 3; g.strokeStyle = '#fff'; g.stroke();
+    drawFlag(ch.a, 36, cy + 4, 36, 26, 4); drawFlag(ch.b, 1008, cy + 4, 36, 26, 4);
+    g.save(); g.shadowColor = '#000'; g.shadowBlur = 6;
+    T(`${ch.an.toUpperCase()} +${short(Math.round(ch.ga))}`, 80, cy + 25, 19, '#fff', 'left', 900); T(`+${short(Math.round(ch.gb))} ${ch.bn.toUpperCase()}`, 1000, cy + 25, 19, '#fff', 'right', 900);
+    T(`⚔️ ${left}s`, W / 2, cy + 25, 20, '#ffd76a', 'center', 900); g.restore();
+  }
+  // đếm ngược sự kiện kế tiếp
+  if (S.nextIn >= 0) T(`⏳ Next event in ${Math.max(0, Math.ceil(S.nextIn - (performance.now() - sAt) / 1000))}s`, 40, 646, 17, TH.sub, 'left', 700);
+}
+function drawLandmarks(t) { // danh thắng trên bản đồ (chỉ hiện khi camera vào gần): đã mở khóa thì sáng, cái kế tiếp thì mờ kèm ổ khóa
+  // chỉ hiện danh thắng của MỘT nước: nước đang chơi nằm gần tâm khung nhìn nhất
+  focusCc = ''; if (cam.z < 2.4) return;
+  let best = 380 * 380;
+  if (camCc && act.has(camCc) && LMDB[camCc]) focusCc = camCc; // ưu tiên nước camera đang bay tới
+  else for (const a of act.values()) { const o = G[a.cc]; if (!o || !LMDB[a.cc]) continue; const [x, y] = scr(...anchor(o)), d = (x - W / 2) ** 2 + (y - 1010) ** 2; if (d < best) { best = d; focusCc = a.cc; } }
+  if (!focusCc) return;
+  const L = LMDB[focusCc], open = lmOpen.get(focusCc) || 0, s = clamp(13 + cam.z * 2.6, 18, 28), R = s * .78;
+  L.forEach((lm, i) => {
+    if (i > open) return; // chỉ hiện thêm cái kế tiếp đang chờ mở
+    const [px0, py0] = scr(...prj(lm.lo, lm.la)); if (px0 < 30 || px0 > W - 30 || py0 < 690 || py0 > 1290) return;
+    const on = i < open; let x = px0, y = py0, ok = false;
+    // biểu tượng: nếu chỗ đúng đã bị chiếm thì dời sang bên cạnh và kẻ một vạch chỉ về vị trí thật
+    for (const [dx, dy] of [[0, 0], [1.9, 0], [-1.9, 0], [0, -1.9], [0, 1.9], [1.5, -1.5], [-1.5, -1.5], [1.5, 1.5], [-1.5, 1.5], [3.6, 0], [-3.6, 0]]) {
+      if (take(px0 + dx * s, py0 + dy * s, R * 2 + 4, R * 2 + 4)) { x = px0 + dx * s; y = py0 + dy * s; ok = true; break; }
+    }
+    if (!ok) return;
+    g.globalAlpha = on ? 1 : .55;
+    if (x !== px0 || y !== py0) { g.beginPath(); g.moveTo(px0, py0); g.lineTo(x, y); g.lineWidth = 2; g.strokeStyle = 'rgba(255,215,106,.8)'; g.stroke(); g.beginPath(); g.arc(px0, py0, 3, 0, TAU); g.fillStyle = '#ffd76a'; g.fill(); }
+    g.beginPath(); g.arc(x, y, R, 0, TAU); g.fillStyle = on ? 'rgba(20,14,0,.8)' : 'rgba(0,0,0,.6)'; g.fill(); g.lineWidth = 2.5; g.strokeStyle = on ? '#ffd76a' : '#8892aa'; g.stroke();
+    T(on ? lm.i : '🔒', x, y + s * .36, s, '#fff', 'center');
+    g.globalAlpha = 1;
+    if (!on) return;
+    // tên: thử lần lượt bên phải, bên trái, phía dưới, phía trên; hết chỗ thì không ghi tên
+    g.font = `800 15px ${FONT}`; const tw = g.measureText(lm.n).width + 8;
+    for (const [lx, ly, al] of [[x + R + 5, y + 5, 'left'], [x - R - 5, y + 5, 'right'], [x, y + R + 15, 'center'], [x, y - R - 6, 'center']]) {
+      const cx = al === 'left' ? lx + tw / 2 : al === 'right' ? lx - tw / 2 : lx;
+      if (cx - tw / 2 < 20 || cx + tw / 2 > W - 20 || !take(cx, ly - 5, tw, 20)) continue;
+      g.save(); g.shadowColor = '#000'; g.shadowBlur = 6; T(lm.n, lx, ly, 15, '#ffe9a8', al, 800); g.restore(); break;
+    }
+  });
+}
+function drawQuiz(t) { // đố vui A / B / C
+  const q = S.quiz, left = Math.max(0, q.left - (performance.now() - sAt) / 1000), y = 655, h = 262;
+  rr(40, y, 1000, h, 26); g.fillStyle = 'rgba(18,8,48,.95)'; g.fill(); g.lineWidth = 5; g.strokeStyle = `hsl(${(t * 80) % 360},100%,70%)`; g.stroke();
+  T(`🧠 QUIZ — type A, B or C · ${Math.ceil(left)}s`, 70, y + 44, 28, '#ffd76a', 'left', 900);
+  T(`${q.count} answer${q.count === 1 ? '' : 's'}`, 1010, y + 44, 22, '#cfe0ff', 'right', 800);
+  const qs = `${q.ico} Where is ${q.name}?`; T(qs, W / 2, y + 108, fit(qs, 940, 46, 900), '#fff', 'center', 900);
+  q.opts.forEach((o, i) => {
+    const x = 60 + i * 325, yy = y + 140; rr(x, yy, 305, 96, 18); g.fillStyle = 'rgba(255,255,255,.1)'; g.fill(); g.lineWidth = 2; g.strokeStyle = 'rgba(255,255,255,.4)'; g.stroke();
+    g.beginPath(); g.arc(x + 44, yy + 48, 30, 0, TAU); g.fillStyle = ['#ff5d5d', '#3b82f6', '#22c55e'][i]; g.fill(); T('ABC'[i], x + 44, yy + 62, 40, '#fff', 'center', 900);
+    drawFlag(o.cc, x + 86, yy + 12, 60, 45, 6); T(o.name, x + 86, yy + 84, fit(o.name, 205, 24), '#fff', 'left', 800);
+  });
+  rr(40, y + h - 8, 1000 * clamp(left / 18, 0, 1), 8, 4); g.fillStyle = '#ffd76a'; g.fill();
+}
+function drawFeed(t, y0, max) {
+  feedList.slice(0, max || 5).forEach((f, i) => {
+    const age = t - f.t0; if (age > 6) return;
+    const a = clamp(Math.min(age * 5, (6 - age) * 2), 0, 1) * (1 - i * .13), y = (y0 || 668) + i * 46;
+    const txt = `${f.user.name} ${f.text}`, pt = f.pts ? ` +${fmt(f.pts)}` : '';
+    g.globalAlpha = a; g.font = `800 20px ${FONT}`;
+    const tw = Math.min(g.measureText(txt).width, 420), pw = g.measureText(pt).width;
+    const bw = 100 + tw + pw, x = 1046 - bw; // canh phải: bên trái là tên lửa dẫn đầu
+    rr(x, y, bw, 40, 20); g.fillStyle = 'rgba(4,10,30,.78)'; g.fill();
+    drawAvatar(f.user, x + 20, y + 20, 16, '#fff'); if (f.cc) drawFlag(f.cc, x + 44, y + 8, 32, 24, 4); else T('👋', x + 60, y + 28, 22, '#fff', 'center');
+    g.save(); g.beginPath(); g.rect(x + 84, y, tw + 2, 40); g.clip(); T(txt, x + 84, y + 27, 20, '#fff', 'left', 800); g.restore();
+    T(pt, x + 88 + tw, y + 27, 20, '#ffcf4d', 'left', 900);
+  });
+  g.globalAlpha = 1;
+}
+function drawBanner(t, dt) {
+  if (!banner && bq.length) { banner = bq.shift(); banner.t0 = t; if (bq.length > 1) banner.dur = Math.min(banner.dur, 1.5); if (banner.mega) { shake = 22; flash = .8; confetti(120, W / 2, 900); sfx.mega(); } }
+  if (!banner) return;
+  const b = banner, age = t - b.t0; if (age > b.dur) { banner = null; return; }
+  const k = clamp(Math.min(age / .28, (b.dur - age) / .28), 0, 1), e = 1 - Math.pow(1 - k, 3);
+  // băng-rôn thường nằm sát mép trên sân, chừa làn trái cho tên lửa dẫn đầu; MEGA thì phủ ngang màn hình
+  const wide = b.mega || MAPVIEW;
+  const h = b.mega ? 250 : 150, y = 655, w = wide ? 1000 : 836, x = (wide ? 40 : 204) + (1 - e) * (age < 1 ? -900 : 900);
+  g.save(); g.globalAlpha = e;
+  rr(x, y, w, h, 26); g.save(); g.clip();
+  g.fillStyle = b.hot ? 'rgba(70,6,40,.95)' : 'rgba(6,12,36,.95)'; g.fillRect(x, y, w, h);
+  if (b.cc) { const f = flag(b.cc); if (f.ok) { g.globalAlpha = e * .32; g.drawImage(f.cv, x, y - (w * .75 - h) / 2, w, w * .75); g.globalAlpha = e; } }
+  const sh = g.createLinearGradient(x, 0, x + w, 0); sh.addColorStop(0, 'rgba(0,0,0,.65)'); sh.addColorStop(1, 'rgba(0,0,0,.15)'); g.fillStyle = sh; g.fillRect(x, y, w, h);
+  g.restore();
+  g.lineWidth = b.mega ? 7 : 4; g.strokeStyle = b.mega ? `hsl(${(t * 300) % 360},100%,65%)` : b.hot ? '#ff5fa2' : '#ffd76a'; rr(x, y, w, h, 26); g.stroke();
+  let tx = x + 30; const cy = y + h / 2;
+  if (b.cc) { const fw = b.mega ? 200 : 128, fh = fw * .75; drawFlag(b.cc, tx, cy - fh / 2, fw, fh, 10); tx += fw + 24; }
+  else if (b.icon) { T(b.icon, tx + 50, cy + 30, 84, '#fff', 'center'); tx += 124; }
+  if (b.user) { const r = b.mega ? 62 : 40; drawAvatar(b.user, tx + r, cy, r, '#ffd76a'); tx += r * 2 + 22; }
+  const mw = x + w - 28 - tx, s1 = b.mega ? 56 : 42, s2 = b.mega ? 44 : 32;
+  g.shadowColor = 'rgba(0,0,0,.9)'; g.shadowBlur = 8;
+  T(b.title, tx, cy - 6, fit(b.title, mw, s1, 900), '#fff', 'left', 900);
+  T(b.sub, tx, cy + s2 + 6, fit(b.sub, mw, s2, 800), '#ffd76a', 'left', 800);
+  g.restore();
+}
+
+// ---------- lễ trao giải + nghỉ giữa vòng
+function waveFlag(cc, x, y, w, h, t) {
+  const f = flag(cc); if (!f.ok) return; const n = 44, sw = f.cv.width / n, dw = w / n;
+  for (let i = 0; i < n; i++) {
+    const ph = i * .32 - t * 4.2, off = Math.sin(ph) * h * .04 * (i / n + .25);
+    g.drawImage(f.cv, i * sw, 0, sw, f.cv.height, x + i * dw, y + off, dw + 1, h);
+    const s = Math.cos(ph) * .16; g.fillStyle = s > 0 ? `rgba(255,255,255,${s})` : `rgba(0,0,0,${-s})`; g.fillRect(x + i * dw, y + off, dw + 1, h);
+  }
+}
+function drawBreak(t, left) {
+  const r = S.result; g.fillStyle = 'rgba(2,5,18,.97)'; g.fillRect(0, 225, W, 1260);
+  if (!r || !r.winner) {
+    T('🌍', W / 2, 760, 150, '#fff', 'center'); T('NO NATION JOINED YET', W / 2, 880, 64, '#fff', 'center', 900);
+    T('Type your COUNTRY to start the next round!', W / 2, 950, 36, '#ffd76a', 'center', 800);
+  } else {
+    const wn = r.winner, NAME = wn.name.toUpperCase();
+    T(`🏆 ROUND ${r.round} CHAMPION 🏆`, W / 2, 300, 40, '#ffd76a', 'center', 900);
+    g.save(); g.shadowColor = 'rgba(255,215,106,.55)'; g.shadowBlur = 60; waveFlag(wn.cc, 320, 340, 440, 330, t); g.restore();
+    const gr = g.createLinearGradient(0, 700, 0, 790); gr.addColorStop(0, '#fff'); gr.addColorStop(1, '#ffd76a');
+    T(NAME, W / 2, 790, fit(NAME, 980, 104, 900), gr, 'center', 900);
+    const wl = `${fmt(wn.score)} ${UNIT} · ${wn.players} player${wn.players === 1 ? '' : 's'}${wn.era != null && S.cfg.eras ? ` · ${ERAS[wn.era].i} ${ERAS[wn.era].n}` : ''}`;
+    T(wl, W / 2, 846, fit(wl, 980, 36), '#cfe0ff', 'center', 800);
+    const line = r.streak > 1 ? `🔥 ${r.streak} WINS IN A ROW — WHO CAN STOP ${NAME}?` : r.dethroned ? `⚔️ ${NAME} DETHRONED ${r.dethroned.toUpperCase()}!` : '✨ A NEW CHAMPION RISES!';
+    T(line, W / 2, 900, fit(line, 980, 34, 900), '#ff8f5c', 'center', 900);
+    // người hùng
+    const hl = `HEROES OF ${NAME}${r.lmTotal ? ` · 🏛️ ${r.lm}/${r.lmTotal} LANDMARKS` : ''}`;
+    T(hl, W / 2, 962, fit(hl, 900, 26), '#8fb4ff', 'center', 800);
+    if (r.sup) { const s = `💎 TOP SUPPORTER TODAY: ${r.sup.name} — ${fmt(r.sup.coins)} coins`; T(s, W / 2, 932, fit(s, 940, 24), '#7df0ff', 'center', 800); }
+    r.mvps.forEach((m, i) => {
+      const y = 982 + i * 66; rr(190, y, 700, 58, 29); g.fillStyle = i === 0 ? 'rgba(255,200,60,.22)' : 'rgba(255,255,255,.08)'; g.fill();
+      T(['🥇', '🥈', '🥉'][i], 226, y + 42, 34, '#fff', 'center'); drawAvatar(m, 286, y + 29, 24, '#ffd76a');
+      T(m.name, 324, y + 40, fit(m.name, 360, 30), '#fff', 'left', 800); T(`+${fmt(m.pts)} ${UNIT}`, 870, y + 40, 28, '#ffcf4d', 'right', 800);
+    });
+    // á quân
+    r.podium.forEach((c, i) => {
+      const x = 110 + i * 450; drawFlag(c.cc, x, 1184, 56, 42, 6);
+      T(`${i + 2}${i ? 'rd' : 'nd'} · ${c.name}`, x + 68, 1206, fit(`${i + 2}nd · ${c.name}`, 250, 26), '#fff', 'left', 800); T(`${fmt(c.score)} ${UNIT}`, x + 68, 1230, 20, '#ffcf4d', 'left', 700);
+    });
+    // bảng vương miện
+    if (r.crowns.length) {
+      T('👑 ALL-TIME CROWNS', W / 2, 1268, 22, '#ffd76a', 'center', 800);
+      const n = r.crowns.length, x0 = W / 2 - n * 78;
+      r.crowns.forEach(([cc, k], i) => { drawFlag(cc, x0 + i * 156 + 10, 1280, 56, 42, 6); T('×' + k, x0 + i * 156 + 76, 1313, 28, '#fff', 'left', 900); });
+    }
+  }
+  const s = Math.ceil(left), p = 1 + .03 * Math.sin(t * 6);
+  g.save(); g.translate(W / 2, 1430); g.scale(p, p);
+  rr(-480, -42, 960, 78, 39); const gr2 = g.createLinearGradient(-480, 0, 480, 0); gr2.addColorStop(0, '#1766ff'); gr2.addColorStop(1, '#18c6ff'); g.fillStyle = gr2; g.fill();
+  T(`NEXT ROUND IN ${s}s — TYPE YOUR COUNTRY NOW!`, 0, 10, 36, '#fff', 'center', 900); g.restore();
+}
+
+// ---------- vòng lặp
+let last = 0, audioTry = -9, heartAt = 0, fwAt = 0;
+function frame(ts) {
+  requestAnimationFrame(frame);
+  const t = ts / 1000, dt = clamp(t - last || .016, .001, .05); last = t;
+  if (!S) { g.fillStyle = '#02030c'; g.fillRect(0, 0, W, H); T('Connecting…', W / 2, 900, 40, '#9fc4ff', 'center'); return; }
+  const left = Math.max(0, S.left - (performance.now() - sAt) / 1000), race = S.phase === 'race', fin = race && S.final;
+  // âm thanh theo nhịp trận đấu
+  if (!MUTE) {
+    if (t - audioTry > 3) { audioTry = t; ac(); }
+    if (master) master.gain.value = vol('sfx');
+    if (fin && left > 0) { const gap = left <= 10 ? .42 : .8; if (t - heartAt > gap) { heartAt = t; sfx.heart(left <= 10); } }
+    if (!race && S.result && S.result.winner && performance.now() - cheerAt < 9000 && t - fwAt > .55) { fwAt = t; firework(150 + Math.random() * 780, 300 + Math.random() * 420); }
+  }
+  let rush = 0; for (const n of nodes.values()) rush = Math.max(rush, n.heat - .25); rush = clamp(rush, 0, 1);
+  g.save();
+  if (shake > .5) { g.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake); shake *= Math.pow(.02, dt); }
+  if (MAPVIEW) { drawMap(t, dt); if (race) { drawGoal(); drawConts(); } } else { drawBg(t, dt, rush); drawField(t, dt); }
+  drawParts(dt);
+  if (fin) { // viền đỏ nhấp nháy
+    const v = g.createRadialGradient(W / 2, 860, 380, W / 2, 860, 1000); v.addColorStop(0, 'rgba(255,0,0,0)'); v.addColorStop(1, `rgba(255,30,30,${.2 + .14 * Math.sin(t * 8)})`);
+    g.fillStyle = v; g.fillRect(0, 0, W, H);
+    if (left <= 10 && left > 0) {
+      const s = Math.ceil(left), fr = left % 1; g.globalAlpha = .25 + fr * .6; T(s, W / 2, 1120, 360 + fr * 80, '#fff', 'center', 900); g.globalAlpha = 1;
+      if (s !== lastBeep) { lastBeep = s; sfx.beep(s <= 3); }
+    }
+  }
+  drawHeader(t, left); drawCta(t); drawBoard(); drawLegend();
+  if (race) { drawFeed(t); if (S.quiz) drawQuiz(t); else drawBanner(t, dt); } else { drawBreak(t, left); drawParts(0, true); drawFeed(t, 1338, 1); }
+  if (!MUTE && t > 6 && (!AC || AC.state !== 'running')) { // trình duyệt thường chặn tiếng tới khi bấm chuột (OBS thì không)
+    if (!OBS) { rr(300, 1490, 480, 44, 22); g.fillStyle = 'rgba(0,0,0,.7)'; g.fill(); T('🔊 Click once to turn sound on', W / 2, 1520, 22, '#ffd76a', 'center', 800); } // trong OBS không hiện nhắc này lên LIVE
+  }
+  if (flash > .02) { g.fillStyle = `rgba(255,255,255,${flash})`; g.fillRect(0, 0, W, H); flash *= Math.pow(.01, dt); }
+  g.restore();
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
