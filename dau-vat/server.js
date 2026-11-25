@@ -39,7 +39,7 @@ const DEFAULT_SETTINGS = {
   regSeconds: 60,            // thời gian ghi danh mỗi giải
   fillBots: true,            // thiếu người thì đô vật máy vào thay
   minHumans: 0,              // cần ít nhất bao nhiêu người xem mới mở giải (0 = không cần)
-  entrance: 'full',          // full: ra sân đầy đủ | short: ra sân nhanh | off: bỏ
+  entrance: 'auto',          // auto: vòng 16 ra sân nhanh, tứ kết trở đi đầy đủ | full | short | off
   royalEntrance: true,       // battle royal: 32 người lần lượt chạy ra
   matchSeconds: 75,          // thời lượng tối đa một trận 1 đấu 1
   royalSeconds: 150,         // thời lượng tối đa battle royal

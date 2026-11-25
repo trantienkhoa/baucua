@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Điều khiển · Đại Chiến Đô Vật</title>
+<style>
+  :root{--bg:#0b0d14;--card:#151925;--line:#262c3d;--txt:#e9ecf3;--mut:#9aa3b8;--red:#e8202a;--gold:#ffd23f;--ok:#2fbf5a}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.45 "Segoe UI",system-ui,Arial,sans-serif}
+  header{padding:16px 20px;background:linear-gradient(90deg,#3a0610,#0b0d14);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  header h1{margin:0;font:900 26px Impact,"Arial Black",sans-serif;letter-spacing:1px} header h1 b{color:var(--gold)} header h1 i{color:var(--red);font-style:normal}
+  main{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;padding:14px;max-width:1400px;margin:0 auto}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  h2{margin:0 0 10px;font-size:17px} h2 small{color:var(--mut);font-weight:400}
+  label{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:7px 0;color:var(--mut)} label span{flex:1}
+  input,select{background:#0e111a;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:7px 9px;font:inherit}
+  input[type=number]{width:90px} input[type=text],input[type=password]{width:100%}
+  button{background:#232a3c;border:1px solid #33405c;color:var(--txt);border-radius:9px;padding:8px 12px;font:600 14px inherit;cursor:pointer;margin:3px 2px}
+  button:hover{background:#2c3550} button.pri{background:var(--red);border-color:var(--red)} button.ok{background:var(--ok);border-color:var(--ok)}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap} .mut{color:var(--mut)} code{background:#0e111a;padding:2px 6px;border-radius:6px;user-select:all}
+  #state{padding:4px 10px;border-radius:20px;background:#2a2f40;font-weight:600} #state.connected{background:var(--ok)} #state.error{background:var(--red)}
+  table{width:100%;border-collapse:collapse} td{padding:5px 4px;border-bottom:1px solid var(--line)} td:last-child{text-align:right}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px} .stats div{background:#0e111a;border-radius:10px;padding:8px;text-align:center} .stats b{display:block;font-size:20px;color:var(--gold)}
+  .pw td{vertical-align:middle} .pw input[type=number]{width:70px} .pw select{width:150px}
+</style>
+</head>
+<body>
+<header>
+  <h1><b>MEGA</b> <i>SLAM</i> · ĐẠI CHIẾN ĐÔ VẬT</h1>
+  <span id="state">Chưa kết nối</span>
+  <span class="mut" id="ver"></span>
+</header>
+<main>
+  <section>
+    <h2>1. Kết nối TikTok LIVE</h2>
+    <label><span>Tên kênh (@...)</span></label><input type="text" id="username" placeholder="vd: tenkenh">
+    <label><span>Key EulerStream (không bắt buộc)</span></label><input type="password" id="apiKey" placeholder="để trống cũng được">
+    <div class="row" style="margin-top:8px"><button class="pri" id="connect">Kết nối</button><button id="disconnect">Ngắt</button><label style="margin:0"><input type="checkbox" data-k="autoReconnect"> tự kết nối lại</label></div>
+    <p class="mut" id="stateText"></p>
+  </section>
+  <section>
+    <h2>2. Màn hình game</h2>
+    <p>OBS → Browser source, 1080 × 1920, bật <i>Control audio via OBS</i>:</p>
+    <p><code id="obsUrl"></code></p>
+    <p class="mut">Trong mạng LAN (điện thoại / máy khác):</p><div id="lan"></div>
+    <div class="row"><button id="open">Mở màn hình game</button><button data-cmd="reload">Tải lại game</button></div>
+  </section>
+  <section>
+    <h2>3. Điều khiển giải</h2>
+    <div class="row">
+      <button class="ok" data-cmd="start">▶ Bắt đầu ngay (đóng ghi danh)</button>
+      <button data-cmd="skip">⏭ Bỏ qua đoạn hiện tại</button>
+      <button data-cmd="reset">↺ Mở lại giải từ đầu</button>
+    </div>
+    <div class="stats" style="margin-top:10px">
+      <div><b id="sPhase">—</b>giai đoạn</div><div><b id="sAlive">—</b>còn trên đài</div><div><b id="sHumans">—</b>người xem ghi danh</div>
+      <div><b id="sViewers">0</b>người xem</div><div><b id="sLikes">0</b>tim</div><div><b id="sCoins">0</b>xu quà</div>
+    </div>
+    <p class="mut" id="sMatch"></p>
+  </section>
+  <section>
+    <h2>4. Luật & thời gian</h2>
+    <label><span>Chữ ghi danh (phân cách dấu phẩy)</span></label><input type="text" data-k="joinWords">
+    <label><span>Thời gian ghi danh (giây)</span><input type="number" data-k="regSeconds" min="10" max="600"></label>
+    <label><span>Thiếu người → đô vật máy vào thay</span><input type="checkbox" data-k="fillBots"></label>
+    <label><span>Cần ít nhất N người mới mở giải (0 = không)</span><input type="number" data-k="minHumans" min="0" max="32"></label>
+    <label><span>Battle royal: 32 người lần lượt chạy ra</span><input type="checkbox" data-k="royalEntrance"></label>
+    <label><span>Ra sân 1 đấu 1</span><select data-k="entrance"><option value="auto">Tự động (vòng 16 nhanh, tứ kết trở đi đầy đủ)</option><option value="full">Đầy đủ mọi trận</option><option value="short">Nhanh mọi trận</option><option value="off">Bỏ ra sân</option></select></label>
+    <label><span>Battle royal tối đa (giây)</span><input type="number" data-k="royalSeconds" min="40" max="600"></label>
+    <label><span>Trận 1 đấu 1 tối đa (giây)</span><input type="number" data-k="matchSeconds" min="20" max="300"></label>
+    <label><span>Nghỉ giữa hai giải (giây)</span><input type="number" data-k="breakSeconds" min="5" max="300"></label>
+    <label><span>Tốc độ game</span><select data-k="speed"><option value="0.75">0.75×</option><option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select></label>
+  </section>
+  <section>
+    <h2>5. Hình ảnh & âm thanh</h2>
+    <label><span>Chất lượng đồ hoạ</span><select data-k="quality"><option value="high">Cao (có hiệu ứng sáng)</option><option value="medium">Vừa</option><option value="low">Nhẹ (máy yếu)</option></select></label>
+    <label><span>Số khán giả (%)</span><input type="number" data-k="crowdSize" min="10" max="100"></label>
+    <label><span>Âm lượng nhạc & tiếng động</span><input type="number" data-k="volume" min="0" max="1" step="0.05"></label>
+    <label><span>Bình luận viên đọc (giọng nói)</span><input type="checkbox" data-k="commentary"></label>
+    <label><span>Phụ đề lời bình luận</span><input type="checkbox" data-k="captions"></label>
+    <label><span>Đọc tên người xem khi ra sân</span><input type="checkbox" data-k="ttsNames"></label>
+    <label><span>Giọng 1 (người giới thiệu)</span><select data-k="ttsVoice" class="voices"></select></label>
+    <label><span>Giọng 2 (bình luận viên)</span><select data-k="ttsVoice2" class="voices"></select></label>
+    <label><span>Tốc độ đọc</span><input type="number" data-k="ttsRate" min="0.6" max="1.8" step="0.05"></label>
+    <label><span>Hiện bình luận người xem</span><input type="checkbox" data-k="showComments"></label>
+    <label><span>Hiện bảng quà</span><input type="checkbox" data-k="showGiftMenu"></label>
+    <label><span>Thả tim = cổ vũ (tăng nộ)</span><input type="checkbox" data-k="likeCheer"></label>
+    <label><span>Từ cấm (phân cách dấu phẩy)</span></label><input type="text" data-k="bannedWords">
+  </section>
+  <section>
+    <h2>6. Quà → sức mạnh <small>(quà từ mức xu trở lên, hoặc đúng tên quà)</small></h2>
+    <table class="pw" id="powers"></table>
+  </section>
+  <section>
+    <h2>7. Thử không cần LIVE</h2>
+    <div class="row"><button data-test="join" data-n="8">+8 người ghi danh</button><button data-test="join" data-n="32">+32 người</button><button data-test="like">Thả tim</button><button data-test="follow">Follow</button></div>
+    <div class="row"><input type="text" id="chatText" placeholder="bình luận thử: đấu 7 / 1 / 2" style="flex:1"><button id="chatSend">Gửi</button></div>
+    <div class="row" id="giftTests"></div>
+  </section>
+  <section>
+    <h2>8. Bảng vàng</h2>
+    <table id="records"></table>
+    <h2 style="margin-top:14px">Nhà vô địch gần đây</h2>
+    <table id="champs"></table>
+    <button id="resetRecords">Xoá bảng vàng</button>
+  </section>
+</main>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const s = io(); let settings = {}, gifts = {}, powersMeta = [];
+const $ = id => document.getElementById(id);
+s.on('connect', () => s.emit('hello', 'admin'));
+fetch('/api/info').then(r => r.json()).then(i => {
+  powersMeta = i.powers; $('ver').textContent = 'bản ' + i.version;
+  const url = `http://localhost:${i.port}/game.html?obs=1`; $('obsUrl').textContent = url;
+  $('lan').innerHTML = i.ips.map(ip => `<p><code>http://${ip}:${i.port}/game.html</code></p>`).join('') || '<p class="mut">không có</p>';
+  $('open').onclick = () => window.open('/game.html', '_blank');
+  $('giftTests').innerHTML = i.powers.map(p => `<button data-power="${p.id}">${p.icon} ${p.label}</button>`).join('');
+  document.querySelectorAll('[data-power]').forEach(b => b.onclick = () => s.emit('test', { kind: 'gift', power: b.dataset.power }));
+  renderPowers();
+});
+function bind() {
+  document.querySelectorAll('[data-k]').forEach(el => {
+    const k = el.dataset.k, v = settings[k];
+    if (el.type === 'checkbox') el.checked = !!v; else if (v !== undefined && document.activeElement !== el) el.value = v;
+    el.onchange = () => { const o = {}; o[k] = el.type === 'checkbox' ? el.checked : (el.type === 'number' || k === 'speed' ? Number(el.value) : el.value); s.emit('saveSettings', o); };
+  });
+}
+function renderPowers() {
+  if (!settings.powers || !powersMeta.length) return;
+  const names = Object.keys(gifts).sort((a, b) => (gifts[a].diamonds || 0) - (gifts[b].diamonds || 0));
+  $('powers').innerHTML = settings.powers.map((p, i) => { const m = powersMeta.find(x => x.id === p.id) || {};
+    return `<tr><td>${m.icon || ''} ${m.label || p.id}</td><td><input type="number" min="1" value="${p.min}" data-pi="${i}" data-f="min"> 💎</td><td><select data-pi="${i}" data-f="gift"><option value="">— theo mức xu —</option>${names.map(n => `<option ${n === p.gift ? 'selected' : ''}>${n}</option>`).join('')}</select></td></tr>`; }).join('');
+  document.querySelectorAll('[data-pi]').forEach(el => el.onchange = () => {
+    const ps = settings.powers.map(x => ({ ...x })); const p = ps[+el.dataset.pi];
+    p[el.dataset.f] = el.dataset.f === 'min' ? Math.max(1, Number(el.value) || 1) : el.value; s.emit('saveSettings', { powers: ps });
+  });
+}
+s.on('settings', v => { settings = v; $('username').value = v.username || ''; if (v.apiKey) $('apiKey').placeholder = '✓ đã có key'; bind(); renderPowers(); });
+s.on('gifts', g => { gifts = g || {}; renderPowers(); });
+s.on('connState', c => { $('state').textContent = c.status === 'connected' ? 'Đang LIVE' : c.status; $('state').className = c.status; $('stateText').textContent = c.text; });
+s.on('stats', st => { $('sPhase').textContent = st.phase || '—'; $('sAlive').textContent = st.alive ?? '—'; $('sHumans').textContent = st.humans ?? '—'; $('sViewers').textContent = st.viewers; $('sLikes').textContent = st.likes; $('sCoins').textContent = st.coins; $('sMatch').textContent = (st.match || '') + (st.fps ? ` · ${st.fps} khung/giây` : ''); });
+s.on('records', r => { $('records').innerHTML = (r || []).map((x, i) => `<tr><td>${i + 1}. ${x.name}</td><td>${x.titles} 🏆 · ${x.wins} thắng</td></tr>`).join('') || '<tr><td class="mut">chưa có</td></tr>'; });
+s.on('champions', c => { $('champs').innerHTML = (c || []).slice(0, 8).map(x => `<tr><td>${x.name}${x.bot ? ' (máy)' : ''} · ${x.wrestler}</td><td class="mut">${new Date(x.at).toLocaleString('vi-VN')}</td></tr>`).join('') || '<tr><td class="mut">chưa có</td></tr>'; });
+s.on('say', m => { if (window.speechSynthesis && m && m.text) { const u = new SpeechSynthesisUtterance(m.text); u.lang = 'vi-VN'; speechSynthesis.speak(u); } });
+$('connect').onclick = () => s.emit('connect-tiktok', { username: $('username').value, apiKey: $('apiKey').value || undefined });
+$('disconnect').onclick = () => s.emit('disconnect-tiktok');
+document.querySelectorAll('[data-cmd]').forEach(b => b.onclick = () => { if (b.dataset.cmd === 'reset' && !confirm('Mở lại giải từ đầu?')) return; s.emit('cmd', { type: b.dataset.cmd }); });
+document.querySelectorAll('[data-test]').forEach(b => b.onclick = () => s.emit('test', { kind: b.dataset.test, n: Number(b.dataset.n) || 1 }));
+$('chatSend').onclick = () => { s.emit('test', { kind: 'chat', text: $('chatText').value }); };
+$('resetRecords').onclick = () => { if (confirm('Xoá toàn bộ bảng vàng?')) s.emit('resetRecords'); };
+// giọng tiếng Việt của trình duyệt này
+function voices() { const vs = (speechSynthesis.getVoices() || []).filter(v => /^vi/i.test(v.lang)); document.querySelectorAll('.voices').forEach(sel => { const k = sel.dataset.k; sel.innerHTML = '<option value="">Tự chọn</option>' + vs.map(v => `<option ${settings[k] === v.name ? 'selected' : ''}>${v.name}</option>`).join(''); }); }
+if (window.speechSynthesis) { speechSynthesis.onvoiceschanged = voices; setTimeout(voices, 500); }
+</script>
+</body>
+</html>

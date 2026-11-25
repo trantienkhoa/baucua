@@ -9,11 +9,11 @@ const BI = Object.fromEntries(BONE_NAMES.map((n, i) => [n, i]));
 const PARENT = { spine: 'hips', chest: 'spine', neck: 'chest', head: 'neck', lArm: 'chest', lFore: 'lArm', lHand: 'lFore', rArm: 'chest', rFore: 'rArm', rHand: 'rFore', lThigh: 'hips', lShin: 'lThigh', lFoot: 'lShin', rThigh: 'hips', rShin: 'rThigh', rFoot: 'rShin' };
 
 // kích thước chuẩn (người cao 1,95 m); chiều cao thật = scale của root
-export const HIPS_Y = 1.0;
+export const HIPS_Y = 1.13;
 const J = {
-  spine: 0.13, chest: 0.33, neck: 0.62, head: 0.71,
-  shoulderY: 0.57, upper: 0.30, fore: 0.27, hand: 0.17,
-  hipX: 0.1, thigh: 0.47, shin: 0.45,
+  spine: 0.1, chest: 0.33, neck: 0.5, head: 0.56,
+  shoulderY: 0.44, upper: 0.27, fore: 0.24, hand: 0.17,
+  hipX: 0.1, thigh: 0.5, shin: 0.48,
 };
 
 const TAU = Math.PI * 2;
@@ -79,7 +79,7 @@ function ellip(rx, ry, rz, x, y, z, ws = 14, hs = 10) {
 function boxR(w, h, d, x, y, z) { const g = new THREE.CapsuleGeometry(Math.min(w, d) / 2, Math.max(0.001, h - Math.min(w, d)), 4, 10); g.scale(w / Math.min(w, d), 1, d / Math.min(w, d)); g.translate(x, y, z); return g; }
 
 // ---------- khuôn mặt (canvas) ----------
-function faceTexture(d) {
+export function faceTexture(d) {
   const W = 512, H = 256;
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const g = cv.getContext('2d');
@@ -89,7 +89,7 @@ function faceTexture(d) {
   const eyeY = H * 0.47;
   const shade = (c, k) => { const x = col(c); x.multiplyScalar(k); return '#' + x.getHexString(); };
   // tóc ngắn / cạo sát vẽ thẳng lên da đầu
-  if (d.hair !== 'bald' && d.hair !== 'none' && !d.mask) {
+  if (d.hair !== 'bald' && d.hair !== 'none' && d.hair !== 'mohawk' && !d.mask) {
     g.fillStyle = d.hairColor;
     const low = d.hair === 'buzz' ? H * 0.30 : H * 0.36;
     g.fillRect(0, 0, W, low);
@@ -99,7 +99,7 @@ function faceTexture(d) {
     // tóc mai + gáy
     g.fillStyle = d.hairColor; g.fillRect(cx - 98, low - 4, 14, 40); g.fillRect(cx + 84, low - 4, 14, 40);
     g.fillRect(cx + 120, 0, 2 * W * 0.25 - 40, H * 0.55);
-  } else if (d.hair === 'bald' && !d.mask) {
+  } else if ((d.hair === 'bald' || d.hair === 'mohawk') && !d.mask) {
     // đầu trọc bóng
     const gr = g.createRadialGradient(cx, H * 0.12, 4, cx, H * 0.12, 120); gr.addColorStop(0, 'rgba(255,255,255,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = gr; g.fillRect(0, 0, W, H * 0.4);
@@ -519,4 +519,38 @@ export function blendQuats(A, B, t, out) {
     (out[n] || (out[n] = new THREE.Quaternion())).copy(A[n]).slerp(B[n], t);
   }
   return out;
+}
+
+// tóc / râu / mặt nạ dạng khối cho mô hình Fighter (lưới thường, gắn vào xương đầu, toạ độ chuẩn)
+export function buildHairGeometry(d, h) {
+  const geos = [];
+  const add = (g, c) => {
+    g = g.index ? g.toNonIndexed() : g; g.deleteAttribute('uv');
+    const n = g.attributes.position.count, cc = col(c), arr = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { arr[i * 3] = cc.r; arr[i * 3 + 1] = cc.g; arr[i * 3 + 2] = cc.b; }
+    g.setAttribute('color', new THREE.BufferAttribute(arr, 3)); geos.push(g);
+  };
+  const R = h.r, cx = h.cx, cy = h.cy, cz = h.cz;
+  const hc = d.hairColor || '#1a1410', hs = d.hair;
+  const capG = (k = 1.07, th = 0.44) => { const g = new THREE.SphereGeometry(R * k, 20, 10, 0, TAU, 0, Math.PI * th); g.translate(cx, cy + R * 0.02, cz - R * 0.05); return g; };
+  if (d.mask) {
+    if (d.mask.mohawk) for (let i = 0; i < 6; i++) { const a = -0.8 + i * 0.32; add(ellip(0.018, 0.045, 0.04, cx, cy + Math.cos(a) * R * 1.02, cz + Math.sin(a) * R * 1.02), d.mask.trim); }
+  } else {
+    if (['long', 'ponytail', 'afro', 'dreads', 'flat', 'bun', 'short'].includes(hs)) add(capG(hs === 'short' ? 1.04 : 1.07), hc);
+    if (hs === 'long') { add(boxR(R * 1.9, R * 2.9, R * 0.8, cx, cy - R * 1.05, cz - R * 0.72), hc); for (const s of [1, -1]) add(boxR(R * 0.42, R * 1.9, R * 0.5, cx + s * R * 0.92, cy - R * 0.6, cz - R * 0.15), hc); }
+    if (hs === 'ponytail') add(ellip(R * 0.42, R * 1.15, R * 0.42, cx, cy - R * 0.75, cz - R * 1.25), hc);
+    if (hs === 'bun') add(ellip(R * 0.48, R * 0.42, R * 0.48, cx, cy + R * 0.62, cz - R * 0.8), hc);
+    if (hs === 'mohawk') for (let i = 0; i < 8; i++) { const a = -0.95 + i * 0.3; add(ellip(R * 0.17, R * 0.5, R * 0.42, cx, cy + Math.cos(a) * R * 0.98, cz + Math.sin(a) * R * 0.98), hc); }
+    if (hs === 'afro') add(ellip(R * 1.5, R * 1.3, R * 1.42, cx, cy + R * 0.45, cz - R * 0.25), hc);
+    if (hs === 'flat') add(boxR(R * 1.8, R * 0.8, R * 1.8, cx, cy + R * 0.85, cz - R * 0.05), hc);
+    if (hs === 'dreads') for (let i = 0; i < 11; i++) { const a = Math.PI * 0.5 + i * (Math.PI / 10); add(ellip(R * 0.2, R * 1.3, R * 0.2, cx + Math.cos(a) * R * 0.92, cy - R * 0.85, cz - Math.abs(Math.sin(a)) * R * 0.85 + R * 0.05), hc); }
+    if (d.beard === 'full') add(ellip(R * 0.72, R * 0.62, R * 0.5, cx, h.chin + R * 0.38, cz + R * 0.62), d.beardColor || hc);
+  }
+  if (d.headset) {
+    const hb = new THREE.TorusGeometry(R * 1.08, 0.007, 6, 20, Math.PI); hb.rotateY(Math.PI / 2); hb.translate(cx, cy, cz); add(hb, '#222');
+    for (const s of [1, -1]) add(ellip(0.024, 0.032, 0.032, cx + s * R * 1.05, cy - R * 0.15, cz), '#1a1a1a');
+    add(boxR(0.01, 0.01, 0.09, cx + R * 0.95, cy - R * 0.6, cz + R * 0.55), '#1a1a1a');
+  }
+  if (!geos.length) return null;
+  const g = mergeGeometries(geos, false); geos.forEach(x => x.dispose()); g.computeVertexNormals(); return g;
 }
