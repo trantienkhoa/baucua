@@ -277,6 +277,8 @@ app.use((req, res, next) => {
   if (LOCKED.has(req.path) && !LIC.licensed()) return res.redirect('/kich-hoat.html?tu=' + encodeURIComponent(req.path));
   next();
 });
+// ngôn ngữ game (Cài đặt → Ngôn ngữ): trang nạp /lang.js trước mọi script để chữ trên màn hình đúng ngôn ngữ ngay từ đầu
+app.get('/lang.js', (req, res) => { const l = ['vi', 'en'].includes(maSettings.lang) ? maSettings.lang : 'vi'; res.type('application/javascript').set('Cache-Control', 'no-store').send(`window.MA_LANG=${JSON.stringify(l)};`); });
 app.get('/api/license', (req, res) => res.json(LIC.info()));
 app.post('/api/license/activate', async (req, res) => {
   try { res.json(await LIC.activate(req.body && req.body.key)); }

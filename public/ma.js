@@ -81,7 +81,7 @@
   // ghế bị bảng "Tặng quà để…" che thì không xếp người vào
   const seatHidden = s => s.x < -500 || (S.showGiftGuide && (out2D() ? s.x > GIFT_X - 30 && s.y > 1560 : s.x > 680 && s.y > 1430));
   const seatByN = n => SEATS[n - 1];
-  const RING_NAMES = ['vòng trong cùng (sát đống lửa)', 'vòng thứ hai', 'vòng thứ ba', 'vòng thứ tư', 'vòng ngoài cùng'];
+  const RING_NAMES = [T`vòng trong cùng (sát đống lửa)`, T`vòng thứ hai`, T`vòng thứ ba`, T`vòng thứ tư`, T`vòng ngoài cùng`];
 
   // ======================================================================
   // người xem ngồi quanh đèn
@@ -119,7 +119,7 @@
     if (!seat) { waiting.set(user.id, { ...user, t }); return null; }
     waiting.delete(user.id);
     v = {
-      id: user.id, name: user.name || 'Khách', avatar: user.avatar || '', seat, x: seat.x, y: seat.y,
+      id: user.id, name: user.name || T`Khách`, avatar: user.avatar || '', seat, x: seat.x, y: seat.y,
       joined: t, active: t, brave: 0, taken: false, alpha: 0, glow: 0, shiver: 0, jump: 0, laugh: 0,
       bubble: null, incense: 0, prayAt: -99, prayBraveAt: -99, hit: 0, eyes: 0, anim: null, rescue: new Set(),
       gesture: { name: 'vay_tay' },   // vào phòng: vẫy chào
@@ -471,7 +471,7 @@
   // TRUYỆN
   // ======================================================================
   const story = { phase: 'wait', st: null, node: null, li: 0, roles: null, text: '', segs: [], typed: 0, nextAt: 0, clock: 0, played: [], part: 0, startIds: new Set(), cast: null, paused: false, waitUntil: 0, endKind: '' };
-  const NPC = { A: 'cậu Tư', B: 'bé Út', C: 'chị Hai', THAY: 'thầy Ba đầu làng' };
+  const NPC = { A: T`cậu Tư`, B: T`bé Út`, C: T`chị Hai`, THAY: T`thầy Ba đầu làng` };
 
   function thayName() {
     if (thayId) { const v = viewers.get(thayId); if (v) return { id: v.id, name: v.name, v }; }
@@ -495,7 +495,7 @@
     const n = alive().length || 12;
     const map = {
       A: story.roles.A, B: story.roles.B, C: story.roles.C, THAY: th,
-      MOI: { id: null, name: lastJoiner || 'một người lạ' },
+      MOI: { id: null, name: lastJoiner || T`một người lạ` },
       NGUOI: { id: null, name: String(n), plain: true }, NGUOI1: { id: null, name: String(n + 1), plain: true },
       GIO: { id: null, name: new Date().toTimeString().slice(0, 5), plain: true },
     };
@@ -528,7 +528,7 @@
   }
   function startIntermission() {
     story.phase = 'inter'; story.st = null; story.node = null;
-    setLine([{ t: 'Đống lửa vẫn cháy… Câu chuyện tiếp theo sắp bắt đầu.', hl: 0 }], 'Đống lửa vẫn cháy… Câu chuyện tiếp theo sắp bắt đầu.', false);
+    setLine([{ t: T`Đống lửa vẫn cháy… Câu chuyện tiếp theo sắp bắt đầu.`, hl: 0 }], T`Đống lửa vẫn cháy… Câu chuyện tiếp theo sắp bắt đầu.`, false);
     if (!STORIES.length) return;
     if (S.storyMode === 'order') {
       const last = story.played[story.played.length - 1];
@@ -539,21 +539,21 @@
     const opts = chooseNextStories();
     if (S.storyMode === 'random' || opts.length < 2) { story.waitUntil = story.clock + 5; story.pending = opts[0]; return; }
     story.pending = null;
-    startVote('story', 'Kể chuyện nào tiếp theo?', opts.map(s => s.title), S.storyVoteSeconds, idx => startStory(opts[idx]), opts.map(s => s.teaser));
-    narrate('Chọn chuyện tiếp theo. Gõ 1, 2 hoặc 3.');
+    startVote('story', T`Kể chuyện nào tiếp theo?`, opts.map(s => s.title), S.storyVoteSeconds, idx => startStory(opts[idx]), opts.map(s => s.teaser));
+    narrate(T`Chọn chuyện tiếp theo. Gõ 1, 2 hoặc 3.`);
   }
   // lý do đổi chỗ kể chuyện (bốc ngẫu nhiên, không lặp lại tới khi đủ 10 lý do); truyện hư cấu, chỉ hù nhẹ
   const TRAVEL_REASONS = [
-    (w, d) => `Gió đổi chiều, khói cứ tạt vào mặt mọi người. ${w} thắp đuốc: "Dời sang ${d} cho thoáng, ngồi đây cay mắt cả đám."`,
-    (w, d) => `Củi chỗ này ẩm hết, lửa liu riu sắp tắt. ${w} cầm đuốc đứng dậy: "Ở ${d} có củi khô, qua đó nhóm lửa mới."`,
-    (w, d) => `Chó trong xóm sủa rộ lên không ngớt. ${w} lắc đầu: "Ồn quá, kể không ai nghe. Qua ${d} cho yên."`,
-    (w, d) => `Mây đen kéo tới, gió mang mùi mưa. ${w} giục: "Sắp mưa rồi, qua ${d} có chỗ đụt, đi mau."`,
-    (w, d) => `${w} dập lửa: "Chuyện sắp kể xảy ra ở ${d}. Ngồi đúng chỗ đó mà nghe mới thấm."`,
-    (w, d) => `Muỗi bu kín quanh đống lửa, ai cũng đập lia lịa. ${w} bật cười: "Thôi, qua ${d} gió nhiều, đỡ muỗi."`,
-    (w, d) => `Chủ đất đi ngang nhắc khéo: lửa sát rơm khô quá, coi chừng cháy. ${w} dập lửa, dẫn mọi người qua ${d}.`,
-    (w, d) => `Một đàn đom đóm bay về phía ${d}. ${w} nói nhỏ: "Người xưa bảo đom đóm dẫn đường là có chuyện hay. Đi theo nó."`,
-    (w, d) => `Có tiếng mõ gõ đâu đó phía ${d}, ba tiếng rồi im. ${w} cầm đuốc: "Lạ thật… qua đó coi thử, đi sát nhau nhé."`,
-    (w, d) => `Trăng lên cao. ${w} bảo: "Chỗ này nghe chuyện đủ rồi, phải để đất nghỉ. Qua ${d} nhóm lửa kể tiếp."`,
+    (w, d) => T`Gió đổi chiều, khói cứ tạt vào mặt mọi người. ${w} thắp đuốc: "Dời sang ${d} cho thoáng, ngồi đây cay mắt cả đám."`,
+    (w, d) => T`Củi chỗ này ẩm hết, lửa liu riu sắp tắt. ${w} cầm đuốc đứng dậy: "Ở ${d} có củi khô, qua đó nhóm lửa mới."`,
+    (w, d) => T`Chó trong xóm sủa rộ lên không ngớt. ${w} lắc đầu: "Ồn quá, kể không ai nghe. Qua ${d} cho yên."`,
+    (w, d) => T`Mây đen kéo tới, gió mang mùi mưa. ${w} giục: "Sắp mưa rồi, qua ${d} có chỗ đụt, đi mau."`,
+    (w, d) => T`${w} dập lửa: "Chuyện sắp kể xảy ra ở ${d}. Ngồi đúng chỗ đó mà nghe mới thấm."`,
+    (w, d) => T`Muỗi bu kín quanh đống lửa, ai cũng đập lia lịa. ${w} bật cười: "Thôi, qua ${d} gió nhiều, đỡ muỗi."`,
+    (w, d) => T`Chủ đất đi ngang nhắc khéo: lửa sát rơm khô quá, coi chừng cháy. ${w} dập lửa, dẫn mọi người qua ${d}.`,
+    (w, d) => T`Một đàn đom đóm bay về phía ${d}. ${w} nói nhỏ: "Người xưa bảo đom đóm dẫn đường là có chuyện hay. Đi theo nó."`,
+    (w, d) => T`Có tiếng mõ gõ đâu đó phía ${d}, ba tiếng rồi im. ${w} cầm đuốc: "Lạ thật… qua đó coi thử, đi sát nhau nhé."`,
+    (w, d) => T`Trăng lên cao. ${w} bảo: "Chỗ này nghe chuyện đủ rồi, phải để đất nghỉ. Qua ${d} nhóm lửa kể tiếp."`,
   ];
   let reasonBag = [];
   function travelReason(who, where) {
@@ -570,7 +570,7 @@
       if (prev !== curMap && use3D() && MA3D.canTravel && MA3D.canTravel()) {
         // ông kể chuyện cầm đuốc dẫn mọi người qua màn đêm tới cảnh mới, tới nơi mới kể
         story.phase = 'travel'; story.travelSt = st; story.travelT0 = story.clock; story.travelSeen = false;
-        const who = S.tellerName || 'Ông Tư', where = ((MA3D.sceneNames || {})[curMap] || 'chốn khác').toLowerCase();
+        const who = S.tellerName || T`Ông Tư`, where = ((MA3D.sceneNames || {})[curMap] || T`chốn khác`).toLowerCase();
         const line = travelReason(who, where);
         setLine([{ t: line, hl: 0 }], line);
         sfx('wind', 0.8); sfx('steps', 0.6, 2.5); sfx('steps', 0.5, 6);
@@ -585,7 +585,7 @@
     story.cast = { t0: now() };
     story.waitUntil = story.clock + 6.5;
     const names = ['A', 'B', 'C'].map(k => story.roles[k]).filter(r => r.id).map(r => r.name);
-    const intro = `Chuyện: ${st.title}.` + (names.length ? ` Vai chính đêm nay: ${names.join(', ')}.` : '');
+    const intro = T`Chuyện: ${st.title}.` + (names.length ? T` Vai chính đêm nay: ${names.join(', ')}.` : '');
     setLine([{ t: st.title, hl: 1 }, { t: ' — ' + st.teaser, hl: 0 }], st.title + '. ' + st.teaser, false);
     narrate(intro);
     sfx('bell', 0.5);
@@ -622,7 +622,7 @@
       const q = subst(c.q).plain, a = c.a.map(x => subst(x).plain);
       story.phase = 'vote';
       startVote('choice', q, a, S.voteSeconds, idx => { story.choiceMade = a[idx]; goNode(c.to[idx]); });
-      narrate(`${q} Gõ 1: ${a[0]}. Gõ 2: ${a[1]}.`);
+      narrate(T`${q} Gõ 1: ${a[0]}. Gõ 2: ${a[1]}.`);
       return;
     }
     if (node.next) { goNode(node.next); return; }
@@ -635,22 +635,22 @@
     const kind = story.endKind;
     if (kind === 'bad') {
       yin = clamp(yin + 18, 0, 100);
-      showBanner('KẾT THÚC ĐEN TỐI', story.st ? story.st.title : '', '#ff4a3a', 4);
+      showBanner(T`KẾT THÚC ĐEN TỐI`, story.st ? story.st.title : '', '#ff4a3a', 4);
       if (node.take && story.roles[node.take] && story.roles[node.take].id) {
         const v = viewers.get(story.roles[node.take].id);
         if (v && !v.taken) setTimeout(() => takeViewer(v, 'story'), 900);
       }
     } else if (kind === 'good') {
       oil = clamp(oil + 25, 0, 100); yin = clamp(yin - 20, 0, 100);
-      showBanner('BÌNH AN VÔ SỰ', story.st ? story.st.title : '', '#ffd27a', 4);
+      showBanner(T`BÌNH AN VÔ SỰ`, story.st ? story.st.title : '', '#ffd27a', 4);
       sfx('success', 0.6);
     } else {
-      showBanner('… CHƯA HẾT ĐÂU', story.st ? story.st.title : '', '#c9a0ff', 4);
+      showBanner(T`… CHƯA HẾT ĐÂU`, story.st ? story.st.title : '', '#c9a0ff', 4);
     }
     // ngồi nghe trọn câu chuyện mà không bị bắt → +2 gan dạ
     let n = 0;
     for (const v of alive()) if (story.startIds.has(v.id)) { addBrave(v, 2); n++; }
-    if (n) toast(`🔥 ${n} người nghe trọn chuyện được +2 điểm gan dạ`, '#ffd27a');
+    if (n) toast(T`🔥 ${n} người nghe trọn chuyện được +2 điểm gan dạ`, '#ffd27a');
   }
   function storyTick(dt) {
     const blocked = story.paused || (ev && ev.block) || !!jumpscare || (story.phase !== 'travel' && use3D() && MA3D.busy && MA3D.busy());
@@ -750,7 +750,7 @@
     const b = vote.by.get(user.id); if (!b) return;
     b.w += value; vote.opts[b.idx].w += value;
     const v = viewers.get(user.id);
-    if (v) floatText(`⚖ +${value} phiếu`, v.x, v.y - 120 * v.seat.sc, '#ffd27a', 26);
+    if (v) floatText(T`⚖ +${value} phiếu`, v.x, v.y - 120 * v.seat.sc, '#ffd27a', 26);
   }
   function voteTick() {
     if (!vote) return;
@@ -759,8 +759,8 @@
     const vt = vote; vote = null;
     let best = -1, bw = -1, ties = [];
     vt.opts.forEach((o, i) => { if (o.w > bw) { bw = o.w; best = i; ties = [i]; } else if (o.w === bw) ties.push(i); });
-    if (bw <= 0) { best = Math.floor(Math.random() * vt.opts.length); toast('👻 Không ai chọn… hồn ma chọn thay!', '#c9a0ff'); }
-    else if (ties.length > 1) { best = pick(ties); toast('⚖ Hoà phiếu… ngọn lửa chọn thay!', '#ffd27a'); }
+    if (bw <= 0) { best = Math.floor(Math.random() * vt.opts.length); toast(T`👻 Không ai chọn… hồn ma chọn thay!`, '#c9a0ff'); }
+    else if (ties.length > 1) { best = pick(ties); toast(T`⚖ Hoà phiếu… ngọn lửa chọn thay!`, '#ffd27a'); }
     lastVoteResult = { label: vt.opts[best].label, t0: now(), idx: best };
     vt.onDone(best);
   }
@@ -809,28 +809,28 @@
     switch (type) {
       case 'nhap': {
         const cand = al.slice();
-        if (cand.length < 3) { if (by) toast(`👁 Cần ít nhất 3 người quanh đống lửa để chơi "Ai bị nhập?"`); return; }
+        if (cand.length < 3) { if (by) toast(T`👁 Cần ít nhất 3 người quanh đống lửa để chơi "Ai bị nhập?"`); return; }
         const recent = cand.filter(v => t - v.active < 180);
         const target = pick(recent.length >= 2 ? recent : cand);
         ev = { type, block: true, t0: t, dur: 60, target, accuse: new Map(), tally: new Map(), clues: [], step: 0, by };
-        showBanner('AI ĐÃ BỊ MA NHẬP?', 'Gõ SỐ GHẾ của người bị nhập để đoán', '#ff4a3a', 4);
-        narrate('Có một người trong phòng đã bị ma nhập. Gõ số ghế của người đó để đoán. Các bạn có sáu mươi giây.', true);
+        showBanner(T`AI ĐÃ BỊ MA NHẬP?`, T`Gõ SỐ GHẾ của người bị nhập để đoán`, '#ff4a3a', 4);
+        narrate(T`Có một người trong phòng đã bị ma nhập. Gõ số ghế của người đó để đoán. Các bạn có sáu mươi giây.`, true);
         sfx('possess'); shake = 8;
         return;
       }
       case 'bupbe': {
-        if (al.length < 2) { if (by) toast('🪆 Cần ít nhất 2 người quanh đống lửa để chuyền búp bê'); return; }
+        if (al.length < 2) { if (by) toast(T`🪆 Cần ít nhất 2 người quanh đống lửa để chuyền búp bê`); return; }
         const holder = pick(al.filter(v => !byV || v !== byV).length ? al.filter(v => !byV || v !== byV) : al);
         ev = { type, block: true, t0: t, dur: rand(30, 45), holder, from: null, flyT: 0, lastPass: t, hops: 0, nextBox: t, by };
-        showBanner('BÚP BÊ MA', 'Ai đang cầm búp bê: gõ bất kỳ để chuyền đi!', '#ff6a8a', 4);
-        narrate(`Búp bê ma đang nằm trong lòng ${holder.name}. Người cầm búp bê gõ bình luận để chuyền đi. Khi tiếng nhạc dừng, ai còn giữ nó là người gan nhất.`, true);
+        showBanner(T`BÚP BÊ MA`, T`Ai đang cầm búp bê: gõ bất kỳ để chuyền đi!`, '#ff6a8a', 4);
+        narrate(T`Búp bê ma đang nằm trong lòng ${holder.name}. Người cầm búp bê gõ bình luận để chuyền đi. Khi tiếng nhạc dừng, ai còn giữ nó là người gan nhất.`, true);
         sfx('laugh', 0.6);
         return;
       }
       case 'cauco': {
         ev = { type, block: true, t0: t, phase: 'ask', askUntil: t + 20, asker: by || null, q: '', ans: null, planch: { x: LX, y: 1060 }, path: [], pi: 0, pT: t, spelled: '', by };
-        showBanner('CẦU CƠ', by ? `${by.name} hãy gõ câu hỏi cho hồn ma` : 'Gõ "hỏi: …" để hỏi hồn ma', '#b58cff', 3.5);
-        narrate(by ? `${by.name} mở bàn cầu cơ. Hãy gõ câu hỏi cho hồn ma.` : 'Bàn cầu cơ đã mở. Ai muốn hỏi hồn ma, gõ chữ hỏi, hai chấm, rồi câu hỏi.', true);
+        showBanner(T`CẦU CƠ`, by ? T`${by.name} hãy gõ câu hỏi cho hồn ma` : T`Gõ "hỏi: …" để hỏi hồn ma`, '#b58cff', 3.5);
+        narrate(by ? T`${by.name} mở bàn cầu cơ. Hãy gõ câu hỏi cho hồn ma.` : T`Bàn cầu cơ đã mở. Ai muốn hỏi hồn ma, gõ chữ hỏi, hai chấm, rồi câu hỏi.`, true);
         sfx('ouija');
         return;
       }
@@ -841,14 +841,14 @@
         showGuide('ghost', 30);
         ghost.mode = 'rush'; ghost.x = victim ? (victim.x < LX ? 40 : 1040) : 60; ghost.y = 900; ghost.a = 0.2;
         sfx('ghost', 1); lampFlickUntil = t + 1.4;
-        showBanner(type === 'goihon' ? 'GỌI HỒN' : 'MA HIỆN HÌNH', by ? `${by.name} đã gọi hồn…` : 'Âm khí đã đầy…', '#ff4a3a', 2.2);
+        showBanner(type === 'goihon' ? T`GỌI HỒN` : T`MA HIỆN HÌNH`, by ? T`${by.name} đã gọi hồn…` : T`Âm khí đã đầy…`, '#ff4a3a', 2.2);
         return;
       }
       case 'blackout': {
         ev = { type, block: true, t0: t, dur: 8, step: 0, victims: [] };
         showGuide('blackout', 30);
-        sfx('lampout'); showBanner('LỬA TẮT!', 'Củi cháy hết rồi… đừng ai cử động', '#ff4a3a', 3);
-        narrate('Lửa tắt rồi. Đừng ai cử động.', true);
+        sfx('lampout'); showBanner(T`LỬA TẮT!`, T`Củi cháy hết rồi… đừng ai cử động`, '#ff4a3a', 3);
+        narrate(T`Lửa tắt rồi. Đừng ai cử động.`, true);
         return;
       }
       case 'trura': {
@@ -862,8 +862,8 @@
         if (ev.by) { const v = viewers.get(ev.by.id); if (v) { addBrave(v, 5); spark(v.x, v.y - 80, 40, '255,215,120', 120, 160, 4); } }
         flash = 0.18; flashColor = '255,215,140';
         sfx('success', 1);
-        showBanner('TRỪ TÀ!', by ? `☯ ${by.name} trở thành THẦY PHÁP` : 'Tà khí tan biến', '#ffd27a', 4.5);
-        narrate(by ? `${by.name} làm lễ trừ tà. Âm khí tan biến. ${freed.length ? 'Mọi người bị ma dắt đi đã được cứu về.' : ''} Từ giờ ${by.name} là thầy pháp của phòng.` : 'Lễ trừ tà. Âm khí tan biến.', true);
+        showBanner(T`TRỪ TÀ!`, by ? T`☯ ${by.name} trở thành THẦY PHÁP` : T`Tà khí tan biến`, '#ffd27a', 4.5);
+        narrate(by ? T`${by.name} làm lễ trừ tà. Âm khí tan biến. ${freed.length ? T`Mọi người bị ma dắt đi đã được cứu về.` : ''} Từ giờ ${by.name} là thầy pháp của phòng.` : T`Lễ trừ tà. Âm khí tan biến.`, true);
         return;
       }
     }
@@ -873,17 +873,17 @@
     const e = ev, el = t - e.t0;
     switch (e.type) {
       case 'nhap': {
-        if (!viewers.has(e.target.id) || e.target.taken) { toast('👁 Hồn ma đã bỏ đi…', '#c9a0ff'); endEvent(); return; }
+        if (!viewers.has(e.target.id) || e.target.taken) { toast(T`👁 Hồn ma đã bỏ đi…`, '#c9a0ff'); endEvent(); return; }
         const tg = e.target;
-        if (e.step === 0 && el > 5) { e.step = 1; e.clues.push(tg.seat.zone ? `Người đó đang ngồi ${tg.seat.zone}` : `Người đó ngồi ở ${RING_NAMES[tg.seat.ring]}`); sfx('whisper', 0.7); }
-        if (e.step === 1 && el > 18) { e.step = 2; e.clues.push(`Số ghế của người đó là số ${tg.seat.n % 2 ? 'LẺ' : 'CHẴN'}`); sfx('whisper', 0.7); }
-        if (e.step === 2 && el > 30) { e.step = 3; e.clues.push('Nhìn kỹ… mắt người đó vừa loé đỏ!'); sfx('possess', 0.6); }
+        if (e.step === 0 && el > 5) { e.step = 1; e.clues.push(tg.seat.zone ? T`Người đó đang ngồi ${tg.seat.zone}` : T`Người đó ngồi ở ${RING_NAMES[tg.seat.ring]}`); sfx('whisper', 0.7); }
+        if (e.step === 1 && el > 18) { e.step = 2; e.clues.push(T`Số ghế của người đó là số ${tg.seat.n % 2 ? T`LẺ` : T`CHẴN`}`); sfx('whisper', 0.7); }
+        if (e.step === 2 && el > 30) { e.step = 3; e.clues.push(T`Nhìn kỹ… mắt người đó vừa loé đỏ!`); sfx('possess', 0.6); }
         if (e.step >= 3 && Math.floor(el * 10) % 70 === 0) tg.eyes = Math.max(tg.eyes, 0.45);
         if (e.step === 3 && el > 43) {
           e.step = 4;
           const letters = [...low(tg.name).replace(/[^a-z0-9]/g, '')];
           const L = (letters[0] || '?').toUpperCase();
-          e.clues.push(`Tên người đó bắt đầu bằng chữ "${L}"`); sfx('whisper', 0.8);
+          e.clues.push(T`Tên người đó bắt đầu bằng chữ "${L}"`); sfx('whisper', 0.8);
         }
         if (el > e.dur) {
           e.type = 'nhap-end'; e.t1 = t;
@@ -892,21 +892,21 @@
           const accused = topSeat ? (seatByN(topSeat) || {}).v : null;
           if (!accused) {
             yin = clamp(yin + 25, 0, 100);
-            showBanner('KHÔNG AI ĐOÁN…', `Người bị nhập là ${tg.name}`, '#ff4a3a', 4.5);
-            narrate(`Không ai đoán. Người bị nhập chính là ${tg.name}. Âm khí dâng cao.`, true);
+            showBanner(T`KHÔNG AI ĐOÁN…`, T`Người bị nhập là ${tg.name}`, '#ff4a3a', 4.5);
+            narrate(T`Không ai đoán. Người bị nhập chính là ${tg.name}. Âm khí dâng cao.`, true);
             tg.eyes = 3; sfx('laugh');
           } else if (accused === tg) {
             yin = clamp(yin - 30, 0, 100);
-            showBanner('ĐÃ TÌM RA!', `${tg.name} (ghế ${tg.seat.n}) bị nhập — hồn ma bị đuổi đi`, '#ffd27a', 4.5);
-            narrate(`Chính xác! ${tg.name} đã bị ma nhập. Hồn ma bị đuổi đi rồi.`, true);
+            showBanner(T`ĐÃ TÌM RA!`, T`${tg.name} (ghế ${tg.seat.n}) bị nhập — hồn ma bị đuổi đi`, '#ffd27a', 4.5);
+            narrate(T`Chính xác! ${tg.name} đã bị ma nhập. Hồn ma bị đuổi đi rồi.`, true);
             let n = 0;
             for (const [uid, seatN] of e.accuse) if (seatN === tg.seat.n) { const v = viewers.get(uid); if (v) { addBrave(v, 3); n++; } }
             tg.shiver = 2.5; spark(tg.x, tg.y - 90 * tg.seat.sc, 30, '220,230,255', 60, 200, 4, 1.6);
-            sfx('success', 0.8); toast(`👁 ${n} người đoán đúng được +3 điểm gan dạ`, '#ffd27a');
+            sfx('success', 0.8); toast(T`👁 ${n} người đoán đúng được +3 điểm gan dạ`, '#ffd27a');
           } else {
             yin = clamp(yin + 15, 0, 100);
-            showBanner('ĐOÁN SAI RỒI!', `Hồn ma trốn mất… người bị nhập là ${tg.name}`, '#ff4a3a', 5);
-            narrate(`Đoán sai rồi! Hồn ma đã trốn thoát, âm khí dâng cao. Người bị nhập là ${tg.name}.`, true);
+            showBanner(T`ĐOÁN SAI RỒI!`, T`Hồn ma trốn mất… người bị nhập là ${tg.name}`, '#ff4a3a', 5);
+            narrate(T`Đoán sai rồi! Hồn ma đã trốn thoát, âm khí dâng cao. Người bị nhập là ${tg.name}.`, true);
             tg.eyes = 3; sfx('laugh');
           }
         }
@@ -919,16 +919,16 @@
           passDoll(pick(al), true);
         }
         if (t > e.nextBox) { e.nextBox = t + 5.4; sfx('musicbox', 0.8); }
-        if (t - e.lastPass > 10 && t - e.flyT > 1) { const others = alive().filter(v => v !== e.holder); if (others.length) { passDoll(pick(others), true); toast('🪆 Búp bê chán rồi… tự nhảy sang người khác', '#ff9ab0'); } }
+        if (t - e.lastPass > 10 && t - e.flyT > 1) { const others = alive().filter(v => v !== e.holder); if (others.length) { passDoll(pick(others), true); toast(T`🪆 Búp bê chán rồi… tự nhảy sang người khác`, '#ff9ab0'); } }
         if (el > e.dur) {
           e.type = 'bupbe-end'; e.t1 = t;
           const hv = e.holder;
           if (isThay(hv)) {
-            showBanner('THẦY PHÁP TRẤN YỂM!', `${hv.name} giữ búp bê tới cuối`, '#ffd27a', 4);
-            narrate(`Búp bê dừng ở tay thầy pháp ${hv.name}. Búp bê đã bị trấn yểm.`, true); sfx('success', 0.7);
+            showBanner(T`THẦY PHÁP TRẤN YỂM!`, T`${hv.name} giữ búp bê tới cuối`, '#ffd27a', 4);
+            narrate(T`Búp bê dừng ở tay thầy pháp ${hv.name}. Búp bê đã bị trấn yểm.`, true); sfx('success', 0.7);
           } else {
-            showBanner('NHẠC ĐÃ DỪNG…', `${hv.name} gan dạ giữ búp bê tới cuối · +5 gan dạ`, '#ffd27a', 4);
-            narrate(`Tiếng nhạc dừng. ${hv.name} vẫn ôm búp bê, chẳng hề run tay. Búp bê cười khúc khích rồi lặn về đáy giếng.`, true);
+            showBanner(T`NHẠC ĐÃ DỪNG…`, T`${hv.name} gan dạ giữ búp bê tới cuối · +5 gan dạ`, '#ffd27a', 4);
+            narrate(T`Tiếng nhạc dừng. ${hv.name} vẫn ôm búp bê, chẳng hề run tay. Búp bê cười khúc khích rồi lặn về đáy giếng.`, true);
             sfx('laugh', 0.7); addBrave(hv, 5); spark(hv.x, hv.y - 80 * hv.seat.sc, 24, '255,215,120', 60, 140, 3);
           }
         }
@@ -943,8 +943,8 @@
         if (e.step === 0 && el > 1.4) { e.step = 1; doJumpscare(); }
         if (e.step === 1 && el > 2.4) {
           e.step = 2;
-          if (v && viewers.has(v.id) && !v.taken) { takeViewer(v, 'ghost'); showBanner('BỊ BẮT RỒI!', `${v.name} bị ma dắt đi — gõ "cứu ${v.seat.n}"`, '#ff4a3a', 3.5); narrate(`${v.name} bị ma dắt đi rồi! Cả phòng gõ cứu ${v.seat.n} để đưa bạn ấy về.`, true); }
-          else showBanner('HỒN MA HIỆN HÌNH…', 'lượn một vòng quanh đống lửa rồi tan vào màn đêm', '#ff4a3a', 3);
+          if (v && viewers.has(v.id) && !v.taken) { takeViewer(v, 'ghost'); showBanner(T`BỊ BẮT RỒI!`, T`${v.name} bị ma dắt đi — gõ "cứu ${v.seat.n}"`, '#ff4a3a', 3.5); narrate(T`${v.name} bị ma dắt đi rồi! Cả phòng gõ cứu ${v.seat.n} để đưa bạn ấy về.`, true); }
+          else showBanner(T`HỒN MA HIỆN HÌNH…`, T`lượn một vòng quanh đống lửa rồi tan vào màn đêm`, '#ff4a3a', 3);
         }
         if (el > e.dur) { yin = e.type === 'ghostauto' ? 25 : clamp(yin, 0, 70); ghost.mode = 'hide'; ghost.ta = 0; ghost.nextMove = t + 8; endEvent(); }
         return;
@@ -956,7 +956,7 @@
           e.victims = cand.slice(0, cand.length >= 10 ? 2 : cand.length ? 1 : 0);
           for (const v of e.victims) takeViewer(v, 'dark');
         }
-        if (e.step === 1 && el > 5.2) { e.step = 2; sfx('match'); oil = 35; toast('🔥 Ai đó vừa quẹt diêm, nhóm lại đống lửa…', '#ffd27a'); if (e.victims.length) narrate(`Lửa bùng lên lại. ${e.victims.map(v => v.name).join(' và ')} đã biến mất.`, true); }
+        if (e.step === 1 && el > 5.2) { e.step = 2; sfx('match'); oil = 35; toast(T`🔥 Ai đó vừa quẹt diêm, nhóm lại đống lửa…`, '#ffd27a'); if (e.victims.length) narrate(T`Lửa bùng lên lại. ${e.victims.map(v => v.name).join(T` và `)} đã biến mất.`, true); }
         if (el > e.dur) endEvent();
         return;
       }
@@ -969,7 +969,7 @@
     e.from = e.holder ? { x: e.holder.x, y: e.holder.y - 40 * e.holder.seat.sc } : null;
     e.holder = to; e.flyT = now(); e.lastPass = now(); e.hops++;
     sfx('laugh', 0.25);
-    if (!silent) toast(`🪆 Búp bê nhảy sang ${to.name}`, '#ff9ab0');
+    if (!silent) toast(T`🪆 Búp bê nhảy sang ${to.name}`, '#ff9ab0');
   }
 
   // ---------- cầu cơ ----------
@@ -987,21 +987,21 @@
     OUIJA_POS.BYE = { x: OUIJA.cx, y: OUIJA.cy + 210 };
     OUIJA_POS.MID = { x: OUIJA.cx, y: OUIJA.cy + 50 };
   })();
-  const DEFAULT_QS = ['Có ai đang ở đây không?', 'Bạn là ai?', 'Bạn ở đâu?', 'Đêm nay ai sẽ bị bắt?', 'Bạn muốn gì?', 'Khi nào bạn đi?'];
+  const DEFAULT_QS = [T`Có ai đang ở đây không?`, T`Bạn là ai?`, T`Bạn ở đâu?`, T`Đêm nay ai sẽ bị bắt?`, T`Bạn muốn gì?`, T`Khi nào bạn đi?`];
   function ouijaAnswer(q, askerId) {
     const s = ' ' + low(q).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ') + ' ';
     const al = alive().filter(v => v.id !== askerId);
-    const seatAns = () => pick([{ text: 'Sau lưng bạn', spell: 'SAU LUNG' }, { text: 'Gốc cây đầu làng', spell: 'GOC CAY' }]);
-    if (/ ai /.test(s) && !/ ai la ban | ban la ai /.test(s)) return pick([{ text: 'Người thứ mười ba', spell: 'NGUOI 13' }, { text: 'Cô áo trắng', spell: 'CO AO TRANG' }, { text: 'Bé Mơ', spell: 'BE MO' }, { text: 'Không ai cả', spell: 'KHONG AI' }]);
-    if (/ khi nao | bao gio | luc nao | may gio | ngay nao /.test(s)) return pick([{ text: 'Đêm nay', spell: 'DEM NAY' }, { text: 'Ba giờ sáng', spell: '3 GIO' }, { text: 'Sắp rồi', spell: 'SAP ROI' }, { text: 'Khi lửa tắt', spell: 'LUA TAT' }]);
-    if (/ o dau | cho nao | noi nao | dau /.test(s)) return pick([{ text: 'Sau lưng bạn', spell: 'SAU LUNG' }, { text: 'Trong gương', spell: 'TRONG GUONG' }, { text: 'Dưới gầm giường', spell: 'GAM GIUONG' }, seatAns(), { text: 'Ngay cạnh bạn', spell: 'CANH BAN' }]);
-    if (/ bao nhieu | may nguoi | may tuoi /.test(s)) { const n = alive().length; return / nguoi /.test(s) ? { text: `${n + 1} người. Tính cả tôi.`, spell: String(n + 1) } : (() => { const k = 1 + Math.floor(Math.random() * 99); return { text: String(k), spell: String(k) }; })(); }
-    if (/ ten gi | ten la gi | la ai | ban la /.test(s)) return pick([{ text: 'Bé Mơ', spell: 'MO' }, { text: 'Cô Hai', spell: 'CO HAI' }, { text: 'Không có tên', spell: 'KHONG TEN' }, { text: 'Người thứ mười ba', spell: 'NGUOI 13' }]);
-    if (/ yeu | nguoi yeu | crush | vo | chong | cuoi | ny /.test(s)) return pick([{ text: 'Có. Nhưng người đó đang sau lưng bạn', spell: 'SAU LUNG' }, { text: 'Đừng chờ nữa', spell: 'DUNG CHO' }, { text: 'Có', spell: 'YES' }, { text: 'Tôi yêu bạn', spell: 'TOI YEU BAN' }]);
-    if (/ giau | tien | trung so | xo so | lo de /.test(s)) return pick([{ text: 'Tiền âm phủ thì có', spell: 'TIEN AM PHU' }, { text: 'Không', spell: 'NO' }, { text: 'Đừng tham', spell: 'DUNG THAM' }]);
-    if (/ muon gi | can gi /.test(s)) return pick([{ text: 'Một nén nhang', spell: 'NHANG' }, { text: 'Có người chơi cùng', spell: 'CHOI CUNG' }, { text: 'Về nhà', spell: 'VE NHA' }, seatAns()]);
-    if (/ co | khong | phai | dung | duoc /.test(s)) return pick([{ text: 'Có', spell: 'YES' }, { text: 'Không', spell: 'NO' }, { text: 'Có', spell: 'YES' }, { text: 'Không', spell: 'NO' }, { text: 'Đừng hỏi nữa', spell: 'DUNG HOI' }]);
-    return pick([{ text: 'Đừng hỏi', spell: 'DUNG HOI' }, { text: 'Chạy đi', spell: 'CHAY DI' }, { text: 'Tôi đói', spell: 'TOI DOI' }, { text: 'Ở lại đây', spell: 'O LAI' }, { text: 'Tôi thấy bạn', spell: 'TOI THAY BAN' }, { text: 'Tắt đèn đi', spell: 'TAT DEN' }]);
+    const seatAns = () => pick([{ text: T`Sau lưng bạn`, spell: 'SAU LUNG' }, { text: T`Gốc cây đầu làng`, spell: 'GOC CAY' }]);
+    if (/ ai /.test(s) && !/ ai la ban | ban la ai /.test(s)) return pick([{ text: T`Người thứ mười ba`, spell: 'NGUOI 13' }, { text: T`Cô áo trắng`, spell: 'CO AO TRANG' }, { text: T`Bé Mơ`, spell: 'BE MO' }, { text: T`Không ai cả`, spell: 'KHONG AI' }]);
+    if (/ khi nao | bao gio | luc nao | may gio | ngay nao /.test(s)) return pick([{ text: T`Đêm nay`, spell: 'DEM NAY' }, { text: T`Ba giờ sáng`, spell: '3 GIO' }, { text: T`Sắp rồi`, spell: 'SAP ROI' }, { text: T`Khi lửa tắt`, spell: 'LUA TAT' }]);
+    if (/ o dau | cho nao | noi nao | dau /.test(s)) return pick([{ text: T`Sau lưng bạn`, spell: 'SAU LUNG' }, { text: T`Trong gương`, spell: 'TRONG GUONG' }, { text: T`Dưới gầm giường`, spell: 'GAM GIUONG' }, seatAns(), { text: T`Ngay cạnh bạn`, spell: 'CANH BAN' }]);
+    if (/ bao nhieu | may nguoi | may tuoi /.test(s)) { const n = alive().length; return / nguoi /.test(s) ? { text: T`${n + 1} người. Tính cả tôi.`, spell: String(n + 1) } : (() => { const k = 1 + Math.floor(Math.random() * 99); return { text: String(k), spell: String(k) }; })(); }
+    if (/ ten gi | ten la gi | la ai | ban la /.test(s)) return pick([{ text: T`Bé Mơ`, spell: 'MO' }, { text: T`Cô Hai`, spell: 'CO HAI' }, { text: T`Không có tên`, spell: 'KHONG TEN' }, { text: T`Người thứ mười ba`, spell: 'NGUOI 13' }]);
+    if (/ yeu | nguoi yeu | crush | vo | chong | cuoi | ny /.test(s)) return pick([{ text: T`Có. Nhưng người đó đang sau lưng bạn`, spell: 'SAU LUNG' }, { text: T`Đừng chờ nữa`, spell: 'DUNG CHO' }, { text: T`Có`, spell: 'YES' }, { text: T`Tôi yêu bạn`, spell: 'TOI YEU BAN' }]);
+    if (/ giau | tien | trung so | xo so | lo de /.test(s)) return pick([{ text: T`Tiền âm phủ thì có`, spell: 'TIEN AM PHU' }, { text: T`Không`, spell: 'NO' }, { text: T`Đừng tham`, spell: 'DUNG THAM' }]);
+    if (/ muon gi | can gi /.test(s)) return pick([{ text: T`Một nén nhang`, spell: 'NHANG' }, { text: T`Có người chơi cùng`, spell: 'CHOI CUNG' }, { text: T`Về nhà`, spell: 'VE NHA' }, seatAns()]);
+    if (/ co | khong | phai | dung | duoc /.test(s)) return pick([{ text: T`Có`, spell: 'YES' }, { text: T`Không`, spell: 'NO' }, { text: T`Có`, spell: 'YES' }, { text: T`Không`, spell: 'NO' }, { text: T`Đừng hỏi nữa`, spell: 'DUNG HOI' }]);
+    return pick([{ text: T`Đừng hỏi`, spell: 'DUNG HOI' }, { text: T`Chạy đi`, spell: 'CHAY DI' }, { text: T`Tôi đói`, spell: 'TOI DOI' }, { text: T`Ở lại đây`, spell: 'O LAI' }, { text: T`Tôi thấy bạn`, spell: 'TOI THAY BAN' }, { text: T`Tắt đèn đi`, spell: 'TAT DEN' }]);
   }
   function ouijaAsk(q, user) {
     const e = ev; if (!e || e.type !== 'cauco' || e.phase !== 'ask') return;
@@ -1009,13 +1009,13 @@
     e.ans = ouijaAnswer(q, user && user.id);
     const sp = e.ans.spell;
     const path = [];
-    if (sp === 'YES' || sp === 'NO') path.push({ k: sp, ch: sp === 'YES' ? 'CÓ' : 'KHÔNG' });
+    if (sp === 'YES' || sp === 'NO') path.push({ k: sp, ch: sp === 'YES' ? T`CÓ` : T`KHÔNG` });
     else for (const ch of sp) path.push(ch === ' ' ? { k: 'MID', ch: ' ' } : { k: ch, ch });
     path.push({ k: 'BYE', ch: '' });
     e.path = path; e.pi = 0; e.pT = now(); e.phase = 'spell'; e.spelled = '';
     e.from = { x: e.planch.x, y: e.planch.y };
     sfx('ouija', 0.8);
-    narrate(`${e.qBy ? e.qBy + ' hỏi: ' : ''}${e.q}`, true);
+    narrate(`${e.qBy ? e.qBy + T` hỏi: ` : ''}${e.q}`, true);
   }
   function ouijaTick(t, e) {
     if (e.phase === 'ask') {
@@ -1046,17 +1046,17 @@
     v.anim = { type: 'take', t0: now(), fx: v.x, fy: v.y };
     showGuide('rescue', 60);
     sfx('taken', 0.9); shake = Math.max(shake, 6);
-    toast(`👻 ${v.name} bị ma bắt đi — gõ "cứu ${v.seat.n}" để cứu`, '#ff8a7a');
+    toast(T`👻 ${v.name} bị ma bắt đi — gõ "cứu ${v.seat.n}" để cứu`, '#ff8a7a');
     if (ev && ev.type === 'bupbe' && ev.holder === v) { /* búp bê đi theo */ }
   }
   function returnViewer(v, silent) {
     if (!v || !v.taken) return;
     v.taken = false; v.anim = { type: 'return', t0: now() }; v.rescue = new Set();
     spark(v.seat.x, v.seat.y - 60 * v.seat.sc, 24, '255,220,140', 60, 120, 4);
-    if (!silent) { sfx('incense', 1); toast(`✨ ${v.name} đã được kéo ra khỏi gương!`, '#ffd27a'); }
+    if (!silent) { sfx('incense', 1); toast(T`✨ ${v.name} đã được kéo ra khỏi gương!`, '#ffd27a'); }
   }
   function takenTick(t) {
-    for (const v of viewers.values()) if (v.taken && t - v.takenAt > S.takenReturnSec) { returnViewer(v, true); toast(`🌫 Hồn ${v.name} đã tự tìm đường về`, '#cfe0ff'); }
+    for (const v of viewers.values()) if (v.taken && t - v.takenAt > S.takenReturnSec) { returnViewer(v, true); toast(T`🌫 Hồn ${v.name} đã tự tìm đường về`, '#cfe0ff'); }
   }
 
   // ---------- hiệu ứng tức thì ----------
@@ -1069,7 +1069,7 @@
         oil = clamp(oil + 4 * count, 0, 100);
         if (v) throwLog(v); else spark(LX, LY - 60, 20, '255,170,60', 60, 160, 3);
         sfx('crackle', 0.7);
-        if (by) floatText(`🪵 +${4 * count} củi`, v ? v.x : LX, v ? v.y - 110 * v.seat.sc : 1000, '#ffcf7a', 28);
+        if (by) floatText(T`🪵 +${4 * count} củi`, v ? v.x : LX, v ? v.y - 110 * v.seat.sc : 1000, '#ffcf7a', 28);
         return;
       }
       case 'muoi': {
@@ -1077,14 +1077,14 @@
         yin = clamp(yin - 8 * count, 0, 100);
         for (let i = 0; i < 70; i++) particles.push({ x: rand(60, 1020), y: rand(640, 900), vx: rand(-30, 30), vy: rand(60, 200), life: rand(0.8, 1.8), max: 1.8, color: '240,240,255', size: rand(1.5, 3.5), g: 300 });
         sfx('salt', 0.9);
-        if (by) toast(`🧂 ${by.name} rắc muối — âm khí giảm ${8 * count}`, '#e6f0ff');
+        if (by) toast(T`🧂 ${by.name} rắc muối — âm khí giảm ${8 * count}`, '#e6f0ff');
         if (ghost.mode === 'behind') { ghost.mode = 'lurk'; ghost.nextMove = 0; }
         return;
       }
       case 'go': {
         if (use3D() && MA3D.pulse) MA3D.pulse('go'); else if (out2D()) MA2D.pulse('go');
         doorShake = 1.4; sfx('knock'); yin = clamp(yin + 4, 0, 100); scareAll(0.5);
-        if (by) toast(`🚪 ${by.name} gõ cửa… cộc, cộc, cộc`, '#ffb38a');
+        if (by) toast(T`🚪 ${by.name} gõ cửa… cộc, cộc, cộc`, '#ffb38a');
         return;
       }
       case 'hu': {   // hù cả phòng: vài bàn tay ma thò ra quanh vòng, không nhắm vào riêng ai
@@ -1092,7 +1092,7 @@
         for (const x of al2) hands.push({ v: x, t0: now() + rand(0, 0.5) });
         scareAll(0.8); ghost.glimpse = now() + 2.5; ghost.nextMove = 0;
         sfx('scream', 0.4, 0.35); shake = Math.max(shake, 5);
-        toast(`🫣 ${by ? by.name : 'Ai đó'} gọi bàn tay ma ra hù cả phòng!`, '#ff9a7a');
+        toast(T`🫣 ${by ? by.name : T`Ai đó`} gọi bàn tay ma ra hù cả phòng!`, '#ff9a7a');
         return;
       }
     }
@@ -1150,15 +1150,15 @@
       const ids = greetQ.splice(0).slice(-3), vs = ids.map(id => viewers.get(id)).filter(Boolean);
       for (const x of vs) x.mentionT = t;   // được ông Tư gọi tên → hiện tên một lúc
       const names = vs.map(x => short(x.name, 14)); if (!names.length) return;
-      hostSay(pick([`Chào ${names.join(', ')}. Ngồi sát vào đống lửa đi.`, `${names.join(', ')} tới rồi à… kiếm chỗ ngồi đi, chuyện sắp tới đoạn hay.`, `Thêm ${names.join(', ')} ngồi cùng. Đêm nay đông vui, ma cũng phải ngại.`]));
+      hostSay(pick([T`Chào ${names.join(', ')}. Ngồi sát vào đống lửa đi.`, T`${names.join(', ')} tới rồi à… kiếm chỗ ngồi đi, chuyện sắp tới đoạn hay.`, T`Thêm ${names.join(', ')} ngồi cùng. Đêm nay đông vui, ma cũng phải ngại.`]));
     }
-    if (story.phase === 'inter' && t - lastHostAt > 40 && Math.random() < 0.01) hostSay(pick(['Ai muốn nghe chuyện nào thì gõ số để chọn nhé.', 'Thả tim cho lửa cháy to, kẻo ma mò tới.', 'Lạnh quá… ai gõ "nam mô" giùm tôi cái.', 'Chuyện chỉ là chuyện kể thôi, đừng ai bắt chước làm theo nghe chưa.']));
+    if (story.phase === 'inter' && t - lastHostAt > 40 && Math.random() < 0.01) hostSay(pick([T`Ai muốn nghe chuyện nào thì gõ số để chọn nhé.`, T`Thả tim cho lửa cháy to, kẻo ma mò tới.`, T`Lạnh quá… ai gõ "nam mô" giùm tôi cái.`, T`Chuyện chỉ là chuyện kể thôi, đừng ai bắt chước làm theo nghe chưa.`]));
   }
   const HOST_REPLY = [
-    [/\b(chao|hello|hi|xin chao)\b/, n => `Chào ${n}, ngồi xuống nghe chuyện đi.`],
-    [/(so qua|\bso\b|hu hon|ghe qua|run qua)/, n => `Sợ thì ngồi sát vào lửa, ${n}. Có tôi đây rồi.`],
-    [/(hay qua|hay qua troi|cuon qua|ke tiep|ke nua)/, n => `Cảm ơn ${n}. Nghe tiếp nè, đoạn sau còn rợn hơn.`],
-    [/(ma that|co ma khong|that khong)/, n => `Chuyện kể cho vui thôi ${n}, đừng tin quá mà mất ngủ.`],
+    [/\b(chao|hello|hi|xin chao)\b/, n => T`Chào ${n}, ngồi xuống nghe chuyện đi.`],
+    [/(so qua|\bso\b|hu hon|ghe qua|run qua)/, n => T`Sợ thì ngồi sát vào lửa, ${n}. Có tôi đây rồi.`],
+    [/(hay qua|hay qua troi|cuon qua|ke tiep|ke nua)/, n => T`Cảm ơn ${n}. Nghe tiếp nè, đoạn sau còn rợn hơn.`],
+    [/(ma that|co ma khong|that khong)/, n => T`Chuyện kể cho vui thôi ${n}, đừng tin quá mà mất ngủ.`],
   ];
   function onChat(user, text) {
     const raw = String(text || '').trim();
@@ -1229,7 +1229,7 @@
     const s1 = s.replace(/[^a-z]/g, '');
     if (v && (s1 === 'nam' || s1 === 'nu') && t - (v.genderAt || -99) > 8) {
       const g = s1 === 'nu' ? 'f' : 'm';
-      if (v.gender !== g) { v.gender = g; v.genderAt = t; v.glow = 1.5; floatText(g === 'f' ? '👩 Nữ' : '👨 Nam', v.x, v.y - 120 * v.seat.sc, '#ffd27a', 26); }
+      if (v.gender !== g) { v.gender = g; v.genderAt = t; v.glow = 1.5; floatText(g === 'f' ? T`👩 Nữ` : '👨 Nam', v.x, v.y - 120 * v.seat.sc, '#ffd27a', 26); }
       return;
     }
     if (PRAY_RE.test(s) && v && !v.taken) {
@@ -1239,13 +1239,13 @@
         floatText('🙏', v.x, v.y - 110 * v.seat.sc, '#ffd27a', 34);
         spark(v.x, v.y - 60 * v.seat.sc, 6, '255,220,140', 20, 50, 2.5);
         if (t - v.prayBraveAt > 60) { v.prayBraveAt = t; addBrave(v, 1); }
-        if (ghost.mode === 'behind' && ghost.behind === v) { ghost.mode = 'lurk'; ghost.nextMove = 0; toast(`🙏 ${v.name} niệm Phật — hồn ma lùi lại`, '#ffd27a'); }
+        if (ghost.mode === 'behind' && ghost.behind === v) { ghost.mode = 'lurk'; ghost.nextMove = 0; toast(T`🙏 ${v.name} niệm Phật — hồn ma lùi lại`, '#ffd27a'); }
       }
       return;
     }
     if (v && FEAR_RE.test(s)) v.shiver = Math.max(v.shiver, 2);
     if (v && /(^|[\s,.!])(chào|hello|hi)([\s,.!]|$)/i.test(s)) v.gesture = { name: 'vay_tay' };
-    if (v && LAUGH_RE.test(s)) { v.gesture = { name: 'vo_tay' }; v.laugh = 1.5; if (yin > 40 && t - ghostLaughAt > 25 && Math.random() < 0.3) { ghostLaughAt = t; sfx('laugh', 0.35); toast('…có ai đó cười theo', '#c9a0ff'); } }
+    if (v && LAUGH_RE.test(s)) { v.gesture = { name: 'vo_tay' }; v.laugh = 1.5; if (yin > 40 && t - ghostLaughAt > 25 && Math.random() < 0.3) { ghostLaughAt = t; sfx('laugh', 0.35); toast(T`…có ai đó cười theo`, '#c9a0ff'); } }
   }
   const huWish = new Map();
 
@@ -1264,7 +1264,7 @@
     c.c = Math.max(c.c + value, +ev0.total || 0); c.name = user.name; coinsOf.set(user.id, c);
     voteGift(user, value);
     if (v) v.gesture = { name: 'vay_tay' };   // nhân vật vẫy tay đáp lời cảm ơn (trang trí, không thưởng gì)
-    if (S.autoHost && value >= 10) hostSay(pick([`Cảm ơn ${short(user.name, 14)} nhé.`, `${short(user.name, 14)} ơi, cảm ơn nhiều.`]));
+    if (S.autoHost && value >= 10) hostSay(pick([T`Cảm ơn ${short(user.name, 14)} nhé.`, T`${short(user.name, 14)} ơi, cảm ơn nhiều.`]));
     // chọn hành động theo giá MỘT món quà; tặng nhiều (chuỗi hoa hồng…) thì nhân số lần cho nhang / muối
     const per = (ev0.gift && +ev0.gift.diamonds) || value / count;
     const id = actionFor(ev0.gift, per);
@@ -1273,7 +1273,7 @@
     if (v && def && value >= 30) floatText(`${def.icon} ${def.label}`, v.x, v.y - 130 * v.seat.sc, '#ffd27a', 30);
     const opt = { count: id === 'nhang' || id === 'muoi' ? Math.min(count, 25) : 1 };
     queueEvent(id, user, opt);
-    if (BLOCKING.includes(id)) toast(`${def.icon} ${user.name} mở "${def.label}" — ${id !== 'trura' && (evQueue.length > 1 || ev || vote || story.phase === 'cast') ? 'đang xếp hàng' : 'bắt đầu!'}`, '#ffd27a');
+    if (BLOCKING.includes(id)) toast(T`${def.icon} ${user.name} mở "${def.label}" — ${id !== 'trura' && (evQueue.length > 1 || ev || vote || story.phase === 'cast') ? T`đang xếp hàng` : T`bắt đầu!`}`, '#ffd27a');
   }
 
   function onEvent(e) {
@@ -1287,8 +1287,8 @@
         if (v && Math.random() < 0.3) floatText('♥', v.x + rand(-10, 10), v.y - 100 * v.seat.sc, '#ff6a8a', 24);
         break;
       }
-      case 'follow': if (e.user) { const v = userTouch(e.user, 'chat'); oil = clamp(oil + 3, 0, 100); toast(`🪵 ${e.user.name} theo dõi — ném thêm một khúc củi`, '#ffd27a'); if (v) throwLog(v); } break;
-      case 'share': if (e.user) { userTouch(e.user, 'chat'); oil = clamp(oil + 2, 0, 100); toast(`📣 ${e.user.name} rủ thêm người tới nghe chuyện`, '#ffe0b0'); } break;
+      case 'follow': if (e.user) { const v = userTouch(e.user, 'chat'); oil = clamp(oil + 3, 0, 100); toast(T`🪵 ${e.user.name} theo dõi — ném thêm một khúc củi`, '#ffd27a'); if (v) throwLog(v); } break;
+      case 'share': if (e.user) { userTouch(e.user, 'chat'); oil = clamp(oil + 2, 0, 100); toast(T`📣 ${e.user.name} rủ thêm người tới nghe chuyện`, '#ffe0b0'); } break;
       case 'member': if (e.user) lastJoiner = e.user.name; break;
       case 'viewers': viewersOnline = +e.count || 0; break;
     }
@@ -1352,7 +1352,7 @@
     doorShake = Math.max(0, doorShake - dt);
     if (joinToasts.length && (!toasts.length || toasts.every(x => x.t0))) {
       const names = joinToasts.splice(0);
-      toast(names.length === 1 ? `🔥 ${names[0]} vừa ngồi xuống cạnh đống lửa` : `🕯 ${names.slice(0, 2).join(', ')}${names.length > 2 ? ` và ${names.length - 2} người khác` : ''} vừa ngồi xuống`, '#ffe8c0');
+      toast(names.length === 1 ? T`🔥 ${names[0]} vừa ngồi xuống cạnh đống lửa` : T`🕯 ${names.slice(0, 2).join(', ')}${names.length > 2 ? T` và ${names.length - 2} người khác` : ''} vừa ngồi xuống`, '#ffe8c0');
     }
   }
 
@@ -1864,7 +1864,7 @@
     if (v.taken && use3D() && v.gx != null) {   // bóng ma người bị bắt: số ghế + cách cứu
       ctx.save(); ctx.globalAlpha = 0.75 + Math.sin(t * 2 + v.seat.n) * 0.2;
       ctx.font = `800 20px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      const txt = `👻 ${short(v.name, 10)} · gõ "cứu ${v.seat.n}" ${v.rescue.size}/${S.rescueNeed}`, w = ctx.measureText(txt).width + 20;
+      const txt = T`👻 ${short(v.name, 10)} · gõ "cứu ${v.seat.n}" ${v.rescue.size}/${S.rescueNeed}`, w = ctx.measureText(txt).width + 20;
       const gx = clamp(v.gx, w / 2 + 12, W - w / 2 - 12);
       ctx.fillStyle = 'rgba(10,20,45,.8)'; rr(gx - w / 2, v.gy - 44, w, 30, 15); ctx.fill();
       ctx.fillStyle = '#cfe0ff'; ctx.fillText(txt, gx, v.gy - 29);
@@ -1915,12 +1915,12 @@
       ctx.strokeStyle = 'rgba(255,236,200,.85)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(px, ny, r, 0, TAU); ctx.stroke();
     }
     if (v.hideName) { /* tên bị che bớt cho đỡ rối, vẫn còn số ghế */ }
-    else if (isThay(v)) { ctx.font = `800 ${nfs - 4}px ${FONT}`; ctx.fillStyle = '#ffd27a'; ctx.fillText('☯ THẦY PHÁP', x, ny + nfs * 1.15); }
-    else if (BRAVE_TOP[0] && BRAVE_TOP[0].id === v.id) { ctx.font = `800 ${nfs - 5}px ${FONT}`; ctx.fillStyle = '#ffb36a'; ctx.fillText('👑 GAN NHẤT KÊNH', x, ny + nfs * 1.1); }
+    else if (isThay(v)) { ctx.font = `800 ${nfs - 4}px ${FONT}`; ctx.fillStyle = '#ffd27a'; ctx.fillText(T`☯ THẦY PHÁP`, x, ny + nfs * 1.15); }
+    else if (BRAVE_TOP[0] && BRAVE_TOP[0].id === v.id) { ctx.font = `800 ${nfs - 5}px ${FONT}`; ctx.fillStyle = '#ffb36a'; ctx.fillText(T`👑 GAN NHẤT KÊNH`, x, ny + nfs * 1.1); }
     // ma đứng sau lưng
     if (ghost.mode === 'behind' && ghost.behind === v && ghost.a > 0.2) {
       ctx.globalAlpha = 0.6 + Math.sin(t * 5) * 0.4;
-      ctx.font = `800 ${nfs}px ${FONT}`; ctx.fillStyle = '#ff5a4a'; ctx.fillText('⚠ SAU LƯNG BẠN', HX, HY - 68 * sc);
+      ctx.font = `800 ${nfs}px ${FONT}`; ctx.fillStyle = '#ff5a4a'; ctx.fillText(T`⚠ SAU LƯNG BẠN`, HX, HY - 68 * sc);
       ctx.globalAlpha = a;
     }
     // bong bóng bình luận
@@ -1968,7 +1968,7 @@
     // nhãn cõi âm
     if (taken.length) {
       ctx.font = `800 20px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      const txt = `🪞 CÕI ÂM: ${taken.length} người${taken.length > 6 ? ` (+${taken.length - 6})` : ''}`;
+      const txt = T`🪞 CÕI ÂM: ${taken.length} người${taken.length > 6 ? ` (+${taken.length - 6})` : ''}`;
       const w = ctx.measureText(txt).width + 22;
       ctx.fillStyle = 'rgba(10,15,35,.85)'; rr(x - w / 2, y + ry + 26, w, 30, 15); ctx.fill();
       ctx.fillStyle = '#bcd0ff'; ctx.fillText(txt, x, y + ry + 42);
@@ -1983,7 +1983,7 @@
       ctx.shadowColor = 'rgba(120,160,255,.9)'; ctx.shadowBlur = 12;
       ctx.fillStyle = '#d8e4ff';
       ctx.fillText(`“${w.text}”`, w.x, w.y - p * 60);
-      ctx.font = `600 17px ${FONT}`; ctx.fillStyle = '#9fb4e8'; ctx.fillText(`— ${w.name} (trong gương)`, w.x, w.y - p * 60 + 26);
+      ctx.font = `600 17px ${FONT}`; ctx.fillStyle = '#9fb4e8'; ctx.fillText(T`— ${w.name} (trong gương)`, w.x, w.y - p * 60 + 26);
       ctx.restore();
     }
   }
@@ -2025,7 +2025,7 @@
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = `700 30px ${SERIF}`;
     ctx.fillStyle = 'rgba(0,0,0,.6)'; rr(70, titleY - 24, 940, 48, 24); ctx.fill();
-    let title = story.st ? `📖 ${story.st.title}` + (story.part ? ` · đoạn ${story.part}` : '') : `🔥 ${S.title || 'NGỌN LỬA CUỐI CÙNG'}`;
+    let title = story.st ? `📖 ${story.st.title}` + (story.part ? T` · đoạn ${story.part}` : '') : `🔥 ${S.title || T`NGỌN LỬA CUỐI CÙNG`}`;
     ctx.fillStyle = '#e8c58a'; ctx.fillText(short(title, 48), W / 2, titleY + 1);
     // ---- khung lời kể ----
     const bx = 40, by = 300, bw = 1000, bh = 196;
@@ -2033,14 +2033,14 @@
     drawNarration(bx + 34, by + 26, bw - 68, bh - 44, t);
     // ---- đồng hồ dầu / âm khí ----
     const my = 512;
-    meter(40, my, 490, '🔥 CỦI LỬA', oil, ['#ff9a2a', '#ffd27a'], oil < 25 && Math.sin(t * 8) > 0);
-    meter(550, my, 490, '👻 ÂM KHÍ', yin, ['#7a2aff', '#ff2a4a'], yin > 80 && Math.sin(t * 8) > 0);
+    meter(40, my, 490, T`🔥 CỦI LỬA`, oil, ['#ff9a2a', '#ffd27a'], oil < 25 && Math.sin(t * 8) > 0);
+    meter(550, my, 490, T`👻 ÂM KHÍ`, yin, ['#7a2aff', '#ff2a4a'], yin > 80 && Math.sin(t * 8) > 0);
     // ---- dòng bảng xếp hạng / gợi ý ----
     drawTicker(t);
     // ---- nhãn: truyện hư cấu, giọng đọc AI (minh bạch nội dung do AI tạo) ----
     if (S.fictionLabel !== false) {
       ctx.save(); ctx.font = `600 17px ${FONT}`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.globalAlpha = 0.75;
-      const lab = `📖 Truyện hư cấu · 🤖 ${S.ttsEngine === 'vieneu' ? 'giọng đọc AI' : 'giọng máy đọc'}`, lw = ctx.measureText(lab).width + 18;
+      const lab = T`📖 Truyện hư cấu · 🤖 ${S.ttsEngine === 'vieneu' ? T`giọng đọc AI` : T`giọng máy đọc`}`, lw = ctx.measureText(lab).width + 18;
       ctx.fillStyle = 'rgba(0,0,0,.55)'; rr(44, 623, lw, 26, 13); ctx.fill(); ctx.fillStyle = '#e8dcc8'; ctx.fillText(lab, 53, 636.5); ctx.restore();
     }
     // ---- ông kể chuyện ----
@@ -2057,7 +2057,7 @@
     if ((use3D() || out2D()) && TL && TL.y > 640) {
       const talk = narrating() || story.typed < [...story.text].length, fs = Math.round(16 + 6 * TL.sc);
       ctx.save(); ctx.font = `800 ${fs}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      const txt = `🎙 ${S.tellerName || 'Ông Tư'} kể chuyện${talk ? ' …' : ''}`, w = ctx.measureText(txt).width + 24, y0 = TL.y - 34 * TL.sc - 16;
+      const txt = T`🎙 ${S.tellerName || T`Ông Tư`} kể chuyện${talk ? ' …' : ''}`, w = ctx.measureText(txt).width + 24, y0 = TL.y - 34 * TL.sc - 16;
       ctx.fillStyle = 'rgba(60,20,8,.85)'; rr(TL.x - w / 2, y0 - fs * 0.7, w, fs * 1.4, fs * 0.7); ctx.fill();
       ctx.strokeStyle = 'rgba(255,190,110,.7)'; ctx.lineWidth = 1.5; rr(TL.x - w / 2, y0 - fs * 0.7, w, fs * 1.4, fs * 0.7); ctx.stroke();
       ctx.fillStyle = '#ffd27a'; ctx.fillText(txt, TL.x, y0 + 1); ctx.restore();
@@ -2086,7 +2086,7 @@
     // ---- thông báo ----
     drawFloats(t);
     if (banner) drawBanner(t);
-    if (story.paused) { ctx.font = `800 34px ${FONT}`; ctx.fillStyle = 'rgba(255,220,180,.9)'; ctx.textAlign = 'center'; ctx.fillText('⏸ TẠM DỪNG', W / 2, 1520); }
+    if (story.paused) { ctx.font = `800 34px ${FONT}`; ctx.fillStyle = 'rgba(255,220,180,.9)'; ctx.textAlign = 'center'; ctx.fillText(T`⏸ TẠM DỪNG`, W / 2, 1520); }
   }
   function meter(x, y, w, label, val, cols, blink) {
     ctx.fillStyle = 'rgba(0,0,0,.7)'; rr(x, y, w, 44, 22); ctx.fill();
@@ -2168,15 +2168,15 @@
     let txt;
     if (tickerMode === 0) {
       const top = braveTop(4);
-      txt = '🏆 GAN DẠ ĐÊM NAY: ' + (top.length ? top.map((x, i) => `${i + 1}. ${short(x.name, 10)} (${x.pts})`).join('  ') : 'ngồi lâu, niệm Phật, đoán đúng người bị nhập để lên bảng');
+      txt = T`🏆 GAN DẠ ĐÊM NAY: ` + (top.length ? top.map((x, i) => `${i + 1}. ${short(x.name, 10)} (${x.pts})`).join('  ') : T`ngồi lâu, niệm Phật, đoán đúng người bị nhập để lên bảng`);
       ctx.fillStyle = '#ffd27a';
     } else if (tickerMode === 1) {
       const th = thayName();
       const coin = [...coinsOf.entries()].sort((a, b) => b[1].c - a[1].c).slice(0, 3);
-      txt = (th.id ? `☯ THẦY PHÁP: ${short(th.name, 12)}   ` : '') + '💰 ' + (coin.length ? coin.map(([, c], i) => `${i + 1}. ${short(c.name, 10)} (${c.c} xu)`).join('  ') : 'đêm nay chưa có thầy pháp');
+      txt = (th.id ? T`☯ THẦY PHÁP: ${short(th.name, 12)}   ` : '') + '💰 ' + (coin.length ? coin.map(([, c], i) => `${i + 1}. ${short(c.name, 10)} (${c.c} xu)`).join('  ') : T`đêm nay chưa có thầy pháp`);
       ctx.fillStyle = '#ffe8c0';
     } else {
-      txt = pick2(t, ['💬 Gõ "nam mô" để xua ma · "cứu + số ghế" để cứu người bị ma bắt', '📖 Truyện hư cấu, chỉ để giải trí · đừng làm theo các nghi thức trong truyện', '💬 Thả tim = thêm củi · lửa tắt là ma bắt người', `💬 Ngoài cửa còn ${waiting.size} người chờ ghế · ${alive().length} người quanh đống lửa`]);
+      txt = pick2(t, [T`💬 Gõ "nam mô" để xua ma · "cứu + số ghế" để cứu người bị ma bắt`, T`📖 Truyện hư cấu, chỉ để giải trí · đừng làm theo các nghi thức trong truyện`, T`💬 Thả tim = thêm củi · lửa tắt là ma bắt người`, T`💬 Ngoài cửa còn ${waiting.size} người chờ ghế · ${alive().length} người quanh đống lửa`]);
       ctx.fillStyle = '#d8e4ff';
     }
     ctx.fillText(short(txt, 80), W / 2, y + 19);
@@ -2213,14 +2213,14 @@
       ctx.textAlign = 'center';
     });
     ctx.font = `600 20px ${FONT}`; ctx.fillStyle = 'rgba(255,230,200,.8)';
-    ctx.fillText(`Gõ ${v.opts.map((_, i) => i + 1).join(' / ')} để chọn`, W / 2, y + h - 22);
+    ctx.fillText(T`Gõ ${v.opts.map((_, i) => i + 1).join(' / ')} để chọn`, W / 2, y + h - 22);
   }
   function drawVoteResult(t) {
     const r = lastVoteResult, a = Math.min(1, (3 - (t - r.t0)) / 0.5);
     ctx.save(); ctx.globalAlpha = a;
     panel(140, 700, 800, 110, 0.88, 'rgba(255,190,110,.75)');
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = `700 24px ${FONT}`; ctx.fillStyle = '#c9b8a0'; ctx.fillText('Mọi người đã chọn', W / 2, 732);
+    ctx.font = `700 24px ${FONT}`; ctx.fillStyle = '#c9b8a0'; ctx.fillText(T`Mọi người đã chọn`, W / 2, 732);
     ctx.font = `800 32px ${FONT}`; ctx.fillStyle = '#ffd27a'; ctx.fillText(`${r.idx + 1}. ${short(r.label, 34)}`, W / 2, 774);
     ctx.restore();
   }
@@ -2231,14 +2231,14 @@
     ctx.save(); ctx.globalAlpha = a;
     panel(90, 630, 900, 260, 0.74, 'rgba(255,190,110,.75)');
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = `700 24px ${FONT}`; ctx.fillStyle = '#c9b8a0'; ctx.fillText('🎭 VAI CHÍNH TRONG CHUYỆN NÀY', W / 2, 668);
-    if (!roles.length) { ctx.font = `700 28px ${FONT}`; ctx.fillStyle = '#f6ead6'; ctx.fillText('Bình luận để được vào vai trong chuyện sau!', W / 2, 770); }
+    ctx.font = `700 24px ${FONT}`; ctx.fillStyle = '#c9b8a0'; ctx.fillText(T`🎭 VAI CHÍNH TRONG CHUYỆN NÀY`, W / 2, 668);
+    if (!roles.length) { ctx.font = `700 28px ${FONT}`; ctx.fillStyle = '#f6ead6'; ctx.fillText(T`Bình luận để được vào vai trong chuyện sau!`, W / 2, 770); }
     roles.forEach((v, i) => {
       const cx = W / 2 + (i - (roles.length - 1) / 2) * 260, cy = 765;
       ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, 52, 0, TAU); ctx.clip(); ctx.drawImage(v.spr, 28, 10, 64, 64, cx - 52, cy - 52, 104, 104); ctx.restore();
       ctx.strokeStyle = '#ffd27a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, 52, 0, TAU); ctx.stroke();
       ctx.font = `800 24px ${FONT}`; ctx.fillStyle = '#ffd24a'; ctx.fillText(short(v.name, 14), cx, cy + 78);
-      ctx.font = `600 18px ${FONT}`; ctx.fillStyle = '#c9b8a0'; ctx.fillText(`ghế ${v.seat.n}`, cx, cy + 104 - 2);
+      ctx.font = `600 18px ${FONT}`; ctx.fillStyle = '#c9b8a0'; ctx.fillText(T`ghế ${v.seat.n}`, cx, cy + 104 - 2);
     });
     ctx.restore();
   }
@@ -2247,7 +2247,7 @@
     ctx.save();
     ctx.fillStyle = 'rgba(255,255,255,.06)'; rr(x, y, w, 30 + steps.length * (fs + 12), 12); ctx.fill();
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.font = `800 ${fs - 4}px ${FONT}`; ctx.fillStyle = color; ctx.fillText('CÁCH CHƠI', x + 16, y + 15);
+    ctx.font = `800 ${fs - 4}px ${FONT}`; ctx.fillStyle = color; ctx.fillText(T`CÁCH CHƠI`, x + 16, y + 15);
     steps.forEach((st, i) => {
       const yy = y + 30 + i * (fs + 12) + (fs + 12) / 2;
       ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x + 28, yy, 13, 0, TAU); ctx.fill();
@@ -2264,36 +2264,36 @@
     if (e.type === 'nhap' || e.type === 'nhap-end') {
       const x = 50, y = 626, w = 980, h = e.type === 'nhap' ? 340 : 200;
       panel(x, y, w, h, 0.92, 'rgba(255,80,60,.8)');
-      ctx.font = `900 34px ${SERIF}`; ctx.fillStyle = '#ff5a4a'; ctx.fillText('👁 AI ĐÃ BỊ MA NHẬP?', W / 2, y + 36);
+      ctx.font = `900 34px ${SERIF}`; ctx.fillStyle = '#ff5a4a'; ctx.fillText(T`👁 AI ĐÃ BỊ MA NHẬP?`, W / 2, y + 36);
       if (e.type === 'nhap') {
         const left = Math.max(0, e.dur - (t - e.t0));
-        ctx.font = `800 25px ${FONT}`; ctx.fillStyle = left < 10 ? '#ff4a3a' : '#ffd27a'; ctx.fillText(`⏳ còn ${Math.ceil(left)} giây`, W / 2, y + 70);
-        const sh = drawSteps(x + 20, y + 88, w - 40, ['Một người quanh đống lửa đã bị ma nhập — chính họ cũng không biết!', 'Gõ SỐ GHẾ của người đó, ví dụ: 12 (gõ số khác để đổi ý)', 'Đoán đúng: +3 gan dạ · Đoán sai: hồn ma trốn mất, âm khí tăng'], '#ff8a7a', 21);
+        ctx.font = `800 25px ${FONT}`; ctx.fillStyle = left < 10 ? '#ff4a3a' : '#ffd27a'; ctx.fillText(T`⏳ còn ${Math.ceil(left)} giây`, W / 2, y + 70);
+        const sh = drawSteps(x + 20, y + 88, w - 40, [T`Một người quanh đống lửa đã bị ma nhập — chính họ cũng không biết!`, T`Gõ SỐ GHẾ của người đó, ví dụ: 12 (gõ số khác để đổi ý)`, T`Đoán đúng: +3 gan dạ · Đoán sai: hồn ma trốn mất, âm khí tăng`], '#ff8a7a', 21);
         const cy = y + 88 + sh + 26;
-        ctx.textAlign = 'left'; ctx.font = `800 19px ${FONT}`; ctx.fillStyle = '#ffb3a6'; ctx.fillText('GỢI Ý', x + 30, cy);
+        ctx.textAlign = 'left'; ctx.font = `800 19px ${FONT}`; ctx.fillStyle = '#ffb3a6'; ctx.fillText(T`GỢI Ý`, x + 30, cy);
         ctx.font = `700 22px ${FONT}`;
-        const clues = e.clues.length ? e.clues : ['Đang dò tìm dấu vết… (gợi ý hiện dần)'];
+        const clues = e.clues.length ? e.clues : [T`Đang dò tìm dấu vết… (gợi ý hiện dần)`];
         clues.slice(-2).forEach((c, i) => { ctx.fillStyle = '#fff2c8'; ctx.fillText('🔎 ' + short(c, 40), x + 30, cy + 30 + i * 30); });
         const ranked = [...e.tally.entries()].filter(r => r[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, 2);
         ctx.textAlign = 'right'; ctx.font = `800 19px ${FONT}`; ctx.fillStyle = '#ffb3a6';
-        ctx.fillText('BỊ TỐ NHIỀU NHẤT', x + w - 30, cy);
+        ctx.fillText(T`BỊ TỐ NHIỀU NHẤT`, x + w - 30, cy);
         ctx.font = `800 21px ${FONT}`;
-        if (!ranked.length) { ctx.fillStyle = '#c9b8a0'; ctx.fillText('chưa ai tố', x + w - 30, cy + 30); }
-        ranked.forEach(([n, c], i) => { const sv = (seatByN(n) || {}).v; ctx.fillStyle = '#fff'; ctx.fillText(`ghế ${n} ${sv ? short(sv.name, 9) : ''} · ${c} phiếu`, x + w - 30, cy + 30 + i * 30); });
+        if (!ranked.length) { ctx.fillStyle = '#c9b8a0'; ctx.fillText(T`chưa ai tố`, x + w - 30, cy + 30); }
+        ranked.forEach(([n, c], i) => { const sv = (seatByN(n) || {}).v; ctx.fillStyle = '#fff'; ctx.fillText(T`ghế ${n} ${sv ? short(sv.name, 9) : ''} · ${c} phiếu`, x + w - 30, cy + 30 + i * 30); });
       } else {
-        ctx.font = `700 27px ${FONT}`; ctx.fillStyle = '#f6ead6'; ctx.fillText(`Người bị nhập: ${e.target.name}`, W / 2, y + 100);
-        ctx.font = `600 21px ${FONT}`; ctx.fillStyle = '#c9b8a0'; ctx.fillText('Lần sau: đọc gợi ý, nhìn kỹ mắt ai loé đỏ rồi gõ số ghế', W / 2, y + 145);
+        ctx.font = `700 27px ${FONT}`; ctx.fillStyle = '#f6ead6'; ctx.fillText(T`Người bị nhập: ${e.target.name}`, W / 2, y + 100);
+        ctx.font = `600 21px ${FONT}`; ctx.fillStyle = '#c9b8a0'; ctx.fillText(T`Lần sau: đọc gợi ý, nhìn kỹ mắt ai loé đỏ rồi gõ số ghế`, W / 2, y + 145);
       }
       return true;
     }
     if (e.type === 'bupbe' || e.type === 'bupbe-end') {
       const x = 50, y = 626, w = 980, h = e.type === 'bupbe' ? 280 : 130;
       panel(x, y, w, h, 0.92, 'rgba(255,110,140,.8)');
-      ctx.font = `900 32px ${SERIF}`; ctx.fillStyle = '#ff7a9a'; ctx.fillText('🪆 BÚP BÊ MA CHUYỀN TAY', W / 2, y + 36);
+      ctx.font = `900 32px ${SERIF}`; ctx.fillStyle = '#ff7a9a'; ctx.fillText(T`🪆 BÚP BÊ MA CHUYỀN TAY`, W / 2, y + 36);
       ctx.font = `800 26px ${FONT}`; ctx.fillStyle = '#fff';
-      ctx.fillText(e.holder ? `Búp bê đang ở: ${short(e.holder.name, 16)} (ghế ${e.holder.seat.n})` : '…', W / 2, y + 76);
-      if (e.type === 'bupbe') drawSteps(x + 20, y + 98, w - 40, ['Ai đang CẦM búp bê: gõ bất kỳ để chuyền sang người khác', 'Muốn ném cho ai thì gõ số ghế người đó, ví dụ: 25', 'Nhạc hộp dừng lúc nào không ai biết — ai giữ tới cuối được +5 gan dạ'], '#ff9ab0', 21);
-      else { ctx.font = `600 22px ${FONT}`; ctx.fillStyle = '#ffd0da'; ctx.fillText('Tiếng nhạc đã dừng…', W / 2, y + 108); }
+      ctx.fillText(e.holder ? T`Búp bê đang ở: ${short(e.holder.name, 16)} (ghế ${e.holder.seat.n})` : '…', W / 2, y + 76);
+      if (e.type === 'bupbe') drawSteps(x + 20, y + 98, w - 40, [T`Ai đang CẦM búp bê: gõ bất kỳ để chuyền sang người khác`, T`Muốn ném cho ai thì gõ số ghế người đó, ví dụ: 25`, T`Nhạc hộp dừng lúc nào không ai biết — ai giữ tới cuối được +5 gan dạ`], '#ff9ab0', 21);
+      else { ctx.font = `600 22px ${FONT}`; ctx.fillStyle = '#ffd0da'; ctx.fillText(T`Tiếng nhạc đã dừng…`, W / 2, y + 108); }
       return true;
     }
     if (e.type === 'cauco') { drawOuija(t, e); return true; }
@@ -2302,12 +2302,12 @@
 
   // ---------- thẻ hướng dẫn ----------
   const GUIDES = {
-    blackout: { icon: '🔥', title: 'LỬA TẮT VÌ HẾT CỦI', color: '#ffb36a', steps: () => ['Trong bóng tối, ma bắt 1–2 người vào gương', 'THẢ TIM liên tục để thêm củi (thanh 🔥 CỦI LỬA)', 'Tặng 🪵 Thêm củi để lửa cháy to'] },
-    ghost: { icon: '👻', title: 'MA HIỆN HÌNH', color: '#ff7a6a', steps: () => ['Âm khí đầy → ma dắt một người vào bóng tối (Gọi hồn bằng quà: ma chỉ hiện hình rồi tan)', 'Gõ "nam mô" để hạ ÂM KHÍ (ai cũng gõ được, không cần quà)', 'Người bị dắt đi đứng trong bóng tối — cả phòng gõ "cứu + số ghế" để cứu'] },
-    rescue: { icon: '👻', title: 'CỨU NGƯỜI BỊ MA BẮT', color: '#9fc0ff', steps: () => [use3D() ? 'Người bị bắt thành bóng ma xanh mờ đứng trong bóng tối' : 'Người bị bắt hiện trong TẤM GƯƠNG, có số ghế trên mặt', 'Gõ: cứu 12  (thay 12 bằng số ghế người đó)', `Đủ ${S.rescueNeed} người gõ là cứu được · người cứu +2 gan dạ`] },
-    trura: { icon: '☯️', title: 'TRỪ TÀ', color: '#ffd27a', steps: () => ['Người tặng ☯️ Trừ tà trở thành THẦY PHÁP của phòng', 'Cứu hết người bị ma dắt đi · lửa cháy to · âm khí về 0', 'Thầy pháp chỉ là danh hiệu trang trí, không có quyền gì hơn người khác'] },
-    behind: { icon: '⚠️', title: 'MA ĐANG ĐỨNG SAU LƯNG', color: '#ff6a5a', steps: () => ['Tìm chữ đỏ "⚠ SAU LƯNG BẠN" trên đầu một người', 'Người đó (hoặc ai cũng được) gõ "nam mô" để đuổi ma', 'Hoặc tặng 🧂 Rắc muối — âm khí cao quá là ma bắt người'] },
-    general: { icon: '🔥', title: 'CÁCH CHƠI', color: '#ffd27a', steps: () => ['Bình luận bất kỳ → ngồi một ghế có số · gõ "nam" hoặc "nữ" để đổi nhân vật', 'Thả tim = thêm củi cho lửa · gõ "nam mô" = xua âm khí', 'Khi bình chọn gõ 1 hoặc 2 · gõ "cứu 12" để cứu người bị ma dắt đi', 'Không cần tặng quà vẫn chơi được: bình luận, thả tim, đoán, cứu người'] },
+    blackout: { icon: '🔥', title: T`LỬA TẮT VÌ HẾT CỦI`, color: '#ffb36a', steps: () => [T`Trong bóng tối, ma bắt 1–2 người vào gương`, T`THẢ TIM liên tục để thêm củi (thanh 🔥 CỦI LỬA)`, T`Tặng 🪵 Thêm củi để lửa cháy to`] },
+    ghost: { icon: '👻', title: T`MA HIỆN HÌNH`, color: '#ff7a6a', steps: () => [T`Âm khí đầy → ma dắt một người vào bóng tối (Gọi hồn bằng quà: ma chỉ hiện hình rồi tan)`, T`Gõ "nam mô" để hạ ÂM KHÍ (ai cũng gõ được, không cần quà)`, T`Người bị dắt đi đứng trong bóng tối — cả phòng gõ "cứu + số ghế" để cứu`] },
+    rescue: { icon: '👻', title: T`CỨU NGƯỜI BỊ MA BẮT`, color: '#9fc0ff', steps: () => [use3D() ? T`Người bị bắt thành bóng ma xanh mờ đứng trong bóng tối` : T`Người bị bắt hiện trong TẤM GƯƠNG, có số ghế trên mặt`, T`Gõ: cứu 12  (thay 12 bằng số ghế người đó)`, T`Đủ ${S.rescueNeed} người gõ là cứu được · người cứu +2 gan dạ`] },
+    trura: { icon: '☯️', title: T`TRỪ TÀ`, color: '#ffd27a', steps: () => [T`Người tặng ☯️ Trừ tà trở thành THẦY PHÁP của phòng`, T`Cứu hết người bị ma dắt đi · lửa cháy to · âm khí về 0`, T`Thầy pháp chỉ là danh hiệu trang trí, không có quyền gì hơn người khác`] },
+    behind: { icon: '⚠️', title: T`MA ĐANG ĐỨNG SAU LƯNG`, color: '#ff6a5a', steps: () => [T`Tìm chữ đỏ "⚠ SAU LƯNG BẠN" trên đầu một người`, T`Người đó (hoặc ai cũng được) gõ "nam mô" để đuổi ma`, T`Hoặc tặng 🧂 Rắc muối — âm khí cao quá là ma bắt người`] },
+    general: { icon: '🔥', title: T`CÁCH CHƠI`, color: '#ffd27a', steps: () => [T`Bình luận bất kỳ → ngồi một ghế có số · gõ "nam" hoặc "nữ" để đổi nhân vật`, T`Thả tim = thêm củi cho lửa · gõ "nam mô" = xua âm khí`, T`Khi bình chọn gõ 1 hoặc 2 · gõ "cứu 12" để cứu người bị ma dắt đi`, T`Không cần tặng quà vẫn chơi được: bình luận, thả tim, đoán, cứu người`] },
   };
   let guide = null; const guideQ = []; const guideAt = {};
   function showGuide(key, cooldown = 90) {
@@ -2349,12 +2349,12 @@
     ctx.font = `700 34px ${SERIF}`;
     for (const k of Object.keys(OUIJA_POS)) { if (k.length !== 1) continue; const p = OUIJA_POS[k]; ctx.fillText(k, p.x, p.y); }
     ctx.font = `800 34px ${SERIF}`;
-    ctx.fillText('CÓ', OUIJA_POS.YES.x, OUIJA_POS.YES.y); ctx.fillText('KHÔNG', OUIJA_POS.NO.x, OUIJA_POS.NO.y);
-    ctx.font = `700 30px ${SERIF}`; ctx.fillText('TẠM BIỆT', OUIJA_POS.BYE.x, OUIJA_POS.BYE.y);
+    ctx.fillText(T`CÓ`, OUIJA_POS.YES.x, OUIJA_POS.YES.y); ctx.fillText(T`KHÔNG`, OUIJA_POS.NO.x, OUIJA_POS.NO.y);
+    ctx.font = `700 30px ${SERIF}`; ctx.fillText(T`TẠM BIỆT`, OUIJA_POS.BYE.x, OUIJA_POS.BYE.y);
     ctx.font = `20px ${SERIF}`; ctx.fillText('☾', OUIJA_POS.YES.x, OUIJA_POS.YES.y + 34); ctx.fillText('☀', OUIJA_POS.NO.x, OUIJA_POS.NO.y + 34);
     if (e.phase === 'ask') {
       ctx.fillStyle = 'rgba(12,6,4,.9)'; rr(cx - 435, cy + 14, 870, 152, 16); ctx.fill();
-      drawSteps(cx - 420, cy + 24, 840, ['Gõ:  hỏi: câu hỏi của bạn   (ví dụ: hỏi: ai sẽ bị bắt?)', 'Người tặng 🔮 được hỏi trước · hết giờ hồn ma tự chọn câu', 'Hồn ma trả lời bằng cách đánh vần từng chữ trên bàn cơ'], '#c9a8ff', 22);
+      drawSteps(cx - 420, cy + 24, 840, [T`Gõ:  hỏi: câu hỏi của bạn   (ví dụ: hỏi: ai sẽ bị bắt?)`, T`Người tặng 🔮 được hỏi trước · hết giờ hồn ma tự chọn câu`, T`Hồn ma trả lời bằng cách đánh vần từng chữ trên bàn cơ`], '#c9a8ff', 22);
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     }
     // con trỏ
@@ -2371,9 +2371,9 @@
     // tiêu đề, câu hỏi, chữ đã ghép
     ctx.font = `900 30px ${SERIF}`; ctx.fillStyle = '#ffd27a';
     panel(120, 640, 840, 96, 0.85, 'rgba(180,140,255,.8)');
-    ctx.fillStyle = '#c9a8ff'; ctx.fillText('🔮 CẦU CƠ', W / 2, 668);
+    ctx.fillStyle = '#c9a8ff'; ctx.fillText(T`🔮 CẦU CƠ`, W / 2, 668);
     ctx.font = `700 25px ${FONT}`; ctx.fillStyle = '#f6ead6';
-    if (e.phase === 'ask') ctx.fillText(e.asker ? `${short(e.asker.name, 14)} gõ câu hỏi… (${Math.ceil(e.askUntil - t)}s) · ai cũng hỏi được: "hỏi: …"` : `Gõ "hỏi: …" để hỏi hồn ma (${Math.ceil(e.askUntil - t)}s)`, W / 2, 708);
+    if (e.phase === 'ask') ctx.fillText(e.asker ? T`${short(e.asker.name, 14)} gõ câu hỏi… (${Math.ceil(e.askUntil - t)}s) · ai cũng hỏi được: "hỏi: …"` : T`Gõ "hỏi: …" để hỏi hồn ma (${Math.ceil(e.askUntil - t)}s)`, W / 2, 708);
     else ctx.fillText(short(`${e.qBy ? e.qBy + ': ' : ''}“${e.q}”`, 60), W / 2, 708);
     if (e.phase !== 'ask') {
       panel(160, cy + h / 2 + 16, 760, e.phase === 'reveal' ? 120 : 70, 0.9, 'rgba(180,140,255,.8)');
@@ -2390,7 +2390,7 @@
     ctx.fillStyle = 'rgba(10,5,4,.72)'; rr(x, y, w, h, 16); ctx.fill();
     ctx.strokeStyle = 'rgba(190,140,80,.45)'; ctx.lineWidth = 2; rr(x + 3, y + 3, w - 6, h - 6, 13); ctx.stroke();
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.font = `800 ${cp ? 18 : 23}px ${FONT}`; ctx.fillStyle = '#ffd27a'; ctx.fillText('🎁 QUÀ & HIỆU ỨNG', x + 14, y + head / 2 + 1);
+    ctx.font = `800 ${cp ? 18 : 23}px ${FONT}`; ctx.fillStyle = '#ffd27a'; ctx.fillText(T`🎁 QUÀ & HIỆU ỨNG`, x + 14, y + head / 2 + 1);
     list.forEach((a, i) => {
       const yy = y + head + 2 + i * rowH + rowH / 2;
       ctx.font = `${cp ? 18 : 24}px ${FONT}`; ctx.fillStyle = '#fff'; ctx.fillText(a.def.icon, x + 12, yy);
@@ -2471,7 +2471,7 @@ socket.on('ma:locked', () => { location.href = '/kich-hoat.html?tu=' + encodeURI
     const prevMap = curMap;
     pickMap(false);
     if (prevMap !== curMap && use3D() && MA3D.canTravel && MA3D.canTravel() && story.phase !== 'travel') {   // chủ phòng đổi cảnh tay: ông Tư vẫn nói lý do
-      const line = travelReason(S.tellerName || 'Ông Tư', ((MA3D.sceneNames || {})[curMap] || 'chốn khác').toLowerCase());
+      const line = travelReason(S.tellerName || T`Ông Tư`, ((MA3D.sceneNames || {})[curMap] || T`chốn khác`).toLowerCase());
       if (story.phase === 'tell') toast(line, '#ffd27a'); else { setLine([{ t: line, hl: 0 }], line); sfx('steps', 0.6, 2.5); }
     }
   });
