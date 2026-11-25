@@ -211,6 +211,9 @@
   </div>
 </div>
 
+<script src="/i18n.js"></script>
+<script src="/lang.js"></script>
+<script src="/lang/en.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script src="/tts.js"></script>
 <script src="/ma-config.js"></script>
@@ -295,6 +298,7 @@ socket.on('gifts', g => { GIFTS = g || {}; renderActs(); });
 
 // ---------- cài đặt ----------
 const FIELDS = [
+  ['lang', '🌐 Ngôn ngữ / Language', 'select', [['vi', 'Tiếng Việt'], ['en', 'English']]],
   ['outfitStyle', '👘 Trang phục người xem (3D)', 'select', [['dangia', 'Dân giã miền quê (100 mẫu)'], ['party', 'Dạ hội + đi bar']]],
   ['dressChars', 'Mặc trang phục cho cả 100 nhân vật char (lấy từ Vũ Trường Neon)', 'check'],
   ['view', '🖼 Chế độ hiển thị', 'select', [['3d', '3D — nhân vật 3D, máy quay bay (cần card đồ hoạ)'], ['2d', '2D — cảnh vẽ tay, nhẹ máy']]],
@@ -350,6 +354,7 @@ function renderSettings() {
     save({ [k]: val });
   });
 }
+socket.on('ma:reload', () => setTimeout(() => location.reload(), 300));
 socket.on('ma:settings', s => {
   MS = Object.assign({}, DEF, s || {});
   if (!Array.isArray(MS.actions) || !MS.actions.length) MS.actions = DEF.actions;

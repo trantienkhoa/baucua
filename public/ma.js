@@ -989,7 +989,16 @@
   })();
   const DEFAULT_QS = [T`Có ai đang ở đây không?`, T`Bạn là ai?`, T`Bạn ở đâu?`, T`Đêm nay ai sẽ bị bắt?`, T`Bạn muốn gì?`, T`Khi nào bạn đi?`];
   function ouijaAnswer(q, askerId) {
-    const s = ' ' + low(q).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ') + ' ';
+    const a = ouijaAnswerVi(q, askerId);
+    if (isEN() && a.spell !== 'YES' && a.spell !== 'NO') a.spell = deacc(a.text).toUpperCase().replace(/[^A-Z0-9 ]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16);   // đánh vần theo chữ tiếng Anh
+    return a;
+  }
+  function ouijaAnswerVi(q, askerId) {
+    let s = ' ' + low(q).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ') + ' ';
+    // câu hỏi tiếng Anh → quy về từ khoá tiếng Việt không dấu để dùng chung bộ trả lời
+    s = s.replace(/ your name | who are you /g, ' ten gi ').replace(/ who /g, ' ai ').replace(/ when | what time /g, ' khi nao ').replace(/ where /g, ' o dau ').replace(/ how many people /g, ' bao nhieu nguoi ').replace(/ how many | how old /g, ' bao nhieu ')
+      .replace(/ love | crush | marry | girlfriend | boyfriend /g, ' yeu ').replace(/ rich | money | lottery /g, ' giau ').replace(/ want | need /g, ' muon gi ')
+      .replace(/ (is|are|will|do|does|can|am) /g, ' co ');
     const al = alive().filter(v => v.id !== askerId);
     const seatAns = () => pick([{ text: T`Sau lưng bạn`, spell: 'SAU LUNG' }, { text: T`Gốc cây đầu làng`, spell: 'GOC CAY' }]);
     if (/ ai /.test(s) && !/ ai la ban | ban la ai /.test(s)) return pick([{ text: T`Người thứ mười ba`, spell: 'NGUOI 13' }, { text: T`Cô áo trắng`, spell: 'CO AO TRANG' }, { text: T`Bé Mơ`, spell: 'BE MO' }, { text: T`Không ai cả`, spell: 'KHONG AI' }]);
@@ -1126,9 +1135,9 @@
   // ======================================================================
   // SỰ KIỆN TỪ TIKTOK
   // ======================================================================
-  const PRAY_RE = /\b(nam mo|a di da|adida|nam moi a di da|niem phat|amen|nammo|namo)\b/;
-  const FEAR_RE = /(\bso\b|so qua|hu hon|ghe qua|ron|eo oi|\boi\b|run qua|\ba+\b|\bhuhu)/;
-  const LAUGH_RE = /(haha|hihi|hehe|kkk|=\)\)|:\)\)|\bhaa+|\bkk\b)/;
+  const PRAY_RE = /\b(nam mo|a di da|adida|nam moi a di da|niem phat|amen|nammo|namo|pray|praying|prayer|god bless)\b/;   // nhận cả tiếng Việt lẫn tiếng Anh
+  const FEAR_RE = /(\bso\b|so qua|hu hon|ghe qua|ron|eo oi|\boi\b|run qua|\ba+\b|\bhuhu|scared|scary|creepy|spooky|omg|terrified)/;
+  const LAUGH_RE = /(haha|hihi|hehe|kkk|=\)\)|:\)\)|\bhaa+|\bkk\b|\blol\b|lmao|rofl)/;
   let ghostLaughAt = 0;
 
   // ---------- tự dẫn chương trình: người kể chuyện chào, cảm ơn, đáp bình luận (phản hồi thật theo thời gian thực) ----------
@@ -1155,10 +1164,10 @@
     if (story.phase === 'inter' && t - lastHostAt > 40 && Math.random() < 0.01) hostSay(pick([T`Ai muốn nghe chuyện nào thì gõ số để chọn nhé.`, T`Thả tim cho lửa cháy to, kẻo ma mò tới.`, T`Lạnh quá… ai gõ "nam mô" giùm tôi cái.`, T`Chuyện chỉ là chuyện kể thôi, đừng ai bắt chước làm theo nghe chưa.`]));
   }
   const HOST_REPLY = [
-    [/\b(chao|hello|hi|xin chao)\b/, n => T`Chào ${n}, ngồi xuống nghe chuyện đi.`],
-    [/(so qua|\bso\b|hu hon|ghe qua|run qua)/, n => T`Sợ thì ngồi sát vào lửa, ${n}. Có tôi đây rồi.`],
-    [/(hay qua|hay qua troi|cuon qua|ke tiep|ke nua)/, n => T`Cảm ơn ${n}. Nghe tiếp nè, đoạn sau còn rợn hơn.`],
-    [/(ma that|co ma khong|that khong)/, n => T`Chuyện kể cho vui thôi ${n}, đừng tin quá mà mất ngủ.`],
+    [/\b(chao|hello|hi|hey|xin chao)\b/, n => T`Chào ${n}, ngồi xuống nghe chuyện đi.`],
+    [/(so qua|\bso\b|hu hon|ghe qua|run qua|scared|scary|creepy)/, n => T`Sợ thì ngồi sát vào lửa, ${n}. Có tôi đây rồi.`],
+    [/(hay qua|hay qua troi|cuon qua|ke tiep|ke nua|nice story|great story|love this|more story|continue)/, n => T`Cảm ơn ${n}. Nghe tiếp nè, đoạn sau còn rợn hơn.`],
+    [/(ma that|co ma khong|that khong|is it real|real ghost|true story)/, n => T`Chuyện kể cho vui thôi ${n}, đừng tin quá mà mất ngủ.`],
   ];
   function onChat(user, text) {
     const raw = String(text || '').trim();
@@ -1177,12 +1186,12 @@
     }
     // cầu cơ: người mở bàn được hỏi trước, sau đó ai cũng hỏi bằng "hỏi: …"
     if (ev && ev.type === 'cauco' && ev.phase === 'ask') {
-      const m = /^\s*(h[oỏ]i|hoi|q)\s*[:：\-]\s*(.+)$/i.exec(raw);
+      const m = /^\s*(h[oỏ]i|hoi|q|ask)\s*[:：\-]\s*(.+)$/i.exec(raw);
       if (m) { ouijaAsk(m[2], user); return; }
       if (ev.asker && ev.asker.id === user.id && raw.length >= 3) { ouijaAsk(raw, user); return; }
     }
     // cứu người trong gương: "cứu 12"
-    const cm = /^\s*cuu\s*(?:so|ghe|#)?\s*(\d{1,2})\b/.exec(s);
+    const cm = /^\s*(?:cuu|save|rescue)\s*(?:so|ghe|seat|#)?\s*(\d{1,2})\b/.exec(s);
     if (cm && v && !v.taken) {
       const seat = seatByN(+cm[1]);
       const tv = seat && seat.v;
@@ -1227,8 +1236,8 @@
     // niệm Phật xua ma
     // đổi nhân vật nam / nữ: bình luận đúng một chữ "nam" hoặc "nữ"
     const s1 = s.replace(/[^a-z]/g, '');
-    if (v && (s1 === 'nam' || s1 === 'nu') && t - (v.genderAt || -99) > 8) {
-      const g = s1 === 'nu' ? 'f' : 'm';
+    if (v && ['nam', 'nu', 'male', 'female', 'man', 'woman', 'boy', 'girl'].includes(s1) && t - (v.genderAt || -99) > 8) {
+      const g = ['nu', 'female', 'woman', 'girl'].includes(s1) ? 'f' : 'm';
       if (v.gender !== g) { v.gender = g; v.genderAt = t; v.glow = 1.5; floatText(g === 'f' ? T`👩 Nữ` : '👨 Nam', v.x, v.y - 120 * v.seat.sc, '#ffd27a', 26); }
       return;
     }
@@ -2475,6 +2484,7 @@ socket.on('ma:locked', () => { location.href = '/kich-hoat.html?tu=' + encodeURI
       if (story.phase === 'tell') toast(line, '#ffd27a'); else { setLine([{ t: line, hl: 0 }], line); sfx('steps', 0.6, 2.5); }
     }
   });
+  socket.on('ma:reload', () => setTimeout(() => location.reload(), 300));
   socket.on('gifts', g => { GIFTS = g || {}; });
   socket.on('top', list => { TOP = list || []; for (const u of TOP) { const c = coinsOf.get(u.id) || { c: 0, name: u.name }; c.c = Math.max(c.c, +u.coins || 0); c.name = u.name; coinsOf.set(u.id, c); } });
   socket.on('ma:braveTop', list => { BRAVE_TOP = Array.isArray(list) ? list : []; });

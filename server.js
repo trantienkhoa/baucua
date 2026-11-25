@@ -883,9 +883,11 @@ io.on('connection', socket => {
   // game kể chuyện ma
   socket.on('ma:saveSettings', patch => {
     if (!patch || typeof patch !== 'object') return;
+    const prevLang = maSettings.lang || 'vi';
     Object.assign(maSettings, maSanitize(patch));
     writeJSON('ma-settings.json', maSettings);
     io.to('ma').to('ma-admin').emit('ma:settings', maOut());
+    if ((maSettings.lang || 'vi') !== prevLang) io.to('ma').to('ma-admin').emit('ma:reload');   // đổi ngôn ngữ: màn game + trang điều khiển tải lại để đổi chữ
   });
   socket.on('ma:cmd', c => { if (c && typeof c.type === 'string') io.to('ma').emit('ma:cmd', c); });
   socket.on('ma:say', m => {   // màn game không có giọng Việt → trang điều khiển đọc thay
