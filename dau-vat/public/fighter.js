@@ -2,6 +2,7 @@
 // Tư thế được viết trên bộ xương chuẩn của game (xem wrestler.js) rồi "chuyển xương" (retarget) sang xương Mixamo.
 import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { BONE_NAMES, faceTexture, buildHairGeometry } from './wrestler.js';
 
@@ -14,14 +15,16 @@ const UP = new THREE.Vector3(0, 1, 0), DOWN = new THREE.Vector3(0, -1, 0), FOOT 
 const CANON_DIR = { Hips: UP, Spine: UP, Spine1: UP, Spine2: UP, Neck: UP, Head: UP, LeftArm: DOWN, LeftForeArm: DOWN, LeftHand: DOWN, RightArm: DOWN, RightForeArm: DOWN, RightHand: DOWN, LeftUpLeg: DOWN, LeftLeg: DOWN, RightUpLeg: DOWN, RightLeg: DOWN, LeftFoot: FOOT, RightFoot: FOOT };
 const HEAD_TOP = 1.97;   // chiều cao chuẩn tới đỉnh đầu
 
-const strip = n => n.replace(/^mixamorig[:_]?/i, '').replace(/^.*:/, '');
+const strip = n => n.replace(/^mixamorig\d*[:_]?/i, '').replace(/^.*:/, '').replace(/_\d+$/, '');
 // mẫu nhân vật: 'male' (fighter.fbx) và 'female' (female.fbx, tuỳ chọn)
 const TPLS = {};
 export function fighterReady(key = 'male') { return !!TPLS[key]; }
 export function fighterInfo(key = 'male') { return TPLS[key] && TPLS[key].info; }
 
 export async function loadFighter(url, key = 'male') {
-  const obj = await new FBXLoader().loadAsync(url);
+  let obj, anims = [];
+  if (/\.glb$|\.gltf$/i.test(url)) { const g = await new GLTFLoader().loadAsync(url); obj = g.scene; anims = g.animations || []; }
+  else { obj = await new FBXLoader().loadAsync(url); anims = obj.animations || []; }
   const group = new THREE.Group();
   group.add(obj);
   obj.updateMatrixWorld(true);
@@ -64,7 +67,7 @@ export async function loadFighter(url, key = 'male') {
   const M = mesh.matrixWorld, NM = new THREE.Matrix3().getNormalMatrix(M);
   const nv = new THREE.Vector3();
   for (let i = 0; i < N; i++) {
-    v.fromBufferAttribute(pos, i).applyMatrix4(M);
+    v.fromBufferAttribute(pos, i); mesh.applyBoneTransform(i, v); v.applyMatrix4(M);   // vị trí đã skin ở tư thế hiện tại
     cpos[i * 3] = v.x; cpos[i * 3 + 1] = v.y; cpos[i * 3 + 2] = v.z;
     nv.fromBufferAttribute(nrm, i).applyMatrix3(NM).normalize();
     cnrm[i * 3] = nv.x; cnrm[i * 3 + 1] = nv.y; cnrm[i * 3 + 2] = nv.z;
@@ -90,7 +93,7 @@ export async function loadFighter(url, key = 'male') {
   // mô hình có sẵn ảnh vân (đã mặc đồ) thì giữ nguyên vật liệu gốc, không tô lại
   const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
   const textured = mats.some(m => m && m.map);
-  const T = { key, group, obj, mesh, byName, W, rest, Q0, armInv, armQ, cpos, cnrm, dom, head, meshInv3, unit, textured,
+  const T = { key, anims, group, obj, mesh, byName, W, rest, Q0, armInv, armQ, cpos, cnrm, dom, head, meshInv3, unit, textured,
     hipsY: W.Hips.y, info: { verts: N, tris: N / 3, bones: Object.keys(byName).length, hipsY: +W.Hips.y.toFixed(3), head, textured } };
   TPLS[key] = T;
   return T.info;
@@ -209,13 +212,14 @@ export function createFighter(d, key) {
   const src = T.mesh.geometry;
   const geo = new THREE.BufferGeometry();
   for (const k of ['normal', 'uv', 'skinIndex', 'skinWeight']) if (src.attributes[k]) geo.setAttribute(k, src.attributes[k]);
+  if (src.index) geo.setIndex(src.index);
   const N = src.attributes.position.count;
   const pos = new Float32Array(src.attributes.position.array);
   const B = d.bulk || 1, G = d.gut || 0, F = !!d.female && !onFemale;   // mẫu nữ thật thì không cần nắn thân
   const cp = T.cpos, cn = T.cnrm, dom = T.dom, mi = T.meshInv3, W = T.W, H = T.head;
   const REG = [0.4, 0.55, 0.65, 0.9, 0.7, 0, 1.0, 0.85, 0.25, 0.75, 0.6, 0.05];
   const spiky = d.hair === 'spiky';
-  for (let i = 0; i < N; i++) {
+  for (let i = 0; i < N && !T.textured; i++) {
     const cat = dom[i];
     let dx = 0, dy = 0, dz = 0;
     const x = cp[i * 3], y = cp[i * 3 + 1], z = cp[i * 3 + 2];

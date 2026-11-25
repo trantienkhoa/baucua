@@ -13,6 +13,8 @@ import { Q, sampleMove } from './motion.js';
 import SFX from './audio.js';
 import { createHud, HW, HH } from './hud.js';
 import { createLed } from './led.js';
+import { loadClip, clipFrame } from './clips.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const params = new URLSearchParams(location.search);
 const OBS = params.has('obs');
@@ -72,7 +74,15 @@ const hud = createHud(hudc);
 try { await loadFighter('/models/custom/fighter.fbx'); } catch (e) { console.warn('Không tải được Fighter.fbx, dùng nhân vật dựng bằng code', e); }
 // mẫu nữ (tuỳ chọn): public/models/custom/female.fbx — dùng cho đô vật nữ và cô gái cầm biển
 try { const r = await fetch('/models/custom/female.fbx', { method: 'HEAD' }); if (r.ok) await loadFighter('/models/custom/female.fbx', 'female'); } catch (e) { console.warn('Không tải được female.fbx', e); }
+// cô gái cầm biển (girl.glb), animation Mixamo (models/custom/anim/*.fbx) — đều tuỳ chọn
+const exists = async u => { try { return (await fetch(u, { method: 'HEAD' })).ok; } catch (e) { return false; } };
+try { if (await exists('/models/custom/girl.glb')) await loadFighter('/models/custom/girl.glb', 'girl'); } catch (e) { console.warn('Không tải được girl.glb', e); }
+const CLIPS = {};
+await Promise.all(['punch', 'kick', 'victory', 'clap', 'sitcheer'].map(async n => { const u = `/models/custom/anim/${n}.fbx`; if (await exists(u)) try { CLIPS[n] = await loadClip(u); } catch (e) { console.warn('Lỗi animation', n, e); } }));
+// đoạn dùng trong từng animation: [từ, tới, lúc trúng đòn (tính từ đầu đoạn)]
+const CLIP_SEG = { punch: [0.35, 1.2, 0.35], kick: [0.3, 1.4, 0.6], victory: [1.6, 8.5], clap: [1.2, 4.9], sitcheer: [0, 0] };
 function makeBody(def) {
+  if (def.girl && fighterReady('girl')) return createFighter(def, 'girl');
   if (def.female && fighterReady('female')) return createFighter(def, 'female');
   if (fighterReady() && !def.proc) return createFighter(def, 'male');
   const w = createWrestler(def);
@@ -148,6 +158,14 @@ function makeBelt() {
   return g;
 }
 const chairMesh = makeChair(); chairMesh.visible = false; scene.add(chairMesh);
+// ghế thép thật (models/custom/chair.glb) thay ghế dựng bằng code
+if (await exists('/models/custom/chair.glb')) try {
+  const g = await new GLTFLoader().loadAsync('/models/custom/chair.glb'); const m = g.scene;
+  const box = new THREE.Box3().setFromObject(m), sz = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const k = 0.88 / sz.y; m.scale.setScalar(k); m.position.set(-c.x * k, -c.y * k, -c.z * k);
+  m.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  chairMesh.clear(); chairMesh.add(m);
+} catch (e) { console.warn('Lỗi ghế', e); }
 const beltMesh = makeBelt(); beltMesh.visible = false; scene.add(beltMesh);
 let chairOwner = null, beltOwner = null, followTarget = null;
 
@@ -260,7 +278,7 @@ function onMoveHit(a, d, act) {
   let dmg = m.dmg * a.powMul() * (fin ? 2.0 : sig ? 1.3 : 0.9) * rand(0.9, 1.1);
   if (G.mode === 'royal') dmg *= royalHeat();
   damage(d, dmg, a);
-  if (fin) { a.mom = 0; a.lastFin = G.time; d.finHit = G.time; }
+  if (fin) { a.mom = 0; a.lastFin = G.time; d.finHit = G.time; staff.comm1.cheerT = staff.comm2.cheerT = 2.07; }
   SFX.hit(m.sound || 'slam', fin ? 1.3 : 1);
   if (m.sound === 'slam') arena.shakeRopes(0.8);
   camShake = Math.max(camShake, fin ? 0.5 : 0.25);
@@ -298,7 +316,13 @@ function clampRing(w) {
 }
 function startStrike(a, d, sid) {
   a.yaw = faceTo(a, d);
-  a.act = { k: 'strike', s: STRIKES[sid], sid, t: 0, target: d, hit: false };
+  let s = STRIKES[sid];
+  const cn = (sid === 'punch' || sid === 'hook' || sid === 'forearm') ? 'punch' : sid === 'kick' ? 'kick' : null;
+  if (cn && CLIPS[cn] && Math.random() < 0.55) {
+    const [f, t2, h] = CLIP_SEG[cn], c = CLIPS[cn];
+    s = { dur: t2 - f, hit: h, dmg: STRIKES[sid].dmg * 1.3, sound: STRIKES[sid].sound, f: tt => clipFrame(c, tt, false, f, t2) };
+  }
+  a.act = { k: 'strike', s, sid, t: 0, target: d, hit: false };
 }
 function knockDown(d, prone = false) { d.act = { k: 'down', t: 0, dur: downTime(d, null) * 0.8, prone }; }
 
@@ -607,7 +631,11 @@ function poseOf(w) {
       if (a.run) return runPose(a.ph || 0);
       return walkPose(a.ph || 0, a.k === 'leave' ? 0.7 : 1);
     }
-    case 'celebrate': return a.pose || P.armsUp;
+    case 'celebrate': {
+      const cn = a.clip || (a.pose === P.armsUp || !a.pose ? 'victory' : null);
+      if (cn && CLIPS[cn]) { const [f, t2] = CLIP_SEG[cn]; return clipFrame(CLIPS[cn], a.t, true, f, t2); }
+      return a.pose || P.armsUp;
+    }
     case 'pose': return a.pose;
     case 'gone': return P.stand;
   }
@@ -666,7 +694,8 @@ function staffPose(s) {
   }
   if (s === staff.announcer) return s.talking ? Object.assign({}, P.stand, { rArm: [-60, 0, -10], rFore: [-110, 0, 0], lArm: [-30 - 40 * Math.max(0, Math.sin(t * 3)), 0, 30], head: [-8, 0, 0] }) : Object.assign({}, P.stand, { rArm: [-20, 0, -10], rFore: [-90, 0, 0] });
   if (s === staff.timekeeper) return Object.assign({}, P.sit, { hips: { p: [0, 0.52, 0], r: [0, 0, 0] }, lThigh: [-88, 0, 6], rThigh: [-88, 0, -6], lShin: [88, 0, 0], rShin: [88, 0, 0], spine: [10, 0, 0], rArm: s.ring > 0 ? [-80, 0, -10] : [-40, 0, -10], rFore: s.ring > 0 ? [-60 - 40 * Math.sin(t * 30), 0, 0] : [-70, 0, 0], lArm: [-40, 0, 10], lFore: [-70, 0, 0] });
-  // bình luận viên ngồi
+  // bình luận viên ngồi (đứng bật dậy cổ vũ khi có đòn lớn)
+  if (s.cheerT > 0 && CLIPS.sitcheer) return clipFrame(CLIPS.sitcheer, 2.07 - s.cheerT, false);
   const talk = s.talkT > 0;
   return Object.assign({}, P.sit, { hips: { p: [0, 0.52, 0], r: [0, 0, 0] }, lThigh: [-88, 0, 6], rThigh: [-88, 0, -6], lShin: [88, 0, 0], rShin: [88, 0, 0], spine: [8, 0, 0],
     rArm: talk ? [-60 - 25 * Math.sin(t * 5), 0, -20] : [-45, 0, -10], rFore: talk ? [-70, 0, 0] : [-80, 0, 0], lArm: [-45, 0, 10], lFore: [-80, 0, 0], head: [-6, s.look || 0, 0] });
@@ -696,7 +725,7 @@ function updateStaff(dt) {
     r.y = RING.y;
   }
   for (const s of Object.values(staff)) {
-    s.t += dt; if (s.talkT > 0) s.talkT -= dt; if (s.ring > 0) s.ring -= dt;
+    s.t += dt; if (s.talkT > 0) s.talkT -= dt; if (s.cheerT > 0) s.cheerT -= dt; if (s.ring > 0) s.ring -= dt;
     const k = 1 - Math.exp(-dt * 12);
     s.body.apply(Q(staffPose(s)), k);
     if (!s.isRef) {
@@ -810,10 +839,10 @@ function updateCamera(dt) {
     case 'pin': { const e = cam.target || ac; tp.set(e.x + 2.6, RING.y + 1.6, e.z + 4.4); tl.set(e.x, RING.y + 0.4, e.z); tf = 44; break; }
     case 'champ': { const e = cam.target; const ang = Math.sin(t * 0.22) * 0.9; if (e) { tp.set(e.px + Math.sin(ang) * 6.4, e.py + 2.8, e.pz + Math.cos(ang) * 6.4); tl.set(e.px, e.py + 1.9, e.pz); } tf = 46; break; }
     case 'tron': tp.set(0, 8.3, 3.4); tl.set(0, STAGE.y + 8.1, STAGE.back); tf = 57; break;
-    case 'girl': { const e = cam.target; if (e) { const r = Math.hypot(e.px, e.pz) || 1; tp.set(e.px + e.px / r * 3.4, e.py + 2.0, e.pz + e.pz / r * 3.4 + 1.2); tl.set(e.px, e.py + 1.4, e.pz); } tf = 50; break; }
+    case 'girl': { const e = cam.target; if (e) { const r = Math.hypot(e.px, e.pz) || 1; const fx = Math.sin(e.pyaw), fz = Math.cos(e.pyaw); tp.set(e.px + fx * 4.2 + e.px / r * 2.4, e.py + 1.7, e.pz + fz * 4.2 + e.pz / r * 2.4); tl.set(e.px + fx * 0.4, e.py + 1.2, e.pz + fz * 0.4); } tf = 46; break; }
     case 'aerial': { const e = cam.target || ac; tp.set(e.x * 0.5 + 3.5, RING.y + 3.2, e.z + 7); tl.set(e.x * 0.7, RING.y + 1.4, e.z * 0.7); tf = 50; break; }
   }
-  const k = cam.cut ? 1 : 1 - Math.exp(-dt * 2.6);
+  const k = cam.cut ? 1 : 1 - Math.exp(-dt * (cam.shot === 'girl' ? 7 : 2.6));
   cam.cut = false;
   cam.pos.lerp(tp, k); cam.look.lerp(tl, k); cam.fov += (tf - cam.fov) * k;
   camera.position.copy(cam.pos);
@@ -1121,7 +1150,7 @@ function* match(a, b, ri, mi, nInRound) {
 function userInfo(w) { return w.user ? { id: w.user.id, name: w.user.name, avatar: w.user.avatar } : { id: 'bot' + w.idx, name: w.def.name, bot: true }; }
 
 // ---------- cô gái cầm biển đi quanh võ đài ----------
-const GIRL_DEF = { name: 'Ring girl', female: true, proc: true, height: 1.7, bulk: 0.84, skin: '#f2d0b8', hair: 'long', hairColor: '#2a1a12', outfit: 'trunks', top: 'tank', attire: '#111111', attire2: '#e8202a', boots: '#f4f4f4', bootH: 'low', kneepads: false, skirt: true, wrist: '#f2d0b8', stats: { hp: 1, pow: 1, spd: 1, agi: 1 } };
+const GIRL_DEF = { name: 'Ring girl', girl: true, female: true, proc: true, height: 1.7, bulk: 0.84, skin: '#f2d0b8', hair: 'long', hairColor: '#2a1a12', outfit: 'trunks', top: 'tank', attire: '#111111', attire2: '#e8202a', boots: '#f4f4f4', bootH: 'low', kneepads: false, skirt: true, wrist: '#f2d0b8', stats: { hp: 1, pow: 1, spd: 1, agi: 1 } };
 let girl = null, sign = null;
 function signTexture(text) {
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 320; const g = cv.getContext('2d');
@@ -1146,10 +1175,10 @@ function* ringGirl(text) {
   girl.act = { k: 'path', t: 0, speed: 2.1, i: 0, pts: [[3.08, -5.7, 0], [3.08, -4.3, 0.55, { speed: 1.4 }], [3.08, -3.75, RING.y, { speed: 1.4 }], [A, -A, RING.y], [A, A, RING.y], [-A, A, RING.y], [-3.08, 3.9, RING.y], [-3.08, 4.6, 0.6, { speed: 1.4 }], [-3.08, 5.6, 0, { speed: 1.4 }], [-6.0, 6.0, 0]] };
   G.active.push(girl);
   sign.visible = true;
-  setShot('girl', girl, true);
+  setShot('royal');
   comm(`Xin mời quý vị đến với ${text.toLowerCase()}!`, 2, true);
   SFX.pop(0.6); hype = Math.min(1, hype + 0.3);
-  while (girl.act.k === 'path') { yield; if (G.skip) { G.skip = false; break; } }
+  while (girl.act.k === 'path') { yield; if (girl.act.i === 3 && cam.shot !== 'girl') setShot('girl', girl, true); if (G.skip) { G.skip = false; break; } }
   girl.root.visible = false; sign.visible = false;
   G.active = G.active.filter(w => w !== girl);
 }
@@ -1210,7 +1239,7 @@ function* r16Together() {
     assignCounts();
     // người thắng ra ngoài đứng chờ, người thua rời đi
     for (const w of list) {
-      if (w.exitAt && G.time > w.exitAt && w.act.k !== 'move') { w.exitAt = 0; const [fx, fz] = WAIT_SPOTS[waitIdx++ % 8]; w.act = { k: 'path', t: 0, speed: 2.2, i: 0, pts: exitRingPts(w, fx, fz), then: () => { w.inRing = false; w.act = { k: 'celebrate', t: 0, pose: P.flex }; w.yaw = Math.atan2(-w.x, -w.z); } }; w.inRing = false; }
+      if (w.exitAt && G.time > w.exitAt && w.act.k !== 'move') { w.exitAt = 0; const [fx, fz] = WAIT_SPOTS[waitIdx++ % 8]; w.act = { k: 'path', t: 0, speed: 2.2, i: 0, pts: exitRingPts(w, fx, fz), then: () => { w.inRing = false; w.act = { k: 'celebrate', t: 0, pose: P.flex, clip: 'clap' }; w.yaw = Math.atan2(-w.x, -w.z); } }; w.inRing = false; }
       if (w.leaveAt && G.time > w.leaveAt && w.act.k !== 'move' && w.act.k !== 'leave') { w.leaveAt = 0; leaveArena(w); }
     }
     // máy quay

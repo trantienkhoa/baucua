@@ -26,6 +26,22 @@ Người xem **bình luận để ghi danh** → **32 đô vật** đánh **batt
 3. Windows: bấm đúp **`ChayGame.bat`**. macOS / Linux: chạy `./chay-game.sh`.
 4. Trang điều khiển tự mở: `http://localhost:3400/admin.html`.
 
+### File mô hình & animation (đặt trong `public/models/custom/`, không đưa lên git)
+
+| File | Dùng cho |
+|---|---|
+| `fighter.fbx` | thân 32 đô vật (bắt buộc để có nhân vật đẹp) |
+| `girl.glb` | cô gái cầm biển (BlondeCheer) |
+| `chair.glb` | ghế thép khi người xem tặng quà "Đập ghế xếp" |
+| `anim/punch.fbx` | đấm liên hoàn (Mixamo *Punch To Elbow Combo*) |
+| `anim/kick.fbx` | đá (Mixamo *Kicking*) |
+| `anim/victory.fbx` | ăn mừng chiến thắng (Mixamo *Victory*) |
+| `anim/clap.fbx` | người thắng vòng 16 đứng vỗ tay chờ (Mixamo *Standing Clap*) |
+| `anim/sitcheer.fbx` | bình luận viên ngồi cổ vũ khi có chiêu kết liễu (Mixamo *Cheering While Sitting*) |
+
+Animation Mixamo tải dạng *FBX, Without Skin*. Game đo hướng xương trong animation rồi áp lên mọi nhân vật, nên tải thêm animation khác cũng dùng được (mình sẽ gắn tên mới khi bạn gửi).
+Thiếu file nào thì game dùng động tác dựng bằng code thay thế.
+
 ## Lên LIVE
 
 - **OBS**: Sources → Browser → `http://localhost:3400/game.html?obs=1`, kích thước **1080 × 1920**, bật *Control audio via OBS*.
