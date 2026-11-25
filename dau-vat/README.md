@@ -1,6 +1,10 @@
 # 🤼 Đại Chiến Đô Vật · MEGA SLAM — game TikTok LIVE đấu vật 3D
 
-Người xem **bình luận để ghi danh** → **32 đô vật** đánh **battle royal** (ném qua dây trên cùng để loại) → **16 người** vào **vòng 16** → **tứ kết** → **bán kết** → **chung kết** → **đai vô địch**.
+Người xem **bình luận để ghi danh** → **32 đô vật** đánh **battle royal** (ném qua dây trên cùng để loại) → **16 người** vào **vòng 16**, **8 cặp đánh cùng lúc** trên một võ đài → **tứ kết**, **bán kết**, **chung kết** đánh **từng cặp** → **đai vô địch**.
+
+- **Bảng nhánh đấu trên màn LED**: người thua bị gạch **X đỏ** rồi **bay khỏi bảng**, người thắng trượt sang cột vòng sau. Hết vòng thì cả bảng trượt sang vòng mới.
+- **Giữa các vòng**: một cô gái cầm biển ("VÒNG 16", "TỨ KẾT", "BÁN KẾT", "CHUNG KẾT") đi quanh mép võ đài.
+- **Đếm 1-2-3 như thật**: trọng tài chạy tới, nằm sấp cạnh vai người bị đè, giơ tay cao rồi đập xuống sàn và hô "Một! Hai! Ba!". Vòng 16 có **3 trọng tài**.
 
 - Nhân vật 3D có khung xương. Mỗi người có **3 chiêu**: 2 chiêu tủ và 1 chiêu kết liễu.
 - Đô vật **ra sân từ sau cánh gà**: có nhạc riêng, pháo hoa, màn hình lớn hiện tên. Người giới thiệu xướng tên, nơi đến, cân nặng, rồi đô vật đứng trên dây góc chào khán giả.
@@ -14,6 +18,11 @@ Người xem **bình luận để ghi danh** → **32 đô vật** đánh **batt
 1. Cài **Node.js** bản LTS: https://nodejs.org
 2. **Chép mô hình nhân vật**: đặt file `Fighter.fbx` (mô hình Mixamo bạn đã tải) vào `public/models/custom/` và đổi tên thành `fighter.fbx`.
    Không có file này thì game vẫn chạy, nhưng dùng nhân vật dựng bằng code (đơn giản hơn).
+   **Nhân vật nữ (tuỳ chọn)**: đặt `female.fbx` cùng chỗ. Game dùng file này cho 8 đô vật nữ và cô gái cầm biển.
+   Yêu cầu: FBX có **khung xương Mixamo**, đứng **tư thế chữ T**, một nhân vật mỗi file.
+   - Nếu file có sẵn ảnh vân (đã mặc đồ): game giữ nguyên trang phục gốc.
+   - Nếu file không có ảnh vân: game tự tô quần áo như với Fighter.
+   - Chưa có `female.fbx`: đô vật nữ dùng thân Fighter được làm gọn lại, cô gái cầm biển dùng hình dựng bằng code.
 3. Windows: bấm đúp **`ChayGame.bat`**. macOS / Linux: chạy `./chay-game.sh`.
 4. Trang điều khiển tự mở: `http://localhost:3400/admin.html`.
 

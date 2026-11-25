@@ -273,6 +273,7 @@ export function createWrestler(d) {
       if (y < Y.chest + 0.06 || (strap && y < Y.neck)) return att;
       if (Math.abs(a) > 2.2 && y < Y.chest + 0.14) return att;
     }
+    if (top === 'tank' && y > waistTop - 0.03 && y < Y.neck - 0.035 && !(Math.abs(a) < 0.35 && y > Y.neck - 0.1)) return att2;
     if (top === 'crop' && y > Y.chest + 0.06 && y < Y.neck - 0.03) return Math.abs(a) > 2.6 && y > Y.chest + 0.2 ? skin : att2;
     if (top === 'vest') { const open = Math.abs(a) < 0.42; if (!open && y > Y.spine + 0.02) return col(d.vest || '#141414'); }
     if (outfit === 'tank' && y < Y.neck - 0.04 && (Math.abs(x) < 0.15 * B || y < Y.chest + 0.12)) return att2.clone().lerp(att, 0.2);
@@ -301,7 +302,7 @@ export function createWrestler(d) {
   // ngực, vai thang, mông, bụng
   if (kind === 'wrestler') {
     const chestC = outfit === 'tank' ? mix(att2, att, 0.2) : (top === 'vest' ? skin : skin);
-    if (F) for (const s of [1, -1]) bld.add(ellip(0.068 * B, 0.065, 0.06, s * 0.062 * B, Y.chest + 0.13, 0.085 * B * tz + 0.01), BI.chest, att2);
+    if (F) for (const s of [1, -1]) bld.add(ellip(0.055 * B, 0.05, 0.045, s * 0.058 * B, Y.chest + 0.12, 0.09 * B * tz), BI.chest, att2);
     else for (const s of [1, -1]) bld.add(ellip(0.095 * B, 0.075, 0.06, s * 0.085 * B, Y.chest + 0.15, 0.1 * B * tz + 0.02), BI.chest, chestC);
     bld.add(ellip((F ? 0.12 : 0.17) * B, F ? 0.05 : 0.07, F ? 0.07 : 0.09, 0, Y.neck - 0.06, -0.02), BI.chest, outfit === 'tank' ? mix(att2, att, 0.2) : (top === 'vest' ? col(d.vest || '#141414') : skin));
   } else {
@@ -379,6 +380,9 @@ export function createWrestler(d) {
     const footC = kind === 'wrestler' ? bootC : col('#0d0d10');
     bld.add(boxR(0.1 * Math.min(1.1, k), 0.09, 0.27, x, Y.ankle - 0.03, 0.06), BI[L + 'Foot'], footC);
   }
+
+  // váy (cô gái cầm biển)
+  if (d.skirt) bld.add(lathe([[0.18 * B, hipsY + 0.08], [0.2 * B, hipsY - 0.02], [0.26 * B, hipsY - 0.27]], 1, 0.82, 24), BI.hips, (x, y) => (y > hipsY + 0.04 ? att2 : att));
 
   // ---- tóc khối ----
   const headY = Y.head + 0.115;   // tâm đầu

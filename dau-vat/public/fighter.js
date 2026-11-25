@@ -15,12 +15,12 @@ const CANON_DIR = { Hips: UP, Spine: UP, Spine1: UP, Spine2: UP, Neck: UP, Head:
 const HEAD_TOP = 1.97;   // chiều cao chuẩn tới đỉnh đầu
 
 const strip = n => n.replace(/^mixamorig[:_]?/i, '').replace(/^.*:/, '');
-let TPL = null;
+// mẫu nhân vật: 'male' (fighter.fbx) và 'female' (female.fbx, tuỳ chọn)
+const TPLS = {};
+export function fighterReady(key = 'male') { return !!TPLS[key]; }
+export function fighterInfo(key = 'male') { return TPLS[key] && TPLS[key].info; }
 
-export function fighterReady() { return !!TPL; }
-export function fighterInfo() { return TPL && TPL.info; }
-
-export async function loadFighter(url) {
+export async function loadFighter(url, key = 'male') {
   const obj = await new FBXLoader().loadAsync(url);
   const group = new THREE.Group();
   group.add(obj);
@@ -87,15 +87,19 @@ export async function loadFighter(url) {
 
   const meshInv = new THREE.Matrix4().copy(M).invert();
   const meshInv3 = new THREE.Matrix3().setFromMatrix4(meshInv);
-  TPL = { group, obj, mesh, byName, W, rest, Q0, armInv, armQ, cpos, cnrm, dom, head, meshInv3, unit,
-    hipsY: W.Hips.y, info: { verts: N, tris: N / 3, bones: Object.keys(byName).length, hipsY: +W.Hips.y.toFixed(3), head } };
-  return TPL.info;
+  // mô hình có sẵn ảnh vân (đã mặc đồ) thì giữ nguyên vật liệu gốc, không tô lại
+  const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+  const textured = mats.some(m => m && m.map);
+  const T = { key, group, obj, mesh, byName, W, rest, Q0, armInv, armQ, cpos, cnrm, dom, head, meshInv3, unit, textured,
+    hipsY: W.Hips.y, info: { verts: N, tris: N / 3, bones: Object.keys(byName).length, hipsY: +W.Hips.y.toFixed(3), head, textured } };
+  TPLS[key] = T;
+  return T.info;
 }
 
 // ---------- màu từng vùng ----------
 const C = c => new THREE.Color(c);
-function paintColors(d, out) {
-  const T = TPL, cp = T.cpos, cn = T.cnrm, dom = T.dom, N = dom.length;
+function paintColors(T, d, out) {
+  const cp = T.cpos, cn = T.cnrm, dom = T.dom, N = dom.length;
   const kind = d.kind || 'wrestler', outfit = d.outfit || 'trunks', F = !!d.female;
   const skin = C(d.skin), att = C(d.attire || '#c81d25'), att2 = C(d.attire2 || '#111'), boot = C(d.boots || d.attire2 || '#111');
   const pad = C(d.pads || d.attire || '#222'), white = C('#efece4'), tat = C('#1b2530'), hairC = C(d.hairColor || '#1a1410');
@@ -172,8 +176,7 @@ function paintColors(d, out) {
 }
 
 // ---------- vật liệu: màu đỉnh + mặt vẽ (chiếu trụ quanh đầu theo toạ độ gốc) ----------
-function makeMaterial(faceTex) {
-  const T = TPL;
+function makeMaterial(T, faceTex) {
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.46, metalness: 0.05 });
   m.userData.face = { value: faceTex };
   m.onBeforeCompile = sh => {
@@ -190,14 +193,15 @@ function makeMaterial(faceTex) {
         diffuseColor.rgb = mix(diffuseColor.rgb, fc.rgb, hf * fc.a);
       }`);
   };
-  m.customProgramCacheKey = () => 'fighter-face-v1';
+  m.customProgramCacheKey = () => 'fighter-face-v1-' + T.key;
   return m;
 }
 
 // ---------- tạo một đô vật từ mẫu ----------
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _v = new THREE.Vector3();
-export function createFighter(d) {
-  const T = TPL;
+export function createFighter(d, key) {
+  const T = TPLS[key || (d.female && TPLS.female ? 'female' : 'male')] || TPLS.male || TPLS.female;
+  const onFemale = T.key === 'female';
   const clone = SkeletonUtils.clone(T.group);
   const byName = {}; let mesh = null;
   clone.traverse(o => { if (o.isBone) byName[strip(o.name)] = o; if (o.isSkinnedMesh && !mesh) mesh = o; });
@@ -207,7 +211,7 @@ export function createFighter(d) {
   for (const k of ['normal', 'uv', 'skinIndex', 'skinWeight']) if (src.attributes[k]) geo.setAttribute(k, src.attributes[k]);
   const N = src.attributes.position.count;
   const pos = new Float32Array(src.attributes.position.array);
-  const B = d.bulk || 1, G = d.gut || 0, F = !!d.female;
+  const B = d.bulk || 1, G = d.gut || 0, F = !!d.female && !onFemale;   // mẫu nữ thật thì không cần nắn thân
   const cp = T.cpos, cn = T.cnrm, dom = T.dom, mi = T.meshInv3, W = T.W, H = T.head;
   const REG = [0.4, 0.55, 0.65, 0.9, 0.7, 0, 1.0, 0.85, 0.25, 0.75, 0.6, 0.05];
   const spiky = d.hair === 'spiky';
@@ -242,17 +246,29 @@ export function createFighter(d) {
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setAttribute('cpos', new THREE.BufferAttribute(T.cpos, 3));
   const colors = new Float32Array(N * 3);
-  paintColors(d, colors);
+  paintColors(T, { ...d, female: d.female && !onFemale ? true : (onFemale ? false : d.female), top: d.top || (d.female ? 'crop' : '') }, colors);
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geo.computeBoundingSphere();
-  mesh.geometry = geo;
-  const faceTex = faceTexture(d);
-  mesh.material = makeMaterial(faceTex);
+  let faceTex = null;
+  if (T.textured) {
+    // giữ vật liệu gốc (bản sao), chỉ dùng hình riêng cho độ vạm vỡ
+    const src = T.mesh.geometry;
+    for (const k of Object.keys(src.attributes)) if (!geo.attributes[k]) geo.setAttribute(k, src.attributes[k]);
+    for (const g of src.groups) geo.addGroup(g.start, g.count, g.materialIndex);
+    mesh.geometry = geo;
+    const mm = Array.isArray(T.mesh.material) ? T.mesh.material.map(m => m.clone()) : T.mesh.material.clone();
+    mesh.material = mm;
+    if (d.tint) for (const m of [].concat(mm)) if (m.color) m.color.lerp(new THREE.Color(d.tint), 0.35);
+  } else {
+    mesh.geometry = geo;
+    faceTex = faceTexture(d);
+    mesh.material = makeMaterial(T, faceTex);
+  }
   mesh.castShadow = true; mesh.frustumCulled = false;
 
   // tóc / râu / mặt nạ khối gắn vào xương đầu
   const headBone = byName.Head;
-  const hairGeo = buildHairGeometry(d, { cx: H.cx, cz: H.cz, cy: H.skullY, r: H.r, chin: H.chin });
+  const hairGeo = T.textured && !d.forceHair ? null : buildHairGeometry(d, { cx: H.cx, cz: H.cz, cy: H.skullY, r: H.r, chin: H.chin });
   let hair = null;
   if (hairGeo) {
     hair = new THREE.Mesh(hairGeo, HAIR_MAT);
@@ -275,7 +291,7 @@ export function createFighter(d) {
   cur.hipsQ = new THREE.Quaternion(); cur.hipsP = new THREE.Vector3(0, T.hipsY, 0);
   delete cur.hips;
   const w = {
-    kind: 'fighter', root, mesh, hair, byName, def: d, scale, cur, faceTex,
+    kind: 'fighter', T, root, mesh, hair, byName, def: d, scale, cur, faceTex,
     hipsY: T.hipsY, headTop: HEAD_TOP,
     apply(Q, k = 1) { for (const n of BONE_NAMES) { if (n === 'hips') continue; cur[n].slerp(Q[n], k); } cur.hipsQ.slerp(Q.hipsQ, k); cur.hipsP.lerp(Q.hipsP, k); retarget(w); },
     fist: 1,
@@ -290,7 +306,7 @@ const G = {}; for (const n of BONE_NAMES) G[n] = new THREE.Quaternion();
 const GM = {};
 const _m = new THREE.Matrix4();
 function retarget(w) {
-  const T = TPL, cur = w.cur, B = w.byName, Q0 = T.Q0, rest = T.rest;
+  const T = w.T, cur = w.cur, B = w.byName, Q0 = T.Q0, rest = T.rest;
   // toàn cục theo bộ xương chuẩn
   G.hips.copy(cur.hipsQ);
   for (const n of BONE_NAMES) { if (n === 'hips') continue; G[n].copy(G[CANON_PARENT[n]]).multiply(cur[n]); }

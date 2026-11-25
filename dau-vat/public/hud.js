@@ -51,10 +51,11 @@ export function createHud(canvas) {
     if (G.phase === 'reg') regGrid(G);
     else if (G.mode === 'royal') { tags(G, true); royalPanel(G); }
     else if (G.mode === 'match') { tags(G, false); matchPanel(G); }
+    else if (G.mode === 'multi') { tags(G, true); multiPanel(G); }
     if (G.bracketShow > 0) bracket(G);
     if (G.phase === 'ceremony' || G.phase === 'break') championCard(G);
     floats(dt);
-    if (G.settings.showGiftMenu !== false && !['reg', 'ceremony', 'break'].includes(G.phase) && !(G.bracketShow > 0)) giftMenu(G);
+    if (G.settings.showGiftMenu !== false && !['reg', 'ceremony', 'break'].includes(G.phase) && G.camShot !== 'tron' && !(G.bracketShow > 0)) giftMenu(G);
     if (G.settings.showComments !== false && G.phase !== 'reg') feed(dt, G); else tickers(dt, G);
     caption(dt, G);
     banners(dt);
@@ -103,7 +104,7 @@ export function createHud(canvas) {
   function project(G, w) { const p = G.headScreen(w); return p; }
   function tags(G, small) {
     for (const w of G.active) {
-      if (w.out || !w.visible) continue;
+      if (w.out || !w.visible || w.idx < 0) continue;
       const p = project(G, w); if (!p || !isFinite(p.x) || !isFinite(p.y)) continue;
       const name = w.label;
       g.textAlign = 'center';
@@ -132,6 +133,15 @@ export function createHud(canvas) {
       g.textAlign = 'left'; g.font = `900 24px ${FONT}`; g.fillStyle = '#ffd23f'; g.fillText('LOẠI NHIỀU NHẤT', 44, 298);
       top.forEach((w, i) => { g.font = `700 24px ${FONT}`; g.fillStyle = '#fff'; fit(g, `${i + 1}. ${w.label}`, 230, 24, 700); g.fillText(`${i + 1}. ${w.label}`, 44, 340 + i * 44); g.textAlign = 'right'; g.fillStyle = '#ffd23f'; g.fillText(w.elims + ' 💥', 336, 340 + i * 44); g.textAlign = 'left'; });
     }
+  }
+  function multiPanel(G) {
+    const rd = (G.bracket || [])[0] || [];
+    const left = rd.filter(m => !m.winner).length;
+    g.fillStyle = 'rgba(0,0,0,0.6)'; rr(g, 200, 140, 680, 100, 24); g.fill();
+    g.textAlign = 'center'; g.font = `900 46px ${IMPACT}`;
+    stroked(g, left ? `VÒNG 16 · CÒN ${left} CẶP` : 'XONG VÒNG 16', HW / 2, 180, '#ffd23f', '#000', 6);
+    g.font = `700 24px ${FONT}`; g.fillStyle = '#fff';
+    g.fillText('8 cặp đấu cùng lúc · thắng là vào tứ kết', HW / 2, 222);
   }
   function card(G, w, x, side) {
     const red = side < 0, c1 = red ? '#c8102e' : '#1d4fd8';

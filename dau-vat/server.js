@@ -41,6 +41,8 @@ const DEFAULT_SETTINGS = {
   minHumans: 0,              // cần ít nhất bao nhiêu người xem mới mở giải (0 = không cần)
   entrance: 'auto',          // auto: vòng 16 ra sân nhanh, tứ kết trở đi đầy đủ | full | short | off
   royalEntrance: true,       // battle royal: 32 người lần lượt chạy ra
+  r16Together: true,         // vòng 16: 8 cặp đánh cùng lúc trên một võ đài (tứ kết trở đi đánh từng cặp)
+  ringGirl: true,            // giữa các vòng có cô gái cầm biển đi quanh võ đài
   matchSeconds: 75,          // thời lượng tối đa một trận 1 đấu 1
   royalSeconds: 150,         // thời lượng tối đa battle royal
   breakSeconds: 25,          // nghỉ giữa hai giải

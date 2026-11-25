@@ -12,6 +12,7 @@ import { P, H0, MOVES, STRIKES, walkPose, runPose, idlePose, hitReact, getUpPose
 import { Q, sampleMove } from './motion.js';
 import SFX from './audio.js';
 import { createHud, HW, HH } from './hud.js';
+import { createLed } from './led.js';
 
 const params = new URLSearchParams(location.search);
 const OBS = params.has('obs');
@@ -24,7 +25,7 @@ const deacc = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').repl
 const angDiff = (a, b) => { let d = (b - a) % TAU; if (d > PI) d -= TAU; if (d < -PI) d += TAU; return d; };
 
 // ---------- cài đặt ----------
-const DEF = { regSeconds: 60, fillBots: true, minHumans: 0, entrance: 'auto', royalEntrance: true, matchSeconds: 75, royalSeconds: 150, breakSeconds: 25, speed: 1, quality: 'high', crowdSize: 100, volume: 0.5, commentary: true, captions: true, ttsRate: 1.08, ttsVolume: 1, ttsVoice: '', ttsVoice2: '', ttsNames: true, showComments: true, showGiftMenu: true, likeCheer: true, joinWords: 'đấu, dau, vật, vat, đánh, danh, chiến, chien, join', powers: [] };
+const DEF = { r16Together: true, ringGirl: true, regSeconds: 60, fillBots: true, minHumans: 0, entrance: 'auto', royalEntrance: true, matchSeconds: 75, royalSeconds: 150, breakSeconds: 25, speed: 1, quality: 'high', crowdSize: 100, volume: 0.5, commentary: true, captions: true, ttsRate: 1.08, ttsVolume: 1, ttsVoice: '', ttsVoice2: '', ttsNames: true, showComments: true, showGiftMenu: true, likeCheer: true, joinWords: 'đấu, dau, vật, vat, đánh, danh, chiến, chien, join', powers: [] };
 let settings = { ...DEF, ...(params.has('fast') ? { regSeconds: 8, royalSeconds: 70, matchSeconds: 40, breakSeconds: 8, entrance: 'short' } : {}) };
 const URL_SPEED = params.has('speed') ? +params.get('speed') : 0;
 const POWER_META = { enter: ['🌹', 'Vào đấu / +20 máu'], heal: ['💊', 'Hồi máu +40'], chair: ['🪑', 'Đập ghế xếp'], rage: ['🔥', 'Cuồng nộ x2'], finisher: ['💥', 'Chiêu cuối ngay'], revive: ['♻️', 'Hồi sinh / thoát đếm 3'], giant: ['🗿', 'Khổng lồ'], legend: ['👑', 'Huyền thoại 20 giây'] };
@@ -62,13 +63,18 @@ function setupComposer() {
 }
 resize(); window.addEventListener('resize', resize);
 const arena = buildArena(scene, { quality: settings.quality, crowd: settings.crowdSize });
+const led = createLed(arena.tron);
+function tron(info) { led.hide(); drawTron(arena, info); }
 setupComposer(); resize();
 const hud = createHud(hudc);
 
 // ---------- nhân vật ----------
 try { await loadFighter('/models/custom/fighter.fbx'); } catch (e) { console.warn('Không tải được Fighter.fbx, dùng nhân vật dựng bằng code', e); }
+// mẫu nữ (tuỳ chọn): public/models/custom/female.fbx — dùng cho đô vật nữ và cô gái cầm biển
+try { const r = await fetch('/models/custom/female.fbx', { method: 'HEAD' }); if (r.ok) await loadFighter('/models/custom/female.fbx', 'female'); } catch (e) { console.warn('Không tải được female.fbx', e); }
 function makeBody(def) {
-  if (fighterReady()) return createFighter(def);
+  if (def.female && fighterReady('female')) return createFighter(def, 'female');
+  if (fighterReady() && !def.proc) return createFighter(def, 'male');
   const w = createWrestler(def);
   w.apply = (Qs, k) => applyQuats(w, Qs, k);
   return w;
@@ -111,6 +117,10 @@ for (const k of ['referee', 'announcer', 'comm1', 'comm2', 'timekeeper']) {
   const b = makeBody(STAFF[k]); scene.add(b.root);
   staff[k] = { body: b, x: 0, z: 0, yaw: 0, y: 0, act: 'idle', t: 0, px: 0, pz: 0 };
 }
+// thêm 2 trọng tài phụ cho vòng 16 đánh chung
+for (const k of ['ref2', 'ref3']) { const b = makeBody(STAFF.referee); scene.add(b.root); b.root.visible = false; staff[k] = { body: b, x: 0, z: 0, yaw: 0, y: RING.y, act: 'idle', t: 0, px: 0, pz: 0, extra: true }; }
+const refs = [staff.referee, staff.ref2, staff.ref3];
+refs.forEach((r, i) => { r.isRef = true; r.home = [[0, -2.3], [-2.3, 2.2], [2.3, 2.2]][i]; });
 // vị trí nhân viên
 const ref = staff.referee;
 ref.x = 0; ref.z = -2.2; ref.y = RING.y;
@@ -294,6 +304,7 @@ function knockDown(d, prone = false) { d.act = { k: 'down', t: 0, dur: downTime(
 
 // ---------- loại khỏi battle royal ----------
 function eliminate(d, a) {
+  if (G.mode === 'multi') { d.out = true; d.inRing = false; d.act = { k: 'out', t: 0 }; if (a) pairResult(a, d, 'ném qua dây'); return; }
   // đã đủ 16 người: người bị ném bám được mép đài, lăn lại vào trong
   if (G.mode === 'royal' && G.active.filter(w => !w.out).length <= 16) {
     d.out = false; d.inRing = true; d.x = clamp(d.x, -2.6, 2.6); d.z = clamp(d.z, -2.6, 2.6); d.act = { k: 'down', t: 0, dur: 1.2, prone: true };
@@ -322,12 +333,12 @@ function think(w) {
     // đối thủ nằm
     if ((w.mom >= 100 || w.forceFin) && finM.kind === 'aerial') { w.forceFin = false; return goAerial(w, o, fin); }
     if ((w.mom >= 100 || w.forceFin) && finM.kind === 'submission') { w.forceFin = false; if (startMove(w, o, fin)) return; }
-    if (G.mode === 'match' && pinWanted(w, o)) { if (startMove(w, o, 'cover')) return; }
+    if ((G.mode === 'match' || G.mode === 'multi') && pinWanted(w, o)) { if (startMove(w, o, 'cover')) return; }
     const r = Math.random();
     const aerials = w.def.moves.slice(0, 2).filter(id => MOVES[id].kind === 'aerial');
     const subs = w.def.moves.slice(0, 2).filter(id => MOVES[id].kind === 'submission');
     if (G.mode === 'match' && aerials.length && r < 0.25 && w.mom > 35) return goAerial(w, o, aerials[0]);
-    if (G.mode === 'match' && subs.length && r < 0.45 && w.mom > 30) { if (startMove(w, o, subs[0])) return; }
+    if ((G.mode === 'match' || G.mode === 'multi') && subs.length && r < 0.45 && w.mom > 30) { if (startMove(w, o, subs[0])) return; }
     if (r < 0.65 && d < 1.6) { approach(w, o, 0.75, () => startStrike(w, o, Math.random() < 0.6 ? 'stomp' : 'elbowGround')); return; }
     if (r < 0.8 && G.mode === 'match') { taunt(w); return; }
     w.thinkT = 0.4; return;
@@ -338,6 +349,7 @@ function think(w) {
     const lowHp = o.hp < o.maxHp * 0.42 || royalT > settings.royalSeconds;
     if (lowHp && d < 1.4 && Math.random() < 0.6) { if (tryToss(w, o)) return; }
   }
+  if (G.mode === 'multi' && o.hp < o.maxHp * 0.3 && d < 1.4 && Math.random() < 0.25) { if (tryToss(w, o)) return; }
   if (w.chair && d < 1.6) { approach(w, o, 0.85, () => chairShot(w, o)); return; }
   if (d > 1.05) { approach(w, o, 0.85, () => { w.thinkT = 0; }); return; }
   // gần nhau: chọn đòn
@@ -391,7 +403,7 @@ function goAerial(w, o, id) {
 }
 function tryToss(a, o) {
   const tossing = G.active.filter(w => w.act.k === 'move' && w.act.id === 'toss' && w.act.role === 'A').length;
-  if (G.active.filter(w => !w.out).length - tossing <= 16) return false;
+  if (G.mode === 'royal' && G.active.filter(w => !w.out).length - tossing <= 16) return false;
   // hướng ra dây gần nhất của đối thủ
   const cands = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([nx, nz]) => ({ nx, nz, d: RING.rope - (nx ? o.x * nx : o.z * nz) }));
   cands.sort((p, q) => p.d - q.d);
@@ -425,7 +437,7 @@ function updateW(w, dt) {
   switch (a.k) {
     case 'idle': {
       if (w.opp && w.opp.visible && !w.opp.out) w.yaw += angDiff(w.yaw, faceTo(w, w.opp)) * Math.min(1, dt * 5);
-      if (G.fighting) { w.thinkT -= dt; if (w.thinkT <= 0) { w.thinkT = G.mode === 'royal' ? rand(0.15, 0.6) : rand(0.25, 0.75); think(w); } }
+      if (G.fighting && !w.done) { w.thinkT -= dt; if (w.thinkT <= 0) { w.thinkT = G.mode === 'royal' ? rand(0.15, 0.6) : rand(0.25, 0.75); think(w); } }
       break;
     }
     case 'walk': {
@@ -506,7 +518,7 @@ function updateW(w, dt) {
     }
     case 'cover': {
       // trọng tài đếm (xử lý ở refUpdate)
-      if (a.t > 6) { w.act = { k: 'getup', t: 0.5, prone: true }; }
+      if (!a.counting && a.t > 4.5) { w.act = { k: 'getup', t: 0.5, prone: true }; }
       break;
     }
     case 'pinned': break;
@@ -515,7 +527,7 @@ function updateW(w, dt) {
       if (a.t - (a.tick || 0) > 1.0) {
         a.tick = a.t; damage(d, 3 * w.powMul(), w); SFX.pop(0.25);
         const tap = d.hp < d.maxHp * 0.25 ? 0.3 : d.hp < d.maxHp * 0.45 ? 0.12 : 0.03;
-        if (G.mode === 'match' && Math.random() < tap && !d.reviveShield) { win(w, d, 'đầu hàng'); return; }
+        if ((G.mode === 'match' || G.mode === 'multi') && Math.random() < tap && !d.reviveShield) { decide(w, d, 'đầu hàng'); return; }
         if (a.t > 5 || Math.random() < 0.08 + d.hp / d.maxHp * 0.12) {   // thoát khoá / chạm dây
           w.act = { k: 'getup', t: 0.8, prone: false }; d.act = { k: 'down', t: 0, dur: 0.8, prone: true };
           if (G.mode === 'match') comm(`${d.def.name} đã thoát khỏi đòn khoá!`);
@@ -530,8 +542,23 @@ function updateW(w, dt) {
     case 'leave': pathStep(w, dt); break;
   }
 }
+// đường ra khỏi võ đài: tới dây gần đích → luồn qua dây → mép đài → nhảy xuống sàn → đích
+function exitRingPts(w, fx, fz) {
+  const pts = [];
+  if (w.inRing || Math.abs(w.x) <= RING.apron && Math.abs(w.z) <= RING.apron) {
+    const sx = Math.abs(fx) > Math.abs(fz), sg = Math.sign(sx ? fx : fz) || 1;
+    const e = RING.rope - 0.25, ap = RING.rope + 0.32, fl = RING.apron + 0.45;
+    const cx = clamp(w.x, -2.4, 2.4), cz = clamp(w.z, -2.4, 2.4);
+    pts.push([w.x, w.z, RING.y]);
+    if (sx) pts.push([sg * e, cz, RING.y], [sg * ap, cz, RING.y, { pose: P.crouch, speed: 1.2 }], [sg * fl, cz, 0, { speed: 2.2 }]);
+    else pts.push([cx, sg * e, RING.y], [cx, sg * ap, RING.y, { pose: P.crouch, speed: 1.2 }], [cx, sg * fl, 0, { speed: 2.2 }]);
+  } else pts.push([w.x, w.z, groundY(w.x, w.z)]);
+  pts.push([fx, fz, groundY(fx, fz)]);
+  return pts;
+}
 function leaveArena(w) {
-  const pts = [[w.x, w.z, 0], [Math.sign(w.x || 1) * 5.5, clamp(w.z, -6.5, 6.5), 0], [1.0, -7.9, 0], [0.6, STAGE.front, STAGE.y], [0, STAGE.curtain.z, STAGE.y]];
+  const pts = exitRingPts(w, Math.sign(w.x || 1) * 5.4, -5.2).concat([[1.0, -7.9, 0], [0.6, STAGE.front, STAGE.y], [0, STAGE.curtain.z, STAGE.y]]);
+  w.inRing = false;
   w.act = { k: 'leave', t: 0, pts, i: 0, speed: 2.2, then: () => { w.root.visible = false; w.act = { k: 'gone', t: 0 }; } };
 }
 // đi theo các điểm [x, z, y]
@@ -576,10 +603,12 @@ function poseOf(w) {
     case 'path': case 'leave': {
       const seg = w.seg;
       if (seg && seg.pose) return seg.pose;
+      if (w.armsUp) return Object.assign({}, walkPose(a.ph || 0, 0.8), { lArm: [-166, 0, 20], rArm: [-166, 0, -20], lFore: [-28, 0, 0], rFore: [-28, 0, 0], head: [-6, 0, 0] });
       if (a.run) return runPose(a.ph || 0);
       return walkPose(a.ph || 0, a.k === 'leave' ? 0.7 : 1);
     }
     case 'celebrate': return a.pose || P.armsUp;
+    case 'pose': return a.pose;
     case 'gone': return P.stand;
   }
   return P.stand;
@@ -622,14 +651,17 @@ function separate() {
 // ================== NHÂN VIÊN ==================
 function staffPose(s) {
   const t = G.time;
-  if (s === ref) {
-    if (ref.act === 'count') {
-      const ph = ref.countPh || 0;
-      return Object.assign({}, P.lieFront, { hips: { p: [0, 0.28, 0], r: [80, 0, 0] }, head: [-30, 0, 0], rArm: [-120 + 90 * Math.max(0, Math.sin(ph * PI)), 0, -30], rFore: [-10, 0, 0], lArm: [-40, 0, 40] });
+  if (s.isRef) {
+    if (s.act === 'count') {
+      // nằm sấp cạnh vai người bị đè, giơ tay cao rồi đập xuống sàn mỗi nhịp đếm
+      const c = s.countPh || 0;
+      let up = !s.counting ? 0.35 : c < 0.12 ? 0 : c < 0.45 ? (c - 0.12) / 0.33 : c < 0.8 ? 1 : 1 - (c - 0.8) / 0.2;
+      return Object.assign({}, P.lieFront, { hips: { p: [0, 0.2, 0], r: [86, 0, 0] }, spine: [-8, 0, 0], chest: [-10, 0, 0], neck: [-12, 0, 0], head: [-34, 0, 0],
+        rArm: [-80 + 152 * up, 0, -16], rFore: [-14 * up, 0, 0], lArm: [-82, 0, 38], lFore: [-55, 0, 0], lThigh: [4, 0, 10], rThigh: [4, 0, -10], lShin: [10, 0, 0], rShin: [10, 0, 0] });
     }
-    if (ref.act === 'raise') return Object.assign({}, P.stand, { rArm: [-170, 0, -15], rFore: [0, 0, 0], head: [-10, 0, 0] });
-    if (ref.act === 'bell') return Object.assign({}, P.stand, { rArm: [-90, 0, -40], lArm: [-90, 0, 40], rFore: [-40, 0, 0], lFore: [-40, 0, 0] });
-    if (ref.moving) return walkPose(ref.ph || 0, 0.9);
+    if (s.act === 'raise') return Object.assign({}, P.stand, { rArm: [-170, 0, -15], rFore: [0, 0, 0], head: [-10, 0, 0] });
+    if (s.act === 'bell') return Object.assign({}, P.stand, { rArm: [-90, 0, -40], lArm: [-90, 0, 40], rFore: [-40, 0, 0], lFore: [-40, 0, 0] });
+    if (s.moving) return s.act === 'goCount' ? runPose(s.ph || 0) : walkPose(s.ph || 0, 0.9);
     return Object.assign({}, P.stand, { spine: [10, 0, 0], lArm: [-20, 0, 15], rArm: [-20, 0, -15], lFore: [-60, 0, 0], rFore: [-60, 0, 0], head: [-6, 0, 0] });
   }
   if (s === staff.announcer) return s.talking ? Object.assign({}, P.stand, { rArm: [-60, 0, -10], rFore: [-110, 0, 0], lArm: [-30 - 40 * Math.max(0, Math.sin(t * 3)), 0, 30], head: [-8, 0, 0] }) : Object.assign({}, P.stand, { rArm: [-20, 0, -10], rFore: [-90, 0, 0] });
@@ -640,26 +672,34 @@ function staffPose(s) {
     rArm: talk ? [-60 - 25 * Math.sin(t * 5), 0, -20] : [-45, 0, -10], rFore: talk ? [-70, 0, 0] : [-80, 0, 0], lArm: [-45, 0, 10], lFore: [-80, 0, 0], head: [-6, s.look || 0, 0] });
 }
 function updateStaff(dt) {
-  // trọng tài
-  const fighters = G.mode === 'match' && G.pair ? G.pair : null;
-  if (ref.act === 'watch' && fighters) {
-    const [a, b] = fighters;
-    const mx = (a.x + b.x) / 2, mz = (a.z + b.z) / 2;
-    let nx = -(b.z - a.z), nz = b.x - a.x; const nl = Math.hypot(nx, nz) || 1; nx /= nl; nz /= nl;
-    if (nz > 0) { nx = -nx; nz = -nz; }   // đứng phía sau (xa máy quay)
-    let tx = clamp(mx + nx * 2.1, -2.5, 2.5), tz = clamp(mz + nz * 2.1, -2.5, 2.5);
-    moveStaff(ref, tx, tz, 2.4, dt); ref.yaw += angDiff(ref.yaw, Math.atan2(mx - ref.x, mz - ref.z)) * Math.min(1, dt * 4);
-  } else if (ref.act === 'goCount') {
-    moveStaff(ref, ref.tx, ref.tz, 4.2, dt);
-    if (Math.hypot(ref.tx - ref.x, ref.tz - ref.z) < 0.1) { ref.act = 'count'; ref.count = 0; ref.countT = 0; ref.countPh = 0; }
-  } else if (ref.act === 'count') refCount(dt);
-  else ref.moving = false;
-  ref.y = RING.y;
+  for (const r of refs) {
+    if (!r.body.root.visible) continue;
+    if (r.act === 'goCount') {
+      moveStaff(r, r.tx, r.tz, 4.8, dt);
+      if (Math.hypot(r.tx - r.x, r.tz - r.z) < 0.1) { r.act = 'count'; r.count = 0; r.countT = -0.4; r.countPh = 0; r.counting = false; r.yaw = r.faceYaw; r.moving = false; }
+    } else if (r.act === 'count') { r.yaw += angDiff(r.yaw, r.faceYaw) * Math.min(1, dt * 10); refCount(r, dt); }
+    else if (r.act === 'watch' && G.mode === 'match' && G.pair) {
+      const [a, b] = G.pair;
+      const mx = (a.x + b.x) / 2, mz = (a.z + b.z) / 2;
+      let nx = -(b.z - a.z), nz = b.x - a.x; const nl = Math.hypot(nx, nz) || 1; nx /= nl; nz /= nl;
+      if (nz > 0) { nx = -nx; nz = -nz; }   // đứng phía sau (xa máy quay)
+      const tx = clamp(mx + nx * 2.1, -2.5, 2.5), tz = clamp(mz + nz * 2.1, -2.5, 2.5);
+      moveStaff(r, tx, tz, 2.4, dt); r.yaw += angDiff(r.yaw, Math.atan2(mx - r.x, mz - r.z)) * Math.min(1, dt * 4);
+    } else if (r.act === 'roam') {
+      // vòng 16 đánh chung: mỗi trọng tài giữ một khu, dịch về phía cặp gần nhất
+      let best = null, bd = 1e9;
+      for (const w of G.active) if (!w.done && w.visible && w.inRing) { const d = Math.hypot(w.x - r.home[0], w.z - r.home[1]); if (d < bd) { bd = d; best = w; } }
+      const tx = best ? r.home[0] * 0.6 + best.x * 0.4 : r.home[0], tz = best ? r.home[1] * 0.6 + best.z * 0.4 : r.home[1];
+      moveStaff(r, clamp(tx, -2.6, 2.6), clamp(tz, -2.6, 2.6), 1.8, dt);
+      if (best) r.yaw += angDiff(r.yaw, Math.atan2(best.x - r.x, best.z - r.z)) * Math.min(1, dt * 3);
+    } else r.moving = false;
+    r.y = RING.y;
+  }
   for (const s of Object.values(staff)) {
     s.t += dt; if (s.talkT > 0) s.talkT -= dt; if (s.ring > 0) s.ring -= dt;
     const k = 1 - Math.exp(-dt * 12);
     s.body.apply(Q(staffPose(s)), k);
-    if (s !== ref) {
+    if (!s.isRef) {
       if (s === staff.comm1 || s === staff.comm2) { const tgt = G.pair ? G.pair[0] : null; s.look = tgt ? clamp(angDiff(s.yaw, Math.atan2(tgt.px - s.x, tgt.pz - s.z)) * 57, -50, 50) : 0; }
       s.y = groundY(s.x, s.z);
     }
@@ -671,42 +711,72 @@ function moveStaff(s, tx, tz, v, dt) {
   s.moving = d > 0.08;
   if (s.moving) { const st = Math.min(d, v * dt); s.x += dx / d * st; s.z += dz / d * st; s.ph = (s.ph || 0) + dt * v * 3.2; s.yaw += angDiff(s.yaw, Math.atan2(dx, dz)) * Math.min(1, dt * 8); }
 }
-// đếm 1-2-3
-function refCount(dt) {
-  const [a, b] = G.pair || [];
-  const cover = [a, b].find(w => w && w.act.k === 'cover');
-  const pinned = cover ? cover.act.partner : null;
-  if (!cover || !pinned || pinned.act.k !== 'pinned') { ref.act = 'watch'; return; }
-  ref.countT += dt; ref.countPh = (ref.countT % 0.85) / 0.85;
-  const n = Math.floor(ref.countT / 0.85);
-  if (n > ref.count) {
-    ref.count = n;
-    if (n <= 3) { SFX.hit('mat', 1); hud.banner(String(n) + '!', '', n === 3 ? '#ff3b3b' : '#fff', 0.8, 200); SFX.pop(0.3 + n * 0.15); }
+// đếm 1-2-3: trọng tài nằm xuống cạnh vai, đập tay xuống sàn và hô
+const CI = 0.95;
+let lastCountSay = 0;
+function refCount(r, dt) {
+  const cover = r.cover, pinned = cover && cover.act.partner;
+  if (!cover || cover.act.k !== 'cover' || !pinned || pinned.act.k !== 'pinned') { endCount(r); return; }
+  r.countT += dt;
+  if (r.countT < 0) return;           // vừa nằm xuống
+  r.counting = true;
+  r.countPh = (r.countT % CI) / CI;
+  const n = Math.floor(r.countT / CI);
+  if (n > r.count) {
+    r.count = n;
+    if (n >= 1 && n <= 3) {
+      SFX.hit('mat', 1.2); SFX.pop(0.3 + n * 0.22); hype = Math.min(1, hype + 0.15); arena.shakeRopes(0.1);
+      const word = ['MỘT!', 'HAI!', 'BA!'][n - 1];
+      if (G.mode === 'match') hud.banner(String(n), word, n === 3 ? '#ff3b3b' : '#fff', 0.85, 220);
+      else { const p = G.headScreen(pinned); if (p) hud.float(p.x, p.y - 40, `${n}!`, n === 3 ? '#ff3b3b' : '#fff', 110); }
+      if (settings.commentary && window.MC && G.time - lastCountSay > 0.5) { window.MC.say(['Một!', 'Hai!', 'Ba!'][n - 1], 0, true); lastCountSay = G.time; }
+    }
     if (n === 2) {
-      // quyết định thoát đếm
+      // quyết định có thoát đếm không
       const late = matchT > settings.matchSeconds * 1.3;
       let kick = 0.12 + (pinned.hp / pinned.maxHp) * 1.35 - (pinned.finHit && G.time - pinned.finHit < 5 ? 0.45 : 0) - (late ? 0.6 : 0) + pinned.mom / 500;
       if (pinned.reviveShield) { kick = 1; pinned.reviveShield = false; }
-      pinned.kickAt = Math.random() < clamp(kick, 0.03, 0.97) ? rand(0.25, 0.8) : null;
+      pinned.kickAt = Math.random() < clamp(kick, 0.03, 0.97) ? rand(0.3, 0.85) : null;
     }
-    if (n === 3) { win(cover, pinned, 'đè đếm 3'); return; }
+    if (n === 3) { endCount(r); decide(cover, pinned, 'đè đếm 3'); return; }
   }
-  if (ref.count === 2 && pinned.kickAt != null && ref.countT > 2 * 0.85 + pinned.kickAt) {
+  if (r.count === 2 && pinned.kickAt != null && r.countT > (2 + pinned.kickAt) * CI) {
     // thoát!
-    hud.banner('THOÁT!', `${pinned.def.name} kịp nhấc vai`, '#3dff6e', 1.4, 140);
+    if (G.mode === 'match') hud.banner('THOÁT!', `${pinned.def.name} kịp nhấc vai ở 2,9`, '#3dff6e', 1.4, 140);
+    else { const p = G.headScreen(pinned); if (p) hud.float(p.x, p.y - 40, 'THOÁT!', '#3dff6e', 80); }
     SFX.pop(1); hype = 1;
-    comm(fill(pick(L.kick), { d: pinned.def.name }), -1, true);
+    if (G.mode === 'match' || Math.random() < 0.4) comm(fill(pick(L.kick), { d: pinned.def.name }), -1, G.mode === 'match');
     cover.act = { k: 'down', t: 0, dur: 0.5, prone: false };
     pinned.act = { k: 'down', t: 0, dur: 0.6, prone: false };
     pinned.mom = Math.min(100, pinned.mom + 25);
-    ref.act = 'watch';
+    endCount(r);
   }
 }
-function startCount(cover, pinned) {
-  const yaw = faceTo(pinned, cover) + PI / 2;
-  ref.tx = clamp(pinned.x + Math.sin(yaw) * 0.85, -2.6, 2.6); ref.tz = clamp(pinned.z + Math.cos(yaw) * 0.85, -2.6, 2.6);
-  ref.act = 'goCount';
+function endCount(r) { r.act = G.mode === 'multi' ? 'roam' : 'watch'; r.cover = null; r.counting = false; }
+function startCount(r, cover, pinned) {
+  const hy = pinned.yaw;                         // người nằm ngửa: đầu hướng −Z của gốc
+  const sx = pinned.x - Math.sin(hy) * 0.55, sz = pinned.z - Math.cos(hy) * 0.55;   // vai
+  const px = Math.cos(hy), pz = -Math.sin(hy);
+  let best = null;
+  for (const sg of [1, -1]) {
+    const tx = sx + px * 1.05 * sg, tz = sz + pz * 1.05 * sg;
+    const score = Math.hypot(tx - cover.x, tz - cover.z) - (inRingPt(tx, tz, 0.2) ? 0 : 5);
+    if (!best || score > best.score) best = { tx, tz, score };
+  }
+  r.tx = clamp(best.tx, -2.75, 2.75); r.tz = clamp(best.tz, -2.75, 2.75);
+  r.faceYaw = Math.atan2(sx - r.tx, sz - r.tz);
+  r.act = 'goCount'; r.cover = cover; cover.act.ref = r; cover.act.counting = true;
 }
+// gán trọng tài rảnh gần nhất cho mỗi lần đè
+function assignCounts() {
+  for (const w of G.active) {
+    if (w.act.k !== 'cover' || w.act.ref || !w.act.partner || w.act.partner.act.k !== 'pinned') continue;
+    let best = null, bd = 1e9;
+    for (const r of refs) { if (!r.body.root.visible || r.act === 'count' || r.act === 'goCount' || r.act === 'raise') continue; const d = Math.hypot(r.x - w.x, r.z - w.z); if (d < bd) { bd = d; best = r; } }
+    if (best) startCount(best, w, w.act.partner);
+  }
+}
+function decide(w, l, how) { if (G.mode === 'multi') pairResult(w, l, how); else win(w, l, how); }
 
 // ================== THẮNG / THUA ==================
 let matchResult = null;
@@ -739,6 +809,8 @@ function updateCamera(dt) {
     case 'entranceRing': { const e = cam.target; if (e) { tp.set(e.px * 0.5 + 0.5, RING.y + 3.6, e.pz + 7.5); tl.set(e.px * 0.8, RING.y + 1.4, e.pz); } tf = 48; break; }
     case 'pin': { const e = cam.target || ac; tp.set(e.x + 2.6, RING.y + 1.6, e.z + 4.4); tl.set(e.x, RING.y + 0.4, e.z); tf = 44; break; }
     case 'champ': { const e = cam.target; const ang = Math.sin(t * 0.22) * 0.9; if (e) { tp.set(e.px + Math.sin(ang) * 6.4, e.py + 2.8, e.pz + Math.cos(ang) * 6.4); tl.set(e.px, e.py + 1.9, e.pz); } tf = 46; break; }
+    case 'tron': tp.set(0, 8.3, 3.4); tl.set(0, STAGE.y + 8.1, STAGE.back); tf = 57; break;
+    case 'girl': { const e = cam.target; if (e) { const r = Math.hypot(e.px, e.pz) || 1; tp.set(e.px + e.px / r * 3.4, e.py + 2.0, e.pz + e.pz / r * 3.4 + 1.2); tl.set(e.px, e.py + 1.4, e.pz); } tf = 50; break; }
     case 'aerial': { const e = cam.target || ac; tp.set(e.x * 0.5 + 3.5, RING.y + 3.2, e.z + 7); tl.set(e.x * 0.7, RING.y + 1.4, e.z * 0.7); tf = 50; break; }
   }
   const k = cam.cut ? 1 : 1 - Math.exp(-dt * 2.6);
@@ -764,13 +836,13 @@ G.headScreen = (w) => {
 // ================== KỊCH BẢN GIẢI ĐẤU ==================
 function* wait(s) { let t = 0; while (t < s) { t += yield; } }
 function setPhase(phase, label, color) { G.phase = phase; G.phaseLabel = label || ''; if (color) G.phaseColor = color; }
-function showOnly(list) { for (const w of W) w.root.visible = list.includes(w); G.active = list; }
+function showOnly(list) { for (const w of W) w.root.visible = list.includes(w); G.active = list.slice(); }
 function joinWordsList() { return String(settings.joinWords || 'đấu').split(/[,\n]/).map(s => deacc(s.trim())).filter(Boolean); }
 
 function* registration() {
   setPhase('reg', 'GHI DANH', '#c8102e'); G.mode = null; G.champion = null; G.bracket = []; G.pair = null; G.bracketShow = 0;
   showOnly([]); setShot('regwide', null, true);
-  drawTron(arena, { top: 'MEGA SLAM · GIẢI ' + G.cup, name: 'BATTLE ROYAL', sub: '32 đô vật · ném qua dây để loại', foot: `Gõ “${G.joinWord}” để ghi danh`, color: '#c8102e', big: true });
+  tron({ top: 'MEGA SLAM · GIẢI ' + G.cup, name: 'BATTLE ROYAL', sub: '32 đô vật · ném qua dây để loại', foot: `Gõ “${G.joinWord}” để ghi danh`, color: '#c8102e', big: true });
   arena.setMood('#ff2a3d');
   for (const s of G.slots) s.user = null;
   for (const u of preReg.splice(0)) register(u, null, true);
@@ -812,7 +884,7 @@ function* royal() {
   for (let i = 0; i < 32; i++) { const w = W[i]; w.reset(); w.user = G.slots[i].user; }
   const list = W.slice();
   showOnly([]); G.active = list;
-  drawTron(arena, { top: 'MEGA SLAM', name: 'BATTLE ROYAL 32', sub: 'Ném đối thủ qua dây trên cùng để loại · 16 người vào vòng trong', color: '#c8102e', big: true });
+  tron({ top: 'MEGA SLAM', name: 'BATTLE ROYAL 32', sub: 'Ném đối thủ qua dây trên cùng để loại · 16 người vào vòng trong', color: '#c8102e', big: true });
   comm('Ba hai đô vật, một võ đài! Ném đối thủ qua dây trên cùng để loại. Mười sáu người trụ lại sẽ vào vòng mười sáu!', 2, true);
   SFX.theme({ bpm: 132, key: 40, style: 'metal' }, 30);
   arena.setMood('#ff2a3d');
@@ -906,7 +978,7 @@ function* entrance(w, corner, mode) {
   const d = w.def;
   w.inRing = false;
   const full = mode === 'full';
-  drawTron(arena, { top: G.roundLabel, name: d.name, sub: d.nick, foot: w.user ? '🎮 ' + w.user.name : '', color: d.pyro || '#e8202a', big: true });
+  tron({ top: G.roundLabel, name: d.name, sub: d.nick, foot: w.user ? '🎮 ' + w.user.name : '', color: d.pyro || '#e8202a', big: true });
   arena.setMood(d.pyro || '#ff2a3d');
   SFX.theme(d.theme, full ? 15 : 8);
   hype = 0.9;
@@ -975,10 +1047,11 @@ function* match(a, b, ri, mi, nInRound) {
   a.root.visible = false; b.root.visible = false;
   matchResult = null;
   ref.act = 'idle'; ref.x = 0; ref.z = -0.6; ref.y = RING.y; ref.yaw = PI;
-  G.bracketShow = 3.2;
+  for (const r of refs) if (r.extra) r.body.root.visible = false;
+  led.show(G.bracket, ri); setShot('tron', null, true);
   comm(`${ROUND_NAMES[ri]}${final ? '' : ', trận ' + (mi + 1)}: ${a.def.name} đối đầu ${b.def.name}!`, -1, true);
   yield* wait(3);
-  G.bracketShow = 0;
+  led.hide();
   const e = settings.entrance;
   const mode = e === 'off' ? 'off' : e === 'short' ? 'short' : e === 'full' ? 'full' : (ri >= 1 ? 'full' : 'short');
   const cA = CORNERS[0], cB = CORNERS[2];
@@ -989,7 +1062,7 @@ function* match(a, b, ri, mi, nInRound) {
     yield* entrance(a, cA, mode);
     yield* entrance(b, cB, mode);
   }
-  drawTron(arena, { top: G.roundLabel, name: `${a.def.name}  vs  ${b.def.name}`, sub: final ? 'TRANH ĐAI VÔ ĐỊCH MEGA SLAM' : '', color: final ? '#d4a017' : '#c8102e' });
+  tron({ top: G.roundLabel, name: `${a.def.name}  vs  ${b.def.name}`, sub: final ? 'TRANH ĐAI VÔ ĐỊCH MEGA SLAM' : '', color: final ? '#d4a017' : '#c8102e' });
   arena.setMood(final ? '#ffd23f' : '#ff2a3d');
   setShot('ring');
   ref.act = 'bell'; yield* wait(0.8);
@@ -1004,9 +1077,9 @@ function* match(a, b, ri, mi, nInRound) {
     G.timerText = fmtT(matchT);
     // đè đếm: trọng tài lại đếm
     const cover = [a, b].find(w => w.act.k === 'cover');
-    if (cover && ref.act !== 'goCount' && ref.act !== 'count' && cover.act.partner.act.k === 'pinned') { startCount(cover, cover.act.partner); setShot('pin', { x: cover.act.partner.x, z: cover.act.partner.z }); coverCam = true; }
+    assignCounts();
+    if (cover && cover.act.ref && !coverCam) { setShot('pin', { x: cover.act.partner.x, z: cover.act.partner.z }); coverCam = true; }
     else if (!cover && coverCam) { coverCam = false; setShot('ring'); }
-    if (!cover && ref.act === 'count') ref.act = 'watch';
     // máy quay
     const perch = [a, b].find(w => w.act.k === 'perch' || w.act.k === 'climb');
     if (perch && cam.shot !== 'aerial') setShot('aerial', { x: perch.x, z: perch.z });
@@ -1024,7 +1097,7 @@ function* match(a, b, ri, mi, nInRound) {
   ref.act = 'idle';
   hud.banner(`${w.def.name.toUpperCase()} THẮNG!`, `${how} · ${w.user ? '🎮 ' + w.user.name : 'đô vật máy'}`, '#ffd23f', 3.2, 110);
   comm(`Người chiến thắng, bằng ${how}... ${nameOf(w)}!`, 2, true);
-  drawTron(arena, { top: G.roundLabel, name: w.def.name, sub: 'CHIẾN THẮNG!', foot: w.user ? '🎮 ' + w.user.name : '', color: w.def.pyro || '#2fbf5a', big: true });
+  tron({ top: G.roundLabel, name: w.def.name, sub: 'CHIẾN THẮNG!', foot: w.user ? '🎮 ' + w.user.name : '', color: w.def.pyro || '#2fbf5a', big: true });
   socket.emit('result', { kind: 'match', winner: userInfo(w), loser: userInfo(l), final });
   yield* wait(0.8);
   SFX.theme(w.def.theme, 7);
@@ -1047,28 +1120,159 @@ function* match(a, b, ri, mi, nInRound) {
 }
 function userInfo(w) { return w.user ? { id: w.user.id, name: w.user.name, avatar: w.user.avatar } : { id: 'bot' + w.idx, name: w.def.name, bot: true }; }
 
+// ---------- cô gái cầm biển đi quanh võ đài ----------
+const GIRL_DEF = { name: 'Ring girl', female: true, proc: true, height: 1.7, bulk: 0.84, skin: '#f2d0b8', hair: 'long', hairColor: '#2a1a12', outfit: 'trunks', top: 'tank', attire: '#111111', attire2: '#e8202a', boots: '#f4f4f4', bootH: 'low', kneepads: false, skirt: true, wrist: '#f2d0b8', stats: { hp: 1, pow: 1, spd: 1, agi: 1 } };
+let girl = null, sign = null;
+function signTexture(text) {
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 320; const g = cv.getContext('2d');
+  g.fillStyle = '#fafafa'; g.fillRect(0, 0, 512, 320); g.strokeStyle = '#e8202a'; g.lineWidth = 18; g.strokeRect(9, 9, 494, 302);
+  g.fillStyle = '#111'; g.font = '900 44px Impact, "Arial Black", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('MEGA SLAM', 256, 64);
+  g.fillStyle = '#e8202a'; let size = 120; g.font = `900 ${size}px Impact, "Arial Black", sans-serif`; while (g.measureText(text).width > 470) { size -= 6; g.font = `900 ${size}px Impact, "Arial Black", sans-serif`; } g.fillText(text, 256, 190);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function ensureGirl() {
+  if (girl) return;
+  girl = new Wr(GIRL_DEF, -1); girl.armsUp = true;
+  sign = new THREE.Group();
+  for (const ry of [0, PI]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.6), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, emissive: 0xffffff, emissiveIntensity: 0.25 })); m.rotation.y = ry; m.position.z = ry ? -0.01 : 0.01; sign.add(m); }
+  sign.visible = false; scene.add(sign);
+}
+function* ringGirl(text) {
+  if (settings.ringGirl === false) return;
+  ensureGirl();
+  const tex = signTexture(text); for (const m of sign.children) { if (m.material.map) m.material.map.dispose(); m.material.map = tex; m.material.emissiveMap = tex; m.material.needsUpdate = true; }
+  const A = RING.rope + 0.36;
+  girl.root.visible = true; girl.place(3.08, -5.7, 0); girl.inRing = false;
+  girl.act = { k: 'path', t: 0, speed: 2.1, i: 0, pts: [[3.08, -5.7, 0], [3.08, -4.3, 0.55, { speed: 1.4 }], [3.08, -3.75, RING.y, { speed: 1.4 }], [A, -A, RING.y], [A, A, RING.y], [-A, A, RING.y], [-3.08, 3.9, RING.y], [-3.08, 4.6, 0.6, { speed: 1.4 }], [-3.08, 5.6, 0, { speed: 1.4 }], [-6.0, 6.0, 0]] };
+  G.active.push(girl);
+  sign.visible = true;
+  setShot('girl', girl, true);
+  comm(`Xin mời quý vị đến với ${text.toLowerCase()}!`, 2, true);
+  SFX.pop(0.6); hype = Math.min(1, hype + 0.3);
+  while (girl.act.k === 'path') { yield; if (G.skip) { G.skip = false; break; } }
+  girl.root.visible = false; sign.visible = false;
+  G.active = G.active.filter(w => w !== girl);
+}
+
+// ---------- vòng 16: 8 cặp đánh cùng lúc ----------
+const PAIR_SPOTS = [[-1.9, -1.35], [-0.63, -1.35], [0.63, -1.35], [1.9, -1.35], [-1.9, 1.35], [-0.63, 1.35], [0.63, 1.35], [1.9, 1.35]];
+const WAIT_SPOTS = [[-3.3, 5.3], [-1.1, 5.3], [1.1, 5.3], [3.3, 5.3], [-5.3, 3.2], [-5.3, 1.1], [-5.3, -1.1], [-5.3, -3.2]];
+let waitIdx = 0, ledCamUntil = 0;
+function pairResult(w, l, how) {
+  const rd = G.bracket[0];
+  const mi = rd.findIndex(m => (m[0] === w && m[1] === l) || (m[0] === l && m[1] === w));
+  if (mi < 0 || rd[mi].winner) return;
+  const m = rd[mi];
+  led.result(2 * mi + (m[0] === l ? 0 : 1), 2 * mi + (m[0] === w ? 0 : 1));
+  m.winner = w; w.done = true; l.done = true;
+  SFX.bell(1); staff.timekeeper.ring = 0.6; SFX.pop(0.9); hype = Math.min(1, hype + 0.2);
+  hud.banner(`${w.label} VÀO TỨ KẾT!`, `${how} · loại ${l.label}`, '#ffd23f', 2.2, 90);
+  hud.tick(`❌ ${l.label} bị loại · ${w.label} vào tứ kết`, '#ff8a8a');
+  if (Math.random() < 0.7) comm(`${w.def.name} thắng bằng ${how} và giành vé vào tứ kết!`, -1);
+  socket.emit('result', { kind: 'match', winner: userInfo(w), loser: userInfo(l), final: false });
+  if (w.act.k !== 'move') w.act = { k: 'celebrate', t: 0, pose: pick([P.armsUp, P.flex, P.pump]) };
+  w.exitAt = G.time + 2.0;
+  if (l.act.k !== 'out' && l.act.k !== 'leave') { if (l.act.k !== 'move') l.act = { k: 'down', t: 0, dur: 99, prone: false }; l.leaveAt = G.time + 3.0; }
+  if (G.time > ledCamUntil - 1 && !refs.some(r => r.act === 'count')) { setShot('tron'); ledCamUntil = G.time + 3.2; }
+}
+function* r16Together() {
+  const rd = G.bracket[0];
+  const list = []; rd.forEach(m => list.push(m[0], m[1]));
+  G.mode = 'multi'; G.pair = null; G.roundLabel = 'VÒNG 16 · 8 CẶP ĐẤU CÙNG LÚC';
+  setPhase('r16', 'VÒNG 16', '#c8102e');
+  G.hintText = 'Gõ số 1–32 để cổ vũ · tặng quà để tiếp sức đô vật của bạn';
+  // giữ chỗ đứng hiện tại, hồi máu, ghép cặp
+  for (const w of list) { const x = w.x, z = w.z, u = w.user, el = w.elims; w.reset(); w.user = u; w.elims = el; w.place(x, z); w.inRing = true; w.done = false; w.exitAt = 0; w.leaveAt = 0; w.root.visible = true; }
+  showOnly(list);
+  rd.forEach((m, i) => {
+    const [cx, cz] = PAIR_SPOTS[i];
+    m[0].opp = m[1]; m[1].opp = m[0];
+    m[0].act = { k: 'walk', t: 0, tx: cx - 0.55, tz: cz }; m[1].act = { k: 'walk', t: 0, tx: cx + 0.55, tz: cz };
+  });
+  waitIdx = 0;
+  for (const r of refs) { r.body.root.visible = true; r.act = 'roam'; r.x = r.home[0]; r.z = r.home[1]; r.y = RING.y; }
+  comm('Vòng mười sáu! Tám cặp đấu cùng lúc trên một võ đài! Thắng bằng đè đếm ba, khoá đầu hàng hoặc ném đối thủ qua dây!', -1, true);
+  yield* wait(1.5);
+  if (settings.ringGirl !== false) yield* ringGirl('VÒNG 16'); else yield* wait(2);
+  rd.forEach(m => { m[0].opp = m[1]; m[1].opp = m[0]; });
+  for (const w of list) if (w.act.k === 'walk' || w.act.k === 'idle') { w.act = { k: 'idle', t: 0 }; w.yaw = faceTo(w, w.opp); }
+  tron({ top: 'VÒNG 16', name: '8 CẶP CÙNG LÚC', sub: 'Thắng 1 trận là vào tứ kết', color: '#c8102e', big: true });
+  setShot('royal');
+  yield* wait(0.8);
+  led.show(G.bracket, 0);
+  SFX.bell(1); staff.timekeeper.ring = 0.6;
+  hud.banner('VÒNG 16!', '8 cặp đấu cùng lúc', '#ffd23f', 1.8, 130);
+  G.fighting = true; matchT = 0;
+  let lastCut = 0;
+  while (rd.some(m => !m.winner)) {
+    const dt = yield; matchT += dt;
+    G.timerText = fmtT(matchT);
+    assignCounts();
+    // người thắng ra ngoài đứng chờ, người thua rời đi
+    for (const w of list) {
+      if (w.exitAt && G.time > w.exitAt && w.act.k !== 'move') { w.exitAt = 0; const [fx, fz] = WAIT_SPOTS[waitIdx++ % 8]; w.act = { k: 'path', t: 0, speed: 2.2, i: 0, pts: exitRingPts(w, fx, fz), then: () => { w.inRing = false; w.act = { k: 'celebrate', t: 0, pose: P.flex }; w.yaw = Math.atan2(-w.x, -w.z); } }; w.inRing = false; }
+      if (w.leaveAt && G.time > w.leaveAt && w.act.k !== 'move' && w.act.k !== 'leave') { w.leaveAt = 0; leaveArena(w); }
+    }
+    // máy quay
+    const counting = refs.find(r => r.act === 'count' && r.cover);
+    if (counting && cam.shot !== 'pin') setShot('pin', { x: counting.cover.act.partner.x, z: counting.cover.act.partner.z });
+    else if (!counting && cam.shot === 'pin') setShot('royal');
+    else if (!counting && cam.shot === 'tron' && G.time > ledCamUntil) setShot('royal');
+    else if (!counting && cam.shot !== 'tron' && G.time - lastCut > 8) { lastCut = G.time; setShot(cam.shot === 'royal' ? 'ring' : 'royal'); }
+    // quá giờ: dồn nộ, rồi trọng tài xử
+    if (matchT > settings.matchSeconds) for (const m of rd) if (!m.winner) { m[0].mom = Math.min(100, m[0].mom + dt * 8); m[1].mom = Math.min(100, m[1].mom + dt * 8); }
+    const force = G.skip || matchT > settings.matchSeconds * 1.8;
+    if (force) {
+      const m = rd.find(x => !x.winner && !x[0].busy && !x[1].busy) || (G.skip ? rd.find(x => !x.winner) : null);
+      if (m) { const w = m[0].hp >= m[1].hp ? m[0] : m[1]; pairResult(w, w === m[0] ? m[1] : m[0], 'trọng tài xử'); }
+      if (!rd.some(x => !x.winner)) G.skip = false;
+    }
+  }
+  G.fighting = false;
+  SFX.bell(3); staff.timekeeper.ring = 1.2;
+  hud.banner('XONG VÒNG 16!', '8 đô vật vào tứ kết', '#ffd23f', 2.5, 120);
+  setShot('tron'); ledCamUntil = G.time + 3;
+  yield* wait(3);
+  for (const r of refs) if (r.extra) r.body.root.visible = false;
+}
+function makeNextRound(ri) {
+  const rd = G.bracket[ri], next = [];
+  for (let i = 0; i < rd.length; i += 2) next.push({ 0: rd[i].winner, 1: rd[i + 1].winner, winner: null, length: 2 });
+  G.bracket.push(next);
+}
+// hết một vòng: bảng LED trượt sang vòng mới + cô gái cầm biển
+function* roundTransition(ri) {
+  if (ri < 3) makeNextRound(ri);
+  G.mode = null; showOnly([]); G.pair = null;
+  led.show(G.bracket, ri); led.nextRound(); setShot('tron', null, true);
+  setPhase('bracket', ROUND_NAMES[ri + 1] || 'VÔ ĐỊCH', '#1d4fd8');
+  hud.banner((ROUND_NAMES[ri + 1] || 'NHÀ VÔ ĐỊCH') + '!', ri < 3 ? `${G.bracket[ri + 1].length * 2} đô vật còn lại` : '', '#ffd23f', 2.4, 130);
+  yield* wait(2.6);
+  if (ri < 3) yield* ringGirl(ROUND_NAMES[ri + 1]);
+}
 function* knockout(qual) {
   seedBracket(qual);
-  setPhase('bracket', 'NHÁNH ĐẤU', '#1d4fd8'); G.mode = null; showOnly([]);
-  G.bracketShow = 6; drawTron(arena, { top: 'MEGA SLAM', name: 'VÒNG 16', sub: 'Đấu loại trực tiếp', color: '#1d4fd8', big: true });
-  setShot('regwide');
-  comm('Nhánh đấu đã được xếp! Người loại được nhiều đối thủ nhất ở battle royal được xếp hạt giống số một.', -1, true);
-  yield* wait(5.5);
-  for (let ri = 0; ri < 4; ri++) {
+  G.mode = null; G.pair = null;
+  setPhase('bracket', 'NHÁNH ĐẤU', '#1d4fd8');
+  led.show(G.bracket, 0); setShot('tron', null, true);
+  comm('Nhánh đấu vòng mười sáu đã được xếp! Người loại được nhiều đối thủ nhất ở battle royal là hạt giống số một.', -1, true);
+  yield* wait(4.5);
+  let startRi = 0;
+  if (settings.r16Together !== false) { yield* r16Together(); yield* roundTransition(0); startRi = 1; }
+  else { for (const w of W) w.root.visible = false; }
+  for (let ri = startRi; ri < 4; ri++) {
     const rd = G.bracket[ri];
     for (let mi = 0; mi < rd.length; mi++) {
       const m = rd[mi];
-      m.winner = yield* match(m[0], m[1], ri, mi, rd.length);
+      const w = yield* match(m[0], m[1], ri, mi, rd.length);
+      // kết quả lên bảng LED: người thua gạch X đỏ bay đi, người thắng trượt sang vòng sau
+      G.mode = null; showOnly([]);
+      led.show(G.bracket, ri); m.winner = w;
+      led.result(2 * mi + (m[0] === w ? 1 : 0), 2 * mi + (m[0] === w ? 0 : 1));
+      setShot('tron', null, true);
+      yield* wait(3.2);
     }
-    if (ri < 3) {
-      const next = [];
-      for (let i = 0; i < rd.length; i += 2) next.push({ 0: rd[i].winner, 1: rd[i + 1].winner, winner: null, length: 2 });
-      G.bracket.push(next);
-      G.mode = null; showOnly([]); setPhase('bracket', ROUND_NAMES[ri + 1], '#1d4fd8');
-      G.bracketShow = 5; setShot('regwide');
-      hud.banner(ROUND_NAMES[ri + 1] + '!', `${next.length * 2} đô vật còn lại`, '#ffd23f', 2.5, 130);
-      yield* wait(4.5);
-    }
+    yield* roundTransition(ri);
   }
   return G.bracket[3][0].winner;
 }
@@ -1079,7 +1283,7 @@ function* ceremony(champ) {
   G.champion = champ; G.bracket.push([{ 0: champ, 1: null, winner: champ, length: 2 }]);
   showOnly([champ]); champ.root.visible = true;
   champ.place(0, 0.3, 0); champ.inRing = true; champ.act = { k: 'celebrate', t: 0, pose: P.armsUp };
-  drawTron(arena, { top: 'NHÀ VÔ ĐỊCH MỚI', name: champ.def.name, sub: champ.user ? '🎮 ' + champ.user.name : champ.def.nick, color: '#d4a017', big: true });
+  tron({ top: 'NHÀ VÔ ĐỊCH MỚI', name: champ.def.name, sub: champ.user ? '🎮 ' + champ.user.name : champ.def.nick, color: '#d4a017', big: true });
   arena.setMood('#ffd23f');
   SFX.theme(champ.def.theme, 18);
   for (let i = 0; i < 5; i++) setTimeout(() => { arena.burst(rand(-2, 2), RING.y + 4, rand(-2, 2), '#fff', 140, 'confetti'); }, i * 500);
@@ -1241,6 +1445,15 @@ setInterval(() => socket.emit('status', { phase: G.phaseLabel, alive: G.active.f
 // ================== VÒNG LẶP ==================
 G.powerList = powerList();
 flow = tournament(); flow.next();
+if (TEST && params.has('r16')) {
+  flow = (function* () {
+    for (let i = 0; i < 32; i++) { W[i].reset(); W[i].user = i % 3 === 0 ? { id: 't' + i, name: 'Người xem ' + i, avatar: '' } : null; }
+    const qual = W.slice(0, 16); G.mode = 'royal';
+    qual.forEach((w, i) => { w.root.visible = true; w.inRing = true; w.place(-2 + (i % 4) * 1.3, -2 + Math.floor(i / 4) * 1.3); w.act = { k: 'idle', t: 0 }; });
+    G.active = qual;
+    const champ = yield* knockout(qual); yield* ceremony(champ); yield* breakTime(champ); yield* tournament();
+  })(); flow.next();
+}
 if (TEST && params.has('ceremony')) { const c = W[+params.get('ceremony') || 0]; c.user = { id: 'x', name: 'Văn Chương', avatar: '' }; flow = (function* () { yield* ceremony(c); yield* breakTime(c); yield* tournament(); })(); flow.next(); }
 let last = performance.now(), fps = 60, fpsAcc = 0, fpsN = 0;
 function frame(now) {
@@ -1254,7 +1467,7 @@ function frame(now) {
 function step(dt, real, draw = true) {
   G.time += dt;
   if (TEST && window.__autoskip && G.phase !== 'royal' && G.phase !== 'royalIntro' && !(window.__untilFinal && G.current && G.current.ri === 3)) G.skip = true;
-  try { flow.next(dt); } catch (e) { console.error('Lỗi kịch bản', e); flow = tournament(); flow.next(); }
+  try { flow.next(dt); } catch (e) { window.__lastErr = String(e && e.stack); console.error('Lỗi kịch bản', e); flow = tournament(); flow.next(); }
   for (const w of G.active) if (w.visible) updateW(w, dt);
   separate();
   for (const w of G.active) if (w.visible) syncBody(w, dt);
@@ -1271,6 +1484,8 @@ function step(dt, real, draw = true) {
     else { handWorld(b, true, _v); const r = handWorld(b, false, new THREE.Vector3()); beltMesh.position.copy(_v).add(r).multiplyScalar(0.5); beltMesh.position.y += 0.05; beltMesh.rotation.set(0, beltOwner.pyaw, 0); }
   }
   if (followTarget) { arena.follow.position.set(followTarget.px * 0.5, followTarget.py + 11, followTarget.pz + 7); arena.follow.target.position.set(followTarget.px, followTarget.py + 1, followTarget.pz); arena.follow.target.updateMatrixWorld(); }
+  led.update(real, w => w.hp / w.maxHp);
+  if (sign && sign.visible && girl) { handWorld(girl.body, true, _v); const r2 = handWorld(girl.body, false, new THREE.Vector3()); sign.position.copy(_v).add(r2).multiplyScalar(0.5); sign.position.y += 0.32; sign.rotation.set(0, girl.pyaw + PI / 2, 0); }
   hype = Math.max(0.25, hype - dt * 0.05);
   SFX.crowd(hype);
   arena.update(G.time, dt, hype);
@@ -1278,6 +1493,7 @@ function step(dt, real, draw = true) {
   if (G.bracketShow > 0) G.bracketShow -= real;
   if (!draw) { hud.tickOnly && hud.tickOnly(real); return; }
   if (composer) composer.render(); else renderer.render(scene, camera);
+  G.camShot = cam.shot;
   hud.draw(G, real);
 }
 if (!TEST) requestAnimationFrame(frame);
