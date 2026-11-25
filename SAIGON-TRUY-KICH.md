@@ -21,6 +21,7 @@ Màn hình **tập trung vào nhân vật**: máy quay chọn một người là
 | 💬 `nhảy` | Nhảy múa 6 giây |
 | 💬 `chạy` | Chạy bộ |
 | 💬 `ngồi` / `đứng` | Ngồi chồm hổm (hoặc bó gối) ở mép đường / đứng dậy đi tiếp |
+| 💬 `xuống xe` / `lên xe` | Xuống đi bộ / leo lại lên xe của mình (khi đã có xe) |
 | 💬 `cảm ơn` · `sợ quá` · `kìa` | Cúi chào · đứng run · chỉ tay |
 | ❤️ Thả tim | Tim bay lên từ đầu nhân vật, cộng điểm phe, đếm tới mục tiêu gọi **Boss Hắc Long** |
 | ➕ Follow / ↗ Chia sẻ | Pháo hoa, nhân vật cúi chào / vẫy tay |
@@ -71,11 +72,21 @@ Riêng ở **Cầu Rồng**, quà từ 30 xu còn làm **rồng phun lửa** (r�
 
 Quà nhận theo **số xu**, không theo tên quà, nên dùng được mọi loại quà của mọi khu vực. Nhiều quà lớn liên tiếp thì xếp hàng diễn lần lượt, không đè lên nhau.
 
-### Lên đời theo tổng xu (luôn thấy cả người nhân vật)
+### Lên đời xe theo tổng xu: nhân vật ngồi lên xe
 
-🚶 Đi bộ (0) → 🛹 Xe điện cân bằng (10) → 🚗 Đứng trên xe mui trần (50) → 🏎️ Siêu xe mui trần (150) → 🎉 **Nhảy trên xe hoa diễu hành** (400) → 🎈 **Đứng trong giỏ khinh khí cầu** (1.000) → 🐉 **Đứng trên đầu Rồng Vàng** (3.000)
+| Tổng xu | Xe | Nhân vật ngồi thế nào |
+|---|---|---|
+| 0 | 🚶 Đi bộ dạo phố | Đi, chạy, ngồi vỉa hè |
+| 1 | 🚲 Xe đạp | Ngồi yên, hai chân đạp pê-đan theo tốc độ |
+| 10 | 🛵 Xe số | Ngồi thẳng lưng kiểu Việt, tay cầm ghi đông |
+| 30 | 🛵 Xe tay ga | Ngồi, hai chân để trên sàn xe |
+| 100 | 🏍️ Mô tô phân khối lớn | Chồm người về trước, tay cầm ghi đông thấp |
+| 300 | 🚗 Xe mui trần | Ngồi ghế lái bên trái, hai tay cầm vô lăng |
+| 800 | 🏎️ Siêu xe | Ngồi lái thấp, mui trần nên thấy rõ người |
+| 2.000 | 🚁 Trực thăng mini buồng hở | Ngồi lái, tay cầm cần lái, bay vòng trên khu |
+| 5.000 | 🐉 Cưỡi Rồng Vàng | Ngồi trên đầu rồng, tay nắm sừng, bay hình số 8 |
 
-Nhân vật luôn đứng trên bệ nên người xem thấy rõ mặt và động tác: trên xe hoa thì nhảy, trên xe và khinh khí cầu thì thỉnh thoảng vẫy tay, trên rồng thì nhảy múa giữa trời.
+Lên cấp là xe đổi ngay (kèm pháo sáng vàng và lời Anh Hai Garage). Tư thế ngồi được dựng bằng cách xoay từng khớp xương của nhân vật (bộ nhân vật gốc không có động tác ngồi xe). Đang ngồi xe vẫn vẫy tay, vỗ tay, cúi chào, chỉ tay, giật mình và nhảy bằng nửa thân trên.
 
 ### Sao truy nã (cấp độ chơi lớn)
 

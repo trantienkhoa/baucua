@@ -1,15 +1,17 @@
 import { THREE } from './three.js';
 import { glowTexture, shadowTexture, cashTexture, neonTexture, R } from './util.js';
 
-// ---------- 7 cấp theo tổng xu đã tặng: nhân vật đi bộ, rồi được đứng trên bệ ngày càng xịn ----------
+// ---------- 9 cấp theo tổng xu đã tặng: lên cấp là đổi xe, nhân vật ngồi lên xe ----------
 export const TIERS = [
-  { min: 0,    name: 'Đi bộ dạo phố',      icon: '🚶', speed: 4.4 },
-  { min: 10,   name: 'Xe điện cân bằng',   icon: '🛹', speed: 10 },
-  { min: 50,   name: 'Xe mui trần',        icon: '🚗', speed: 14 },
-  { min: 150,  name: 'Siêu xe mui trần',   icon: '🏎️', speed: 18 },
-  { min: 400,  name: 'Xe hoa diễu hành',   icon: '🎉', speed: 8 },
-  { min: 1000, name: 'Khinh khí cầu',      icon: '🎈', speed: 0.12, air: true },
-  { min: 3000, name: 'Đứng trên Rồng Vàng', icon: '🐉', speed: 0.22, air: true },
+  { min: 0,    name: 'Đi bộ dạo phố',       icon: '🚶', speed: 4.4 },
+  { min: 1,    name: 'Xe đạp',              icon: '🚲', speed: 9,    seat: 'cycle' },
+  { min: 10,   name: 'Xe số',               icon: '🛵', speed: 15,   seat: 'bike' },
+  { min: 30,   name: 'Xe tay ga',           icon: '🛵', speed: 17,   seat: 'scooter' },
+  { min: 100,  name: 'Mô tô phân khối lớn', icon: '🏍️', speed: 22,   seat: 'sport' },
+  { min: 300,  name: 'Xe mui trần',         icon: '🚗', speed: 20,   seat: 'car' },
+  { min: 800,  name: 'Siêu xe',             icon: '🏎️', speed: 26,   seat: 'car' },
+  { min: 2000, name: 'Trực thăng',          icon: '🚁', speed: 0.3,  seat: 'pilot', air: true },
+  { min: 5000, name: 'Cưỡi Rồng Vàng',      icon: '🐉', speed: 0.22, seat: 'dragon', air: true },
 ];
 export const tierOf = coins => { let t = 0; for (let i = 0; i < TIERS.length; i++) if (coins >= TIERS[i].min) t = i; return t; };
 
@@ -45,60 +47,11 @@ function rider(parent, y, z, color, helmet, lean = 0.2) {
   return g;
 }
 
-// ---------- xe của người chơi ----------
+// ---------- trực thăng (thả hàng, đàn em Hắc Long) và rồng ----------
 export function buildVehicle(tier, color, glow) {
   const g = new THREE.Group(); g.userData.wheels = []; g.userData.tier = tier;
   const body = new THREE.Group(); g.add(body); g.userData.body = body; body.userData.wheels = g.userData.wheels;
-  const t = TIERS[tier];
-  if (tier === 0) {           // xe số cổ
-    part(G.box, phong(color), 0, 1.6, 0.2, 1.1, 1.0, 3.4, body);
-    part(G.box, lam(0x2a2a2a), 0, 2.2, -0.6, 1.0, 0.35, 2.0, body);
-    part(G.box, phong(0xdddddd), 0, 2.4, 1.9, 1.4, 0.2, 0.2, body);
-    part(G.sph, basic(0xfff3c0), 0, 2.1, 2.1, 0.6, 0.6, 0.4, body);
-    wheel(body, 0, 0.9, 1.9, 0.9, 0.35); wheel(body, 0, 0.9, -1.7, 0.9, 0.35);
-    rider(body, 1.6, -0.5, color, color, 0.15);
-    g.add(blob(4));
-  } else if (tier === 1) {    // tay ga độ: dáng tròn + đèn LED
-    part(G.sph, phong(color), 0, 1.7, -0.6, 1.6, 1.4, 3.4, body);
-    part(G.box, phong(color), 0, 1.3, 0.8, 1.3, 0.6, 2.4, body);
-    part(G.box, phong(color), 0, 2.4, 1.8, 1.2, 1.6, 0.6, body);
-    part(G.box, basic(0x7ff6ff), 0, 2.6, 2.12, 1.0, 0.25, 0.1, body);
-    wheel(body, 0, 0.8, 1.9, 0.8, 0.5); wheel(body, 0, 0.8, -1.8, 0.8, 0.5);
-    rider(body, 1.6, -0.6, color, 0xffffff, 0.05);
-    const d = glowDisc(glow, 7, 0.55); d.position.y = 0.15; g.add(d);
-    g.add(blob(4.4));
-  } else if (tier === 2) {    // phân khối lớn
-    part(G.box, phong(color, 120), 0, 2.0, 0.6, 1.3, 1.2, 3.0, body);
-    part(G.box, phong(0x1a1a1a), 0, 1.5, -0.4, 1.1, 1.0, 2.2, body);
-    part(G.box, phong(color, 120), 0, 2.4, -1.6, 0.9, 0.5, 1.4, body);
-    part(G.box, phong(0x99ccff), 0, 3.0, 1.9, 1.0, 0.8, 0.2, body).rotation.x = -0.5;
-    part(G.cyl, phong(0xcccccc), 0.6, 1.2, -2.2, 0.4, 1.4, 0.4, body).rotation.x = Math.PI / 2;
-    part(G.sph, basic(0xffffff), 0, 2.2, 2.2, 0.8, 0.5, 0.3, body);
-    wheel(body, 0, 1.0, 2.3, 1.05, 0.7); wheel(body, 0, 1.0, -2.1, 1.05, 0.8);
-    rider(body, 1.9, -0.7, color, 0x111111, 0.45);
-    const d = glowDisc(glow, 8, 0.6); d.position.y = 0.15; g.add(d);
-    g.add(blob(5)); g.userData.exhaust = new THREE.Vector3(0.6, 1.2, -3);
-  } else if (tier === 3) {    // mui trần
-    part(G.box, phong(color, 110), 0, 1.5, 0, 4.6, 1.5, 9.4, body);
-    part(G.box, phong(color, 110), 0, 2.3, 2.6, 4.4, 0.4, 3.6, body);
-    part(G.box, phong(0x9fd8ff), 0, 3.0, 1.0, 4.2, 1.1, 0.15, body).rotation.x = -0.5;
-    part(G.box, lam(0x3a2a20), 0, 2.4, -1.3, 4.0, 0.6, 3.2, body);
-    for (const x of [-1.6, 1.6]) { part(G.box, basic(0xfff6d0), x, 1.6, 4.72, 0.9, 0.4, 0.1, body); part(G.box, basic(0xff2a2a), x, 1.7, -4.72, 0.9, 0.35, 0.1, body); }
-    for (const x of [-2.2, 2.2]) for (const z of [3, -3]) wheel(body, x, 0.95, z, 0.95, 0.7);
-    const rd = rider(body, 1.2, -1.2, color, 0xffffff, 0); rd.scale.setScalar(0.95);
-    const d = glowDisc(glow, 14, 0.55); d.position.y = 0.15; g.add(d);
-    g.add(blob(9));
-  } else if (tier === 4) {    // siêu xe hình nêm + cánh gió
-    part(G.box, phong(color, 160), 0, 1.15, 0.2, 4.8, 1.0, 10, body);
-    const nose = part(G.box, phong(color, 160), 0, 1.25, 3.6, 4.6, 0.6, 3.6, body); nose.rotation.x = 0.12;
-    part(G.box, phong(0x101820, 160), 0, 2.0, -0.4, 3.6, 1.0, 4.4, body);
-    part(G.box, phong(0x101820, 160), 0, 2.3, 1.2, 3.4, 0.2, 1.8, body).rotation.x = -0.45;
-    part(G.box, phong(0x111111), 0, 2.6, -4.6, 4.8, 0.25, 1.2, body);
-    for (const x of [-1.8, 1.8]) { part(G.box, phong(0x111111), x, 2.0, -4.4, 0.3, 1.0, 0.5, body); part(G.box, basic(0xffffff), x, 1.2, 5.2, 1.2, 0.25, 0.1, body); part(G.box, basic(0xff1a3a), x, 1.4, -4.8, 1.4, 0.25, 0.1, body); }
-    for (const x of [-2.3, 2.3]) for (const z of [3.2, -3.2]) wheel(body, x, 0.85, z, 0.85, 0.9);
-    const d = glowDisc(glow, 16, 0.85); d.position.y = 0.15; g.add(d);
-    g.add(blob(9)); g.userData.exhaust = new THREE.Vector3(0, 1.0, -5.2);
-  } else if (tier === 5) {    // trực thăng
+  if (tier === 5) {    // trực thăng
     part(G.sph, phong(color, 120), 0, 0, 0, 5, 4.4, 8, body);
     part(G.sph, phong(0x9fd8ff, 150), 0, 0.6, 2.6, 3.6, 2.8, 3.6, body);
     part(G.box, phong(color), 0, 0.6, -6.5, 0.9, 0.9, 7, body);
@@ -131,70 +84,100 @@ export function buildVehicle(tier, color, glow) {
     g.userData.segs = segs; g.userData.trail = [];
     const aura = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffcf4a, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.6, depthWrite: false })); aura.scale.setScalar(26); head.add(aura);
   }
-  g.userData.air = !!t.air;
+  g.userData.air = true;
   return g;
 }
 
-// ---------- bệ cho nhân vật đứng: thấy rõ cả người và động tác ----------
-export function buildPlatform(tier, color, glow) {
-  if (tier === 6) {   // đứng trên đầu Rồng Vàng
+// ---------- xe của người chơi: mỗi xe có điểm yên (vị trí hông nhân vật) và kiểu ngồi ----------
+export function buildRide(tier, color, glow) {
+  const kind = TIERS[tier].seat;
+  if (tier === 8) {   // cưỡi Rồng Vàng: ngồi trên đầu rồng, tay nắm sừng
     const g = buildVehicle(6, color, glow), head = g.userData.body.children[0];
-    g.userData.deck = { parent: head, pos: new THREE.Vector3(0, 1.6, -0.8) }; g.userData.pose = 'nhay_mua'; g.userData.air = true;
+    g.userData.seat = { parent: head, pos: new THREE.Vector3(0, 2.3, -1.4), type: kind };
     return g;
   }
   const g = new THREE.Group(); g.userData.wheels = []; const body = new THREE.Group(); g.add(body); g.userData.body = body; body.userData.wheels = g.userData.wheels;
-  const deck = new THREE.Vector3(); let pose = 'dung_yen';
-  if (tier === 1) {          // xe điện cân bằng
-    part(G.box, phong(0x22252c, 120), 0, 0.55, 0, 3.6, 0.5, 1.5, body);
-    part(G.box, basic(glow), 0, 0.84, 0, 3.4, 0.08, 1.52, body);
-    wheel(body, -2.0, 0.62, 0, 0.62, 0.5); wheel(body, 2.0, 0.62, 0, 0.62, 0.5);
-    const d = glowDisc(glow, 7, 0.75); d.position.y = 0.14; g.add(d); g.add(blob(4));
-    deck.set(0, 0.8, 0);
-  } else if (tier === 2) {   // mui trần: đứng ở ghế sau
+  const hip = new THREE.Vector3();
+  if (tier === 1) {          // xe đạp
+    const fc = phong(color, 100);
+    part(G.box, fc, 0, 1.9, 0.2, 0.25, 0.25, 3.0, body).rotation.x = -0.25;
+    part(G.box, fc, 0, 1.6, -0.55, 0.25, 1.9, 0.25, body).rotation.x = 0.2;
+    part(G.box, fc, 0, 1.55, 1.25, 0.22, 1.9, 0.22, body).rotation.x = -0.25;
+    part(G.box, lam(0x1a1a1a), 0, 2.62, -0.75, 0.6, 0.18, 1.0, body);
+    part(G.box, phong(0xcccccc), 0, 2.95, 1.45, 1.7, 0.12, 0.12, body);
+    part(G.cyl, lam(0x333333), 0, 1.0, 0, 0.7, 0.2, 0.7, body).rotation.z = Math.PI / 2;
+    wheel(body, 0, 1.0, 1.7, 1.0, 0.14); wheel(body, 0, 1.0, -1.7, 1.0, 0.14);
+    const d = glowDisc(glow, 6, 0.55); d.position.y = 0.14; g.add(d); g.add(blob(4));
+    hip.set(0, 2.8, -0.7);
+  } else if (tier === 2) {   // xe số kiểu cub
+    part(G.box, phong(color), 0, 1.6, 0.2, 1.1, 1.0, 3.4, body);
+    part(G.box, lam(0x2a2a2a), 0, 2.2, -0.6, 1.0, 0.35, 2.0, body);
+    part(G.box, phong(color), 0, 2.4, 1.6, 0.8, 1.4, 0.5, body);
+    part(G.box, phong(0xdddddd), 0, 3.05, 1.65, 1.5, 0.16, 0.16, body);
+    part(G.sph, basic(0xfff3c0), 0, 2.75, 1.95, 0.6, 0.6, 0.4, body);
+    wheel(body, 0, 0.9, 1.9, 0.9, 0.35); wheel(body, 0, 0.9, -1.7, 0.9, 0.35);
+    const d = glowDisc(glow, 6, 0.5); d.position.y = 0.14; g.add(d); g.add(blob(4));
+    hip.set(0, 2.55, -0.55);
+  } else if (tier === 3) {   // tay ga: sàn để chân
+    part(G.sph, phong(color), 0, 1.7, -0.9, 1.6, 1.4, 3.0, body);
+    part(G.box, phong(color), 0, 1.0, 0.6, 1.3, 0.4, 2.2, body);
+    part(G.box, phong(color), 0, 2.2, 1.7, 1.2, 2.0, 0.6, body);
+    part(G.box, lam(0x2a2a2a), 0, 2.45, -0.9, 1.1, 0.3, 1.8, body);
+    part(G.box, phong(0xdddddd), 0, 3.25, 1.8, 1.5, 0.16, 0.16, body);
+    part(G.box, basic(0x7ff6ff), 0, 2.5, 2.02, 1.0, 0.25, 0.1, body);
+    wheel(body, 0, 0.8, 1.9, 0.8, 0.5); wheel(body, 0, 0.8, -1.8, 0.8, 0.5);
+    const d = glowDisc(glow, 7, 0.55); d.position.y = 0.14; g.add(d); g.add(blob(4.4));
+    hip.set(0, 2.75, -0.95);
+  } else if (tier === 4) {   // phân khối lớn: ghi đông thấp
+    part(G.box, phong(color, 120), 0, 2.0, 0.6, 1.3, 1.2, 3.0, body);
+    part(G.box, phong(0x1a1a1a), 0, 1.5, -0.4, 1.1, 1.0, 2.2, body);
+    part(G.box, phong(color, 120), 0, 2.4, -1.6, 0.9, 0.5, 1.4, body);
+    part(G.box, lam(0x222222), 0, 2.62, -0.9, 0.9, 0.2, 1.2, body);
+    part(G.box, phong(0x99ccff), 0, 3.0, 1.9, 1.0, 0.8, 0.2, body).rotation.x = -0.5;
+    part(G.box, phong(0xcccccc), 0, 2.75, 1.45, 1.6, 0.14, 0.14, body);
+    part(G.cyl, phong(0xcccccc), 0.6, 1.2, -2.2, 0.4, 1.4, 0.4, body).rotation.x = Math.PI / 2;
+    part(G.sph, basic(0xffffff), 0, 2.2, 2.2, 0.8, 0.5, 0.3, body);
+    wheel(body, 0, 1.0, 2.3, 1.05, 0.7); wheel(body, 0, 1.0, -2.1, 1.05, 0.8);
+    const d = glowDisc(glow, 8, 0.6); d.position.y = 0.15; g.add(d); g.add(blob(5)); g.userData.exhaust = new THREE.Vector3(0.6, 1.2, -3);
+    hip.set(0, 2.85, -0.95);
+  } else if (tier === 5) {   // mui trần: ngồi ghế lái bên trái
     part(G.box, phong(color, 110), 0, 1.5, 0, 4.6, 1.5, 9.4, body);
     part(G.box, phong(color, 110), 0, 2.3, 2.6, 4.4, 0.4, 3.6, body);
     part(G.box, phong(0x9fd8ff), 0, 3.0, 1.0, 4.2, 1.1, 0.15, body).rotation.x = -0.5;
-    part(G.box, lam(0x3a2a20), 0, 2.4, 0.1, 4.0, 0.6, 1.4, body);
+    for (const x of [-1, 1]) part(G.box, lam(0x3a2a20), x, 2.7, -1.0, 1.5, 1.6, 0.4, body);
+    part(G.cyl, lam(0x111111), 1.0, 2.75, 0.75, 1.3, 0.12, 1.3, body).rotation.x = Math.PI / 2 - 0.5;
     for (const x of [-1.6, 1.6]) { part(G.box, basic(0xfff6d0), x, 1.6, 4.72, 0.9, 0.4, 0.1, body); part(G.box, basic(0xff2a2a), x, 1.7, -4.72, 0.9, 0.35, 0.1, body); }
     for (const x of [-2.2, 2.2]) for (const z of [3, -3]) wheel(body, x, 0.95, z, 0.95, 0.7);
     const d = glowDisc(glow, 14, 0.55); d.position.y = 0.15; g.add(d); g.add(blob(9));
-    deck.set(0, 1.2, -1.9);
-  } else if (tier === 3) {   // siêu xe mui trần
-    part(G.box, phong(color, 160), 0, 1.15, 0.2, 4.8, 1.0, 10, body);
+    hip.set(1.0, 2.05, -0.65);
+  } else if (tier === 6) {   // siêu xe: ngồi thấp
+    part(G.box, phong(color, 160), 0, 0.95, 0.2, 4.8, 1.4, 10, body);
     const nose = part(G.box, phong(color, 160), 0, 1.25, 3.6, 4.6, 0.6, 3.6, body); nose.rotation.x = 0.12;
-    part(G.box, phong(0x101820, 160), 0, 2.0, 1.6, 3.8, 0.15, 1.6, body).rotation.x = -0.6;
+    part(G.box, phong(0x101820, 160), 0, 2.0, 1.4, 3.8, 0.15, 1.6, body).rotation.x = -0.6;
+    for (const x of [-1, 1]) part(G.box, lam(0x1a1a1a), x, 2.1, -1.3, 1.4, 1.4, 0.4, body);
+    part(G.cyl, lam(0x111111), 1.0, 2.2, 0.35, 1.1, 0.12, 1.1, body).rotation.x = Math.PI / 2 - 0.6;
     part(G.box, phong(0x111111), 0, 2.6, -4.6, 4.8, 0.25, 1.2, body);
     for (const x of [-1.8, 1.8]) { part(G.box, phong(0x111111), x, 2.0, -4.4, 0.3, 1.0, 0.5, body); part(G.box, basic(0xffffff), x, 1.2, 5.2, 1.2, 0.25, 0.1, body); part(G.box, basic(0xff1a3a), x, 1.4, -4.8, 1.4, 0.25, 0.1, body); }
     for (const x of [-2.3, 2.3]) for (const z of [3.2, -3.2]) wheel(body, x, 0.85, z, 0.85, 0.9);
     const d = glowDisc(glow, 16, 0.85); d.position.y = 0.15; g.add(d); g.add(blob(9)); g.userData.exhaust = new THREE.Vector3(0, 1.0, -5.2);
-    deck.set(0, 0.9, -1.1);
-  } else if (tier === 4) {   // xe hoa diễu hành: nhảy múa trên sân khấu
-    part(G.box, phong(color, 60), 0, 1.6, 0, 7, 2.2, 14, body);
-    part(G.box, phong(0xffd23a, 120), 0, 2.9, -0.5, 6, 0.4, 8.6, body);
-    part(G.box, phong(0xf0f0f0), 0, 2.4, 7.4, 6, 3.4, 2.6, body);
-    part(G.box, phong(0x9fd8ff), 0, 3.4, 8.75, 5.4, 1.4, 0.1, body);
-    const fc = [0xff6aa8, 0xffffff, 0xffd23a, 0xff3a5a, 0xc87aff];
-    for (let i = 0; i < 44; i++) { const t = i / 44, side = i % 2 ? 1 : -1, z = -6.8 + (Math.floor(i / 2) / 22) * 13.6; part(G.sph, lam(fc[i % fc.length]), side * 3.6, 0.9 + (i % 3) * 0.7, z, 1.3, 1.3, 1.3, body); void t; }
-    for (const x of [-3, 3]) part(G.box, phong(0xffd23a, 120), x, 5.5, -4.2, 0.5, 5, 0.5, body);
-    part(G.box, phong(0xffd23a, 120), 0, 8.1, -4.2, 6.5, 0.6, 0.6, body);
-    for (let k = -2; k <= 2; k++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: k % 2 ? 0xffd23a : glow, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); sp.scale.setScalar(2.6); sp.position.set(k * 1.5, 8.6, -4.2); body.add(sp); }
-    for (const x of [-3.1, 3.1]) for (const z of [5, 0, -5]) wheel(body, x, 0.9, z, 0.9, 0.7);
-    const d = glowDisc(glow, 18, 0.6); d.position.y = 0.15; g.add(d); g.add(blob(14));
-    deck.set(0, 3.1, -0.5); pose = 'nhay_mua';
-  } else if (tier === 5) {   // khinh khí cầu: đứng trong giỏ
-    part(G.cyl, lam(0x8a5a2a), 0, 1.3, 0, 5.6, 2.6, 5.6, body);
-    part(G.cyl, lam(0x5a3a1a), 0, 2.65, 0, 5.9, 0.3, 5.9, body);
-    const eg = new THREE.SphereGeometry(1, 24, 16), cols = [], c3 = [new THREE.Color(color), new THREE.Color(0xffd23a), new THREE.Color(0xffffff)], pa = eg.attributes.position;
-    for (let i = 0; i < pa.count; i++) { const k = Math.floor((Math.atan2(pa.getX(i), pa.getZ(i)) + Math.PI) / (Math.PI * 2) * 12) % 3; cols.push(c3[k].r, c3[k].g, c3[k].b); }
-    eg.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
-    const env = new THREE.Mesh(eg, new THREE.MeshLambertMaterial({ vertexColors: true })); env.scale.set(9, 10.5, 9); env.position.y = 16.5; body.add(env);
-    part(G.cyl, lam(0x3a2a1a), 0, 6.8, 0, 3.4, 1.2, 3.4, body);
-    const rp = []; for (const [x, z] of [[2.6, 2.6], [-2.6, 2.6], [2.6, -2.6], [-2.6, -2.6]]) rp.push(x, 2.7, z, x * 1.9, 9.5, z * 1.9);
-    const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(rp, 3)); body.add(new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color: 0x2a1a0a })));
-    const fl = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffa030, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); fl.scale.setScalar(4); fl.position.y = 7.6; body.add(fl); g.userData.flame = fl;
-    deck.set(0, 0.35, 0);
+    hip.set(1.0, 1.75, -0.85);
+  } else if (tier === 7) {   // trực thăng mini buồng hở: thấy rõ người lái
+    part(G.box, phong(color, 120), 0, 0.9, 0.2, 2.8, 1.8, 4.6, body);
+    part(G.sph, phong(color, 120), 0, 0.9, 2.5, 2.8, 1.8, 2.2, body);
+    part(G.box, phong(0x9fd8ff, 150), 0, 2.4, 2.2, 2.4, 1.2, 0.12, body).rotation.x = -0.6;
+    part(G.box, lam(0x222222), 0, 2.3, -1.1, 1.8, 2.2, 0.4, body);
+    part(G.box, phong(0x333333), 0, 3.4, -1.6, 0.4, 3.6, 0.4, body);
+    part(G.box, phong(color), 0, 1.4, -5.4, 0.5, 0.5, 7, body);
+    part(G.box, phong(color), 0, 2.4, -8.6, 0.3, 2.2, 1.4, body);
+    for (const x of [-1.5, 1.5]) part(G.box, phong(0x333333), x, -0.6, 0.2, 0.3, 0.3, 6, body);
+    const rotor = new THREE.Group(); rotor.position.set(0, 5.3, -1.6); body.add(rotor);
+    part(G.box, phong(0x222222), 0, 0, 0, 18, 0.15, 0.9, rotor); part(G.box, phong(0x222222), 0, 0, 0, 0.9, 0.15, 18, rotor);
+    g.userData.rotor = rotor;
+    const tr = new THREE.Group(); tr.position.set(0.3, 2.4, -8.7); body.add(tr); part(G.box, phong(0x222222), 0, 0, 0, 0.1, 3.2, 0.4, tr); g.userData.tailRotor = tr;
+    const beacon = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: glow, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); beacon.scale.setScalar(5); beacon.position.set(0, -0.8, 0); body.add(beacon);
+    hip.set(0, 1.85, 0.1);
   }
-  g.userData.deck = { parent: body, pos: deck }; g.userData.pose = pose; g.userData.air = !!TIERS[tier].air;
+  g.userData.seat = { parent: body, pos: hip, type: kind }; g.userData.air = !!TIERS[tier].air;
   return g;
 }
 

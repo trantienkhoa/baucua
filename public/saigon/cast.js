@@ -27,7 +27,7 @@ export const CAST = {
   },
   anhHai: {
     name: 'Anh Hai Garage', role: 'Thợ độ xe', color: '#ff8a2a',
-    bio: 'Chủ garage dưới chân cầu. Đưa xu là độ: từ xe điện cân bằng lên siêu xe, lên xe hoa, rồi… khinh khí cầu. Câu cửa miệng: "Xe nào cũng độ được!"',
+    bio: 'Chủ garage dưới chân cầu. Đưa xu là độ: từ xe đạp lên xe số, mô tô, siêu xe, rồi… trực thăng. Câu cửa miệng: "Xe nào cũng độ được!"',
     look: { skin: '#e0ac80', hair: 'short', hairColor: '#2a1a10', shirt: '#2a5aa8', extra: ['bandana', 'stubble'] },
   },
   beNa: {
@@ -63,8 +63,8 @@ export const LINES = {
   season: [['chuBay', 'Hết mùa rồi! Phe {team} thắng với {n} khu. Mùa mới bắt đầu nha!']],
   idle: [
     ['chuBay', 'Thả tim cho đủ mục tiêu là Hắc Long xuất hiện đó nghe!'],
-    ['anhHai', 'Tặng quà càng nhiều càng lên đời: xe hoa, khinh khí cầu, rồi đứng trên rồng vàng luôn!'],
-    ['chuBay', 'Gõ chào, nhảy, chạy, ngồi là nhân vật của bà con làm theo liền!'],
+    ['anhHai', 'Tặng quà là lên đời xe: xe đạp, xe số, mô tô, siêu xe, trực thăng, rồi cưỡi rồng vàng luôn!'],
+    ['chuBay', 'Gõ chào, nhảy, chạy, ngồi, xuống xe là nhân vật của bà con làm theo liền!'],
     ['beNa', 'Ai lên top 1 sẽ có tên trên bảng đèn khắp thành phố!'],
     ['tuan', 'Bình luận số 1 vô đội Rồng Đỏ với anh!'],
     ['vy', 'Bình luận số 2, Hổ Xanh đang cần bạn!'],

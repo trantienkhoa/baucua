@@ -1,9 +1,9 @@
 import { THREE } from './three.js';
 import { World, DISTRICTS, TEAMS, MOODS, mixMood, RIVER, LINKS } from './world.js';
-import { TIERS, tierOf, buildPlatform, updateDragon, buildVehicle, buildNPC, buildGoon, buildBoss, buildCrate, FX, Particles, glowDisc } from './vehicles.js';
+import { TIERS, tierOf, buildRide, updateDragon, buildVehicle, buildNPC, buildGoon, buildBoss, buildCrate, FX, Particles, glowDisc } from './vehicles.js';
 import { Audio, Voice } from './audio.js';
 import { CAST, line, portrait } from './cast.js';
-import { loadRoster, pickId, template, Person, goldStatue, RESERVED } from './chars.js';
+import { loadRoster, pickId, template, Person, goldStatue, RESERVED, SEATS } from './chars.js';
 import { R, clamp, lerp, ease, esc, initials, fmt } from './util.js';
 
 // ---------- cài đặt qua đường dẫn ----------
@@ -92,7 +92,7 @@ function ensurePlayer(u, spawn = true) {
     const n = teamCount();
     P = { id: u.id, name: String(u.name || 'Ẩn danh').slice(0, 24), avatar: u.avatar || '', team: n[0] <= n[1] ? 0 : 1, coins: 0, tier: 0,
       person: null, plat: null, ring: null, loading: false, tp: null, loop: null, s: 0, lane: 3, laneT: 3, spd: 1, yaw: 0,
-      boost: 0, hold: 0, dance: 0, chased: 0, sit: false, sitMove: 'ngoi_xom', last: now, chatAt: -99, gestAt: -99, hot: 0,
+      boost: 0, hold: 0, dance: 0, chased: 0, sit: false, onFoot: false, sitMove: 'ngoi_xom', last: now, chatAt: -99, gestAt: -99, hot: 0,
       ang: R() * 6.28, r: 120, h: 0, say: '', sayUntil: 0 };
     players.set(u.id, P);
   } else { if (u.name) P.name = String(u.name).slice(0, 24); if (u.avatar) P.avatar = u.avatar; }
@@ -124,19 +124,20 @@ async function spawnPerson(P) {
   fx.burst(P.person.root.getWorldPosition(new V3()).add(new V3(0, 3, 0)), teamCol(P.team), 24, 10, 3, 0.6); audio.play('pop');
   react(P, 'vay_tay', 1);
 }
-// đặt nhân vật lên bệ theo cấp (hoặc đi bộ)
+// lên xe theo cấp (hoặc đi bộ): đặt hông nhân vật đúng yên xe rồi dựng tư thế ngồi
 function mount(P) {
   const pr = P.person; if (!pr) return;
   if (P.plat) { P.plat.removeFromParent(); P.plat = null; }
   pr.root.removeFromParent();
-  if (P.tier > 0) {
+  if (P.tier > 0 && !P.onFoot) {
     const tint = new THREE.Color(TEAMS[P.team].color).offsetHSL(0, 0, R.range(-0.08, 0.04)).getHex();
-    P.plat = buildPlatform(P.tier, tint, teamCol(P.team)); scene.add(P.plat);
-    const dk = P.plat.userData.deck; dk.parent.add(pr.root); pr.root.position.copy(dk.pos); pr.root.rotation.set(0, 0, 0);
-    P.ring.visible = false; P.sit = false;
+    P.plat = buildRide(P.tier, tint, teamCol(P.team)); scene.add(P.plat);
+    const st = P.plat.userData.seat; st.parent.add(pr.root);
+    pr.root.position.copy(st.pos).sub(pr.hipOffset); pr.root.rotation.set(0, 0, 0);
+    pr.setSeat(SEATS[st.type]);
+    P.ring.visible = false; P.sit = false; P.dance = 0;
     if (TIERS[P.tier].air) P.r = curD().air.r * R.range(0.55, 1.1);
-    pr.play(P.plat.userData.pose, 0.3);
-  } else { scene.add(pr.root); P.ring.visible = true; }
+  } else { pr.setSeat(null); scene.add(pr.root); P.ring.visible = true; }
 }
 function setTeam(P, t) {
   if (P.team === t) return;
@@ -171,12 +172,14 @@ function placePlayer(P, dt) {
     if (T.air) {
       P.ang += T.speed * P.spd * boost * dt;
       let x, z, y, dx, dz;
-      if (P.tier === 6) { const a = P.ang * 0.7, r = P.r * 1.2; x = D.center.x + Math.cos(a) * r; z = D.center.z + Math.sin(2 * a) * r * 0.55; y = D.air.y + 20 + Math.sin(a * 3) * 12; dx = -Math.sin(a); dz = Math.cos(2 * a) * 1.1; }
-      else { x = D.center.x + Math.cos(P.ang) * P.r; z = D.center.z + Math.sin(P.ang) * P.r; y = D.air.y - 25 + P.h + Math.sin(now * 0.5 + P.r) * 3; dx = -Math.sin(P.ang); dz = Math.cos(P.ang); }
+      const dragon = T.seat === 'dragon';
+      if (dragon) { const a = P.ang * 0.7, r = P.r * 1.2; x = D.center.x + Math.cos(a) * r; z = D.center.z + Math.sin(2 * a) * r * 0.55; y = D.air.y + 20 + Math.sin(a * 3) * 12; dx = -Math.sin(a); dz = Math.cos(2 * a) * 1.1; }
+      else { x = D.center.x + Math.cos(P.ang) * P.r; z = D.center.z + Math.sin(P.ang) * P.r; y = D.air.y - 20 + P.h + Math.sin(now * 0.8 + P.r) * 3; dx = -Math.sin(P.ang); dz = Math.cos(P.ang); }
       v.position.set(x, y, z);
       const yaw = Math.atan2(dx, dz); P.yaw = dt ? angDamp(P.yaw, yaw, 4, dt) : yaw; v.rotation.y = P.yaw;
-      if (P.tier === 6) { v.updateMatrixWorld(true); updateDragon(v, dt); }
-      if (v.userData.flame) v.userData.flame.scale.setScalar(3 + Math.random() * 2);
+      if (dragon) { v.updateMatrixWorld(true); updateDragon(v, dt); }
+      if (v.userData.rotor) { v.userData.rotor.rotation.y += dt * 30; v.userData.body.rotation.x = 0.1; }
+      if (v.userData.tailRotor) v.userData.tailRotor.rotation.x += dt * 40;
     } else {
       const sp = T.speed * P.spd * boost * (P.chased > now ? 1.35 : 1);
       P.s += sp * dt;
@@ -184,9 +187,12 @@ function placePlayer(P, dt) {
       v.position.set(a.x, 0, a.z);
       P.yaw = dt ? angDamp(P.yaw, a.yaw, 8, dt) : a.yaw; v.rotation.y = P.yaw;
       for (const w of v.userData.wheels) w.rotation.y += sp * dt / 0.9;
-      if (boost > 1 && R() < 0.7) { const back = new V3(-Math.sin(P.yaw), 0, -Math.cos(P.yaw)); fx.flame(v.position.clone().addScaledVector(back, P.tier === 4 ? 7 : 5).setY(1.2), back); }
+      v.userData.body.position.y = P.tier <= 4 ? Math.abs(Math.sin(now * 7 + P.s)) * 0.08 : 0;
+      if (boost > 1 && P.tier >= 2 && R() < 0.7) { const back = new V3(-Math.sin(P.yaw), 0, -Math.cos(P.yaw)); fx.flame(v.position.clone().addScaledVector(back, P.tier >= 5 ? 5 : 3).setY(1.2), back); }
+      pr.pedal = clamp(sp / 12, 0.3, 1.4);
     }
-    if (!pr.busy()) { pr.play(P.dance > now ? 'nhay_mua' : v.userData.pose, 0.3); if (dt && R() < dt * 0.05) react(P, 'vay_tay', 2); }
+    pr.play(P.dance > now ? 'nhay_mua' : '', 0.3);   // ngồi xe: chỉ nhảy bằng nửa thân trên
+    if (dt && !pr.busy() && P.dance < now && R() < dt * 0.04) react(P, 'vay_tay', 1);
   } else {
     const root = pr.root;
     if (P.sit) pr.play(P.sitMove, 0.4);
@@ -261,7 +267,12 @@ function onChat(u, text) {
   const t = flat(text), raw = text.trim().toLowerCase();
   for (const T of TEAMS) if (T.key.some(k => t === flat(k) || raw === k || t === 'phe ' + flat(k) || t === 'doi ' + flat(k))) { setTeam(P, T.id); break; }
   // lệnh điều khiển nhân vật bằng bình luận
-  if (now - P.gestAt > 4) {
+  const rideCmd = has(t, 'xuong xe|di bo') ? 'off' : has(t, 'len xe|ngoi xe|chay xe') ? 'on' : null;
+  if (rideCmd && now - (P.rideAt || -9) > 2) {   // lên / xuống xe: giới hạn riêng 2 giây
+    P.rideAt = now;
+    if (rideCmd === 'off' && P.plat) { P.onFoot = true; mount(P); react(P, 'vay_tay', 1); }
+    else if (rideCmd === 'on' && P.onFoot && P.tier > 0) { P.onFoot = false; mount(P); }
+  } else if (!rideCmd && now - P.gestAt > 4) {
     if (has(t, 'chao|hello|hi|hey|alo|xin chao')) { P.gestAt = now; react(P, 'vay_tay', 2); }
     else if (/(ha ?ha|hi ?hi|he ?he|kk+|=\)\)|lol|cuoi)/.test(t)) { P.gestAt = now; react(P, 'vo_tay', 2); }
     else if (has(t, 'nhay|dance|quay|bung')) { P.gestAt = now; if (P.sit) standUp(P); P.dance = now + 6; }
@@ -308,6 +319,7 @@ function onGift(u, gift, count, value, total) {
   if (value >= 5 || P.coins === value) spotlight(P, gift, count);
   else feed(`<b>${esc(P.name)}</b> tặng ${gift.img ? `<img class="g" src="${esc(gift.img)}" alt="">` : '🎁'} x${count}`, P);
   if (P.tier !== oldTier) {
+    P.onFoot = false;
     if (P.person) mount(P);
     audio.play('level');
     const T = TIERS[P.tier];
@@ -337,7 +349,7 @@ function runBig() {
   } else if (e.kind === 'chase') {
     busyUntil = now + 12; P.chased = now + 12; P.boost = now + 12;
     for (let k = 0; k < 3; k++) {
-      const g = P.tier >= 5 ? buildVehicle(5, 0x111111, 0xff2020) : buildGoon();
+      const g = TIERS[P.tier].air && P.plat ? buildVehicle(5, 0x111111, 0xff2020) : buildGoon();
       scene.add(g); goons.push({ veh: g, P, k, until: now + 11, yaw: P.yaw, s: P.s - 18 * (k + 1), lane: [4, 9, 6.5][k] });
     }
     banner('TRUY NÃ ⭐⭐⭐', `Hắc Long treo thưởng ${P.name}!`, '#ff3030');
@@ -421,7 +433,7 @@ function updateEvents(dt) {
   if (curD().mouth && phase === 'play' && now > fireAt) breathe();
   for (const g of goons) {
     const P = g.P; if (!P.person) continue;
-    if (P.tier >= 5) {
+    if (TIERS[P.tier].air && P.plat) {
       const v = posOf(P, _w2), back = new V3(-Math.sin(P.yaw), 0, -Math.cos(P.yaw));
       const tgt = v.clone().addScaledVector(back, 22 * (g.k + 1)).add(new V3((g.k - 1) * 12, -4, 0));
       g.veh.position.lerp(tgt, 1 - Math.exp(-3 * dt)); g.veh.rotation.y = P.yaw; if (g.veh.userData.rotor) g.veh.userData.rotor.rotation.y += dt * 30;
@@ -600,7 +612,7 @@ function pickShot() {
   else { s = { type: 'top' }; star = null; }
   cam.shot = Object.assign(s, { t0: now, cut: true }); cam.until = now + R.range(6, 9);
 }
-const dims = P => (P.tier === 0 ? [12, 5.2] : P.tier <= 3 ? [17, 7.5] : P.tier === 4 ? [22, 10] : P.tier === 5 ? [26, 8] : [30, 9]);
+const dims = P => (!P.plat ? [12, 5.2] : P.tier <= 4 ? [13, 5.8] : P.tier <= 6 ? [17, 6.8] : P.tier === 7 ? [22, 8] : [30, 9]);
 const _f = new V3(), _r = new V3(), _b = {}, _p = new V3(), _face = new V3();
 function shotTarget(s, outP, outL) {
   const D = curD();
@@ -620,7 +632,8 @@ function shotTarget(s, outP, outL) {
     } else {   // cận mặt
       P.person.root.getWorldQuaternion(_q); _face.set(0, 0, 1).applyQuaternion(_q).setY(0).normalize();
       _r.set(_face.z, 0, -_face.x);
-      outP.copy(p).addScaledVector(_face, 7.5).addScaledVector(_r, 1.6).add(new V3(0, 4.4, 0)); outL.copy(p).add(new V3(0, 3.9, 0));
+      const car = P.plat && P.tier >= 5 && P.tier <= 6;   // ô tô: đặt máy cao, xa hơn nắp capô
+      outP.copy(p).addScaledVector(_face, car ? 10 : 7.5).addScaledVector(_r, car ? 3 : 1.6).add(new V3(0, car ? 6.4 : 4.4, 0)); outL.copy(p).add(new V3(0, 3.9, 0));
     }
     if (outP.y < 1.5) outP.y = 1.5;
     return true;
@@ -787,8 +800,9 @@ const GUIDE = [
   ['💸', '500 xu', 'mưa tiền cả khu'],
   ['🌌', '1.000 xu', 'mua đứt khu ngay'],
   ['🦁', '5.000 xu', 'đúc tượng vàng nhân vật của bạn'],
-  ['🎈', 'tổng xu', '🛹 → 🚗 → 🏎️ → 🎉 xe hoa → 🎈 → 🐉'],
+  ['🚗', 'tổng xu', 'lên đời xe: 🚲 → 🛵 → 🏍️ → 🚗 → 🏎️ → 🚁 → 🐉'],
   ['💬', 'gõ', 'chào · nhảy · chạy · ngồi · 1 / 2'],
+  ['🛵', 'gõ', 'xuống xe · lên xe'],
   ['❤️', 'thả tim', 'đủ mục tiêu → đánh Boss Hắc Long'],
 ];
 let guideI = 0;
