@@ -5,6 +5,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 export const NV_BASE = window.__NV_BASE || '/models/ma/nhanvat/';
+const NV_EXT = window.__NV_EXT || '.glb';   // bản xem thử trên web dùng glTF dạng JSON nhúng dữ liệu
 export const K = 2.9;                 // đơn vị thế giới trên 1 mét (người 1,7 m cao khoảng 4,9)
 export const RESERVED = 'tp-025';     // ông cụ khăn rằn: vai Chú Bảy, không cấp cho người xem (giống ông Tư bên game ma)
 export const MOVES = ['di_bo', 'chay_bo', 'dung_yen', 'vay_tay', 'vo_tay', 'cui_chao', 'ngoi_bet', 'ngoi_so', 'ngoi_xom', 'giat_minh', 'run_so', 'nhay_mua', 'nhin_quanh', 'chi_tay'];
@@ -26,7 +27,7 @@ export function pickId(userId) {
   return list[(h >>> 0) % list.length].id;
 }
 export function template(id) {
-  if (!cache.has(id)) cache.set(id, new Promise((res, rej) => loader.load(NV_BASE + id + '.glb', g => {
+  if (!cache.has(id)) cache.set(id, new Promise((res, rej) => loader.load(NV_BASE + id + NV_EXT, g => {
     g.scene.traverse(o => { if (o.isMesh) o.frustumCulled = false; });
     const box = new THREE.Box3().setFromObject(g.scene);
     res({ id, scene: g.scene, clips: g.animations || [], h: box.max.y - box.min.y, minY: box.min.y });

@@ -683,7 +683,7 @@ function updateTags() {
   const list = [];
   if (!trav) {
     for (const P of players.values()) {
-      if (!P.person) continue;
+      if (!P.person || (P === spotP && now < spotUntil)) continue;   // đang có thẻ tiêu điểm thì khỏi hiện thẻ tên
       const d = camera.position.distanceTo(posOf(P, _w)), pri = (P === star ? 3 : 0) + (P.sayUntil > now ? 2 : 0) + (P.hot > now ? 1 : 0) + (P === king ? 1 : 0);
       if (d > (pri ? 160 : 70)) continue;
       list.push({ P, d: d - pri * 60 });
@@ -802,13 +802,13 @@ function feed(html, P) {
   setTimeout(() => el.remove(), 4500);
 }
 // thẻ tiêu điểm: người vừa tặng quà
-const spotEl = $('spot'); let spotUntil = 0;
+const spotEl = $('spot'); let spotUntil = 0, spotP = null;
 function spotlight(P, gift, count) {
   spotEl.querySelector('.ava').outerHTML = avaHtml(P);
   spotEl.querySelector('.txt b').textContent = P.name;
   spotEl.querySelector('.txt span').textContent = `tặng ${gift.name || 'quà'} x${count}`;
   spotEl.querySelector('.gift').innerHTML = gift.img ? `<img src="${esc(gift.img)}" alt="">` : '🎁';
-  spotEl.classList.add('on'); spotUntil = now + 3.6;
+  spotEl.classList.add('on'); spotUntil = now + 3.6; spotP = P;
 }
 // hội thoại
 const dlg = $('dialog'), dq = [];
