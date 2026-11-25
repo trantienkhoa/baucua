@@ -1,5 +1,5 @@
 import { THREE } from './three.js';
-import { World, DISTRICTS, TEAMS, MOODS, mixMood, RIVER } from './world.js';
+import { World, DISTRICTS, TEAMS, MOODS, mixMood, RIVER, LINKS } from './world.js';
 import { TIERS, tierOf, buildVehicle, updateDragon, buildNPC, buildGoon, buildBoss, buildCrate, buildStatue, FX, Particles } from './vehicles.js';
 import { Audio, Voice } from './audio.js';
 import { CAST, line, portrait } from './cast.js';
@@ -73,6 +73,8 @@ let boss = null, king = null, statue = null;
 let busyUntil = 0; const bigQ = [];
 const goons = [], crates = [], choppers = [];
 const curD = () => world.districts[cur];
+const ROUTE = ['neon', 'cholon', 'phoco', 'chonoi', 'bien', 'halong', 'cang', 'caurong', 'deo', 'sanbay'].map(k => DISTRICTS.findIndex(d => d.key === k)).filter(i => i >= 0);
+const nextDistrict = () => ROUTE[(ROUTE.indexOf(cur) + 1) % ROUTE.length];
 const teamCol = t => TEAMS[t].glow;
 const starsOf = c => (c >= 2000 ? 5 : c >= 500 ? 4 : c >= 100 ? 3 : c >= 30 ? 2 : c >= 1 ? 1 : 0);
 
@@ -167,7 +169,7 @@ for (const k of ['bike', 'bike', 'bike', 'bike', 'bike', 'bike', 'bike', 'bike',
 function resetTraffic() {
   const D = curD();
   for (const n of npcs) {
-    const show = n.kind !== 'cyclo' || D.def.key === 'cholon' || D.def.key === 'neon';
+    const show = n.kind !== 'cyclo' || ['cholon', 'neon', 'phoco'].includes(D.def.key);
     n.veh.visible = show;
     n.loop = R.pick(D.loops); n.s = R() * n.loop.total; n.lane = R.pick([2, 4.5, 7]); n.spd = (n.kind === 'cyclo' ? 7 : n.kind === 'bike' ? 18 : 22) * R.range(0.8, 1.15);
     n.yaw = n.loop.at(n.s, n.lane, _a).yaw;
@@ -252,6 +254,7 @@ function onGift(u, gift, count, value, total) {
   let kind = null;
   if (value >= 5000) kind = 'king'; else if (value >= 1000) kind = 'capture'; else if (value >= 500) kind = 'money';
   else if (value >= 299) kind = 'airdrop'; else if (value >= 99) kind = 'chase'; else if (value >= 30) kind = 'drift';
+  if (value >= 30 && curD().mouth) breathe(P);
   if (kind) { bigQ.push({ kind, P, value }); if (bigQ.length > 8) { bigQ.sort((a, b) => b.value - a.value); bigQ.length = 8; } }
   renderLeaderSoon();
 }
@@ -328,7 +331,27 @@ function crownKing(P) {
   addPower(P.team, CFG.cap * 2);
   ticker(`CHẤN ĐỘNG: ${P.name} là TRÙM XỨ RỒNG! Tượng vàng đã dựng ở ${D.def.name}.`);
 }
+// ---------- Cầu Rồng phun lửa ----------
+let fireAt = 25, fireCool = 0, firePending = 0;
+function breathe(P) {
+  const D = curD(); if (!D.mouth || phase !== 'play') return;
+  if (now < fireCool) {   // đang phun: quà xếp hàng phun tiếp, lượt tự phun thì bỏ
+    if (P && firePending < 2) { firePending++; fx.after(fireCool - now + 0.15, () => { firePending--; breathe(P); }); }
+    return;
+  }
+  fireCool = now + 2.6; fireAt = now + 24;
+  const m = D.mouth, d = D.mouthDir;
+  for (let i = 0; i < 50; i++) fx.after(i * 0.045, () => {
+    for (let k = 0; k < 4; k++) { const sp = 45 + R() * 30; fx.spark.emit(m.x, m.y, m.z, d.x * sp + R.range(-6, 6), d.y * sp + R.range(-4, 8), d.z * sp + R.range(-8, 8), R.pick([0xff5a1a, 0xffa020, 0xffe060, 0xff3010]), R.range(7, 13), R.range(0.7, 1.1), 6); }
+    if (i % 3 === 0) fx.smokePuff(m.clone().addScaledVector(d, 40), 0x555555, 1, 14);
+  });
+  fx.flash(m.clone().addScaledVector(d, 10), 0xffa030, 60);
+  audio.play('roar'); audio.play('nitro');
+  if (P) { banner('RỒNG PHUN LỬA!', `${P.name} đánh thức Cầu Rồng`, '#ff8a2a'); ticker(`${P.name} làm Cầu Rồng phun lửa!`); addPower(P.team, 10); }
+  focus({ type: 'orbit', at: m.clone().addScaledVector(d, 18), r: 70, h: 12, speed: 0.25 }, 4.5, P ? 2 : 0);
+}
 function updateEvents(dt) {
+  if (curD().mouth && phase === 'play' && now > fireAt) { fireAt = now + 24; breathe(); }
   for (const g of goons) {
     const P = g.P;
     if (!P.veh) continue;
@@ -457,7 +480,7 @@ function travel(to, intro = false) {
   const from = intro ? null : cur;
   trav = { t: 0, dur: intro ? 7.5 : 6.2, from, to, p0: cam.pos.clone(), l0: cam.look.clone(), moved: false, titled: false };
   audio.play('whoosh'); audio.duck(2);
-  tug = 0; timer = CFG.round;
+  tug = 0; timer = CFG.round; dq.length = 0;
   routeLine.visible = !intro;
   if (!intro) { const A = world.districts[from].center, B = world.districts[to].center; routeLine.geometry.setFromPoints(arc(A, B)); }
 }
@@ -467,7 +490,7 @@ routeLine.visible = false; scene.add(routeLine);
 function moveEveryoneTo(i) {
   cur = i; const D = curD();
   for (const P of players.values()) if (P.veh) { P.loop = R.pick(D.loops); P.s = R() * P.loop.total; P.r = D.air.r * R.range(0.55, 1.15); placeVehicle(P, 0); }
-  resetTraffic(); audio.setSong(D.def.key);
+  resetTraffic(); audio.setSong(D.def.key); fireAt = now + 7;
 }
 function updateRound(dt) {
   phaseT += dt;
@@ -477,11 +500,11 @@ function updateRound(dt) {
     else if (timer <= 0) capture(Math.abs(tug) < CFG.cap * 0.04 ? -1 : tug > 0 ? 1 : 0);
   } else if (phase === 'captured' && phaseT > 5) {
     if (seasonRound >= DISTRICTS.length) endSeason();
-    else travel((cur + 1) % DISTRICTS.length);
+    else travel(nextDistrict());
   } else if (phase === 'season' && phaseT > 7) {
     season++; seasonRound = 0;
     for (let i = 0; i < owners.length; i++) { owners[i] = -1; world.setOwner(i, -1); }
-    travel((cur + 1) % DISTRICTS.length);
+    travel(nextDistrict());
   }
 }
 
@@ -557,7 +580,7 @@ function travelCam(dt) {
   if (k >= 1) {
     trav = null; routeLine.visible = false; phase = 'play'; phaseT = 0;
     cam.shot = { type: 'preset', p: land, l: landL, t0: now, cut: false }; cam.until = now + 6;
-    const D = B; say(line('intro', { d: D.def.name, sub: D.def.sub }), true);
+    const D = B; fx.after(3.4, () => { if (cur === D.idx && phase === 'play') say(line('intro', { d: D.def.name, sub: D.def.sub }), true); });   // chờ thẻ tên khu tắt
     ticker(`Đang ở ${D.def.name} (${D.def.time}). Phe nào đẩy thanh điểm tới cuối sẽ chiếm khu!`);
   }
 }
@@ -655,20 +678,20 @@ function renderGoal() { $('gNow').textContent = fmt(goalNow); $('gMax').textCont
 
 // bản đồ nhỏ
 const mapC = $('map'), mx = mapC.getContext('2d');
-const MB = { x0: -1900, x1: 1750, z0: -1450, z1: 1650 };
-const m2c = (x, z) => [(x - MB.x0) / (MB.x1 - MB.x0) * 300, (z - MB.z0) / (MB.z1 - MB.z0) * 300];
+const MB = { x0: -1980, x1: 2320, z0: -1420, z1: 1620 }, MS = 300 / Math.max(MB.x1 - MB.x0, MB.z1 - MB.z0);
+const m2c = (x, z) => [150 + (x - (MB.x0 + MB.x1) / 2) * MS, 150 + (z - (MB.z0 + MB.z1) / 2) * MS];
 function renderMap() {
   mx.fillStyle = '#25381f'; mx.fillRect(0, 0, 300, 300);
   const [sx] = m2c(1360, 0); mx.fillStyle = '#1d4f86'; mx.fillRect(sx, 0, 300 - sx, 300);
   mx.strokeStyle = '#2f6fb0'; mx.lineWidth = 8; mx.lineJoin = 'round'; mx.beginPath(); RIVER.forEach((p, i) => { const [x, y] = m2c(p[0], p[1]); i ? mx.lineTo(x, y) : mx.moveTo(x, y); }); mx.stroke();
   mx.strokeStyle = 'rgba(255,220,160,0.55)'; mx.lineWidth = 3;
-  for (const [i, j] of [[0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [1, 4], [2, 3]]) { const a = m2c(...DISTRICTS[i].c), b = m2c(...DISTRICTS[j].c); mx.beginPath(); mx.moveTo(a[0], a[1]); mx.lineTo(b[0], b[1]); mx.stroke(); }
+  for (const [i, j] of LINKS) { const a = m2c(...DISTRICTS[i].c), b = m2c(...DISTRICTS[j].c); mx.beginPath(); mx.moveTo(a[0], a[1]); mx.lineTo(b[0], b[1]); mx.stroke(); }
   DISTRICTS.forEach((d, i) => {
     const [x, y] = m2c(...d.c);
-    if (i === cur && !trav) { mx.strokeStyle = '#fff'; mx.lineWidth = 3; mx.beginPath(); mx.arc(x, y, 26 + Math.sin(now * 4) * 4, 0, 7); mx.stroke(); }
-    mx.fillStyle = owners[i] < 0 ? 'rgba(40,30,60,0.92)' : TEAMS[owners[i]].color; mx.beginPath(); mx.arc(x, y, 20, 0, 7); mx.fill();
+    if (i === cur && !trav) { mx.strokeStyle = '#fff'; mx.lineWidth = 3; mx.beginPath(); mx.arc(x, y, 21 + Math.sin(now * 4) * 3, 0, 7); mx.stroke(); }
+    mx.fillStyle = owners[i] < 0 ? 'rgba(40,30,60,0.92)' : TEAMS[owners[i]].color; mx.beginPath(); mx.arc(x, y, 16, 0, 7); mx.fill();
     mx.strokeStyle = 'rgba(255,255,255,0.8)'; mx.lineWidth = 2; mx.stroke();
-    mx.font = '20px "Segoe UI Emoji", "Apple Color Emoji", sans-serif'; mx.textAlign = 'center'; mx.textBaseline = 'middle'; mx.fillText(d.icon, x, y + 1);
+    mx.font = '17px "Segoe UI Emoji", "Apple Color Emoji", sans-serif'; mx.textAlign = 'center'; mx.textBaseline = 'middle'; mx.fillText(d.icon, x, y + 1);
   });
   if (trav && trav.from != null) {
     const k = clamp((trav.t / trav.dur - 0.28) / 0.4, 0, 1), a = m2c(...DISTRICTS[trav.from].c), b = m2c(...DISTRICTS[trav.to].c);
@@ -711,7 +734,9 @@ tickEl.addEventListener('animationiteration', () => { tickEl.textContent = news.
 const dlg = $('dialog'), dq = [];
 let dlgUntil = 0;
 function say(l, speak = false) { dq.push({ ...l, speak }); if (dq.length > 4) dq.splice(0, dq.length - 4); }
+let titleUntil = 0;
 function updateDialog() {
+  if (now < titleUntil) { if (dlg.classList.contains('on')) { dlg.classList.remove('on'); dlgUntil = 0; } return; }   // nhường chỗ cho thẻ tên khu
   if (now < dlgUntil) return;
   if (dlg.classList.contains('on')) { dlg.classList.remove('on'); dlgUntil = now + 0.45; return; }
   const l = dq.shift(); if (!l) return;
@@ -732,7 +757,7 @@ function banner(k, s, color) {
 function showTitle(D) {
   const t = $('title'); t.querySelector('.nm').textContent = D.def.name; t.querySelector('.sb').textContent = D.def.sub;
   const o = owners[D.idx]; t.querySelector('.tm').textContent = `🕒 ${D.def.time} · ${o < 0 ? 'Chưa có chủ' : 'Đang thuộc ' + TEAMS[o].name}`;
-  t.classList.remove('on'); void t.offsetWidth; t.classList.add('on');
+  t.classList.remove('on'); void t.offsetWidth; t.classList.add('on'); titleUntil = now + 3.4;
 }
 function flash() { const f = $('flash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
 function bubble(P, text) { feed(`<b>${esc(P.name)}</b>: ${esc(text)}`, P); }
@@ -827,7 +852,7 @@ function frame(t) {
   camera.position.copy(cam.pos); camera.lookAt(cam.look); camera.updateMatrixWorld();
   if (!trav && phase !== 'intro') moodNow = mixMood(MOODS[curD().def.mood], MOODS[curD().def.mood], 0);
   world.setMood(moodNow, camera.position);
-  const hgt = camera.position.y; scene.fog.near = lerp(140, 900, clamp(hgt / 900, 0, 1)); scene.fog.far = lerp(900, 4200, clamp(hgt / 900, 0, 1));
+  const hgt = camera.position.y; const fk = moodNow.fogK ?? 1; scene.fog.near = lerp(140, 900, clamp(hgt / 900, 0, 1)) * fk; scene.fog.far = lerp(900, 4200, clamp(hgt / 900, 0, 1)) * (0.5 + fk * 0.5);
   world.cloudMat.opacity = clamp((hgt - 150) / 400, 0.15, 0.7); world.cloudMat.color.copy(moodNow.fog).lerp(_white, 1 - moodNow.night * 0.75);
   world.update(dt, now); fx.update(dt);
   $('speed').classList.toggle('on', !!trav && trav.t / trav.dur > 0.25 && trav.t / trav.dur < 0.7);

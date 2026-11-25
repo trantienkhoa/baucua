@@ -22,7 +22,7 @@ Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dù
 
 ## 🏙️ Game mới: Sài Gòn Truy Kích — thế giới mở bản Việt (bản 2.9.0)
 
-Game LIVE thứ hai, dùng chung kết nối TikTok: người xem là những chiếc xe chạy trong thành phố 3D, chia phe 🐲 Rồng Đỏ / 🐯 Hổ Xanh tranh 6 khu (Quận Neon, Chợ Lớn, Cảng Khánh Hội, Bãi Biển Vàng, Chợ Nổi, Đèo Mây). Máy quay bay qua bản đồ để chuyển khu. Quà để độ xe (lên tới trực thăng, cưỡi Rồng Vàng), gọi truy nã, thả hàng, mưa tiền, mua đứt khu, thành Trùm Xứ Rồng có tượng vàng. Thả tim gọi Boss Hắc Long.
+Game LIVE thứ hai, dùng chung kết nối TikTok: người xem là những chiếc xe chạy trong thành phố 3D, chia phe 🐲 Rồng Đỏ / 🐯 Hổ Xanh tranh 10 khu của bản đồ Xứ Rồng (Quận Neon, Chợ Lớn, Phố Cổ Hồ Gươm, Chợ Nổi, Bãi Biển Vàng, Vịnh Hạ Long, Cảng Khánh Hội, Cầu Rồng phun lửa, Đèo Mây, Sân Bay Tân Sơn). Máy quay bay qua bản đồ để chuyển khu. Quà để độ xe (lên tới trực thăng, cưỡi Rồng Vàng), gọi truy nã, thả hàng, mưa tiền, mua đứt khu, thành Trùm Xứ Rồng có tượng vàng. Thả tim gọi Boss Hắc Long.
 
 - OBS: `http://localhost:3300/saigon/?obs=1` (1080 × 1920). Xem thử: `http://localhost:3300/saigon/` → nút **🧪 Thử quà**.
 - Ý tưởng gameplay, dàn nhân vật, bảng quà và tham số tuỳ chỉnh: xem **[SAIGON-TRUY-KICH.md](SAIGON-TRUY-KICH.md)**.

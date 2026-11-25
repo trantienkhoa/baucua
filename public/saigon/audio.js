@@ -9,6 +9,10 @@ const SONGS = {
   bien:   { bpm: 98,  chords: [54, 50, 57, 52], minor: [1, 0, 0, 0], scale: [0, 2, 4, 7, 9], lead: 'triangle' },
   chonoi: { bpm: 90,  chords: [48, 45, 53, 55], minor: [0, 1, 0, 0], scale: [0, 2, 4, 7, 9], lead: 'triangle' },
   deo:    { bpm: 92,  chords: [47, 43, 50, 45], minor: [1, 0, 0, 0], scale: [0, 3, 5, 7, 10], lead: 'square' },
+  phoco:  { bpm: 86,  chords: [50, 53, 48, 45], minor: [1, 0, 0, 1], scale: [0, 2, 5, 7, 9], lead: 'triangle' },
+  caurong: { bpm: 112, chords: [52, 48, 50, 47], minor: [1, 0, 0, 1], scale: [0, 3, 5, 7, 10], lead: 'square' },
+  halong: { bpm: 94,  chords: [55, 52, 48, 50], minor: [0, 1, 0, 0], scale: [0, 2, 4, 7, 9], lead: 'triangle' },
+  sanbay: { bpm: 106, chords: [53, 50, 46, 48], minor: [0, 1, 0, 0], scale: [0, 2, 4, 7, 9], lead: 'sawtooth' },
   boss:   { bpm: 128, chords: [45, 45, 46, 44], minor: [1, 1, 0, 0], scale: [0, 1, 4, 5, 7], lead: 'sawtooth' },
 };
 

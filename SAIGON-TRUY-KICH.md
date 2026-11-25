@@ -19,7 +19,7 @@ Người xem không chỉ ngồi xem: **mỗi người là một chiếc xe ch�
 | ➕ Follow / ↗ Chia sẻ | Pháo hoa mang tên mình, cộng điểm phe |
 | 🎁 Tặng quà | Độ xe, gọi sự kiện lớn, đẩy thanh điểm của phe |
 
-## 2. Bản đồ thế giới mở: 6 khu, mỗi khu một giờ trong ngày
+## 2. Bản đồ thế giới mở “Xứ Rồng”: 10 khu, mỗi khu một giờ trong ngày
 
 Máy quay **bay lên trời, lướt qua bản đồ rồi sà xuống khu mới** (kiểu chuyển nhân vật của game thế giới mở): có nhãn tên khu, đường bay trên bản đồ nhỏ và thẻ tên khu khi hạ cánh. Trời, sương mù, đèn đường đổi theo giờ của từng khu.
 
@@ -31,12 +31,18 @@ Máy quay **bay lên trời, lướt qua bản đồ rồi sà xuống khu mới
 | 🏖️ **Bãi Biển Vàng** | 17:50 | Đường ven biển, hàng dừa, dù che nắng, ngọn hải đăng, ca nô |
 | 🛶 **Chợ Nổi Miền Tây** | 06:30 | Ghe chở trái cây chạy trên sông, nhà sàn, cầu gỗ, người đội nón lá |
 | ⛰️ **Đèo Mây** | 15:30 | Đường đèo uốn lượn, núi, ruộng bậc thang, thác nước, mây bay ngang tầm xe |
+| 🏯 **Phố Cổ Hồ Gươm** | 06:45 | Hồ giữa phố, tháp giữa hồ, cầu son đỏ cong sang đền trên đảo, nhà ống tường vàng mái ngói, hàng cây, sương sớm, quán “PHỞ BÒ, BÚN CHẢ, CÀ PHÊ TRỨNG” |
+| 🐉 **Cầu Rồng** | 21:00 | Rồng vàng uốn 3 vòng trên cầu, đèn thân rồng đổi màu, **đầu rồng phun lửa**, cầu dây văng, nhà cao tầng hai bờ sông |
+| 🏝️ **Vịnh Hạ Long** | 09:30 | Đảo giữa biển, núi đá vôi mọc lên từ nước, thuyền buồm nâu chạy quanh, làng chài nổi, cầu vượt biển nối sang Cảng |
+| ✈️ **Sân Bay Tân Sơn** | 12:00 | Đường băng, nhà ga kính, máy bay đậu ở ống lồng, tháp điều khiển, **máy bay cất cánh, lượn vòng trên thành phố rồi hạ cánh** liên tục |
+
+Lộ trình bay vòng quanh bản đồ: Quận Neon → Chợ Lớn → Phố Cổ → Chợ Nổi → Bãi Biển → Hạ Long → Cảng → Cầu Rồng → Đèo Mây → Sân Bay → về Quận Neon. Các khu nối với nhau bằng đường cao tốc (đoạn ra Hạ Long là cầu vượt biển), nhìn thấy rõ khi máy quay bay trên cao.
 
 ## 3. Vòng chơi: chiếm địa bàn
 
 1. Mỗi khu có **thanh kéo co** Rồng Đỏ ↔ Hổ Xanh. Quà, tim, bình luận, follow của phe nào thì đẩy thanh về phía phe đó.
 2. Phe nào đẩy kịch thanh trước thì **cắm cờ** chiếm khu: pháo hoa màu phe, cột sáng màu phe nhìn thấy từ bản đồ. Hết giờ (mặc định 2 phút) thì phe đang nhỉnh hơn chiếm.
-3. Máy quay bay sang khu tiếp theo. Đi đủ 6 khu là hết **một mùa**: công bố phe vô địch, đại gia số 1, rồi bản đồ trắng lại cho mùa mới.
+3. Máy quay bay sang khu tiếp theo. Đi đủ 10 khu là hết **một mùa** (khoảng 20 phút nếu mỗi khu 2 phút; muốn mùa ngắn hơn thì giảm `round`): công bố phe vô địch, đại gia số 1, rồi bản đồ trắng lại cho mùa mới.
 
 Nhịp này giữ người xem ở lại: lúc nào cũng có một khu đang tranh, luôn có “sắp hết giờ” để kêu gọi quà.
 
@@ -51,6 +57,8 @@ Nhịp này giữ người xem ở lại: lúc nào cũng có một khu đang tr
 | 💸 Súng tiền | 500+ | **Mưa tiền**: tiền rơi khắp khu, Má Tư Chợ Nổi cảm ơn |
 | 🌌 Thiên hà | 1.000+ | **Mua đứt khu** ngay lập tức, tên lên bảng LED |
 | 🦁 Sư tử | 5.000+ | **TRÙM XỨ RỒNG**: dựng tượng vàng có tên ở quảng trường, pháo hoa cả khu, bảng LED trên nóc nhà Quận Neon đổi tên, vương miện 👑 trên đầu |
+
+Riêng ở **Cầu Rồng**, quà từ 30 xu còn làm **rồng phun lửa** (rồng cũng tự phun khoảng 24 giây một lần).
 
 Quà nhận theo **số xu**, không theo tên quà, nên dùng được mọi loại quà của mọi khu vực. Nhiều quà lớn liên tiếp thì xếp hàng diễn lần lượt, không đè lên nhau.
 
@@ -139,7 +147,7 @@ Phím tắt khi xem thử: **T** bảng thử, **M** bật/tắt nhạc, **N** c
 |---|---|
 | `index.html` | Giao diện HUD, bố cục khung dọc 9:16 chừa vùng bình luận TikTok |
 | `main.js` | Luật chơi, máy quay tự động, chuyển cảnh bay qua bản đồ, sự kiện quà, boss, chế độ giả lập |
-| `world.js` | Dựng 6 khu, trời theo giờ, sông, biển, đường cao tốc, mây |
+| `world.js` | Dựng 10 khu, trời theo giờ, sông, biển, đường cao tốc, máy bay, thuyền, mây |
 | `vehicles.js` | 7 cấp xe, xe đàn em, xe boss, thùng dù, tượng vàng, pháo hoa / khói / mưa tiền |
 | `cast.js` | Dàn nhân vật, chân dung SVG, lời thoại |
 | `audio.js` | Nhạc nền mỗi khu một giai điệu, hiệu ứng âm thanh, giọng MC tiếng Việt |

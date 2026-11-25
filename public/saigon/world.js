@@ -15,6 +15,10 @@ const MOODS = {
   dawn:    { top: '#25305e', hor: '#ffae7a', fog: '#8a7a92', hs: '#b0a8e0', hg: '#4a3a3a', hi: 0.8,  sun: '#ffb07a', si: 0.85, dir: [1, 0.16, 0.25],   night: 0.5,  stars: 0.12, orb: '#ffc48a', orbSize: 320, water: '#4a5a8a' },
   sunset:  { top: '#2a3a90', hor: '#ff7a59', fog: '#d88a7c', hs: '#ffb8a0', hg: '#5a3a30', hi: 0.9,  sun: '#ffb36b', si: 1.15, dir: [1, 0.12, -0.25],  night: 0.3,  stars: 0,    orb: '#ffcf70', orbSize: 380, water: '#3a5aa0' },
   morning: { top: '#3f8be0', hor: '#ffe6c0', fog: '#cfdbe4', hs: '#cfe6ff', hg: '#6a7a4a', hi: 1.05, sun: '#fff1d6', si: 1.25, dir: [0.6, 0.55, 0.4],   night: 0.04, stars: 0,    orb: '#fffbe8', orbSize: 200, water: '#3a8ab0' },
+  mist:    { top: '#9fb3c8', hor: '#ece4d8', fog: '#c6cad0', hs: '#dde6f0', hg: '#6a6a5a', hi: 0.95, sun: '#fff0dc', si: 0.75, dir: [0.7, 0.35, 0.4],   night: 0.18, stars: 0,    orb: '#fff4e0', orbSize: 230, water: '#6a8a9a', fogK: 0.55 },
+  bluenight: { top: '#020814', hor: '#16326e', fog: '#0e1a3a', hs: '#7a98e8', hg: '#1a2040', hi: 0.95, sun: '#a8c4ff', si: 0.5, dir: [0.5, 0.6, -0.5], night: 1,   stars: 0.9,  orb: '#f0f4ff', orbSize: 140, water: '#0a1a40' },
+  haze:    { top: '#5aa6e0', hor: '#e8f4f0', fog: '#c0dce0', hs: '#e0f4ff', hg: '#5a7a6a', hi: 1.05, sun: '#fffaf0', si: 1.25, dir: [0.4, 0.7, 0.3],    night: 0,    stars: 0,    orb: '#ffffff', orbSize: 190, water: '#2aa0a8', fogK: 0.9 },
+  clear:   { top: '#2a6fd8', hor: '#bfe0ff', fog: '#cfe2f0', hs: '#e6f2ff', hg: '#7a7a60', hi: 1.05, sun: '#ffffff', si: 1.4,  dir: [0.2, 0.9, 0.3],    night: 0,    stars: 0,    orb: '#ffffff', orbSize: 170, water: '#3a8ac0' },
   noon:    { top: '#3577d6', hor: '#ffd8a4', fog: '#e6c9a4', hs: '#d6ebff', hg: '#7a7048', hi: 1.05, sun: '#ffdcaa', si: 1.35, dir: [-0.5, 0.75, 0.3],  night: 0,    stars: 0,    orb: '#fff6dc', orbSize: 180, water: '#3a90b8' },
 };
 const MOOD_KEYS = ['top', 'hor', 'fog', 'hs', 'hg', 'sun', 'orb', 'water'];
@@ -23,10 +27,11 @@ export function mixMood(a, b, t) {
   for (const k of MOOD_KEYS) o[k] = new THREE.Color(a[k]).lerp(new THREE.Color(b[k]), t);
   for (const k of ['hi', 'si', 'night', 'stars', 'orbSize']) o[k] = lerp(a[k], b[k], t);
   o.dir = a.dir.map((v, i) => lerp(v, b.dir[i], t));
+  o.fogK = lerp(a.fogK ?? 1, b.fogK ?? 1, t);
   return o;
 }
 
-// ---------- 6 khu vực của bản đồ thế giới mở ----------
+// ---------- 10 khu vực của bản đồ thế giới mở "Xứ Rồng" ----------
 export const DISTRICTS = [
   { key: 'neon',  name: 'Quận Neon',        sub: 'Trung tâm không ngủ',   icon: '🌃', c: [0, 0],       time: '22:00', mood: 'night',   seed: 11 },
   { key: 'cholon', name: 'Chợ Lớn',         sub: 'Phố đèn lồng',          icon: '🏮', c: [-900, 180],  time: '19:30', mood: 'evening', seed: 22 },
@@ -34,7 +39,13 @@ export const DISTRICTS = [
   { key: 'bien',  name: 'Bãi Biển Vàng',    sub: 'Đường ven biển hoàng hôn', icon: '🏖️', c: [1080, -640], time: '17:50', mood: 'sunset',  seed: 44 },
   { key: 'chonoi', name: 'Chợ Nổi Miền Tây', sub: 'Ghe xuồng sáng sớm',    icon: '🛶', c: [-560, -860], time: '06:30', mood: 'morning', seed: 55 },
   { key: 'deo',   name: 'Đèo Mây',          sub: 'Đường đèo trên mây',    icon: '⛰️', c: [-260, 1080], time: '15:30', mood: 'noon',    seed: 66 },
+  { key: 'phoco', name: 'Phố Cổ Hồ Gươm',   sub: 'Sương sớm bên hồ',      icon: '🏯', c: [-1550, -400], time: '06:45', mood: 'mist',    seed: 77 },
+  { key: 'caurong', name: 'Cầu Rồng',        sub: 'Rồng vàng phun lửa trên sông', icon: '🐉', c: [700, 1150], time: '21:00', mood: 'bluenight', seed: 88 },
+  { key: 'halong', name: 'Vịnh Hạ Long',    sub: 'Núi đá giữa biển xanh', icon: '🏝️', c: [1760, 380],  time: '09:30', mood: 'haze',    seed: 99 },
+  { key: 'sanbay', name: 'Sân Bay Tân Sơn', sub: 'Máy bay cất cánh liên tục', icon: '✈️', c: [-1450, 920], time: '12:00', mood: 'clear', seed: 111 },
 ];
+// đường cao tốc nối các khu (Cảng ↔ Hạ Long, Biển ↔ Hạ Long là cầu vượt biển)
+export const LINKS = [[0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [1, 4], [2, 3], [1, 6], [4, 6], [2, 7], [5, 7], [2, 8], [3, 8], [1, 9], [5, 9]];
 export { MOODS };
 
 export const RIVER = [[-2000, -980], [-1200, -900], [-560, -860], [80, -700], [420, -300], [480, 200], [560, 640], [700, 1100], [820, 1700]];
@@ -59,7 +70,7 @@ export class World {
       const m = new THREE.MeshLambertMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 1, vertexColors: true });
       this.styles[s] = m; this.buildMats.push(m);
     }
-    this.geo = { box: new THREE.BoxGeometry(1, 1, 1), cyl: new THREE.CylinderGeometry(0.5, 0.5, 1, 10), cone: new THREE.ConeGeometry(0.5, 1, 8), sph: new THREE.SphereGeometry(0.5, 10, 8), cone4: new THREE.ConeGeometry(0.5, 1, 4), plane: new THREE.PlaneGeometry(1, 1) };
+    this.geo = { box: new THREE.BoxGeometry(1, 1, 1), cyl: new THREE.CylinderGeometry(0.5, 0.5, 1, 10), cone: new THREE.ConeGeometry(0.5, 1, 8), sph: new THREE.SphereGeometry(0.5, 10, 8), cone4: new THREE.ConeGeometry(0.5, 1, 4), plane: new THREE.PlaneGeometry(1, 1), prism: prismGeometry() };
     this.buildSky();
     this.buildTerrain();
     DISTRICTS.forEach((d, i) => this.districts.push(this.buildDistrict(d, i)));
@@ -141,7 +152,7 @@ export class World {
 
   buildHighways() {
     const b = new GeoBuilder();
-    const links = [[0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [1, 4], [2, 3]];
+    const links = LINKS;
     for (const [i, j] of links) {
       const a = DISTRICTS[i].c, c = DISTRICTS[j].c;
       const dx = c[0] - a[0], dz = c[1] - a[1], L = Math.hypot(dx, dz), ux = dx / L, uz = dz / L;
@@ -161,9 +172,9 @@ export class World {
     const r = rng(3), tex = cloudTexture();
     this.cloudMat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.75, depthWrite: false, color: 0xffffff });
     this.clouds = new THREE.Group();
-    for (let i = 0; i < (this.low ? 40 : 80); i++) {
+    for (let i = 0; i < (this.low ? 50 : 100); i++) {
       const s = new THREE.Sprite(this.cloudMat); const w = r.range(260, 560);
-      s.scale.set(w, w * 0.45, 1); s.position.set(r.range(-2200, 1900), r.range(330, 560), r.range(-1700, 1900));
+      s.scale.set(w, w * 0.45, 1); s.position.set(r.range(-2300, 2500), r.range(330, 560), r.range(-1700, 1900));
       this.clouds.add(s);
     }
     this.root.add(this.clouds);
@@ -434,10 +445,12 @@ export class World {
       for (let i = 0; i < 10; i++) { const x = cx + r.range(-200, 200), z = cz + r.range(-200, 200); if (Math.hypot(x - cx + 20, z - cz) < 90 || road.some(p => Math.hypot(p[0] - x, p[1] - z) < 60)) continue; solid.add(this.geo.cone, mat(x, 18, z, r.range(0, 3), 70, 36, 70), 0x5a8a42); }
       // lan can
       for (let i = 0; i < road.length; i += 2) { const p = road[i]; box(p[0], 1, p[1], 1, 2, 1, i % 4 ? 0xffffff : 0xd83a3a); }
-      // núi
+      // núi (chừa chỗ cho đường cao tốc về Quận Neon, Cầu Rồng, Sân Bay)
+      const nearHw = (x, z, rad) => [[0, 0], [700, 1150], [-1450, 920]].some(([tx, tz]) => { const dx = tx - cx, dz = tz - cz, L = Math.hypot(dx, dz), px = x - cx, pz = z - cz; return (px * dx + pz * dz) / L > 0 && Math.abs(px * dz - pz * dx) / L < rad + 24; });
       const mb = new GeoBuilder(), mc = [0x4a7a3a, 0x5a8a42, 0x3f6a34, 0x6a8a4a];
       for (let i = 0; i < 46; i++) {
         const a = r.range(0, Math.PI * 2), d = r.range(330, 620), x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d, h = r.range(120, 320), w = r.range(140, 260);
+        if (nearHw(x, z, w / 2)) continue;
         mb.add(this.geo.cone, mat(x, h / 2, z, r.range(0, 3), w, h, w * r.range(0.8, 1.2)), r.pick(mc));
         mb.add(this.geo.cone, mat(x, h * 0.86, z, r.range(0, 3), w * 0.3, h * 0.3, w * 0.3), 0x8a8a7a);
       }
@@ -462,6 +475,177 @@ export class World {
       for (let i = 0; i < 14; i++) { const s = new THREE.Sprite(this.cloudMat || new THREE.SpriteMaterial({ map: cloudTexture(), transparent: true, opacity: 0.7, depthWrite: false })); const w = r.range(120, 240); s.scale.set(w, w * 0.45, 1); s.position.set(cx + r.range(-500, 500), r.range(70, 150), cz + r.range(-500, 500)); g.add(s); D.lowClouds.push(s); }
       D.air = { r: 220, y: 90 };
       D.shots = [{ p: [-260, 14, -120], l: [-200, 8, 0] }, { p: [320, 180, -320], l: [0, 20, 0] }, { p: [40, 40, -60], l: [-20, 24, 0] }];
+    }
+
+    if (def.key === 'phoco') {   // Phố Cổ Hồ Gươm: hồ, cầu son, tháp giữa hồ, nhà ống mái ngói, sương sớm
+      this.pad(g, cx, cz, 580, 560, 0x7a776c);
+      const wm = new THREE.MeshPhongMaterial({ color: 0x6a8a9a, shininess: 60 }); this.waterMats.push(wm);
+      const lake = new THREE.Mesh(new THREE.CircleGeometry(1, 48), wm); lake.rotation.x = -Math.PI / 2; lake.scale.set(120, 170, 1); lake.position.set(cx, 0.06, cz); g.add(lake);
+      const ell = (rx, rz, n = 56) => { const p = []; for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; p.push([cx + Math.cos(a) * rx, cz + Math.sin(a) * rz]); } return p; };
+      const inner = ell(150, 200); D.loops.push(new Loop(inner)); g.add(new THREE.Mesh(ribbon(inner, 20, 0.07), this.roadMat));
+      const outer = roundedRect(cx, cz, 520, 500, 30); D.loops.push(new Loop(outer)); g.add(new THREE.Mesh(ribbon(outer, 22, 0.075), this.roadMat));
+      for (const [x1, z1, x2, z2] of [[0, -208, 0, -250], [-158, 0, -260, 0], [158, 0, 260, 0]]) g.add(new THREE.Mesh(ribbon([[cx + x1, cz + z1], [cx + x2, cz + z2]], 18, 0.072, false), this.roadMat));
+      // hàng cây + cột đèn quanh hồ
+      for (const [x, z] of ell(132, 183, 30)) { solid.add(this.geo.cyl, mat(x, 4, z, 0, 1.4, 8, 1.4), 0x5a3a20); solid.add(this.geo.sph, mat(x, 11, z, 0, 11, 8, 11), r.pick([0x2f6a2a, 0x3a7a30])); solid.add(this.geo.cone, mat(x, 7, z, 0, 10, 8, 10), 0x4a8a3a); }
+      for (const [x, z] of ell(140, 191, 24)) { box(x, 4, z, 0.5, 8, 0.5, 0x2a2a2a); lights.push([x, 8.5, z, '#ffe2a0']); }
+      // tháp giữa hồ
+      const tx = cx + 8, tz = cz + 30;
+      solid.add(this.geo.cyl, mat(tx, 0.6, tz, 0, 26, 1.2, 26), 0x4a7a3a);
+      box(tx, 4, tz, 10, 7, 7, 0xe8dcc0); box(tx, 10.5, tz, 8, 6, 6, 0xe0d4b8); box(tx, 16, tz, 5, 5, 5, 0xd8ccb0);
+      for (const y of [7.8, 13.8, 18.8]) box(tx, y, tz, 11 - y * 0.3, 0.6, 8 - y * 0.2, 0x6a4a2a);
+      ubox(tx, 4, tz + 3.55, 6, 3, 0.1, 0x3a2a1a);
+      landmark = new THREE.Vector3(tx, 22, tz);
+      // đền trên đảo phía bắc + cầu son đỏ cong
+      const ix = cx - 20, iz = cz - 120;
+      solid.add(this.geo.cyl, mat(ix, 0.6, iz, 0, 46, 1.2, 46), 0x4a7a3a);
+      box(ix, 4, iz, 20, 8, 14, 0xa8402a); solid.add(this.geo.prism, mat(ix, 8, iz, 0, 26, 6, 20), 0x5a3a2a);
+      for (let k = 0; k < 12; k++) {
+        const t = k / 11, z = cz - 190 + t * 46, y = 1.2 + Math.sin(t * Math.PI) * 6, slope = Math.cos(t * Math.PI) * 6 * Math.PI / 46;
+        solid.add(this.geo.box, mat(ix, y, z, 0, 6, 0.8, 4.4, -Math.atan(slope)), 0xc81e24);
+        for (const s of [-3, 3]) ubox(ix + s, y + 1.4, z, 0.4, 2, 4.4, 0xff2a2a);
+      }
+      // phố cổ: nhà ống tường vàng, mái ngói
+      const facade = [0xf0c860, 0xe8b850, 0xf2d488, 0xe0a860, 0xd8c8a0, 0xf0d8b0], roofs = [0x7a3a26, 0x8a4a2a, 0x6a3220, 0x5a4a3a];
+      const food = ['PHỞ BÒ', 'BÚN CHẢ', 'CÀ PHÊ TRỨNG', 'BÁNH CUỐN', 'TRÀ ĐÁ', 'CHẢ CÁ', 'BÚN THANG', 'XÔI XÉO'];
+      for (let x = -242; x <= 242; x += 14) for (let z = -227; z <= 227; z += 26) {
+        const ex = x / 176, ez = z / 226; if (ex * ex + ez * ez < 1) continue;
+        if ((Math.abs(x) < 16 && z < -195) || (Math.abs(z) < 20 && Math.abs(x) > 150) || (Math.abs(x) < 52 && z > 198)) continue;
+        const w = r.range(12, 13.4), d = 22, h = r.range(10, 26), hx = cx + x, hz = cz + z;
+        B('old', hx, hz, w, d, h, new THREE.Color(r.pick(facade)));
+        solid.add(this.geo.prism, mat(hx, h, hz, 0, w * 1.06, r.range(4, 6), d * 1.1), r.pick(roofs));
+        if (Math.abs(z) > 205 && r.chance(0.45)) this.sign(g, r.pick(food), r.pick(['#ffd23f', '#ff5a3a', '#7fe0ff']), hx, r.range(5, 8), hz + Math.sign(z) * (d / 2 + 0.5), z > 0 ? 0 : Math.PI, 3.6, false, 'rgba(30,14,6,0.9)');
+      }
+      for (let k = -260; k <= 260; k += 40) for (const [x, z] of [[k, -276], [k, 270], [-283, k], [283, k]]) { solid.add(this.geo.cyl, mat(cx + x, 4, cz + z, 0, 1.4, 8, 1.4), 0x5a3a20); solid.add(this.geo.sph, mat(cx + x, 11, cz + z, 0, 12, 9, 12), 0x3a7a30); }
+      // cổng quảng trường
+      for (const s of [-22, 22]) box(cx + s, 7, cz + 238, 2.4, 14, 2.4, 0xa8302a);
+      box(cx, 14.5, cz + 238, 50, 2, 3, 0x6a2a1a);
+      this.sign(g, 'HỒ GƯƠM', '#ffd23f', cx, 14.5, cz + 236.4, Math.PI, 3.4, false, 'rgba(120,20,10,0.95)');
+      D.plaza.set(cx, 0, cz + 222);
+      D.lowClouds = [];
+      const mistMat = new THREE.SpriteMaterial({ map: cloudTexture(), transparent: true, opacity: 0.32, depthWrite: false });
+      for (let i = 0; i < 16; i++) { const s = new THREE.Sprite(mistMat); const w = r.range(140, 260); s.scale.set(w, w * 0.4, 1); s.position.set(cx + r.range(-500, 500), r.range(14, 44), cz + r.range(-320, 320)); g.add(s); D.lowClouds.push(s); }
+      D.air = { r: 200, y: 80 };
+      D.shots = [{ p: [-260, 12, -230], l: [-260, 10, 100] }, { p: [260, 170, -330], l: [0, 0, 0] }, { p: [-110, 9, -150], l: [0, 6, 20] }];
+    }
+
+    if (def.key === 'caurong') {   // Cầu Rồng: rồng vàng uốn lượn trên cầu, đầu rồng phun lửa
+      for (const sx of [-1, 1]) this.pad(g, cx + sx * 228, cz, 256, 660, 0x50545e);
+      const wm = new THREE.MeshPhongMaterial({ color: 0x0a1a40, shininess: 90, specular: 0x6688cc }); this.waterMats.push(wm);
+      const river = new THREE.Mesh(this.geo.plane, wm); river.rotation.x = -Math.PI / 2; river.scale.set(200, 1000, 1); river.position.set(cx, 0.065, cz); g.add(river);
+      const lp = roundedRect(cx, cz + 130, 460, 260, 24); D.loops.push(new Loop(lp)); g.add(new THREE.Mesh(ribbon(lp, 24, 0.09), this.roadMat));
+      for (const sx of [-1, 1]) { const q = roundedRect(cx + sx * 210, cz - 150, 160, 280, 20); D.loops.push(new Loop(q)); g.add(new THREE.Mesh(ribbon(q, 20, 0.075), this.roadMat)); }
+      for (const z of [cz, cz + 260]) for (const s of [-13, 13]) box(cx, 1, z + s, 200, 2, 1, 0x6a6e78);
+      // thân rồng: 3 vòng cung, đầu ở phía đông
+      const body = [];
+      for (let k = 0; k <= 72; k++) {
+        const t = k / 72, x = cx - 100 + t * 205, y = 11 + Math.abs(Math.sin(t * Math.PI * 3)) * 20 + Math.max(0, t - 0.9) * 140;
+        solid.add(this.geo.sph, mat(x, y, cz, 0, 6.6, 6.6, 6.6), 0xffc23a);
+        if (k % 3 === 0) { solid.add(this.geo.cone, mat(x, y + 4.4, cz, 0, 1.8, 4.6, 1.8), 0xff4a2a); body.push([x, y + 1, cz + 3.6], [x, y + 1, cz - 3.6]); }
+      }
+      for (const t of [0, 1 / 3, 2 / 3]) for (const s of [-10, 10]) box(cx - 100 + t * 205, 5.5, cz + s, 2, 11, 2, 0xc89a2a);
+      for (let k = 0; k < 6; k++) solid.add(this.geo.sph, mat(cx - 103 - k * 2.4, 11 + k * 2.2, cz, 0, 6 - k * 0.8, 6 - k * 0.8, 6 - k * 0.8), 0xffc23a);
+      const hx = cx + 111, hy = 27;
+      box(hx, hy, cz, 11, 7, 8, 0xffc23a); box(hx + 8, hy - 2, cz, 7, 4, 6, 0xffc23a); box(hx + 8, hy - 4.6, cz, 6.4, 1.2, 5.4, 0xd8302a);
+      for (const s of [-2.4, 2.4]) { solid.add(this.geo.cone, mat(hx - 3, hy + 6, cz + s, 0, 1.4, 7, 1.4, 0, 0.6), 0xffe08a); ubox(hx + 3, hy + 1.6, cz + s * 1.3, 1.6, 1.6, 0.6, 0xff2020); }
+      for (let k = 0; k < 4; k++) solid.add(this.geo.cone, mat(hx - 6 - k * 2, hy + 4, cz, 0, 2.4, 5, 1, 0, 0.9), 0xff4a2a);
+      D.mouth = new THREE.Vector3(hx + 12, hy - 2.6, cz); D.mouthDir = new THREE.Vector3(1, 0.1, 0).normalize();
+      D.dragonLights = this.glowPoints(body, '#ffffff', 9); g.add(D.dragonLights);
+      landmark = new THREE.Vector3(hx, hy + 8, cz);
+      // cầu dây văng phía nam
+      for (const s of [-50, 50]) { box(cx + s, 26, cz + 260, 3, 52, 3, 0xe8e8f0); lights.push([cx + s, 53, cz + 260, '#ff3030']); }
+      const cab = [];
+      for (const s of [-50, 50]) for (let k = 1; k <= 5; k++) for (const d of [-1, 1]) cab.push(cx + s, 50, cz + 260, cx + s + d * k * 9, 1, cz + 260 + (k % 2 ? 1 : -1));
+      const cg = new THREE.BufferGeometry(); cg.setAttribute('position', new THREE.Float32BufferAttribute(cab, 3)); g.add(new THREE.LineSegments(cg, new THREE.LineBasicMaterial({ color: 0xcfe6ff })));
+      // nhà cao tầng hai bờ
+      for (const sx of [-1, 1]) {
+        for (let z = -290; z <= 290; z += 58) { const h = r.range(50, 150); B(r.chance(0.6) ? 'glass' : 'office', cx + sx * 322, cz + z, 32, 40, h, new THREE.Color().setHSL(r.range(0.55, 0.65), 0.3, r.range(0.6, 0.85))); lights.push([cx + sx * 322, h + 5, cz + z, '#ff3030']); }
+        for (const z of [-205, -95]) B('office', cx + sx * 210, cz + z, 54, 60, r.range(50, 110), new THREE.Color(0xc8d0e0));
+        for (let z = -300; z <= 300; z += 30) lights.push([cx + sx * 104, 9, cz + z, '#ffd9a0']);
+      }
+      for (let x = -300; x <= 300; x += 40) if (Math.abs(x) > 110) B('home', cx + x, cz + 300, 30, 26, r.range(14, 30), new THREE.Color(0xf0e0c8));
+      this.sign(g, 'ĐÀ NẴNG', '#22e0ff', cx - 322 + 16.6, 70, cz - 58, Math.PI / 2, 14);
+      for (const [t, z] of [['MÌ QUẢNG', -232], ['BÁNH XÈO', 116], ['HẢI SẢN', 232]]) this.sign(g, t, r.pick(NEON_COLORS), cx + 322 - 16.6, 18, cz + z, -Math.PI / 2, 6);
+      D.plaza.set(cx + 160, 0, cz + 130);
+      D.air = { r: 230, y: 95 };
+      D.shots = [{ p: [-150, 9, -80], l: [40, 18, 0] }, { p: [330, 170, -320], l: [0, 10, 80] }, { p: [190, 7, 40], l: [100, 22, 0] }];
+    }
+
+    if (def.key === 'halong') {   // Vịnh Hạ Long: đảo, núi đá vôi giữa biển, thuyền buồm
+      const isl = new THREE.Mesh(new THREE.CircleGeometry(1, 40), new THREE.MeshLambertMaterial({ color: 0x8aa060 })); isl.rotation.x = -Math.PI / 2; isl.scale.set(235, 215, 1); isl.position.set(cx, 0.056, cz); g.add(isl);
+      const sand = new THREE.Mesh(isl.geometry, new THREE.MeshLambertMaterial({ color: 0xe8d8a0 })); sand.rotation.x = -Math.PI / 2; sand.scale.set(258, 238, 1); sand.position.set(cx, 0.05, cz); g.add(sand);
+      const ell = smoothLoop([[cx - 180, cz], [cx - 127, cz - 113], [cx, cz - 160], [cx + 127, cz - 113], [cx + 180, cz], [cx + 127, cz + 113], [cx, cz + 160], [cx - 127, cz + 113]], 8);
+      D.loops.push(new Loop(ell)); g.add(new THREE.Mesh(ribbon(ell, 22, 0.07), this.roadMat));
+      const hb = roundedRect(cx - 40, cz + 20, 160, 120, 20); D.loops.push(new Loop(hb)); g.add(new THREE.Mesh(ribbon(hb, 18, 0.075), this.roadMat));
+      solid.add(this.geo.sph, mat(cx + 95, 0, cz - 55, 0, 68, 48, 68), 0x5a8a3a);
+      for (const a of [-4, 4]) for (const b of [-4, 4]) box(cx + 95 + a, 26, cz - 55 + b, 0.8, 6, 0.8, 0x7a2a1a);
+      solid.add(this.geo.cone4, mat(cx + 95, 31, cz - 55, Math.PI / 4, 16, 5, 16), 0xb03a2a);
+      landmark = new THREE.Vector3(cx + 95, 36, cz - 55);
+      // núi đá vôi
+      for (let i = 0; i < 52; i++) {
+        const a = r.range(0, Math.PI * 2), d = r.range(300, 760), x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d;
+        if (x < 1440 || (x < cx && Math.abs(z - (cz - 0.096 * (x - cx))) < 70)) continue;
+        const w = r.range(18, 48), h = r.range(50, 180);
+        solid.add(this.geo.cyl, mat(x, h / 2, z, r.range(0, 3), w, h, w * r.range(0.7, 1)), r.pick([0x8a9488, 0x7a867a, 0x949c8a]));
+        solid.add(this.geo.sph, mat(x, h, z, 0, w * 1.08, w * 0.7, w * 0.9), r.pick([0x3f6a34, 0x4a7a3a, 0x355f2e]));
+        solid.add(this.geo.sph, mat(x + w * 0.25, h * 0.62, z + w * 0.3, 0, w * 0.6, w * 0.5, w * 0.5), 0x4a7a3a);
+      }
+      // khách sạn, nhà hàng hải sản
+      let placed = 0;
+      for (let k = 0; k < 60 && placed < 12; k++) {
+        const x = r.range(-150, 150), z = r.range(-130, 130);
+        if ((x / 150) ** 2 + (z / 130) ** 2 > 1 || (x > -135 && x < 55 && z > -55 && z < 95) || Math.hypot(x - 95, z + 55) < 52) continue;
+        const w = r.range(18, 26), h = r.range(14, 34); B('home', cx + x, cz + z, w, w, h, new THREE.Color(r.pick([0xffffff, 0xf0f8ff, 0xffe8d0, 0xd8f0f0]))); placed++;
+        if (r.chance(0.5)) this.sign(g, r.pick(['HẢI SẢN', 'HOTEL', 'NHÀ HÀNG', 'MỰC NƯỚNG']), r.pick(NEON_COLORS), cx + x, h - 3, cz + z + w / 2 + 0.5, 0, 4);
+      }
+      box(cx - 40, 0.8, cz + 235, 8, 1.2, 110, 0x8a6a4a);
+      for (let k = 0; k < 5; k++) { box(cx + 270 + (k % 2) * 30, 0.6, cz - 60 + k * 30, 14, 1, 14, 0x6a4a2a); box(cx + 270 + (k % 2) * 30, 3.4, cz - 60 + k * 30, 9, 5, 8, r.pick([0x3a8ad8, 0xf0c23a, 0xe85a3a])); lights.push([cx + 270 + (k % 2) * 30, 6, cz - 54 + k * 30, '#ffd9a0']); }
+      for (const [x, z] of ell.filter((_, i) => i % 4 === 0)) lights.push([x, 8, z, '#ffe8c0']);
+      this.sign(g, 'VỊNH HẠ LONG', '#3dffd0', cx - 40, 10, cz + 182, Math.PI, 6, false, 'rgba(6,30,40,0.88)');
+      D.boats = []; const bl = [new Loop(roundedRect(cx, cz, 660, 620, 230)), new Loop(roundedRect(cx + 40, cz, 860, 800, 280))];
+      for (let i = 0; i < 10; i++) { const m = junkMesh(this, r); g.add(m); D.boats.push({ m, loop: bl[i % 2], s: r.range(0, 3000), sp: r.range(5, 10) }); }
+      D.plaza.set(cx - 40, 0, cz + 20);
+      D.air = { r: 230, y: 100 };
+      D.shots = [{ p: [-180, 10, -100], l: [80, 40, -250] }, { p: [430, 210, -420], l: [0, 0, 0] }, { p: [150, 8, 160], l: [-40, 20, 0] }];
+    }
+
+    if (def.key === 'sanbay') {   // Sân bay: đường băng, nhà ga, tháp điều khiển, máy bay cất / hạ cánh
+      this.pad(g, cx, cz, 640, 600, 0x6f8a4a);
+      const flat = (w, d, x, z, y, color) => { const m = new THREE.Mesh(this.geo.plane, new THREE.MeshLambertMaterial({ color })); m.rotation.x = -Math.PI / 2; m.scale.set(w, d, 1); m.position.set(x, y, z); g.add(m); };
+      flat(520, 90, cx, cz + 40, 0.04, 0x9a9ca0); flat(560, 46, cx, cz + 170, 0.05, 0x34363c); flat(540, 18, cx, cz + 112, 0.045, 0x4a4c52);
+      for (let x = -255; x <= 255; x += 30) ubox(cx + x, 0.08, cz + 170, 14, 0.05, 1.2, 0xffffff);
+      for (const e of [-1, 1]) for (let k = -4; k <= 4; k++) ubox(cx + e * 266, 0.08, cz + 170 + k * 4.6, 10, 0.05, 2, 0xffffff);
+      for (let x = -280; x <= 280; x += 28) lights.push([cx + x, 1, cz + 146, '#ffffff'], [cx + x, 1, cz + 194, '#ffffff']);
+      for (let k = -3; k <= 3; k++) lights.push([cx - 284, 1, cz + 170 + k * 6, '#3dff6a'], [cx + 284, 1, cz + 170 + k * 6, '#ff3030']);
+      const land = roundedRect(cx, cz - 150, 460, 120, 24); D.loops.push(new Loop(land)); g.add(new THREE.Mesh(ribbon(land, 22, 0.07), this.roadMat));
+      const per = roundedRect(cx, cz, 600, 560, 30); D.loops.push(new Loop(per)); g.add(new THREE.Mesh(ribbon(per, 22, 0.075), this.roadMat));
+      // nhà ga + ống lồng + máy bay đậu
+      B('glass', cx, cz - 60, 400, 40, 22, new THREE.Color(0xbfe4ff));
+      box(cx, 23.5, cz - 60, 412, 3, 50, 0xe8eef4);
+      for (const x of [-150, -50, 50, 150]) { box(cx + x, 6, cz - 22, 5, 5, 36, 0xd0d4d8); planeParts(solid, mat(cx + x, 0, cz + 32, Math.PI), r.pick([0xd8262a, 0x1a5ad8, 0xf0b42a])); }
+      this.sign(g, 'GA TÂN SƠN', '#22e0ff', cx, 30, cz - 80.6, Math.PI, 8);
+      // tháp điều khiển
+      solid.add(this.geo.cyl, mat(cx + 250, 35, cz - 30, 0, 9, 70, 9), 0xe8e8e8);
+      solid.add(this.geo.cyl, mat(cx + 250, 74, cz - 30, 0, 18, 8, 18), 0x2a3a4a); unlit.add(this.geo.cyl, mat(cx + 250, 74, cz - 30, 0, 18.4, 4, 18.4), 0x6ad0ff);
+      box(cx + 250, 79, cz - 30, 20, 2, 20, 0xdddddd); lights.push([cx + 250, 84, cz - 30, '#ff3030']);
+      landmark = new THREE.Vector3(cx + 250, 82, cz - 30);
+      // nhà chứa máy bay, bãi đỗ xe
+      for (const z of [-20, 40]) solid.add(this.geo.cyl, mat(cx - 245, 0, cz + z, 0, 40, 50, 40, Math.PI / 2), 0xb0b8c0);
+      const cc = [0xffffff, 0x222222, 0xd83a3a, 0x2a6ad8, 0xc0c8d0, 0xf0c23a];
+      for (const z of [-236, -254]) for (let x = -200; x <= 200; x += 9) if (r.chance(0.8)) box(cx + x, 1.3, cz + z, 4, 2.6, 8, r.pick(cc));
+      // máy bay chạy vòng: cất cánh → lượn → hạ cánh
+      const path = [[-280, 170], [-100, 170], [100, 170], [280, 170], [700, 200], [1100, -100], [900, -700], [0, -1000], [-900, -800], [-1300, -300], [-1100, 170], [-700, 170]].map(([x, z]) => [cx + x, cz + z]);
+      const loop = new Loop(smoothLoop(path, 12)), T = loop.total;
+      D.planeY = s => { s = ((s % T) + T) % T; return Math.min(Math.max(0, (s - 300) * 0.3), (T - s) * 0.13, 170); };
+      D.planes = [];
+      for (const [k, col] of [[0, 0xd8262a], [0.5, 0x1a5ad8]]) {
+        const b = new GeoBuilder(); planeParts(b, new THREE.Matrix4(), col);
+        const m = new THREE.Mesh(b.build(), this.solid); m.rotation.order = 'YXZ';
+        for (const [x, c] of [[-20, 0xff2020], [20, 0x20ff40]]) { const s = glowSprite(c, 6); s.position.set(x, 4, 2); m.add(s); }
+        g.add(m); D.planes.push({ m, loop, s: k * T });
+      }
+      D.plaza.set(cx - 265, 0, cz - 140);
+      D.air = { r: 240, y: 120 };
+      D.shots = [{ p: [-200, 8, 125], l: [60, 12, 170] }, { p: [360, 190, -400], l: [0, 0, 60] }, { p: [-180, 10, -190], l: [40, 14, -80] }];
     }
 
     for (const [st, b] of Object.entries(bs)) if (!b.empty) g.add(new THREE.Mesh(b.build(), this.styles[st]));
@@ -518,10 +702,52 @@ export class World {
       }
       if (D.foam) { D.foam.material.opacity = 0.3 + Math.sin(t * 1.3) * 0.2; D.foam.position.x = D.center.x + 290 + Math.sin(t * 1.3) * 5; }
       if (D.lowClouds) for (const s of D.lowClouds) { s.position.x += dt * 4; if (s.position.x > D.center.x + 520) s.position.x = D.center.x - 520; }
+      if (D.dragonLights) D.dragonLights.material.color.setHSL((t * 0.07) % 1, 0.85, 0.62);
+      if (D.planes) for (const p of D.planes) {
+        p.s += 85 * dt; const a = p.loop.at(p.s, 0, _pa), y = D.planeY(p.s), dy = D.planeY(p.s + 6) - y;
+        p.m.position.set(a.x, y, a.z); p.m.rotation.y = a.yaw; p.m.rotation.x = -Math.atan2(dy, 6);
+      }
     }
     if (this._fallTex) this._fallTex.offset.y = (t * 0.8) % 1;
     this.clouds.position.x = Math.sin(t * 0.01) * 120;
   }
+}
+
+const _pa = {};
+function prismGeometry() {   // lăng trụ tam giác: mái ngói, nóc chạy theo trục x
+  const v = [-0.5, 0, -0.5, 0.5, 1, 0, 0.5, 0, -0.5, -0.5, 0, -0.5, -0.5, 1, 0, 0.5, 1, 0,
+    -0.5, 0, 0.5, 0.5, 0, 0.5, 0.5, 1, 0, -0.5, 0, 0.5, 0.5, 1, 0, -0.5, 1, 0,
+    -0.5, 0, -0.5, -0.5, 0, 0.5, -0.5, 1, 0, 0.5, 0, -0.5, 0.5, 1, 0, 0.5, 0, 0.5];
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(new Array(v.length / 3 * 2).fill(0), 2)); g.computeVertexNormals();
+  return g;
+}
+// máy bay (gộp thành 1 lưới): mũi hướng +z
+const PG = { box: new THREE.BoxGeometry(1, 1, 1), cyl: new THREE.CylinderGeometry(0.5, 0.5, 1, 14), sph: new THREE.SphereGeometry(0.5, 14, 10), cone: new THREE.ConeGeometry(0.5, 1, 14) };
+export function planeParts(b, base, stripe) {
+  const W = 0xf2f4f6, add = (geo, m, c) => b.add(geo, base.clone().multiply(m), c);
+  add(PG.cyl, mat(0, 5, 0, 0, 5, 40, 5, Math.PI / 2), W);
+  add(PG.sph, mat(0, 5, 20, 0, 5, 5, 9), W);
+  add(PG.cone, mat(0, 5.4, -24, 0, 5, 9, 5, -Math.PI / 2), W);
+  add(PG.box, mat(0, 4, 2, 0, 40, 0.7, 7), W);
+  add(PG.box, mat(0, 6, -23, 0, 14, 0.5, 4), W);
+  add(PG.box, mat(0, 11, -24, 0, 0.6, 9, 6), stripe);
+  for (const s of [-1, 1]) {
+    add(PG.box, mat(s * 2.55, 4.6, 0, 0, 0.15, 0.9, 34), stripe);
+    add(PG.box, mat(s * 2.56, 6.2, 2, 0, 0.12, 0.6, 28), 0x2a3a4a);
+    add(PG.cyl, mat(s * 8, 2.4, 4, 0, 2.6, 6, 2.6, Math.PI / 2), 0xb8bcc4);
+  }
+  add(PG.box, mat(0, 6.6, 21.5, 0, 3.4, 1, 1.4), 0x2a3a4a);
+}
+// thuyền buồm Hạ Long
+function junkMesh(world, r) {
+  const g = boatMesh(world, 0x5a3418), sail = new THREE.MeshLambertMaterial({ color: r.pick([0xb8501e, 0xc8682a, 0xa04018]), side: THREE.DoubleSide });
+  for (const [z, h] of [[3, 12], [-3, 9]]) {
+    const mast = new THREE.Mesh(world.geo.cyl, new THREE.MeshLambertMaterial({ color: 0x3a2412 })); mast.scale.set(0.5, h + 2, 0.5); mast.position.set(0, 1.6 + (h + 2) / 2, z); g.add(mast);
+    const s = new THREE.Mesh(world.geo.box, sail); s.scale.set(0.3, h, 7); s.position.set(0, 2.6 + h / 2, z - 2.4); g.add(s);
+  }
+  g.scale.setScalar(1.4);
+  return g;
 }
 
 function verticalTexture(text, color) {
