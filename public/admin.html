@@ -373,6 +373,7 @@ function renderUrls() {
   const list = [['Cho OBS / LIVE Studio (máy này)', `http://localhost:${p}/game.html?obs=1`]];
   for (const ip of INFO.ips || []) list.push(['Cho điện thoại / máy khác cùng Wi-Fi', `http://${ip}:${p}/game.html`], ['LIVE Studio (nếu localhost không chạy)', `http://${ip}:${p}/game.html?obs=1`]);
   list.push(['Xem thử trong trình duyệt', `http://localhost:${p}/game.html`]);
+  list.push(['🏙️ Game Sài Gòn Truy Kích (OBS)', `http://localhost:${p}/saigon/?obs=1`], ['🏙️ Sài Gòn Truy Kích — xem thử', `http://localhost:${p}/saigon/`]);
   $('urls').innerHTML = list.map(([l, u]) => `<div class="row"><span class="muted" style="width:260px">${l}</span><input class="url" type="text" readonly value="${u}"><button data-copy="${u}">Sao chép</button><a href="${u}" target="_blank"><button>Mở</button></a></div>`).join('');
   for (const b of $('urls').querySelectorAll('[data-copy]')) b.onclick = () => { navigator.clipboard.writeText(b.dataset.copy).then(() => { b.textContent = '✓ Đã chép'; setTimeout(() => b.textContent = 'Sao chép', 1500); }); };
 }

@@ -20,6 +20,13 @@ macOS / Linux: `npm install` rồi `npm start`.
 
 Key EulerStream là tuỳ chọn. Không có key vẫn kết nối được (dùng thư viện mã nguồn mở `tiktok-live-connector`), chỉ bị giới hạn số lần kết nối mỗi giờ.
 
+## 🏙️ Game mới: Sài Gòn Truy Kích — thế giới mở bản Việt (bản 2.9.0)
+
+Game LIVE thứ hai, dùng chung kết nối TikTok: người xem là những chiếc xe chạy trong thành phố 3D, chia phe 🐲 Rồng Đỏ / 🐯 Hổ Xanh tranh 6 khu (Quận Neon, Chợ Lớn, Cảng Khánh Hội, Bãi Biển Vàng, Chợ Nổi, Đèo Mây). Máy quay bay qua bản đồ để chuyển khu. Quà để độ xe (lên tới trực thăng, cưỡi Rồng Vàng), gọi truy nã, thả hàng, mưa tiền, mua đứt khu, thành Trùm Xứ Rồng có tượng vàng. Thả tim gọi Boss Hắc Long.
+
+- OBS: `http://localhost:3300/saigon/?obs=1` (1080 × 1920). Xem thử: `http://localhost:3300/saigon/` → nút **🧪 Thử quà**.
+- Ý tưởng gameplay, dàn nhân vật, bảng quà và tham số tuỳ chỉnh: xem **[SAIGON-TRUY-KICH.md](SAIGON-TRUY-KICH.md)**.
+
 ## Chọn giọng MC (bản 2.8.3)
 
 - Mục **Sự kiện LIVE** có ô **🎙 Giọng MC** liệt kê mọi giọng tiếng Việt của trình duyệt, nút **▶ Nghe thử**. Giọng có ⭐ là giọng tự nhiên (Natural).

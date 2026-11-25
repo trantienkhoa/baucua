@@ -751,6 +751,8 @@ function testUser(i) {
 io.on('connection', socket => {
   socket.on('hello', (role, info) => {
     if (role === 'game') { socket.join('game'); screens.set(socket.id, { obs: !!(info && info.obs) }); pickPrimary(); socket.emit('goalState', goalState); }
+    // màn game "Sài Gòn Truy Kích" (/saigon/): chỉ nhận sự kiện TikTok, không tranh vai màn hình chính của sàn nhảy
+    else if (role === 'city') { socket.join('game'); socket.join('city'); }
     else if (role === 'screen') { socket.join('screenctl'); socket.emit('screenMedia', screenMedia()); socket.emit('screenStatus', screenStatus); socket.emit('textQueue', textPending); socket.emit('textHistory', textHistory); }
     else { socket.join('admin'); socket.emit('clips', clipList()); }
     socket.emit('screen', screenState);

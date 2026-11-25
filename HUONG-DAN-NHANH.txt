@@ -19,4 +19,7 @@ Thêm nhân vật riêng: trang điều khiển → mục 🧍 Nhân vật (hỗ
 Sự kiện LIVE (trang điều khiển → 🎮 Sự kiện LIVE): đấu đội, solo, flash mob,
 đèn chiếu, MC giọng nói, mục tiêu phòng mở sân khấu mới, clip khoảnh khắc.
 Lệnh người xem: 1/2 (chọn đội, bình chọn solo), bài 1/2/3 (chọn nhạc).
+Game thứ hai — SÀI GÒN TRUY KÍCH (thế giới mở bản Việt):
+  OBS URL  http://localhost:3300/saigon/?obs=1   (1080 x 1920)
+  Xem thử  http://localhost:3300/saigon/  → nút "Thử quà". Chi tiết: SAIGON-TRUY-KICH.md
 Chi tiết: xem README.md
