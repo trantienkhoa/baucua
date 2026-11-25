@@ -187,12 +187,103 @@ export const COSTUMES = [
     build: (a, L) => { a('Head', P.crown(L)); a('Spine2', P.cape(0xb3122d)); a('RightHand', P.staff(gold(), col(0xff3d7f), 1.2)); } },
 ];
 
+// ---------- 4 tạo hình DJ theo bốn thầy trò Tây Du Ký (cho nhân vật VRoid: đầu to, tóc dày) ----------
+// R = bán kính đầu tính cả tóc, FY = độ cao trán, TY = đỉnh đầu (tính từ khớp đầu), mét trên người cao 1,72 m
+const HR = 0.118, FY = 0.135, TY = 0.235;
+const dbl = (c, o = {}) => std(c, Object.assign({ side: THREE.DoubleSide }, o));
+function tigerMat() {
+  return mat('tiger', () => {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 64; const g = c.getContext('2d');
+    g.fillStyle = '#f0a020'; g.fillRect(0, 0, 256, 64);
+    g.fillStyle = '#fff0c8'; g.fillRect(0, 50, 256, 14);
+    g.fillStyle = '#1a1208';
+    for (let i = 0; i < 16; i++) { const x = i * 16 + (i % 2 ? 5 : 0); g.beginPath(); g.moveTo(x, 0); g.quadraticCurveTo(x + 9, 22, x + 3, 44 + (i % 3) * 5); g.quadraticCurveTo(x + 1, 22, x - 4, 0); g.fill(); }
+    const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; tx.wrapS = THREE.RepeatWrapping;
+    return new THREE.MeshStandardMaterial({ map: tx, side: THREE.DoubleSide, roughness: 0.8, emissive: 0xffffff, emissiveMap: tx, emissiveIntensity: 0.3 });
+  });
+}
+// vũ khí đeo chéo sau lưng (DJ cần hai tay để chỉnh nhạc)
+function onBack(weapon, tilt = 0.5, y = 0.02, fix = false) { const g = new THREE.Group(); weapon.position.set(0, 0, 0);
+  if (fix) for (const c of weapon.children) if (Math.abs(c.position.z) > 0.5) { c.position.x += 0.08; c.position.y += 0.01; }   // đầu vũ khí về đúng trục cán
+  weapon.rotation.x = -PI / 2; g.add(weapon); g.rotation.z = tilt; g.position.set(0, y, -0.15); return g; }
+const DJP = {
+  // tai nghe DJ vắt quanh cổ
+  phones: (c = 0x16161b, accent = 0x3dd9ff) => { const g = new THREE.Group(), r = 0.082;
+    g.add(mesh(new THREE.TorusGeometry(r, 0.011, 8, 24, PI).rotateX(PI / 2).rotateY(PI), col(c), 0, 0.035, -0.005));
+    for (const sd of [-1, 1]) { g.add(mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.03, 18).rotateZ(PI / 2), col(c), sd * r, 0.03, 0.012)); g.add(mesh(new THREE.TorusGeometry(0.03, 0.006, 6, 18).rotateY(PI / 2), glow(accent), sd * (r + 0.016), 0.03, 0.012)); }
+    return g; },
+  // mũ Tỳ Lư: vành vàng, 5 cánh sen đỏ–vàng, chóp đỏ, hai dải lụa buông sau tai
+  tyLu: () => { const g = new THREE.Group(), R = HR * 1.04;
+    g.add(mesh(new THREE.SphereGeometry(R * 1.0, 24, 12, 0, TAU, 0, PI * 0.5).scale(1, 0.95, 1.04), col(0xa30f26), 0, FY - 0.005, -0.008));
+    g.add(mesh(new THREE.CylinderGeometry(R * 1.03, R * 1.05, 0.04, 28, 1, true), dbl(0xffc928, { metalness: 0.9, roughness: 0.28 }), 0, FY, -0.008));
+    const petal = new THREE.Shape(); petal.moveTo(-0.042, 0); petal.quadraticCurveTo(-0.055, 0.075, 0, 0.135); petal.quadraticCurveTo(0.055, 0.075, 0.042, 0); petal.closePath();
+    const inner = new THREE.Shape(); inner.moveTo(-0.026, 0.012); inner.quadraticCurveTo(-0.034, 0.066, 0, 0.108); inner.quadraticCurveTo(0.034, 0.066, 0.026, 0.012); inner.closePath();
+    const pg = new THREE.ShapeGeometry(petal), ig = new THREE.ShapeGeometry(inner);
+    for (let i = -2; i <= 2; i++) { const a = i * 0.56, p = new THREE.Group();
+      p.add(mesh(pg, dbl(0xffc928, { metalness: 0.85, roughness: 0.3 }))); p.add(mesh(ig, dbl(0xc8102e), 0, 0, 0.002)); p.add(mesh(new THREE.SphereGeometry(0.011, 10, 8), glow(0xffe680), 0, 0.058, 0.006));
+      p.position.set(Math.sin(a) * R * 1.06, FY + 0.012, Math.cos(a) * R * 1.06 - 0.008); p.rotation.y = a; p.rotation.x = -0.2; g.add(p); }
+    g.add(mesh(new THREE.SphereGeometry(0.022, 12, 10), gold(), 0, FY + R * 0.97, -0.008));
+    for (const sd of [-1, 1]) g.add(mesh(new THREE.BoxGeometry(0.036, 0.26, 0.006), dbl(0xc8102e), sd * R * 0.98, FY - 0.14, -0.035));
+    return g; },
+  // cà sa: dải đỏ viền vàng vắt chéo từ vai trái xuống hông phải
+  kasaya: () => { const g = new THREE.Group();
+    const band = mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.085, 30, 1, true).scale(1, 1, 0.74), dbl(0xc8102e, { roughness: 0.7, emissive: 0xc8102e, emissiveIntensity: 0.25 }));
+    const e1 = mesh(new THREE.TorusGeometry(0.2, 0.007, 6, 30).rotateX(PI / 2).scale(1, 1, 0.74), gold(), 0, 0.043, 0), e2 = mesh(new THREE.TorusGeometry(0.2, 0.007, 6, 30).rotateX(PI / 2).scale(1, 1, 0.74), gold(), 0, -0.043, 0);
+    const s = new THREE.Group(); s.add(band, e1, e2); s.rotation.z = -0.72; s.position.set(0, -0.05, 0.0); g.add(s);
+    g.add(mesh(new THREE.TorusGeometry(0.028, 0.008, 8, 18), gold(), 0.105, 0.045, 0.118));
+    return g; },
+  // vòng kim cô có hoa văn cuộn trước trán + hai lông trĩ dài
+  kimCo: () => { const g = new THREE.Group(), R = HR * 1.03;
+    g.add(mesh(new THREE.TorusGeometry(R, 0.011, 8, 36).rotateX(PI / 2).scale(1, 1, 1.05), gold(), 0, FY, -0.008));
+    for (const sd of [-1, 1]) g.add(mesh(new THREE.TorusGeometry(0.02, 0.007, 6, 16, PI * 1.5).rotateZ(sd > 0 ? -PI * 0.25 : PI * 0.75), gold(), sd * 0.021, FY + 0.022, R * 1.05 - 0.004));
+    g.add(mesh(new THREE.SphereGeometry(0.012, 10, 8), glow(0xff3d3d), 0, FY + 0.004, R * 1.05 + 0.004));
+    for (const sd of [-1, 1]) {
+      const pts = [[sd * 0.04, TY - 0.03, -0.03], [sd * 0.09, TY + 0.18, -0.1], [sd * 0.17, TY + 0.38, -0.24], [sd * 0.27, TY + 0.5, -0.44], [sd * 0.36, TY + 0.5, -0.62]].map(p => new THREE.Vector3(...p));
+      const cv = new THREE.CatmullRomCurve3(pts);
+      g.add(mesh(new THREE.TubeGeometry(cv, 20, 0.012, 6), col(0xb5341c)));
+      for (let i = 1; i < 7; i++) { const p = cv.getPoint(i / 7.5 + 0.06); g.add(mesh(new THREE.SphereGeometry(0.0155, 8, 6), col(i % 2 ? 0xffe9b0 : 0x2a1a10), p.x, p.y, p.z)); }
+    }
+    return g; },
+  scarf: c => { const g = new THREE.Group(); g.add(mesh(new THREE.TorusGeometry(0.075, 0.026, 8, 20).rotateX(PI / 2).scale(1, 0.8, 1), col(c), 0, 0.13, 0.0)); g.add(mesh(new THREE.BoxGeometry(0.06, 0.2, 0.012).rotateZ(0.2), dbl(c), 0.06, 0.02, 0.105)); return g; },
+  // váy da hổ quấn hông
+  tiger: () => mesh(new THREE.CylinderGeometry(0.175, 0.23, 0.2, 26, 1, true).scale(1, 1, 0.82), tigerMat(), 0, -0.07, 0.0),
+  // mũi + tai heo (to, vểnh ra ngoài tóc), bụng phệ thắt đai
+  pig: () => { const g = new THREE.Group(), pink = col(0xf5a3b4), R = HR;
+    g.add(mesh(new THREE.CylinderGeometry(0.036, 0.04, 0.045, 20).rotateX(PI / 2), pink, 0, 0.052, 0.112));
+    g.add(mesh(new THREE.CircleGeometry(0.036, 20), col(0xe98aa0), 0, 0.052, 0.1352));
+    for (const sd of [-1, 1]) g.add(mesh(new THREE.CircleGeometry(0.0085, 10).scale(0.8, 1.3, 1), black(), sd * 0.014, 0.052, 0.136));
+    for (const sd of [-1, 1]) { const e = mesh(new THREE.ConeGeometry(0.075, 0.15, 4).scale(1, 1, 0.22).rotateZ(-sd * 2.0), pink, sd * (R + 0.045), FY + 0.03, 0.01); e.rotation.x = 0.25; g.add(e); }
+    return g; },
+  belly: c => { const g = new THREE.Group(); g.add(mesh(new THREE.SphereGeometry(0.155, 20, 14).scale(1.08, 0.95, 0.9), col(c), 0, 0.02, 0.06)); g.add(mesh(new THREE.TorusGeometry(0.168, 0.016, 8, 26).rotateX(PI / 2).scale(1.05, 1, 0.95), col(0x16161b), 0, -0.035, 0.045)); g.add(mesh(new THREE.BoxGeometry(0.05, 0.05, 0.012), gold(), 0, -0.035, 0.208)); return g; },
+  // giới cô vàng có trăng khuyết + râu quai nón
+  moonBand: () => { const g = new THREE.Group(), R = HR * 1.03;
+    g.add(mesh(new THREE.TorusGeometry(R, 0.012, 8, 36).rotateX(PI / 2).scale(1, 1, 1.05), gold(), 0, FY, -0.008));
+    g.add(mesh(new THREE.TorusGeometry(0.03, 0.009, 8, 18, PI), gold(), 0, FY + 0.016, R * 1.05));
+    return g; },
+  beardV: () => { const g = new THREE.Group(), c = col(0x241710);
+    g.add(mesh(new THREE.SphereGeometry(0.072, 18, 10, 0, TAU, PI * 0.5, PI * 0.5).scale(1.06, 0.95, 0.9), c, 0, 0.022, 0.046));
+    g.add(mesh(new THREE.ConeGeometry(0.03, 0.07, 10).rotateX(PI).scale(1, 1, 0.7), c, 0, -0.07, 0.07));
+    return g; },
+  mala: () => { const g = new THREE.Group(), n = 15; for (let i = 0; i < n; i++) { const a = (i - (n - 1) / 2) * 0.2; g.add(mesh(new THREE.SphereGeometry(0.016, 10, 8), col(0x6a3c1c), Math.sin(a) * 0.105, 0.125 - Math.cos(a) * 0.15, Math.cos(a) * 0.095 + 0.03)); } g.add(mesh(new THREE.SphereGeometry(0.024, 10, 8), glow(0xffc928), 0, -0.035, 0.127)); return g; },
+  skulls: () => { const g = new THREE.Group(), n = 9; for (let i = 0; i < n; i++) { const a = (i - (n - 1) / 2) * 0.34; g.add(mesh(new THREE.SphereGeometry(0.036, 12, 10), col(0xf1ead6), Math.sin(a) * 0.15, 0.13 - Math.cos(a) * 0.135, Math.cos(a) * 0.115 + 0.01)); } return g; },
+};
+export const DJ_COSTUMES = [
+  { id: 'dj_tang', name: 'Đường Tăng', hideHat: true,
+    build: a => { a('Head', DJP.tyLu()); a('Spine2', DJP.kasaya()); a('Spine2', DJP.mala()); a('Neck', DJP.phones(0xf2ead8, 0xffc928)); a('Spine2', onBack(P.ringStaff(), 0.45, 0.02, true)); } },
+  { id: 'dj_wukong', name: 'Tôn Ngộ Không', hideHat: true,
+    build: a => { a('Head', DJP.kimCo()); a('Spine2', DJP.scarf(0xc8102e)); a('Hips', DJP.tiger()); a('Hips', P.tail(0x9a5a2a)); a('Neck', DJP.phones(0xc8102e, 0xffc928)); a('Spine2', onBack(P.staff(col(0xc8102e), gold(), 1.75), -0.5)); } },
+  { id: 'dj_batgioi', name: 'Trư Bát Giới', hideHat: true,
+    build: a => { a('Head', DJP.pig()); a('Spine', DJP.belly(0x27356a)); a('Neck', DJP.phones(0x16161b, 0xff5fa8)); a('Spine2', onBack(P.rake(), 0.5, 0.02, true)); } },
+  { id: 'dj_satang', name: 'Sa Tăng', hideHat: true,
+    build: a => { a('Head', DJP.moonBand()); a('Head', DJP.beardV()); a('Spine2', DJP.skulls()); a('Neck', DJP.phones(0x16161b, 0x3dd9ff)); a('Spine2', onBack(P.spade(), -0.45, 0.02, true)); } },
+];
+
 // ---------- gắn vào nhân vật ----------
 const _q = new THREE.Quaternion();
 export function applyCostume(av, id) {
   if (av.costumeObjs) for (const o of av.costumeObjs) { o.parent && o.parent.remove(o); o.traverse(x => { if (x.geometry) x.geometry.dispose(); }); }
   av.costumeObjs = [];
-  av.costume = id ? COSTUMES.find(c => c.id === id) || null : null;
+  av.costume = id ? COSTUMES.find(c => c.id === id) || DJ_COSTUMES.find(c => c.id === id) || null : null;
   av.costumeTint = null;
   if (!av.costume) return;
   const t = av.t, c = av.costume;

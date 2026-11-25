@@ -6,7 +6,24 @@ import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { applyCostume, randomCostumeId, animateCostume, costumeTime, COSTUMES, setExtra, attachProp } from './costumes.js';
 import { applyOutfit, removeOutfit, randomOutfit, pickOutfit, setOutfitMix, barHidden, outfitLayers, fabricize, outfitTime } from './outfits.js';
-export { outfitTime, setOutfitMix };
+import { buildCast, randomCastChar, SPECIAL_CAST } from './cast.js';
+export { outfitTime, setOutfitMix, randomCastChar };
+
+// ---------- dàn nhân vật dựng bằng code (cast.js) ----------
+const castCache = new Map();
+export function castTemplate(ch, extra) {
+  if (!ch) return null;
+  const key = String(ch.id);
+  let t = castCache.get(key);
+  if (t) return t;
+  const sp = SPECIAL_CAST[key];
+  const scene = sp ? buildCast(sp[0], sp[1]) : buildCast(ch, extra);
+  t = prepare(scene, 'cast/' + key);
+  if (!t) return null;
+  Object.assign(t, { cast: true, charId: key, female: !!(sp ? sp[0].female : ch.female), norm: 1, footY: 0, hipH: 0.88, flip: false });
+  castCache.set(key, t);
+  return t;
+}
 export { COSTUMES, costumeTime, setExtra };
 
 // chuẩn hoá tên xương từ nhiều phần mềm về tên kiểu Mixamo
@@ -216,6 +233,18 @@ export async function loadAvatars(list) {
 function loadGltfScene(gltf, url) {
   const ext = (gltf.parser && gltf.parser.json && gltf.parser.json.extensionsUsed) || [];
   const isVrm = /\.vrm(\?|$)/i.test(url) || ext.some(e => /VRM/i.test(e));
+  if (isVrm) {
+    gltf.scene.userData.vtn_vrm = true;
+    // biểu cảm khuôn mặt của VRM (chớp mắt, mở miệng, cười): lấy chỉ số morph từ phần mở rộng VRM
+    try {
+      const j = gltf.parser.json, bs = {};
+      const v0 = j.extensions && j.extensions.VRM && j.extensions.VRM.blendShapeMaster;
+      for (const g of (v0 && v0.blendShapeGroups) || []) { const k = String(g.presetName && g.presetName !== 'unknown' ? g.presetName : g.name).toLowerCase(); if (g.binds && g.binds[0] && bs[k] === undefined) bs[k] = g.binds[0].index; }
+      const v1 = j.extensions && j.extensions.VRMC_vrm && j.extensions.VRMC_vrm.expressions && j.extensions.VRMC_vrm.expressions.preset;
+      for (const k in v1 || {}) { const b = v1[k].morphTargetBinds && v1[k].morphTargetBinds[0]; if (b) bs[k.toLowerCase()] = b.index; }
+      gltf.scene.userData.vtn_bs = { blink: bs.blink, a: bs.a !== undefined ? bs.a : bs.aa, joy: bs.joy !== undefined ? bs.joy : bs.happy !== undefined ? bs.happy : bs.fun };
+    } catch (e) { /* không có biểu cảm cũng không sao */ }
+  }
   return isVrm ? fixVrm(gltf.scene) : fixOpaque(gltf.scene);
 }
 // Mô hình xuất từ Blender/MakeHuman hay để mọi vật liệu ở chế độ trong suốt → phần trong miệng lộ ra.
@@ -246,15 +275,29 @@ function fixVrm(root) {
     const conv = m => {
       if (!m) return m;
       // VRoid/VRM (MToon) khi không có plugin hay mang ánh sáng tự phát → đổi sang chất liệu thường
-      const n = new THREE.MeshStandardMaterial({ name: m.name, map: m.map || null, color: m.color ? m.color.clone() : 0xffffff, roughness: 0.75, metalness: 0, side: m.side, normalMap: m.normalMap || null });
+      const n = new THREE.MeshLambertMaterial({ name: m.name, map: m.map || null, color: m.color ? m.color.clone() : 0xffffff, side: m.side });
       if (m.alphaTest || m.transparent || /hair|eye|face|lash|brow/i.test(m.name)) { n.alphaTest = Math.max(0.4, m.alphaTest || 0); n.transparent = false; }
-      if (n.map) n.map.colorSpace = THREE.SRGBColorSpace;
+      if (n.map) { n.map.colorSpace = THREE.SRGBColorSpace; shrinkTex(n.map); n.emissive = new THREE.Color(0xffffff); n.emissiveMap = n.map; n.emissiveIntensity = 0.42; }
       return n;
     };
     o.material = Array.isArray(o.material) ? o.material.map(conv) : conv(o.material);
   });
   return root;
 }
+const _shrunk = new WeakSet();
+function shrinkTex(tex, max = 1024) {
+  const im = tex.image;
+  if (!im || _shrunk.has(tex) || Math.max(im.width || 0, im.height || 0) <= max) return;
+  _shrunk.add(tex);
+  const k = max / Math.max(im.width, im.height), c = document.createElement('canvas');
+  c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+  c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+  if (im.close) im.close();
+  tex.image = c; tex.needsUpdate = true;
+}
+// màu nhuộm cho nhân vật VRM: nhân lên màu gốc của tóc / quần áo để khách dùng chung mô hình vẫn khác nhau
+const VRM_HAIR = ['#ffffff', '#ffffff', '#ffffff', '#e8c9a0', '#ffc2dc', '#bfe0ff', '#e2ccff', '#a8794f', '#c9ffd9', '#ffd9a8'];
+const VRM_CLOTH = ['#ffffff', '#ffffff', '#ffffff', '#ffd3df', '#d3e6ff', '#dcffd3', '#fff0bd', '#e4d3ff', '#cfcfcf', '#ffd9c2', '#c2fff4'];
 // FBX từ Mixamo: chất liệu Phong → Standard, bỏ trong suốt giả
 function fixFbx(root) {
   root.animations = [];
@@ -299,6 +342,31 @@ function prepare(scene, url) {
     const child = CHILD[k] && bones[CHILD[k]];
     dirLocal[k] = child ? child.position.clone().normalize() : new THREE.Vector3(0, 1, 0);
   }
+  // bàn tay + ngón tay: hướng bàn tay (tới ngón giữa) và trục gập của từng đốt ngón (gập về phía lòng bàn tay = hướng xuống khi đứng chữ T)
+  const fingers = [], hairs = [];
+  const FING = /thumb|index|middle|ring|little|pinky/i;
+  for (const hn of ['LeftHand', 'RightHand']) {
+    const hb = bones[hn]; if (!hb) continue;
+    const mid = hb.children.find(c => c.isBone && /middle/i.test(c.name)) || hb.children.find(c => c.isBone && FING.test(c.name));
+    dirLocal[hn] = mid ? mid.position.clone().normalize() : (dirLocal[hn === 'LeftHand' ? 'LeftForeArm' : 'RightForeArm'] || new THREE.Vector3(0, 1, 0)).clone();
+    hb.traverse(o => {
+      if (!o.isBone || o === hb || !FING.test(o.name)) return;
+      const kid = o.children.find(c => c.isBone);
+      const f = (kid ? kid.position : o.position).clone().normalize();
+      o.getWorldQuaternion(q);
+      const down = new THREE.Vector3(0, -1, 0).applyQuaternion(q.clone().invert());
+      const axis = new THREE.Vector3().crossVectors(f, down);
+      if (axis.lengthSq() < 1e-6) return;
+      let lv = 0; for (let p = o; p && p !== hb; p = p.parent) lv++;
+      fingers.push({ name: o.name, axis: axis.normalize(), rest: o.quaternion.clone(), lv, thumb: /thumb/i.test(o.name), left: hn === 'LeftHand' });
+    });
+  }
+  // tóc (xương phụ J_Sec_Hair… của VRoid): đung đưa theo chuyển động của đầu
+  if (bones.Head) bones.Head.traverse(o => {
+    if (!o.isBone || !/hair/i.test(o.name) || /_end/i.test(o.name)) return;
+    let lv = 0; for (let p = o; p && p !== bones.Head; p = p.parent) if (/hair/i.test(p.name)) lv++;
+    hairs.push({ name: o.name, rest: o.quaternion.clone(), k: lv <= 1 ? 1 : 0.6, long: Math.abs(o.position.y) + (o.children[0] ? Math.abs(o.children[0].position.y) : 0) });
+  });
   const hipsParentWorld = bones.Hips.parent.matrixWorld.clone();
   const hipsParentQ = new THREE.Quaternion(); bones.Hips.parent.getWorldQuaternion(hipsParentQ);
   const faceInfo = {};
@@ -328,9 +396,9 @@ function prepare(scene, url) {
   return {
     headM: (() => { let h = null; scene.traverse(o => { if (o.userData && o.userData.vtn_head) h = o.userData.vtn_head; }); return h; })(),   // số đo đầu do công cụ gắn xương ghi
     fused: (() => { let f = false; scene.traverse(o => { if (o.userData && o.userData.vtn_fused) f = true; }); return f; })(),   // tay dính thân (nhân vật gắn xương tự động)
-    url, name, charId: (name.match(/^(char\d+|dj)(?![a-z0-9])/i) || [])[1] ? name.match(/^(char\d+|dj)(?![a-z0-9])/i)[1].toLowerCase() : null, scene, female, norm, footY, flip,
+    vrm: !!scene.userData.vtn_vrm, url, name, charId: (name.match(/^(char\d+|dj)(?![a-z0-9])/i) || [])[1] ? name.match(/^(char\d+|dj)(?![a-z0-9])/i)[1].toLowerCase() : null, scene, female, norm, footY, flip,
     hipH: (hips.y - footY) * norm,
-    restLocal, dirLocal, restWorld,
+    restLocal, dirLocal, restWorld, fingers, hairs, bs: scene.userData.vtn_bs || null,
     hipsParentInv: hipsParentWorld.clone().invert(), hipsParentQInv: hipsParentQ.clone().invert(),
     rpm: mats.has('Wolf3D_Outfit_Top'), faceInfo,
     headLen: Math.max(0.16, Math.min(0.32, (headTop.y - wp(bones.Head).y) * norm)),
@@ -340,13 +408,13 @@ function prepare(scene, url) {
 
 // ---------- một nhân vật ----------
 export function createAvatar(parent, female, tpl, costume, opts = {}) {
-  if (!templates.length) return null;
+  if (!tpl && !templates.length) return null;
   let pool = templates.filter(t => t.female === female);
   if (!pool.length) pool = templates;
   const t = tpl || pick(pool);
   const root = SkeletonUtils.clone(t.scene);
-  const bones = {};
-  root.traverse(o => { if (o.isBone) { const c = canon(o.name); if (BONES.includes(c) && !bones[c]) bones[c] = o; } });
+  const bones = {}, byName = {};
+  root.traverse(o => { if (o.isBone) { byName[o.name] = o; const c = canon(o.name); if (BONES.includes(c) && !bones[c]) bones[c] = o; } });
   const holder = new THREE.Group();
   const inner = new THREE.Group();
   inner.add(root);
@@ -355,9 +423,24 @@ export function createAvatar(parent, female, tpl, costume, opts = {}) {
   holder.add(inner);
   parent.add(holder);
   const av = { t, holder, inner, root, bones, mats: [], legK: 1 };
+  if (!t.cast) {   // chuyển động phụ: ngón tay, tóc, biểu cảm
+    av.fingers = (t.fingers || []).map(f => ({ f, b: byName[f.name] })).filter(x => x.b);
+    av.hairs = (t.hairs || []).map(f => ({ f, b: byName[f.name] })).filter(x => x.b);
+    av.curl = [-1, -1]; av.hairV = new THREE.Vector3(); av.hairR = new THREE.Vector3(); av.prevHead = null; av.blinkAt = Math.random() * 4;
+    if (t.bs) { av.faces = []; root.traverse(o => { if (o.isMesh && o.morphTargetInfluences && o.morphTargetInfluences.length > Math.max(t.bs.blink || 0, t.bs.a || 0)) av.faces.push(o); }); }
+  }
+  if (t.vrm) root.traverse(o => { if (o.isSkinnedMesh) { o.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0.85, 0), 1.7); o.frustumCulled = true; } });
   av.shape = randomShape(t.female);
   if (opts.shape) av.shape.type = opts.shape;
+  if (t.vrm) { av.shape.type = 'normal'; av.shape.legLen = 1; av.shape.head = 1; av.shape.shoulder = 1; }
+  if (t.cast) {   // khung xương trùng khung điều khiển: giữ nguyên chiều dài chân, lấy thêm xương mí mắt / miệng / tóc
+    av.shape.legLen = 1; av.shape.head = 1; av.shape.height = 1;
+    av.xb = {}; root.traverse(o => { if (o.isBone && /^(Lids|Jaw|Hair)$/.test(o.name)) av.xb[o.name] = o; });
+    av.blinkAt = Math.random() * 4; av.hairV = new THREE.Vector3(); av.hairR = new THREE.Vector3(); av.prevHead = null;
+  }
   av.baseOutfit = t.charId ? null : (opts.outfit || null);
+  if (t.vrm) av.vtint = opts.tint || [pick(VRM_HAIR), pick(VRM_CLOTH)];
+  av.forceCostume = !!opts.forceCostume;   // DJ hoá trang: cho phép gắn đạo cụ lên nhân vật VRM
   av.face = randomFace();
   av.skinTone = pick(SKIN_TONE);
   av.smile = Math.random() * 0.7;
@@ -365,8 +448,8 @@ export function createAvatar(parent, female, tpl, costume, opts = {}) {
   applyShape(av);
   av.seed = Math.random() * 10;
   if (t.rpm) av.skin = pick(SKIN_TINT);
-  applyCostume(av, costume === undefined ? null : costume);
-  if (!av.costume && !t.charId) applyOutfit(av, av.baseOutfit || pickOutfit(t.female), (b, o) => attachProp(av, b, o));
+  applyCostume(av, costume === undefined || (t.vrm && !av.forceCostume) ? null : costume);
+  if (!av.costume && !t.charId && !t.vrm) applyOutfit(av, av.baseOutfit || pickOutfit(t.female), (b, o) => attachProp(av, b, o));
   costumeShape(av);
   restyle(av);
   return av;
@@ -396,18 +479,21 @@ export function restyle(av) {
     const dark = hsl.l < 0.15, light = hsl.l > 0.88;
     recolor = [(hsl.h - 0.14) * Math.PI * 2, dark || light ? 0 : Math.min(1.2, hsl.s * 1.1), dark ? (hsl.l < 0.1 ? 0.1 : 0.22) : light ? 1.25 : Math.min(1.3, 0.35 + hsl.l)];
   }
+  if (av.t.cast || av.t.vrm) recolor = null;
   const hiddenNames = !av.costume ? barHidden(av.outfit) : [];
   av.root.traverse(o => {
     if (!o.isMesh || o.userData.outfit) return;
     if (!o.userData.baseMat) o.userData.baseMat = o.material;
     const base = o.userData.baseMat;
     const c = tint[base.name];
-    const face = av.t.charId ? null : av.t.faceInfo[o.name];
-    const m = patchMat(base, { recolor, skin: !av.t.rpm && !av.t.charId ? av.skinTone : null, face, faceParams: av.face });
+    const face = av.t.charId || av.t.vrm ? null : av.t.faceInfo[o.name];
+    const m = patchMat(base, { recolor, skin: !av.t.rpm && !av.t.charId && !av.t.vrm ? av.skinTone : null, face, faceParams: av.face });
     const lay = layers && layers[base.name];
     if (lay) { m.color = new THREE.Color(0xffffff); fabricize(m, lay[1], lay[0]); }
     else if (c) m.color = new THREE.Color(c);
+    if (av.vtint) { const tc = /_HAIR/.test(base.name) ? av.vtint[0] : /_CLOTH/.test(base.name) ? av.vtint[1] : null; if (tc) { m.color = new THREE.Color(tc); m.emissive = new THREE.Color(tc); } }
     av.mats.push(m); o.material = m;
+    if (av.t.cast && o.name === 'CastHair') o.visible = !(av.costume && av.costume.hideHat);
     if (/Teeth/i.test(o.name)) o.visible = false;
     if (/Beard/i.test(o.name)) o.visible = av.beard && !(av.costume && av.costume.hideHat && !['wukong', 'satang'].includes(av.costume.id));
     if (av.t.rpm && /Headwear|Hair/i.test(base.name)) o.visible = !(av.costume && av.costume.hideHat) && !(!av.costume && ou && ou.bar && ou.hat !== 'fedora');
@@ -453,7 +539,40 @@ function pass(av, name, parentW) {
 }
 
 // rig: khung xương game đã tính xong vị trí thế giới; L/R của rig là trái/phải màn hình
+const CAST_MAP = [['Hips', 'hips'], ['Spine', 'spine'], ['Spine2', 'chest'], ['Neck', 'neck'], ['Head', 'head'],
+  ['RightArm', 'shL'], ['RightForeArm', 'elL'], ['RightHand', 'haL'], ['LeftArm', 'shR'], ['LeftForeArm', 'elR'], ['LeftHand', 'haR'],
+  ['RightUpLeg', 'hipL'], ['RightLeg', 'knL'], ['RightFoot', 'ftL'], ['LeftUpLeg', 'hipR'], ['LeftLeg', 'knR'], ['LeftFoot', 'ftR']];
+const _hw = new THREE.Vector3(), _hv = new THREE.Vector3(), _hq = new THREE.Quaternion();
+// nhân vật dựng bằng code: chép thẳng từng khớp của khung điều khiển + chuyển động phụ (tóc đung đưa, chớp mắt, mở miệng)
+function driveCast(av, rig, opts) {
+  const R = rig.root, B = av.bones;
+  av.holder.position.copy(R.position); av.holder.quaternion.copy(R.quaternion);
+  av.holder.scale.setScalar(Math.max(1e-4, R.scale.x * opts.alpha));
+  for (const [bn, rn] of CAST_MAP) { const b = B[bn], n = rig[rn]; b.position.copy(n.position); b.quaternion.copy(n.quaternion); }
+  animateCostume(av, costumeTime.value);
+  const t = costumeTime.value, dt = Math.min(0.05, Math.max(0.001, t - (av.lastT || t - 0.016))); av.lastT = t;
+  const X = av.xb;
+  if (X.Lids) {   // chớp mắt
+    if (t > av.blinkAt + 0.13) av.blinkAt = t + 1.2 + Math.random() * 4.5;
+    const shut = t >= av.blinkAt && t <= av.blinkAt + 0.13;
+    X.Lids.position.copy(X.Lids.userData.rest); if (!shut) X.Lids.position.z -= 0.09;
+  }
+  if (X.Jaw) { const o = Math.min(1, (opts.sing || 0) * 1.8); X.Jaw.position.copy(X.Jaw.userData.rest); if (o < 0.06) X.Jaw.position.z -= 0.09; X.Jaw.scale.set(0.7 + 0.3 * o, Math.max(0.05, o), 1); }
+  if (X.Hair) {   // tóc: lò xo theo vận tốc của đầu
+    rig.head.getWorldPosition(_hw);
+    if (av.prevHead) {
+      _hv.copy(_hw).sub(av.prevHead).divideScalar(dt * Math.max(0.3, R.scale.x));
+      rig.head.getWorldQuaternion(_hq).invert(); _hv.applyQuaternion(_hq);
+      const tx = Math.max(-0.7, Math.min(0.7, _hv.z * 0.22 - _hv.y * 0.1)), tz = Math.max(-0.7, Math.min(0.7, -_hv.x * 0.22));
+      av.hairV.x += ((tx - av.hairR.x) * 90 - av.hairV.x * 7) * dt; av.hairV.z += ((tz - av.hairR.z) * 90 - av.hairV.z * 7) * dt;
+      av.hairR.x += av.hairV.x * dt; av.hairR.z += av.hairV.z * dt;
+      X.Hair.rotation.set(av.hairR.x, 0, av.hairR.z);
+      av.prevHead.copy(_hw);
+    } else av.prevHead = _hw.clone();
+  }
+}
 export function driveAvatar(av, rig, opts) {
+  if (av.t.cast) return driveCast(av, rig, opts);
   const { yaw, scale, hipH0, flat, alpha, headPt, headTop } = opts;
   const t = av.t;
   av.holder.position.copy(rig.root.position);
@@ -486,38 +605,108 @@ export function driveAvatar(av, rig, opts) {
   }
   // cột sống, cổ, đầu
   const w = (n) => rig[n].getWorldPosition(new THREE.Vector3());
-  const spine = aim(av, 'Spine', W.Hips, w('spine'), w('chest'));
-  let up = pass(av, 'Spine1', spine); up = pass(av, 'Spine2', up);
-  const neck = aim(av, 'Neck', up, w('neck'), headPt);
-  if (av.bones.HeadTop_End) aim(av, 'Head', neck, headPt, headTop); else pass(av, 'Head', neck);
-  // tay: rig shL nằm bên trái màn hình = tay phải nhân vật
-  const rs = pass(av, 'RightShoulder', up);
-  const ra = aim(av, 'RightArm', rs, w('shL'), w('elL'));
-  aim(av, 'RightForeArm', ra, w('elL'), w('haL'));
-  if (av.bones.RightHand) pass(av, 'RightHand', W.RightForeArm);
-  const ls = pass(av, 'LeftShoulder', up);
-  const la = aim(av, 'LeftArm', ls, w('shR'), w('elR'));
-  aim(av, 'LeftForeArm', la, w('elR'), w('haR'));
-  if (av.bones.LeftHand) pass(av, 'LeftHand', W.LeftForeArm);
+  // chép cả hướng xoay (không chỉ hướng chỉ) để thân vặn, đầu ngoái, gật theo đúng khung điều khiển
+  const spine = orient(av, 'Spine', W.Hips, rig.spine);
+  let up = pass(av, 'Spine1', spine); up = orient(av, 'Spine2', up, rig.chest);
+  const neck = orient(av, 'Neck', up, rig.neck);
+  orient(av, 'Head', neck, rig.head);
+  // tay: rig shL nằm bên trái màn hình = tay phải nhân vật. Vai nhô lên khi giơ tay, cổ tay và ngón tay mềm
+  const eL = w('elL'), hL = w('haL'), eR = w('elR'), hR = w('haR');
+  const rs = shrug(av, 'RightShoulder', 'RightArm', up, w('shL'), eL);
+  const ra = aim(av, 'RightArm', rs, w('shL'), eL);
+  aim(av, 'RightForeArm', ra, eL, hL);
+  if (av.bones.RightHand) { rig.haL.getWorldQuaternion(_q3); _b.set(0, -1, 0).applyQuaternion(_q3).add(hL); aim(av, 'RightHand', W.RightForeArm, hL, _b); }
+  const ls = shrug(av, 'LeftShoulder', 'LeftArm', up, w('shR'), eR);
+  const la = aim(av, 'LeftArm', ls, w('shR'), eR);
+  aim(av, 'LeftForeArm', la, eR, hR);
+  if (av.bones.LeftHand) { rig.haR.getWorldQuaternion(_q3); _b.set(0, -1, 0).applyQuaternion(_q3).add(hR); aim(av, 'LeftHand', W.LeftForeArm, hR, _b); }
   // chân
   const rul = aim(av, 'RightUpLeg', W.Hips, w('hipL'), w('knL'));
   const rl = aim(av, 'RightLeg', rul, w('knL'), w('ftL'));
   const lul = aim(av, 'LeftUpLeg', W.Hips, w('hipR'), w('knR'));
   const ll = aim(av, 'LeftLeg', lul, w('knR'), w('ftR'));
-  // bàn chân phẳng trên sàn
-  if (flat) {
-    av.bones.RightFoot.quaternion.copy(rl).invert().multiply(t.restWorld.RightFoot);
-    av.bones.LeftFoot.quaternion.copy(ll).invert().multiply(t.restWorld.LeftFoot);
-  } else {
+  // bàn chân theo khung điều khiển: phẳng khi chạm sàn, chúc mũi xuống khi nhấc lên, xoay theo hướng bước
+  if (flat) { orient(av, 'RightFoot', rl, rig.ftL); orient(av, 'LeftFoot', ll, rig.ftR); }
+  else {
     av.bones.RightFoot.quaternion.copy(t.restLocal.RightFoot);
     av.bones.LeftFoot.quaternion.copy(t.restLocal.LeftFoot);
+  }
+  secondary(av, rig, opts);
+}
+const _q3 = new THREE.Quaternion(), _q4 = new THREE.Quaternion(), ZAX = new THREE.Vector3(0, 0, 1);
+// xương mô hình nhận nguyên hướng xoay của một khớp trên khung điều khiển
+function orient(av, name, parentW, node) {
+  const b = av.bones[name], t = av.t;
+  if (!b) return parentW;
+  node.getWorldQuaternion(_q);
+  const rel = _q2.copy(_qhi).multiply(_q);
+  if (t.flip) { rel.x = -rel.x; rel.z = -rel.z; }
+  const world = rel.multiply(t.restWorld[name]).clone();
+  b.quaternion.copy(parentW).invert().multiply(world);
+  return (W[name] = world);
+}
+// xương đòn: nhô lên theo độ cao của cánh tay (giơ tay thì vai nâng theo, không còn cứng như gắn bản lề)
+function shrug(av, name, armName, parentW, from, to) {
+  const b = av.bones[name], t = av.t;
+  if (!b) return parentW;
+  const world = _q.multiplyQuaternions(parentW, t.restLocal[name]).clone();
+  _d.subVectors(to, from);
+  if (_d.lengthSq() > 1e-8 && av.bones[armName]) {
+    _d.normalize();
+    const ang = 0.42 * Math.min(1, Math.max(0, _d.y + 0.25));
+    _c.copy(av.bones[armName].position).applyQuaternion(world);
+    world.premultiply(_q4.setFromAxisAngle(ZAX, (_c.x >= 0 ? 1 : -1) * ang));
+  }
+  b.quaternion.copy(parentW).invert().multiply(world);
+  return (W[name] = world);
+}
+const FCURL = [0.5, 0.95, 0.7];
+// ngón tay khum tự nhiên, tóc đung đưa theo đầu, chớp mắt / mở miệng
+function secondary(av, rig, opts) {
+  const t = costumeTime.value, dt = Math.min(0.05, Math.max(0.001, t - (av.lastT || t - 0.016))); av.lastT = t;
+  if (av.fingers && av.fingers.length) {
+    // rig phải = tay trái mô hình
+    const cl = opts.curlR === undefined ? 0.55 : opts.curlR, cr = opts.curlL === undefined ? 0.55 : opts.curlL;
+    if (Math.abs(cl - av.curl[0]) > 0.012 || Math.abs(cr - av.curl[1]) > 0.012) {
+      av.curl[0] = cl; av.curl[1] = cr;
+      for (const { f, b } of av.fingers) {
+        const c = f.left ? cl : cr;
+        const a = f.thumb ? 0.1 + 0.3 * c : c * FCURL[Math.min(2, f.lv - 1)] * (/index/i.test(f.name) ? 0.8 : /little|pinky/i.test(f.name) ? 1.2 : /ring/i.test(f.name) ? 1.1 : 1);
+        b.quaternion.copy(f.rest).multiply(_q4.setFromAxisAngle(f.axis, a));
+      }
+    }
+  }
+  if (av.hairs && av.hairs.length) {
+    rig.head.getWorldPosition(_a);
+    if (av.prevHead) {
+      _b.copy(_a).sub(av.prevHead).divideScalar(dt * Math.max(0.3, opts.scale || 1));
+      _b.applyQuaternion(_qhi); if (av.t.flip) { _b.x = -_b.x; _b.z = -_b.z; }
+      if (W.Head) _b.applyQuaternion(_q4.copy(W.Head).invert());
+      const lim = 0.55, tx = Math.max(-lim, Math.min(lim, _b.z * 0.2 - _b.y * 0.06)), tz = Math.max(-lim, Math.min(lim, -_b.x * 0.2));
+      av.hairV.x += ((tx - av.hairR.x) * 70 - av.hairV.x * 6) * dt; av.hairV.z += ((tz - av.hairR.z) * 70 - av.hairV.z * 6) * dt;
+      av.hairR.x += av.hairV.x * dt; av.hairR.z += av.hairV.z * dt;
+      for (const { f, b } of av.hairs) b.quaternion.copy(f.rest).multiply(_q4.setFromEuler(_e.set(av.hairR.x * f.k, 0, av.hairR.z * f.k)));
+      av.prevHead.copy(_a);
+    } else av.prevHead = _a.clone();
+  }
+  if (av.faces && av.faces.length) {
+    const bs = av.t.bs;
+    if (t > av.blinkAt + 0.14) av.blinkAt = t + 1.2 + Math.random() * 4.5;
+    const shut = t >= av.blinkAt ? Math.sin(Math.min(1, (t - av.blinkAt) / 0.14) * Math.PI) : 0;
+    const open = Math.min(1, (opts.sing || 0) * 1.5);
+    for (const o of av.faces) {
+      const m = o.morphTargetInfluences;
+      if (bs.blink !== undefined) m[bs.blink] = shut;
+      if (bs.a !== undefined) m[bs.a] = open;
+      if (bs.joy !== undefined) m[bs.joy] = open > 0.05 ? 0 : 0.28 * (av.smile || 0);
+    }
   }
 }
 
 // đổi hoá trang (id = null: bỏ hoá trang)
 export function setCostume(av, id) {
-  applyCostume(av, id);
-  if (av.costume || av.t.charId) removeOutfit(av); else applyOutfit(av, av.baseOutfit || pickOutfit(av.t.female), (b, o) => attachProp(av, b, o));
+  applyCostume(av, av.t.vrm && !av.forceCostume ? null : id);
+  if (av.costume || av.t.charId || av.t.vrm) removeOutfit(av); else applyOutfit(av, av.baseOutfit || pickOutfit(av.t.female), (b, o) => attachProp(av, b, o));
   costumeShape(av); restyle(av);
 }
 if (typeof window !== 'undefined') { window._applyOutfit = (av, o) => applyOutfit(av, o, (b, x) => attachProp(av, b, x)); window._restyle = av => restyle(av); }

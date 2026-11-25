@@ -37,7 +37,7 @@ const ACTIONS = [
   { id: 'stage', label: 'Lên sân khấu', icon: '🎤', min: 299 },
   { id: 'dj', label: 'Lên DJ', icon: '🎧', min: 399 },
   { id: 'solo', label: 'Thách đấu solo', icon: '⚔️', min: 499 },
-  { id: 'vip', label: 'Ngồi bàn VIP', icon: '🛋️', min: 599 },
+  { id: 'vip', label: 'Lên bàn VIP', icon: '🛋️', min: 599 },
   { id: 'flashmob', label: 'Flash mob', icon: '🕺', min: 799 },
   { id: 'party', label: 'Bao cả sàn', icon: '🥂', min: 999 },
 ];
@@ -47,11 +47,13 @@ const DEFAULT_SETTINGS = {
   apiKey: '',
   autoReconnect: true,
   quality: 'high',          // high | medium | low
-  charStyle: 'real',
+  charStyle: 'cast',        // cast = dàn nhân vật mới dựng bằng code | real = mô hình .glb cũ | toon
   rosterEnabled: true,      // người xem nhập vai nhân vật trong roster.csv
   partyMix: 25,             // % người mặc đồ dạ hội (còn lại đồ đi bar hot trend)
   costumeRate: 15,          // % người lên sàn được hoá trang sẵn (còn lại mặc đồ dạ hội)
   djName: 'DJ Tiến Khoa',   // tên DJ trên bàn DJ
+  djLook: 'auto',           // tạo hình DJ: auto = 4 thầy trò Tây Du Ký thay ca | tang | wukong | batgioi | satang
+  djSwapMin: 3,             // số phút mỗi ca DJ (khi djLook = auto)
   eventsEnabled: true,      // đếm ngược sự kiện lớn theo lịch (flash mob → giờ vàng → cặp đôi)
   eventEvery: 6,            // phút giữa hai sự kiện
   goldenEnabled: true, goldenMinutes: 3,   // giờ vàng: quà nâng hạng hiệu ứng, nhiệt ×2
@@ -101,6 +103,7 @@ const DEFAULT_SETTINGS = {
   bannedWords: '',
   // MC giọng nói
   ttsEnabled: true, ttsWhere: 'game', ttsVoice: '', ttsVolume: 1, ttsRate: 1.05, ttsMinCoins: 1, ttsJoin: false, ttsFollow: true,
+  ttsEngine: 'vieneu', ttsNeuralVoice: '',   // MC giọng AI VieNeu-TTS (tự quay về giọng trình duyệt nếu không chạy)
   // đấu đội
   battleSeconds: 180, battleAuto: 0,          // tự mở mỗi N phút (0 = tắt)
   // solo
@@ -112,7 +115,7 @@ const DEFAULT_SETTINGS = {
   // bình chọn nhạc
   songVote: true,
   // mục tiêu phòng → sân khấu
-  goalsEnabled: true, theme: 'auto',   // auto = tự đổi sàn theo mùa / ngày lễ
+  goalsEnabled: true, theme: 'club',   // auto = tự đổi sàn theo mùa / ngày lễ
   goals: [{ kind: 'likes', n: 2000, theme: 'beach' }, { kind: 'coins', n: 500, theme: 'space' }, { kind: 'likes', n: 8000, theme: 'tet' }, { kind: 'coins', n: 2000, theme: 'halloween' }, { kind: 'likes', n: 20000, theme: 'noel' }],
   // clip
   clipsEnabled: true, clipSeconds: 15,
@@ -729,6 +732,116 @@ app.post('/api/open-game', (req, res) => {
   } catch (e) { res.json({ ok: false, error: String(e.message || e) }); }
 });
 
+// ---------- MC giọng AI: VieNeu-TTS (chạy offline trên máy, CPU) ----------
+// Thư mục VieNeu-TTS nằm cạnh thư mục game (../VieNeu-TTS). Game tự bật nó khi chạy,
+// nếu không có / lỗi thì MC tự quay về giọng Windows của trình duyệt.
+const VIENEU_DIR = process.env.VIENEU_DIR || path.join(__dirname, '..', 'VieNeu-TTS');
+const VIENEU_PORT = Number(process.env.VIENEU_PORT) || 8765;
+const VIENEU_URL = `http://127.0.0.1:${VIENEU_PORT}`;
+const tts = { status: 'off', voices: [], error: '', child: null, cache: new Map() };
+const ttsPublic = () => ({ status: tts.status, voices: tts.voices, error: tts.error, installed: vieneuPython() !== null });
+const ttsEmit = () => io.emit('ttsStatus', ttsPublic());
+function vieneuPython() {
+  const p = path.join(VIENEU_DIR, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
+  try { return fs.statSync(p).isFile() ? p : null; } catch { return null; }
+}
+async function vieneuHealth() {
+  try { const r = await fetch(VIENEU_URL + '/health', { signal: AbortSignal.timeout(1500) }); return r.ok; } catch { return false; }
+}
+async function vieneuReady() {
+  try {
+    const r = await fetch(VIENEU_URL + '/v1/voices', { signal: AbortSignal.timeout(3000) });
+    const j = await r.json();
+    tts.voices = (j.data || []).map(v => ({ id: v.id, gender: v.gender, desc: v.description, featured: v.featured || 0 }));
+  } catch {}
+  tts.status = 'ready'; tts.error = ''; ttsEmit();
+  console.log(`  🎙 MC giọng AI (VieNeu-TTS) sẵn sàng — ${tts.voices.length} giọng`);
+}
+async function startVieneu() {
+  if (tts.status === 'starting' || tts.status === 'ready' || tts.child) return;
+  tts.status = 'starting';                                 // giữ chỗ ngay, tránh bật 2 lần cùng lúc
+  if (await vieneuHealth()) return vieneuReady();          // đã có người bật sẵn
+  const py = vieneuPython();
+  if (!py) { tts.status = 'missing'; tts.error = 'Chưa cài VieNeu-TTS (thư mục ' + VIENEU_DIR + ')'; ttsEmit(); return; }
+  tts.status = 'starting'; tts.error = ''; ttsEmit();
+  console.log('  🎙 Đang bật MC giọng AI (VieNeu-TTS)…');
+  const env = Object.assign({}, process.env, { VIENEU_BACKEND: 'onnx', VIENEU_PRECISION: process.env.VIENEU_PRECISION || 'int8',
+    HOST: '127.0.0.1', PORT: String(VIENEU_PORT), PYTHONIOENCODING: 'utf-8', HF_HUB_DISABLE_TELEMETRY: '1' });
+  const child = require('child_process').spawn(py, ['-m', 'apps.openai_speech'], { cwd: VIENEU_DIR, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  tts.child = child;
+  let tail = '';
+  const onOut = b => { tail = (tail + b.toString('utf8')).slice(-2000); };
+  child.stdout.on('data', onOut); child.stderr.on('data', onOut);
+  child.on('error', e => { tts.status = 'error'; tts.error = String(e.message || e); ttsEmit(); });
+  child.on('exit', () => {
+    if (tts.child !== child) return;      // bị tắt chủ động (khởi động lại / đổi bộ đọc)
+    tts.child = null;
+    if (tts.status === 'off') return;
+    const why = tail.split(/\r?\n/).filter(l => /error|exception|traceback/i.test(l)).slice(-1)[0] || '';
+    tts.status = 'error'; tts.error = 'VieNeu-TTS bị tắt' + (why ? ': ' + why.trim().slice(0, 160) : '');
+    // tự bật lại (tối đa 3 lần / 10 phút) — trong lúc chờ MC đọc bằng giọng trình duyệt
+    const nowT = Date.now(); tts.crashes = (tts.crashes || []).filter(t => nowT - t < 10 * 60000); tts.crashes.push(nowT);
+    if (tts.crashes.length <= 3) { tts.error += ' — đang tự bật lại…'; setTimeout(() => { if (tts.status === 'error' && !tts.child) { tts.status = 'off'; syncVieneu(); } }, 5000); }
+    ttsEmit(); console.log('  🎙 ' + tts.error);
+  });
+  // chờ tải model (lần đầu phải tải từ HuggingFace, có thể vài phút)
+  const t0 = Date.now();
+  while (tts.child === child && Date.now() - t0 < 10 * 60000) {
+    await new Promise(r => setTimeout(r, 1500));
+    if (await vieneuHealth()) return vieneuReady();
+  }
+  if (tts.child === child) { tts.status = 'error'; tts.error = 'VieNeu-TTS không phản hồi sau 10 phút'; ttsEmit(); }
+}
+function stopVieneu() {
+  tts.status = 'off'; ttsEmit();
+  if (tts.child) { try { tts.child.kill(); } catch {} tts.child = null; }
+}
+for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, () => { if (tts.child) try { tts.child.kill(); } catch {} process.exit(0); });
+process.on('exit', () => { if (tts.child) try { tts.child.kill(); } catch {} });
+function syncVieneu() {
+  if (settings.ttsEngine === 'vieneu' && settings.ttsEnabled) startVieneu();
+  else if (tts.child) stopVieneu();
+}
+// WAV từ VieNeu ghi độ dài "không biết trước" → sửa lại cho trình duyệt phát chuẩn
+function fixWav(buf) {
+  if (buf.length < 44 || buf.toString('ascii', 0, 4) !== 'RIFF') return buf;
+  buf.writeUInt32LE(buf.length - 8, 4);
+  const d = buf.indexOf('data', 12, 'ascii');
+  if (d > 0) buf.writeUInt32LE(buf.length - d - 8, d + 4);
+  return buf;
+}
+app.get('/api/tts/status', (req, res) => res.json(ttsPublic()));
+app.post('/api/tts/restart', (req, res) => { stopVieneu(); settings.ttsEngine = 'vieneu'; saveSettings(); startVieneu(); res.json(ttsPublic()); });
+app.post('/api/tts', async (req, res) => {
+  const text = String((req.body && req.body.text) || '').normalize('NFC').trim().slice(0, 400);
+  const voice = String((req.body && req.body.voice) || settings.ttsNeuralVoice || '').slice(0, 64);
+  if (!text) return res.status(400).end();
+  if (tts.status !== 'ready') return res.status(503).json({ error: 'VieNeu-TTS chưa sẵn sàng', status: tts.status });
+  const key = voice + '|' + text;
+  let buf = tts.cache.get(key);
+  if (buf) { tts.cache.delete(key); tts.cache.set(key, buf); }   // LRU
+  else {
+    try {
+      const r = await fetch(VIENEU_URL + '/v1/audio/speech', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(30000),
+        body: JSON.stringify({ input: text, voice: voice || undefined, response_format: 'wav', sample_rate: 24000 }),
+      });
+      if (!r.ok) {
+        const msg = await r.text().catch(() => '');
+        if (r.status === 400 && voice && /voice/i.test(msg)) { settings.ttsNeuralVoice = ''; saveSettings(); io.emit('settings', settings); }
+        return res.status(r.status === 429 ? 429 : 502).json({ error: msg.slice(0, 200) });
+      }
+      buf = fixWav(Buffer.from(await r.arrayBuffer()));
+    } catch (e) {
+      if (!(await vieneuHealth())) { tts.status = 'error'; tts.error = 'Mất kết nối VieNeu-TTS'; ttsEmit(); setTimeout(syncVieneu, 5000); }
+      return res.status(502).json({ error: String(e.message || e) });
+    }
+    tts.cache.set(key, buf);
+    while (tts.cache.size > 120) tts.cache.delete(tts.cache.keys().next().value);
+  }
+  res.set({ 'Content-Type': 'audio/wav', 'Cache-Control': 'no-store' }).send(buf);
+});
+
 // ---------- socket ----------
 let primaryId = null;
 let goalState = null;   // tiến độ mục tiêu phòng (giữ khi tải lại màn hình game)
@@ -760,6 +873,7 @@ io.on('connection', socket => {
     socket.emit('music', musicList());
     socket.emit('top', topList());
     socket.emit('connState', connState);
+    socket.emit('ttsStatus', ttsPublic());
   });
   socket.on('status', s => { if (screens.has(socket.id)) screens.set(socket.id, Object.assign(screens.get(socket.id) || {}, s || {})); });
   socket.on('disconnect', () => { if (screens.delete(socket.id)) pickPrimary(); });
@@ -818,6 +932,7 @@ io.on('connection', socket => {
     for (const k of Object.keys(DEFAULT_SETTINGS)) if (k in s) settings[k] = s[k];
     saveSettings();
     io.emit('settings', settings);
+    if ('ttsEngine' in s || 'ttsEnabled' in s) syncVieneu();
   });
   socket.on('connect-tiktok', async ({ username, apiKey } = {}) => {
     if (typeof username === 'string') settings.username = username.replace(/^@/, '').trim();
@@ -835,6 +950,9 @@ io.on('connection', socket => {
     if (t.kind === 'join') {
       const n = Math.min(100, Number(t.n) || 10);
       for (let i = 0; i < n; i++) setTimeout(() => broadcast({ type: 'chat', user: fanTouch(testUser(), 2), text: 'hi' }), i * 120);
+    } else if (t.kind === 'member') {   // thử MC chào người mới vào phòng
+      const n = Math.min(10, Number(t.n) || 3);
+      for (let i = 0; i < n; i++) setTimeout(() => broadcast({ type: 'member', user: testUser(Math.max(1, Math.floor(Math.random() * 15)) || 1) }), i * 400);
     } else if (t.kind === 'chat') {
       const n = Math.max(1, Number(t.repeat) || 1); for (let i = 0; i < n; i++) setTimeout(() => broadcast({ type: 'chat', user: fanTouch(testUser(Math.max(1, Math.floor(Math.random() * Math.max(1, testN)))), 2), text: String(typeof t.text === 'function' ? '' : (Array.isArray(t.text) ? t.text[i % t.text.length] : t.text) || '').slice(0, 80) }), i * 80);
     } else if (t.kind === 'like') {
@@ -873,6 +991,15 @@ setInterval(() => {
   });
 }, 1500);
 
+server.on('error', e => {
+  if (e.code === 'EADDRINUSE') {
+    console.log(`\n  ⚠️  Cổng ${PORT} đang bị chiếm — game đã mở ở một cửa sổ khác.`);
+    console.log(`  Dùng luôn cửa sổ đó (http://localhost:${PORT}/admin.html), hoặc tắt nó rồi chạy lại file này.\n`);
+    if (tts.child) try { tts.child.kill(); } catch {}
+    process.exit(1);
+  }
+  throw e;
+});
 server.listen(PORT, '0.0.0.0', () => {
   const ips = lanIPs();
   console.log('\n  Vũ Trường Neon đã chạy');
@@ -881,4 +1008,5 @@ server.listen(PORT, '0.0.0.0', () => {
   for (const ip of ips) console.log(`  Trong mạng LAN   : http://${ip}:${PORT}/game.html`);
   console.log('');
   if (settings.username && settings.autoReconnect && process.env.AUTOCONNECT !== '0') connectTikTok();
+  syncVieneu();
 });

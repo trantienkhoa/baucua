@@ -117,10 +117,10 @@ export function rosterOutfit(ch) {
 // ---------- điệu nhảy theo thể loại (chỉ số trong DANCES) ----------
 // 0 nhún 1 lắc 2 xoay 3 robot 4 disco 5 hiphop 6 vỗ tay 7 sóng 8 lộn 9 xoay đầu 10 gà 11 máy bay 12 đá chân 13 moonwalk 14 waltz 15 tango 16 salsa
 const STYLE = [
-  ['k-pop|kpop', [1, 4, 6, 7, 12, 18, 19, 25]], ['hip-hop|hiphop', [5, 0, 3, 13, 20, 21, 25]], ['breaking|break', [9, 8, 2, 5, 17]], ['street', [5, 13, 12, 3, 21, 20, 22]],
-  ['popping|locking', [3, 7, 13, 25]], ['house', [0, 12, 13, 4, 21]], ['freestyle', [0, 1, 4, 5, 7, 12, 13, 18, 19, 22, 23, 24]], ['jazz', [6, 1, 12, 2, 24]],
-  ['contemporary|modern', [7, 2, 11, 1, 22]], ['ballroom|waltz', [14, 2, 7]], ['tango', [15, 14]], ['salsa|cha-cha|cha cha|latin', [16, 1, 4, 24]],
-  ['folk', [6, 1, 2, 14, 23]],
+  ['k-pop|kpop', [1, 4, 6, 7, 12, 18, 19, 25, 31, 46, 47, 29, 30, 43, 26]], ['hip-hop|hiphop', [5, 0, 3, 13, 20, 21, 25, 37, 38, 39, 36, 32, 34]], ['breaking|break', [9, 8, 2, 5, 17, 48, 32, 57]], ['street', [5, 13, 12, 3, 21, 20, 22, 39, 37, 32, 45, 54]],
+  ['popping|locking', [3, 7, 13, 25, 31, 54, 28, 35]], ['house', [0, 12, 13, 4, 21, 32, 26, 27, 45, 34, 58]], ['freestyle', [0, 1, 4, 5, 7, 12, 13, 18, 19, 22, 23, 24, 26, 28, 33, 35, 36, 41, 42, 43, 44, 49, 50, 51, 56]], ['jazz', [6, 1, 12, 2, 24, 33, 53, 27, 40]],
+  ['contemporary|modern', [7, 2, 11, 1, 22, 30, 52, 55, 29]], ['ballroom|waltz', [14, 2, 7, 55, 26]], ['tango', [15, 14, 55]], ['salsa|cha-cha|cha cha|latin', [16, 1, 4, 24, 29, 40, 52, 27]],
+  ['folk', [6, 1, 2, 14, 23, 55, 26, 43, 40]],
 ];
 export function danceFor(style) { const s = norm(style); for (const [k, list] of STYLE) if (new RegExp(k).test(s)) return pick(list); return null; }
 export function dancePool(style) { const s = norm(style); for (const [k, list] of STYLE) if (new RegExp(k).test(s)) return list; return null; }

@@ -7,12 +7,14 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createThemes, THEME_NAMES, themeForDate } from './themes.js';
-import { rosterOutfit, danceFor, tempoFor, hyperFor, shapeFor } from './roster.js';
-import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates, setCostume, randomCostumeId, COSTUMES, costumeTime, setExtra, outfitTime, setOutfitMix, templateForChar, hasCharModel } from './avatars.js';
+import { rosterOutfit, danceFor, dancePool, tempoFor, hyperFor, shapeFor } from './roster.js';
+import { loadAvatars, createAvatar, driveAvatar, disposeAvatar, restyle, applyShape, avatarTemplates, setCostume, randomCostumeId, COSTUMES, costumeTime, setExtra, outfitTime, setOutfitMix, templateForChar, hasCharModel, castTemplate, randomCastChar } from './avatars.js';
 import { createLCD } from './lcd.js';
 import { createFX } from './fx.js';
-import { createBar, SALONS } from './bar.js';
+import { createBar, SALONS, TABLES } from './bar.js';
 import { applyStyle, randomStyleId, styleName, STYLE_KEYS } from './styles.js';
+import { RIGP } from './cast.js';
+import { createClub, BAR, BAR_SPOTS, BARTENDERS, PODIUMS, PODIUM_H } from './club.js';
 
 const W = 1080, H = 1920;
 const PI = Math.PI, TAU = PI * 2;
@@ -78,21 +80,21 @@ renderer.setPixelRatio(1);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0a0314);
-scene.fog = new THREE.Fog(0x14061f, 22, 45);
+scene.fog = new THREE.Fog(0x14061f, 30, 62);
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.3;
 
-const camera = new THREE.PerspectiveCamera(48, W / H, 0.1, 100);
-const CAM_POS = new THREE.Vector3(0, 4.7, 12.8);
-const CAM_LOOK = new THREE.Vector3(0, 2.2, -1.6);
+const camera = new THREE.PerspectiveCamera(50, W / H, 0.1, 120);
+const CAM_POS = new THREE.Vector3(0, 7.4, 17.5);   // máy quay cao và xa: thấy cả sàn rộng
+const CAM_LOOK = new THREE.Vector3(0, 1.7, -1.6);
 camera.position.copy(CAM_POS); camera.lookAt(CAM_LOOK);
 
 let composer = null, bloom = null;
 function setupComposer() {
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  bloom = new UnrealBloomPass(new THREE.Vector2(W, H), 0.55, 0.45, 0.97);
+  bloom = new UnrealBloomPass(new THREE.Vector2(W, H), 0.3, 0.4, 0.985);
   composer.addPass(bloom);
   if (lcd) composer.addPass(lcd.holePass);   // đục lỗ màn LCD sau hiệu ứng toả sáng
   composer.addPass(new OutputPass());
@@ -110,7 +112,7 @@ function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w
 
 // ---------- ánh sáng ----------
 const hemi = new THREE.HemisphereLight(0xb9a8ff, 0x241038, 0.55); scene.add(hemi);
-const key = new THREE.DirectionalLight(0xfff2e6, 1.5); key.position.set(3, 10, 12); scene.add(key);
+const key = new THREE.DirectionalLight(0xfff2e6, 1.15); key.position.set(3, 10, 12); scene.add(key);
 const rim = new THREE.DirectionalLight(0xff4fd8, 0.9); rim.position.set(-4, 6, -10); scene.add(rim);
 const rim2 = new THREE.DirectionalLight(0x41e8ff, 0.7); rim2.position.set(5, 5, -8); scene.add(rim2);
 const movers = [0xff3d9a, 0x3dd9ff, 0xffc23d].map(c => { const l = new THREE.PointLight(c, 10, 12, 1.5); l.position.set(0, 4, 0); scene.add(l); return l; });
@@ -123,7 +125,7 @@ const metalMat = new THREE.MeshStandardMaterial({ color: 0x8a8aa0, metalness: 0.
   back.position.set(0, 10, -10.5); scene.add(back);
   for (const sd of [-1, 1]) {
     const wall = new THREE.Mesh(new THREE.PlaneGeometry(30, 24), new THREE.MeshStandardMaterial({ color: 0x150b25, roughness: 0.9 }));
-    wall.position.set(sd * 10, 10, 2); wall.rotation.y = -sd * PI / 2; scene.add(wall);
+    wall.position.set(sd * 13, 10, 2); wall.rotation.y = -sd * PI / 2; scene.add(wall);
   }
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshStandardMaterial({ color: 0x07030c, roughness: 0.6 }));
   ground.rotation.x = -PI / 2; ground.position.y = -0.09; scene.add(ground);
@@ -132,7 +134,7 @@ const metalMat = new THREE.MeshStandardMaterial({ color: 0x8a8aa0, metalness: 0.
 const neonStrips = [];
 for (const sd of [-1, 1]) for (let i = 0; i < 6; i++) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(0.12, 9, 0.12), new THREE.MeshBasicMaterial({ color: 0xff3df2 }));
-  m.position.set(sd * 9.9, 4.5, -8 + i * 3); scene.add(m); neonStrips.push(m);
+  m.position.set(sd * (7.2 + i * 0.5), 4.5, -10.3 + i * 0.02); scene.add(m); neonStrips.push(m);   // dải neon dựng trên tường sau, hai bên màn LED
 }
 // giàn đèn
 for (const z of [-2, -6.5]) {
@@ -140,12 +142,12 @@ for (const z of [-2, -6.5]) {
 }
 
 // ---------- sàn LED ----------
-const TX = 18, TZ = 11;
-const tileMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.94, 0.1, 0.94), new THREE.MeshBasicMaterial({ color: 0xffffff }), TX * TZ);
+const TX = 12, TZ = 10, TILE = 2;   // ô LED lớn 2 m, sàn 24 × 20 m
+const tileMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(TILE - 0.08, TILE - 0.08).rotateX(-PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }), TX * TZ);   // ô LED phát sáng chồng lên mặt sàn bóng
 {
   const m = new THREE.Matrix4(); let i = 0;
   for (let ix = 0; ix < TX; ix++) for (let iz = 0; iz < TZ; iz++) {
-    m.makeTranslation(-TX / 2 + 0.5 + ix, -0.05, -5.5 + 0.5 + iz);
+    m.makeTranslation((-TX / 2 + 0.5 + ix) * TILE, 0.008, -5.5 + (0.5 + iz) * TILE);
     tileMesh.setMatrixAt(i, m); tileMesh.setColorAt(i, new THREE.Color(0x222222)); i++;
   }
   scene.add(tileMesh);
@@ -164,7 +166,40 @@ scene.add(bulbs);
 // khói sàn + pháo sáng (fx.js)
 // nội thất quán bar: bộ salon + bàn tròn đứng (bar.js)
 const bar = createBar(scene);
-const fx = createFX(scene, { floor: { x0: -9, x1: 9, z0: -5.2, z1: 5.5 }, stageY: STAGE_Y, stageFrontZ: -5.5 });
+const club = createClub(scene, { STAGE_Y });
+// biển neon "BÀN VIP 0n" dựng sau mỗi bộ salon; có khách VIP thì hiện tên
+const vipSigns = SALONS.map(([x, z, ry], i) => {
+  const tex = canvasTex(256, 320, () => {});
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.875), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
+  const c = Math.cos(ry), s = Math.sin(ry);
+  m.position.set(x - 1.3 * s, 1.85, z - 1.3 * c); m.rotation.y = ry; scene.add(m);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(1.62, 2.0, 0.08), new THREE.MeshStandardMaterial({ color: 0x0c0a12, roughness: 0.5 })); back.position.set(x - 1.36 * s, 1.85, z - 1.36 * c); back.rotation.y = ry; scene.add(back);
+  for (const sd of [-1, 1]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 2.9, 10), new THREE.MeshStandardMaterial({ color: 0xd4a84a, metalness: 0.9, roughness: 0.3 })); p.position.set(x - 1.36 * s + sd * 0.86 * c, 1.45, z - 1.36 * c - sd * 0.86 * s); scene.add(p); }
+  return { tex, i, name: undefined, mesh: m, back };
+});
+function drawVipSign(sg, name) {
+  if (sg.name === name) return; sg.name = name;
+  const { g, canvas: c } = sg.tex.userData, W2 = c.width, H2 = c.height;
+  g.fillStyle = '#12040f'; g.fillRect(0, 0, W2, H2);
+  g.fillStyle = 'rgba(255,61,154,0.16)'; for (let y = 0; y < 8; y++) for (let x = 0; x < 6; x++) if ((x * 7 + y * 5 + sg.i) % 3 === 0) g.fillRect(20 + x * 36, 70 + y * 28, 34, 26);
+  g.lineWidth = 12; g.strokeStyle = '#ff3d9a'; g.shadowColor = '#ff3d9a'; g.shadowBlur = 18; g.strokeRect(12, 12, W2 - 24, H2 - 24);
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#ffffff'; g.shadowBlur = 8; g.font = '800 30px ' + FONT; g.fillText('BÀN VIP', W2 / 2, 50);
+  g.fillStyle = '#ff5fae'; g.shadowBlur = 22; g.font = '900 150px ' + FONT; g.fillText(String(sg.i + 1).padStart(2, '0'), W2 / 2, name ? 150 : 180);
+  if (name) { g.fillStyle = '#ffe9a8'; g.shadowColor = '#ffcf33'; g.shadowBlur = 10; let size = 34; g.font = '800 ' + size + 'px ' + FONT; while (g.measureText('👑 ' + name).width > W2 - 40 && size > 16) { size -= 2; g.font = '800 ' + size + 'px ' + FONT; } g.fillText('👑 ' + name, W2 / 2, 262); }
+  g.shadowBlur = 0; sg.tex.needsUpdate = true;
+}
+let vipSignAt = 0;
+function updateVipSigns(t) {
+  if (t < vipSignAt) return; vipSignAt = t + 0.5;
+  const on = S.barEnabled !== false;
+  for (const sg of vipSigns) {
+    sg.mesh.visible = sg.back.visible = on;
+    let nm0 = '';
+    for (const d of dancers.values()) if (d.mode === 'vip' && (d.vipSeat || 0) % SALONS.length === sg.i) { nm0 = d.name; break; }
+    drawVipSign(sg, nm0);
+  }
+}
+const fx = createFX(scene, { floor: { x0: -10, x1: 10, z0: -5.2, z1: 9 }, stageY: STAGE_Y, stageFrontZ: -5.5 });
 
 // màn LED
 const ledTex = canvasTex(512, 224, () => {});
@@ -246,12 +281,12 @@ function renderLed() {
   // chỉ chiếu riêng người tặng: ẩn tạm người khác
   const hidden = [];
   for (const d of visible) if (d.av && d !== ledShow.d && d.av.holder.visible) { d.av.holder.visible = false; hidden.push(d.av.holder); }
-  const crowdOn = shadowMesh.visible; shadowMesh.visible = false;
+  const crowdOn = shadowMesh.visible; shadowMesh.visible = false; const mirOn = club.mirror.visible; club.mirror.visible = false;
   renderer.setRenderTarget(ledRT);
   renderer.render(scene, ledCam);
   renderer.setRenderTarget(null);
   for (const h of hidden) h.visible = true;
-  shadowMesh.visible = crowdOn;
+  shadowMesh.visible = crowdOn; club.mirror.visible = mirOn;
   led.material = prevMat; ledOver.visible = true;
 }
 {
@@ -314,7 +349,7 @@ const speakerTex = canvasTex(256, 384, (g, w, h) => {
 const speakers = [];
 for (const sd of [-1, 1]) for (let k = 0; k < 2; k++) {
   const sp = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.4, 1.3), [darkMat, darkMat, darkMat, darkMat, new THREE.MeshStandardMaterial({ map: speakerTex, roughness: 0.7 }), darkMat]);
-  sp.position.set(sd * 7.6, STAGE_Y + 1.2 + k * 2.45, -8.2); scene.add(sp); speakers.push(sp);
+  sp.position.set(sd * 5.15, STAGE_Y + 1.2 + k * 2.45, -9.1); scene.add(sp); speakers.push(sp);
 }
 // cầu disco
 const disco = new THREE.Mesh(new THREE.IcosahedronGeometry(0.8, 3), new THREE.MeshStandardMaterial({ color: 0xdddde8, metalness: 1, roughness: 0.12, flatShading: true, envMapIntensity: 2.5 }));
@@ -370,7 +405,7 @@ function hemiGeo(r, sy = 1) {
   return mergeGeometries([top, back, fringe]).scale(1, sy, 1);
 }
 
-const HEAD_Y = 0.13, HEAD_R = 0.14;
+const HEAD_Y = RIGP.headY, HEAD_R = RIGP.headR;
 const hairGeos = [
   // 0: ngắn
   hemiGeo(HEAD_R * 1.07, 1).translate(0, HEAD_Y + 0.005, -0.006),
@@ -540,15 +575,15 @@ shadowMesh.frustumCulled = false; shadowMesh.count = 0; shadowMesh.renderOrder =
 function N(parent, x = 0, y = 0, z = 0) { const o = new THREE.Object3D(); o.position.set(x, y, z); if (parent) parent.add(o); return o; }
 const rig = {};
 rig.root = N(null);
-rig.hips = N(rig.root, 0, 0.88, 0); rig.hips.rotation.order = 'YXZ';
-rig.spine = N(rig.hips, 0, 0.04, 0);
-rig.chest = N(rig.spine, 0, 0.47, 0);
-rig.neck = N(rig.chest, 0, 0.04, 0);
-rig.head = N(rig.neck, 0, 0.1, 0);
-rig.shL = N(rig.chest, -0.19, -0.03, 0); rig.elL = N(rig.shL, 0, -0.27, 0); rig.haL = N(rig.elL, 0, -0.245, 0);
-rig.shR = N(rig.chest, 0.19, -0.03, 0); rig.elR = N(rig.shR, 0, -0.27, 0); rig.haR = N(rig.elR, 0, -0.245, 0);
-rig.hipL = N(rig.hips, -0.095, -0.04, 0); rig.knL = N(rig.hipL, 0, -0.39, 0); rig.ftL = N(rig.knL, 0, -0.38, 0);
-rig.hipR = N(rig.hips, 0.095, -0.04, 0); rig.knR = N(rig.hipR, 0, -0.39, 0); rig.ftR = N(rig.knR, 0, -0.38, 0);
+rig.hips = N(rig.root, 0, RIGP.hipY, 0); rig.hips.rotation.order = 'YXZ';
+rig.spine = N(rig.hips, 0, RIGP.spine, 0);
+rig.chest = N(rig.spine, 0, RIGP.chest, 0);
+rig.neck = N(rig.chest, 0, RIGP.neck, 0);
+rig.head = N(rig.neck, 0, RIGP.head, 0);
+rig.shL = N(rig.chest, -0.17, RIGP.shY, 0); rig.elL = N(rig.shL, 0, -RIGP.armU, 0); rig.haL = N(rig.elL, 0, -RIGP.armF, 0);
+rig.shR = N(rig.chest, 0.17, RIGP.shY, 0); rig.elR = N(rig.shR, 0, -RIGP.armU, 0); rig.haR = N(rig.elR, 0, -RIGP.armF, 0);
+rig.hipL = N(rig.hips, -RIGP.hipX, RIGP.hipJ, 0); rig.knL = N(rig.hipL, 0, -RIGP.legU, 0); rig.ftL = N(rig.knL, 0, -RIGP.legF, 0);
+rig.hipR = N(rig.hips, RIGP.hipX, RIGP.hipJ, 0); rig.knR = N(rig.hipR, 0, -RIGP.legU, 0); rig.ftR = N(rig.knR, 0, -RIGP.legF, 0);
 
 // ---------- ngoại hình ----------
 const SKIN = ['#f6d2b8', '#f0c3a0', '#e3ad86', '#d1996f', '#b07852', '#8d5a3b', '#ffdcc4'];
@@ -610,7 +645,7 @@ function randomBody(female) {
   return {
     female,
     h: (female ? 0.94 : 1.0) * rand(0.9, 1.1),
-    sw: female ? 0.185 : 0.215,
+    sw: female ? RIGP.swF : RIGP.swM,
     chestS: new THREE.Vector3(1, 1, 1),
     hipS: female ? new THREE.Vector3(1.1, 1, 1) : new THREE.Vector3(1, 1, 1),
   };
@@ -626,7 +661,7 @@ class Dancer {
     this.x = rand(-0.9, 0.9); this.z = rand(0.05, 0.95); this.tx = this.x; this.tz = this.z;
     this.dance = randomDanceIdx();
     this.offset = Math.random() < 0.6 ? 0 : Math.random() * 0.15;
-    this.dropH = opts.noDrop ? 0 : rand(9, 13); this.vy = 0; this.land = 0;
+    this.dropH = 0; this.vy = 0; this.land = 0;   // không còn rơi từ trần: khách đi bộ từ cửa vào (ensureDancer)
     this.lastActive = now(); this.born = now();
     this.mode = 'dance'; this.modeUntil = 0; this.modeStart = 0;
     this.giantUntil = 0; this.wingsUntil = 0; this.crownUntil = 0; this.pairWith = null; this.pairUntil = 0;
@@ -650,6 +685,9 @@ function pushTicker(text, color, meta = {}) {
 }
 
 // ---------- nhập vai nhân vật trong danh sách ----------
+const isCast = () => true;   // bản 3.1: chỉ còn dàn nhân vật dựng bằng code, không cần file mô hình
+let rndCast = 0;
+const rosterChar = id => ROSTER.find(c => c.id === id) || null;
 function pickChar(female) {
   if (!S.rosterEnabled || !ROSTER.length) return null;
   const used = new Set(); for (const d of dancers.values()) if (d.char) used.add(d.char.id);
@@ -663,9 +701,11 @@ function assignChar(d, ch) {
   d.char = ch;
   if (d.body.female !== ch.female) { d.body = randomBody(ch.female); d.look = randomLook(ch.female); }
   const dn = danceFor(ch.style); if (dn !== null && dn < DANCES.length) d.dance = dn;
+  d.pool = (dancePool(ch.style) || []).filter(i => i < DANCES.length && !DANCES[i].floor && !AIR.includes(DANCES[i].name));
+  if (AIR.includes(DANCES[d.dance].name) && d.pool.length) d.dance = pick(d.pool);
   d.tempo = tempoFor(ch.personality); d.hyper = hyperFor(ch.personality);
   d.avOutfit = rosterOutfit(ch); d.avShape = shapeFor(ch.age, ch.female);
-  d.avT = templateForChar(ch.id) || null; d.avCostume = null;
+  d.avT = (isCast() ? (pickVrm(d) || castTemplate(ch)) : templateForChar(ch.id)) || null; d.avCostume = null;
   if (d.av) { disposeAvatar(d.av); d.av = null; }
 }
 function ensureDancer(user, silent) {
@@ -675,6 +715,7 @@ function ensureDancer(user, silent) {
     if (user.avatar) d.avatar = user.avatar;
     if (user.lv) d.lv = user.lv;
     d.lastActive = now(); d.leaving = 0;
+    if (d.exiting) { d.exiting = false; d.mode = 'dance'; startTravel(d, now()); }   // đang ra cửa thì quay lại
     return d;
   }
   const max = clamp(Number(S.maxDancers) || 150, 5, 600);
@@ -688,6 +729,7 @@ function ensureDancer(user, silent) {
   }
   d = new Dancer(user);
   d.lv = user.lv || 1;
+  d._last = new THREE.Vector3(rand(-2.2, 2.2), 0, 13.5); startTravel(d, now());   // cửa vào ở phía trước sàn
   assignChar(d, pickChar());
   dancers.set(user.id, d);
   if (!silent && S.showJoinTicker) pushTicker(d.char ? `${d.name} lên sàn vai ${d.char.name} · ${d.char.style} 🕺` : `${d.name} lên sàn 🕺`, '#7cf7ff', { lcd: false });
@@ -696,6 +738,7 @@ function ensureDancer(user, silent) {
 
 // ---------- lệnh từ bình luận ----------
 const COSTUME_KEYS = [['duong tang', 'tang'], ['tam tang', 'tang'], ['su phu', 'tang'], ['bat gioi', 'batgioi'], ['tru bat gioi', 'batgioi'], ['sa tang', 'satang'], ['sa ngo tinh', 'satang'], ['neon hoa', 'hero_red'], ['anh hung do', 'hero_red'], ['neon bang', 'hero_blue'], ['anh hung xanh duong', 'hero_blue'], ['anh hung xanh', 'hero_blue'], ['neon set', 'hero_yellow'], ['anh hung vang', 'hero_yellow'], ['neon phong', 'hero_green'], ['anh hung la', 'hero_green'], ['neon anh', 'hero_purple'], ['anh hung tim', 'hero_purple'], ['ngo khong', 'wukong'], ['ton ngo khong', 'wukong'], ['te thien', 'wukong'], ['thanh giong', 'giong'], ['son tinh', 'sontinh'], ['thuy tinh', 'thuytinh'], ['ninja', 'ninja'], ['samurai', 'samurai'], ['phi hanh gia', 'astro'], ['hiep si', 'knight'], ['phu thuy', 'wizard'], ['cuop bien', 'pirate'], ['nguoi may', 'robot'], ['ac quy', 'devil'], ['thien than', 'angel'], ['anime', 'anime'], ['sieu anh hung', 'hero'], ['hoang de', 'king']];
+const ALL_STAND = DANCES.map((x, i) => i).filter(i => !DANCES[i].floor && !['lộn', 'xoay đầu', 'bật nhảy', 'waltz', 'tango'].includes(DANCES[i].name));
 const DANCE_KEYS = [];
 DANCES.forEach((d, i) => d.keys.forEach(k => DANCE_KEYS.push([normText(k), i])));
 DANCE_KEYS.sort((a, b) => b[0].length - a[0].length);
@@ -704,7 +747,7 @@ function handleCommand(d, text) {
   if (!t) return;
   if (featureCommand(d, t)) return;
   const num = t.match(/^(?:dieu\s*)?(\d{1,2})$/);
-  if (num) { const n = +num[1]; if (n >= 1 && n <= DANCES.length) { d.dance = n - 1; sparkle(d, 6); } return; }
+  if (num) { const n = +num[1]; if (n >= 1 && n <= DANCES.length) { toFloor(d); d.dance = n - 1; d.danceLock = now() + 45; sparkle(d, 6); } return; }
   if (/\bdi vong\b|\bdi dao\b/.test(t)) { d.mode = 'circle'; d.modeStart = now(); d.modeUntil = now() + 10; d.circleA = Math.random() * TAU; return; }
   if (/\bghep doi\b/.test(t)) { makePair(d); return; }
   { const k = STYLE_KEYS.find(([w]) => new RegExp('(^|\\s)(phong cach\\s+)?' + w + '($|\\s)').test(t)); if (k && (/phong cach/.test(t) || t === k[0])) { d.style = k[1]; sparkle(d, 16); pushTicker(`😎 ${d.name} đổi phong cách ${styleName(k[1])}`, '#7cf7ff', { lcd: false }); return; } }
@@ -718,9 +761,15 @@ function handleCommand(d, text) {
   for (const [k, id] of COSTUME_KEYS) if (t.includes(k)) { wear(d, id); sparkle(d, 20); return; }
   for (const [k, i] of DANCE_KEYS) {
     if (k.length < 2) continue;
-    if (t === k || t.startsWith(k + ' ') || t.endsWith(' ' + k) || t.includes(' ' + k + ' ')) { d.dance = i; sparkle(d, 6); return; }
+    if (t === k || t.startsWith(k + ' ') || t.endsWith(' ' + k) || t.includes(' ' + k + ' ')) { toFloor(d); d.dance = i; d.danceLock = now() + 45; sparkle(d, 6); return; }
   }
   if (/^nhay\b|\bnhay$/.test(t)) d.jumpStart = now();
+}
+// khách đang ngồi salon / quầy bar / đứng bàn mà gõ lệnh nhảy → đứng dậy ra sàn nhảy ngay, và chưa quay lại ngồi
+function toFloor(d) {
+  const t = now();
+  d.barAt = t + rand(90, 200);
+  if (d.mode === 'bar' || d.mode === 'circle') { d.modeUntil = t; d.tx = clamp(rand(-0.6, 0.6), -0.9, 0.9); d.tz = rand(0.25, 0.75); }
 }
 function makePair(d) {
   const cands = [...dancers.values()].filter(x => x !== d && !x.leaving && !x.clone && x.mode === 'dance' && !x.pairWith);
@@ -810,11 +859,12 @@ function champagne(d, t) {
   hype('champagne', { x: nm(d.name) }, { key: 'champ', gap: 4, quiet: true });
 }
 // lên sân khấu nhảy cạnh DJ (2 chỗ hai bên bàn DJ)
-const STAGE_SLOTS = [new THREE.Vector3(-3.6, STAGE_Y, -6.3), new THREE.Vector3(4.1, STAGE_Y, -6.3)];
+const STAGE_SLOTS = [new THREE.Vector3(-0.95, STAGE_Y, -5.85), new THREE.Vector3(0.95, STAGE_Y, -5.85)];
 // điệu ngẫu nhiên khi mới lên sàn: không chọn điệu nằm sàn (con sâu) cho đỡ rối
-function randomDanceIdx() { let i; do { i = Math.floor(Math.random() * DANCES.length); } while (DANCES[i].floor && Math.random() < 0.85); return i; }
+const AIR = ['lộn', 'xoay đầu', 'bật nhảy'];   // điệu bay người lên cao: chỉ nhảy khi người xem gõ lệnh
+function randomDanceIdx() { let i; do { i = Math.floor(Math.random() * DANCES.length); } while (AIR.includes(DANCES[i].name) || (DANCES[i].floor && Math.random() < 0.85)); return i; }
 // ---------- MC cầm micro đứng cạnh DJ ----------
-const MC_POS = new THREE.Vector3(2.55, STAGE_Y, -6.85), MC_YAW = -0.32, MC_CHAR = 'char66';   // vest navy, cà vạt
+const MC_POS = new THREE.Vector3(2.25, STAGE_Y, -6.25), MC_YAW = -0.3, MC_CHAR = 'char66';   // vest navy, cà vạt
 let mc = null, mcTalkUntil = 0;
 const mic = new THREE.Group(), _micUp = new THREE.Vector3(0, 1, 0);
 {
@@ -839,10 +889,11 @@ let MC_RU = -0.8, MC_RF = -0.6, MC_RSX = -1.2, MC_REX = -2.0;
 // ---------- nhân viên phục vụ bưng khay rượu đi quanh sàn ----------
 // vòng đi: ghé bàn VIP, các bàn tròn đứng (ser = vị trí bàn để quay mặt vào), băng qua phía trước và giữa sàn
 const STAFF_PATH = [
-  { x: -3.5, z: -3.35, ser: [-3.78, -4.02] }, { x: -2.62, z: -1.95, ser: [-3.25, -2.3] }, { x: -2.2, z: 0.5, ser: [-2.8, 0.1] }, { x: -1.8, z: 2.7, ser: [-2.38, 2.35] },
-  { x: 0, z: 3.7 },
-  { x: 1.8, z: 2.7, ser: [2.38, 2.35] }, { x: 2.2, z: 0.5, ser: [2.8, 0.1] }, { x: 2.62, z: -1.95, ser: [3.25, -2.3] }, { x: 3.5, z: -3.35, ser: [3.78, -4.02] },
-  { x: 1.3, z: -3.1 }, { x: -1.3, z: -3.1 },
+  { x: -3.2, z: -3.25, ser: [-3.65, -3.95] },   // nhận đồ ở đầu quầy bar
+  { x: -4.9, z: -0.3, ser: [-6.0, -0.4] }, { x: -4.1, z: 2.8, ser: [-5.1, 2.8] }, { x: -3.4, z: 5.2, ser: [-4.2, 5.2] }, { x: -2.9, z: 7.1, ser: [-3.6, 7.1] },
+  { x: 0, z: 7.7 },
+  { x: 2.9, z: 6.9, ser: [3.6, 6.9] }, { x: 3.4, z: 5.0, ser: [4.2, 5.0] }, { x: 4.1, z: 2.3, ser: [5.1, 2.3] }, { x: 4.9, z: -1.4, ser: [6.0, -1.6] }, { x: 4.9, z: -3.8, ser: [6.0, -4.3] },
+  { x: 1.5, z: -3.6 }, { x: -1.5, z: -3.6 },
 ];
 const STAFF_CHARS = ['char44', 'char50'];   // sơ mi trắng quần tây / sơ mi + áo gile
 const staff = [];
@@ -869,14 +920,14 @@ function initStaff() {
   STAFF_CHARS.forEach((cid, i) => {
     const w = new Dancer({ id: '__staff' + i, name: 'Phục vụ', avatar: '' }, { noDrop: true });
     w.body = randomBody(false); w.look = randomLook(false); w.isStaff = true; w.staffChar = cid;
-    w.wp = i === 0 ? 0 : 5; w.px = STAFF_PATH[w.wp].x; w.pz = STAFF_PATH[w.wp].z; w.dir = i === 0 ? 1 : -1;   // hai người đi ngược chiều nhau
+    w.wp = i === 0 ? 0 : 6; w.px = STAFF_PATH[w.wp].x; w.pz = STAFF_PATH[w.wp].z; w.dir = i === 0 ? 1 : -1;   // hai người đi ngược chiều nhau
     w.wait = 0; w.walkPh = Math.random(); w.tray = makeTray();
     staff.push(w);
   });
 }
 function updateStaff(t, dt) {
   for (const w of staff) {
-    if (!w.avT && t > (w._charPoll || 0)) { w._charPoll = t + 0.5; const tp = templateForChar(w.staffChar); if (tp) { w.avT = tp; if (w.av) { disposeAvatar(w.av); w.av = null; } } }
+    if (!w.avT && t > (w._charPoll || 0)) { w._charPoll = t + 0.5; const tp = isCast() ? npcVrm(w) || castTemplate({ id: 'staff' + staff.indexOf(w), name: 'Phục vụ', female: false, age: 24 + staff.indexOf(w) * 3, outfit: 'Áo sơ mi trắng, áo gile, quần tây đen, giày tây', personality: 'Chuyên nghiệp' }, { tie: '#17171c', hat: null }) : templateForChar(w.staffChar); if (tp) { w.avT = tp; if (w.av) { disposeAvatar(w.av); w.av = null; } } }
     const n = STAFF_PATH.length, target = STAFF_PATH[w.wp];
     if (w.wait > 0) {
       w.wait -= dt; w.walking = false;
@@ -896,7 +947,7 @@ function updateStaff(t, dt) {
       if (ahead > -0.2) { const k = (1.1 - r) / 1.1; ax += rx / r * k * (0.6 + ahead); az += rz / r * k * (0.6 + ahead); crowd += k * Math.max(0, ahead); }
       if (r < 0.6 && (d.mode === 'dance' || d.mode === 'circle') && !d.pairWith) {
         const push = (0.6 - r) * Math.min(1, dt * 4), hw = Math.max(0.5, halfW(d.z));
-        const nx = -rx / r * push / hw, nz = -rz / r * push / 9;
+        const nx = -rx / r * push / hw, nz = -rz / r * push / FZ;
         d.x = clamp(d.x + nx, -0.9, 0.9); d.tx = clamp(d.tx + nx, -0.9, 0.9);
         d.z = clamp(d.z + nz, 0, 1); d.tz = clamp(d.tz + nz, 0, 1);
       }
@@ -920,7 +971,68 @@ function staffPose(w, bi, t) {
   if (!w.walking) { o.lu = -0.25; o.lf = -0.3; o.head = 0.15 * Math.sin(t * 1.5); }
   return o;
 }   // tay phải đưa ra trước, gập khuỷu: micro sát miệng
-function toStage(d, t) {
+// ---------- dancer trên hai bục có cột + bartender sau quầy ----------
+const podium = [], bartenders = [];
+const GOGO = [29, 30, 45, 43, 47, 52, 1, 4, 16, 40, 46, 31, 26, 34, 58, 37, 55, 38];
+const GOGO_CAST = [
+  [{ id: 'gogo0', name: 'Dancer nam', female: false, age: 24, outfit: 'Áo blazer kim sa xanh, áo tank top đen, quần kim sa đen, giày boots', personality: 'Cá tính' }, { hair: 'under', hat: null, glasses: 'sun', glam: true, look: { necklace: '#e8c55a', hairCol: '#17131a' } }],
+  [{ id: 'gogo1', name: 'Dancer nữ', female: true, age: 22, outfit: 'Đầm ngắn kim sa vàng cổ yếm, giày boots bạc', personality: 'Năng động' }, { hair: 'pony', hat: null, glasses: null, glam: true, look: { earrings: 'hoop', necklace: '#e8c55a', bangle: true, nail: true, hairCol: '#2a1a14', hairTip: '#ffd84d' } }],
+];
+const BT_CAST = [
+  [{ id: 'bartender0', name: 'Bartender', female: false, age: 29, outfit: 'Áo sơ mi trắng, áo gile, quần tây đen, giày tây', personality: 'Lôi cuốn' }, { tie: '#17171c', hat: null, hair: 'slick' }],
+  [{ id: 'bartender1', name: 'Bartender', female: true, age: 25, outfit: 'Áo sơ mi trắng, áo gile, quần tây đen, giày tây', personality: 'Tự tin' }, { tie: '#7a0019', hat: null, hair: 'bun' }],
+];
+function initClubNPC() {
+  GOGO_CAST.forEach(([ch, ex], i) => {
+    const w = new Dancer({ id: '__gogo' + i, name: ch.name, avatar: '' }, { noDrop: true });
+    w.body = randomBody(ch.female); w.body.h = ch.female ? 0.95 : 1.0; w.look = randomLook(ch.female); w.isPodium = true; w.pod = i; w.poleA = 0; w.cast = [ch, ex];
+    podium.push(w);
+  });
+  BT_CAST.forEach(([ch, ex], i) => {
+    const w = new Dancer({ id: '__bt' + i, name: ch.name, avatar: '' }, { noDrop: true });
+    w.body = randomBody(ch.female); w.look = randomLook(ch.female); w.isBartender = true; w.bt = i; w.cast = [ch, ex];
+    bartenders.push(w);
+  });
+}
+function podiumPose(d, bi, t) {
+  const P = SPECIAL_POSES, seg = Math.floor(bi.b / 8) + d.pod * 2;
+  if (seg % 4 === 3) { d.poleSpin = true; d.poleA = ((bi.b % 8) + bi.p) / 8 * TAU * 2; return P.poleSpin(d.wph || 0); }
+  d.poleSpin = false; d.poleA = 0;
+  if (seg % 4 === 1) return P.poleWave(bi.p, bi.b);
+  const dn = DANCES[GOGO[(seg * 5 + d.pod * 7) % GOGO.length]] || DANCES[0], o = dn.f(bi.p, bi.b, t);
+  if (o.g === undefined && dn.g !== undefined) o.g = dn.g;
+  return o;
+}
+function bartenderPose(d, bi, t) {
+  const P = SPECIAL_POSES, k = Math.floor(t / 6 + d.bt * 1.7) % 4;
+  return k === 0 ? P.shake(bi.p, bi.b, t) : k === 1 ? P.pour(bi.p, bi.b, t) : k === 2 ? P.wipe(bi.p, bi.b, t) : P.serve(bi.p, bi.b, t);
+}
+const shaker = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.03, 0.22, 12), new THREE.MeshStandardMaterial({ color: 0xdfe3ea, metalness: 1, roughness: 0.15 }));
+shaker.visible = false; scene.add(shaker);
+// ly trên tay khách ở quầy
+const handGlass = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.034, 0.027, 0.11, 10), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.85, emissive: 0xffffff, emissiveIntensity: 0.35 }), 64);
+handGlass.frustumCulled = false; handGlass.count = 0; scene.add(handGlass);
+const DRINK_COL = [0xff3d9a, 0x3dd9ff, 0xffc23d, 0x7cff6b, 0xff7a3d].map(c => new THREE.Color(c));
+// mỗi chỗ: { x, z, yaw, sit, seatH }
+const HANG = [];
+for (const [x, z, yaw, sit] of BAR_SPOTS) HANG.push({ x, z, yaw, sit, seatH: 0.8 });
+for (const [x, z, ry] of SALONS) {   // 3 chỗ trên sofa dài
+  const c = Math.cos(ry), s = Math.sin(ry), lz = -0.56;
+  for (const lx of [-0.66, 0.66]) HANG.push({ x: x + lx * c + lz * s, z: z - lx * s + lz * c, yaw: ry, sit: true, seatH: 0.5 });
+}
+TABLES.forEach(([x, z], i) => {       // 3 người đứng quanh mỗi bàn, quay mặt vào bàn
+  for (let k = 0; k < 3; k++) { const a = i * 1.3 + k * TAU / 3 + 0.5, px = x + Math.cos(a) * 0.66, pz = z + Math.sin(a) * 0.66; HANG.push({ x: px, z: pz, yaw: Math.atan2(x - px, z - pz), sit: false, seatH: 0 }); }
+});
+function hangCount() { let n = 0; for (const x of dancers.values()) if (x.mode === 'bar') n++; return n; }
+function barSpotFree() {
+  const used = new Set(); for (const x of dancers.values()) if (x.mode === 'bar') used.add(x.barSpot);
+  const free = HANG.map((_, i) => i).filter(i => !used.has(i));
+  return free.length ? pick(free) : -1;
+}
+function toHang(d, t) {
+  const sp = barSpotFree(); if (sp < 0) return false;
+  d.mode = 'bar'; d.barSpot = sp; d.modeStart = t; d.modeUntil = t + rand(45, 110); d.pairWith = null; startTravel(d, t); return true;
+}function toStage(d, t) {
   const used = new Set([...dancers.values()].filter(x => x.mode === 'stage' && t < x.modeUntil).map(x => x.stageSlot));
   let slot = [0, 1].find(i => !used.has(i)); if (slot === undefined) slot = Math.random() < 0.5 ? 0 : 1;
   hype('stage', { x: nm(d.name) }, { key: 'stage', gap: 5, quiet: true });
@@ -928,19 +1040,19 @@ function toStage(d, t) {
   sparkle(d, 30); fx.sparkle(3, slot === 0 ? 'side' : 'side');
 }
 // ngồi bàn VIP: ngồi sofa ở bộ salon
-function vipSeat(i) {
-  const [x, z, ry] = SALONS[i >> 1], sx = (i & 1) ? 0.5 : -0.5;
-  const c = Math.cos(ry), s = Math.sin(ry), lx = sx, lz = -0.56;
+function vipSeat(i) {   // khách VIP ngồi chính giữa sofa của bộ salon thứ i
+  const [x, z, ry] = SALONS[i % SALONS.length];
+  const c = Math.cos(ry), s = Math.sin(ry), lx = 0, lz = -0.56;
   return { pos: new THREE.Vector3(x + lx * c + lz * s, 0, z - lx * s + lz * c), yaw: ry };
 }
 function toVip(d, t) {
   const used = new Set([...dancers.values()].filter(x => x.mode === 'vip' && t < x.modeUntil).map(x => x.vipSeat));
-  let seat = [0, 1, 2, 3].find(i => !used.has(i)); if (seat === undefined) seat = Math.floor(Math.random() * 4);
+  const nSeat = SALONS.length; let seat = Array.from({ length: nSeat }, (_, i) => i).find(i => !used.has(i)); if (seat === undefined) seat = Math.floor(Math.random() * nSeat);
   startTravel(d, t); d.mode = 'vip'; d.vipSeat = seat; d.modeStart = t; d.modeUntil = t + 38; d.bottleUntil = t + 11;
   fx.sparkleAt(() => d.bottleUntil > now() && d._head ? [d._head.x, d._head.y + 0.4, d._head.z] : null, 7);
   hype('vip', { x: nm(d.name) }, { key: 'vip', gap: 4, quiet: true });
   // màn LCD chiếu cận cảnh bàn VIP (đồ trên bàn nhỏ, toàn cảnh khó thấy)
-  const [sx, sz, sry] = SALONS[seat >> 1];
+  const [sx, sz, sry] = SALONS[seat % SALONS.length];
   d.vipTable = new THREE.Vector3(sx + Math.sin(sry) * 0.56, 0.5, sz + Math.cos(sry) * 0.56);
   if (S.ledShow !== false && (!lcd || lcd.giftAllowed())) {
     const lab = '🛋️ Bàn VIP · trái cây · sâm panh';
@@ -985,9 +1097,19 @@ function hearts(x, y, n) { for (let i = 0; i < n; i++) particles.push({ x: x + r
 
 // ---------- vị trí ----------
 // sàn hẹp dần về phía máy quay; có bàn ghế quán bar thì chừa hai bên + hai góc trước sân khấu cho bộ salon
-const halfW = z => S.barEnabled === false ? 4.2 - z * 1.9 : Math.min(3.1 - z * 1.75, z < 0.2 ? 2.7 : 9);
-const worldX = (x, z) => x * halfW(z);
-const worldZ = z => -4.6 + z * 9.0;
+// giới hạn trái/phải của sàn nhảy theo độ sâu: chừa quầy bar (góc trái sau) và hai bộ salon (bên phải)
+const _lim = [0, 0];
+function floorLim(z) {
+  const zw = -4.6 + z * FZ;
+  if (S.barEnabled === false) { const h = 0.235 * (17.5 - zw) - 0.4; _lim[0] = -h; _lim[1] = h; return _lim; }
+  const h = 0.26 * (17.5 - zw) - 0.3;                                    // sàn loe rộng dần về phía sân khấu, bàn ghế nằm ngoài mép này
+  _lim[0] = Math.max(-h, -3.0 - 8 * clamp((zw + 2.7) / 0.8, 0, 1));     // góc trái sau: quầy bar
+  _lim[1] = Math.min(h, 4.7 + 8 * clamp((zw + 3.2) / 0.6, 0, 1));        // góc phải sau: bộ salon
+  return _lim;
+}const halfW = z => { const l = floorLim(z); return (l[1] - l[0]) / 2; };
+const worldX = (x, z) => { const l = floorLim(z); return (l[0] + l[1]) / 2 + x * (l[1] - l[0]) / 2; };
+const FZ = 11.4;   // chiều sâu sàn nhảy (m)
+const worldZ = z => -4.6 + z * FZ;
 const DJ_POS = new THREE.Vector3(0, STAGE_Y, -7.45);
 const THRONE_POS = new THREE.Vector3(0, 0, 3.4);
 function currentDJ() {
@@ -1008,7 +1130,7 @@ function startTravel(d, t) {
 function basePos(d, t, dj) {
   const p = rawBasePos(d, t, dj);
   if (d.trT0 && d !== dj) {
-    if (!d.trDur) d.trDur = clamp(d.trFrom.distanceTo(p) / 1.4, 0.8, 4);
+    if (!d.trDur) d.trDur = clamp(d.trFrom.distanceTo(p) / 1.45, 0.8, 7);
     const k = (t - d.trT0) / d.trDur;
     if (k < 1) {
       _trTo.copy(p); const e = k * k * (3 - 2 * k);
@@ -1025,6 +1147,10 @@ function rawBasePos(d, t, dj) {
   if (d === dj) { d.yaw = 0; return _base.copy(DJ_POS); }
   if (d === mc) { d.yaw = MC_YAW; return _base.copy(MC_POS); }
   if (d.isStaff) return _base.set(d.px, 0, d.pz);   // DJ quay mặt ra khán giả
+  if (d.isPodium) { const c = PODIUMS[d.pod], a = d.poleA || 0; d.yaw = d.poleSpin ? a + PI / 2 : 0; return _base.set(c[0] + Math.sin(a) * 0.36, STAGE_Y - 0.05 + PODIUM_H + 0.04, c[1] - 0.02 + Math.cos(a) * 0.36); }
+  if (d.isBartender) { const c = BARTENDERS[d.bt]; d.yaw = 0.25 * Math.sin(t * 0.4 + d.bt * 2); return _base.set(c[0] + 0.25 * Math.sin(t * 0.13 + d.bt * 3), 0, c[1]); }
+  if (d.mode === 'bar') { const sp = HANG[d.barSpot] || HANG[0]; d.yaw = sp.yaw; return _base.set(sp.x, 0, sp.z); }
+  if (d.mode === 'exit') return _base.set(d.exitX || 0, 0, 13.5);
   const bx = worldX(d.x, d.z), bz = worldZ(d.z);
   if (d.mode === 'rocket') {
     const k = (t - d.modeStart) / 4.5;
@@ -1051,62 +1177,196 @@ function poseFor(d, bi, t, dj) {
   if (d === dj) return P.dj(bi.p, bi.b);
   if (d === mc) return mcPose(bi, t);
   if (d.isStaff) return staffPose(d, bi, t);
-  if (d.travelling) return P.walk((t * 1.7 + d.zi * 0.37) % 1);
+  if (d.isPodium) return podiumPose(d, bi, t);
+  if (d.isBartender) return bartenderPose(d, bi, t);
+  d.seatH = 0;
+  if (d.mode === 'bar' && !d.travelling) { const sp = HANG[d.barSpot] || HANG[0]; if (sp.sit) d.seatH = sp.seatH; return (sp.sit ? P.barSit : P.barStand)(bi.p, bi.b, t, d.zi); }
+  if (d.travelling) return P.walk(d.wph || 0);
   if (d.mode === 'rocket') return P.fly();
   if (d.mode === 'throne' || d.mode === 'vip') return P.sit(bi.p);
   if (d.jumpStart && t - d.jumpStart < 0.8) return P.jump((t - d.jumpStart) / 0.8);
   if (d.mode === 'catwalk') return d.moving ? P.catwalk((t * 1.4) % 1) : P.pose();
-  if (d.moving || d.mode === 'circle') return P.walk((t * 1.7 + d.zi * 0.37) % 1);
+  if (d.moving || d.mode === 'circle') return P.walk(d.wph || 0);
   const forced = d.forceUntil > t;
   let p = bi.p + (forced ? 0 : d.offset), b = bi.b; if (p >= 1) { p -= 1; b += 1; }
   if (d.tempo === 0.5 && !forced && !bi.fire) { p = ((b & 1) + p) / 2; b = b >> 1; }
-  return DANCES[forced ? d.forceDance : d.dance].f(p, b, t);
+  const dn = DANCES[forced ? d.forceDance : d.dance] || DANCES[0], o = dn.f(p, b, t);
+  if (o.g === undefined && dn.g !== undefined) o.g = dn.g;
+  if (dn.snap) o.snap = dn.snap;
+  return o;
 }
 
-function legPose(hip, knee, foot, a, s) {
-  if (Math.abs(a) > 0.6) { hip.rotation.set(-(Math.abs(a) - 0.1), 0, Math.sign(a) * 0.2); knee.rotation.set(Math.abs(s) * 0.8, 0, 0); }
-  else { hip.rotation.set(-Math.abs(s) * 0.55, 0, a * 0.9); knee.rotation.set(Math.abs(s) * 1.15, 0, 0); }
-  foot.rotation.set(-hip.rotation.x - knee.rotation.x, 0, 0);
+// ---------- tư thế → khung xương (bản mềm) ----------
+// 1) chuẩn hoá tư thế về một bộ số đầy đủ  2) nội suy mượt theo thời gian (đổi điệu không giật)
+// 3) lớp "groove": hông lắc/xoay theo nhịp, ngực xoay ngược, đầu trễ nhịp, vai nhún
+// 4) chân IK: bàn chân bám sàn khi hông di chuyển, co gối tự nhiên
+let FDT = 0.016, FBI = { p: 0, b: 0, fire: false };
+const L1 = RIGP.legU, L2 = RIGP.legF, REACH = (L1 + L2) * 0.995, HIPY = RIGP.hipY, HJY = RIGP.hipY + RIGP.hipJ, HX = RIGP.hipX;
+function legFK(o, k, a, s) {
+  if (Math.abs(a) > 0.6) { o[k + 'hx'] = -(Math.abs(a) - 0.1); o[k + 'hz'] = Math.sign(a) * 0.2; o[k + 'kx'] = Math.abs(s) * 0.8; }
+  else { o[k + 'hx'] = -Math.abs(s) * 0.55; o[k + 'hz'] = a * 0.9; o[k + 'kx'] = Math.abs(s) * 1.15; }
 }
-const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3();
-function poseRig(d, p, base, t, grounded) {
-  const b = d.body;
-  rig.root.position.copy(base);
-  rig.root.rotation.set(0, d.yaw + (p.yaw || 0), 0);
-  rig.root.scale.setScalar(b.h * d.sc);
-  rig.hips.position.set((p.dx || 0) * 1.4, 0.88, 0);
-  rig.hips.rotation.set(p.rot || 0, 0, 0);
-  rig.spine.rotation.set(p.sit ? -0.05 : 0.04, 0, -p.lean);
-  rig.neck.rotation.set(0, 0, -p.head * 0.4);
-  rig.head.rotation.set(0.05, p.head * 0.3, -p.head * 0.5);
-  rig.shL.position.x = -b.sw; rig.shR.position.x = b.sw;
-  rig.shL.rotation.set(-0.18 * Math.abs(Math.sin(p.lu)), 0, p.lu);
-  rig.elL.rotation.set(-0.35 * Math.min(1, Math.abs(p.lf)) - 0.1, 0, p.lf);
-  rig.shR.rotation.set(-0.18 * Math.abs(Math.sin(p.ru)), 0, p.ru);
-  rig.elR.rotation.set(-0.35 * Math.min(1, Math.abs(p.rf)) - 0.1, 0, p.rf);
-  // đưa tay ra trước (MC cầm micro): rsx = vai gập trước/sau, rex = khuỷu gập trước
-  if (p.rsx !== undefined) rig.shR.rotation.x = p.rsx;
-  if (p.rex !== undefined) rig.elR.rotation.x = p.rex;
-  if (p.lsx !== undefined) rig.shL.rotation.x = p.lsx;
-  if (p.lex !== undefined) rig.elL.rotation.x = p.lex;
+const OPT0 = ['tw', 'ctw', 'hr', 'nod', 'hy', 'spx', 'flx', 'fly', 'flz', 'frx', 'fry', 'frz', 'wl', 'wr', 'sl', 'sr', 'crouch', 'dz'];
+const _pn = {};
+function normPose(p, o) {
+  o.yaw = p.yaw || 0; o.rot = p.rot || 0; o.lean = p.lean || 0; o.head = p.head || 0; o.dx = p.dx || 0; o.lift = p.lift || 0;
+  o.lu = p.lu; o.lf = p.lf; o.ru = p.ru; o.rf = p.rf;
+  o.lsx = p.lsx !== undefined ? p.lsx : -0.18 * Math.abs(Math.sin(p.lu));
+  o.rsx = p.rsx !== undefined ? p.rsx : -0.18 * Math.abs(Math.sin(p.ru));
+  o.lex = p.lex !== undefined ? p.lex : -0.35 * Math.min(1, Math.abs(p.lf)) - 0.1;
+  o.rex = p.rex !== undefined ? p.rex : -0.35 * Math.min(1, Math.abs(p.rf)) - 0.1;
+  for (const k of OPT0) o[k] = p[k] || 0;
+  let plant = 1;
   if (p.walk >= 0) {
     const ph = p.walk * TAU, sw = Math.sin(ph);
-    rig.hipL.rotation.set(0.5 * sw, 0, -0.03); rig.knL.rotation.set(Math.max(0, -Math.sin(ph - 0.6)) * 0.9 + 0.05, 0, 0);
-    rig.hipR.rotation.set(-0.5 * sw, 0, 0.03); rig.knR.rotation.set(Math.max(0, Math.sin(ph - 0.6)) * 0.9 + 0.05, 0, 0);
-    rig.ftL.rotation.set(0, 0, 0); rig.ftR.rotation.set(0, 0, 0);
-    if (p.lsx === undefined) rig.shL.rotation.x = -0.45 * sw; if (p.rsx === undefined) rig.shR.rotation.x = 0.45 * sw;   // tay bưng khay không đánh theo bước
-  } else if (p.sit) {
-    rig.hipL.rotation.set(-1.5, 0, -0.08); rig.knL.rotation.set(1.5, 0, 0); rig.ftL.rotation.set(0, 0, 0);
-    rig.hipR.rotation.set(-1.5, 0, 0.08); rig.knR.rotation.set(1.5, 0, 0); rig.ftR.rotation.set(0, 0, 0);
-  } else {
-    legPose(rig.hipL, rig.knL, rig.ftL, p.lt, p.ls);
-    legPose(rig.hipR, rig.knR, rig.ftR, p.rt, p.rs);
+    // dáng đi: chân đưa ra trước nhiều hơn ra sau; gối gập khi chân đang đưa qua (không gập lúc chạm đất), chân trụ gần thẳng
+    const cw = Math.cos(ph);
+    o.lhx = 0.44 * sw - 0.07; o.lhz = -0.02; o.lkx = 0.06 + 0.95 * Math.pow(Math.max(0, -cw), 1.3);
+    o.rhx = -0.44 * sw - 0.07; o.rhz = 0.02; o.rkx = 0.06 + 0.95 * Math.pow(Math.max(0, cw), 1.3);
+    if (p.lsx === undefined) o.lsx = -0.45 * sw; if (p.rsx === undefined) o.rsx = 0.45 * sw;
+    o.ctw += 0.14 * sw; o.tw -= 0.09 * sw; o.crouch += 0.022 * Math.abs(sw);
+    plant = 0;
+  } else if (p.sit) { o.lhx = -1.5; o.lhz = -0.08; o.lkx = 1.5; o.rhx = -1.5; o.rhz = 0.08; o.rkx = 1.5; plant = 0; }
+  else { legFK(o, 'l', p.lt, p.ls); legFK(o, 'r', p.rt, p.rs); if (Math.abs(o.rot) > 0.5 || p.air) plant = 0; }
+  o.plant = plant; o.sitk = p.sit ? 1 : 0; o.g = p.g === undefined ? 1 : p.g;
+  return o;
+}
+const RATE = { yaw: 26, rot: 26, lift: 34, plant: 9, sitk: 9, g: 5, lhx: 20, lhz: 20, lkx: 20, rhx: 20, rhz: 20, rkx: 20, lean: 11, head: 9, tw: 12, ctw: 10, hr: 12, nod: 10, hy: 9, spx: 11, dx: 13, dz: 13, crouch: 13 };
+// lò xo bậc hai cho tay chân: [tần số, độ cản]. Khớp có quán tính nên vào/ra chuyển động êm, hơi vung quá đà rồi mới dừng;
+// cẳng tay chậm hơn cánh tay, cổ tay chậm hơn cẳng tay → động tác lan dần từ vai ra bàn tay (không còn cứng như que)
+const A1 = [20, 0.74], A2 = [16.5, 0.62], A3 = [12, 0.5], LG = [24, 0.86], FT = [17, 0.85];
+const SPR = {
+  lu: A1, ru: A1, lsx: A1, rsx: A1, lf: A2, rf: A2, lex: A2, rex: A2, wl: A3, wr: A3, sl: [14, 0.6], sr: [14, 0.6],
+  lhx: LG, lhz: LG, lkx: LG, rhx: LG, rhz: LG, rkx: LG, flx: FT, fly: FT, flz: FT, frx: FT, fry: FT, frz: FT,
+  lean: [11, 0.8], head: [10, 0.68], tw: [12.5, 0.74], ctw: [11, 0.7], hr: [12.5, 0.7], nod: [12, 0.6], hy: [9.5, 0.8], spx: [11, 0.8], dx: [13, 0.85], dz: [13, 0.85], crouch: [14, 0.82],
+};
+function smoothPose(d, n, dt, t, snap) {
+  let s = d._ps, v = d._pv;
+  const cut = !s || t - d._psT > 0.3;
+  if (!s) { s = d._ps = {}; v = d._pv = {}; }
+  d._psT = t;
+  const k = snap || 1;
+  const sub = Math.max(1, Math.ceil(dt * k / 0.011)), h = dt / sub;
+  for (const key in n) {
+    const tg = n[key];
+    if (cut || s[key] === undefined) { s[key] = tg; v[key] = 0; continue; }
+    const sp = SPR[key];
+    if (sp) {
+      const w = sp[0] * k, c = 2 * sp[1] * w, w2 = w * w;
+      let x = s[key], vel = v[key] || 0;
+      for (let i = 0; i < sub; i++) { vel += (w2 * (tg - x) - c * vel) * h; x += vel * h; }
+      s[key] = x; v[key] = vel;
+      continue;
+    }
+    const a = 1 - Math.exp(-(RATE[key] || 14) * k * dt);
+    if (key === 'yaw' || key === 'rot') { let dv = tg - s[key]; dv = Math.atan2(Math.sin(dv), Math.cos(dv)); s[key] += dv * a; }
+    else s[key] += (tg - s[key]) * a;
   }
+  return s;
+}
+const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3();
+const _pp = new THREE.Vector3(), _aL = new THREE.Vector3(), _aR = new THREE.Vector3(), _tL = new THREE.Vector3(), _tR = new THREE.Vector3(), _hj = new THREE.Vector3();
+const _qp = new THREE.Quaternion(), _qpi = new THREE.Quaternion(), _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _q3 = new THREE.Quaternion(), _eu = new THREE.Euler();
+const _dir = new THREE.Vector3(), _f = new THREE.Vector3(), _th = new THREE.Vector3(), _kn = new THREE.Vector3(), _sh = new THREE.Vector3(), _xh = new THREE.Vector3(), _yh = new THREE.Vector3(), _zh = new THREE.Vector3(), _mb = new THREE.Matrix4();
+const XAX = new THREE.Vector3(1, 0, 0);
+function fkAnkle(side, hx, hz, kx, out) {
+  _q1.setFromEuler(_eu.set(hx, 0, hz, 'XYZ')); _v1.set(0, -L1, 0).applyQuaternion(_q1);
+  _q2.setFromAxisAngle(XAX, kx); _q1.multiply(_q2); _v2.set(0, -L2, 0).applyQuaternion(_q1);
+  return out.set(side * HX + _v1.x + _v2.x, HJY + _v1.y + _v2.y, _v1.z + _v2.z);
+}
+function solveLeg(side, hip, knee, foot, T, w, k, yawP) {
+  _hj.set(side * HX, RIGP.hipJ, 0).applyQuaternion(_qp).add(_pp);
+  _dir.subVectors(T, _hj); const dist = clamp(_dir.length(), 0.14, REACH); _dir.normalize();
+  const A = Math.acos(clamp((L1 * L1 + dist * dist - L2 * L2) / (2 * L1 * dist), -1, 1));
+  const psi = yawP * 0.7 + side * 0.22;
+  _f.set(Math.sin(psi), 0, Math.cos(psi));
+  _f.addScaledVector(_dir, -_f.dot(_dir)); if (_f.lengthSq() < 1e-6) _f.set(0, 0, 1); _f.normalize();
+  _th.copy(_dir).multiplyScalar(Math.cos(A)).addScaledVector(_f, Math.sin(A));
+  _kn.copy(_hj).addScaledVector(_th, L1);
+  _sh.subVectors(T, _kn).normalize();
+  _xh.crossVectors(_th, _sh); if (_xh.lengthSq() < 1e-6) _xh.crossVectors(_f, _th); _xh.normalize();
+  _yh.copy(_th).negate(); _zh.crossVectors(_xh, _yh);
+  _q1.setFromRotationMatrix(_mb.makeBasis(_xh, _yh, _zh));                                  // đùi (hệ gốc nhân vật)
+  const flex = PI - Math.acos(clamp((L1 * L1 + L2 * L2 - dist * dist) / (2 * L1 * L2), -1, 1));
+  _q2.copy(_qpi).multiply(_q1); hip.quaternion.slerp(_q2, k);
+  _q2.setFromAxisAngle(XAX, flex); knee.quaternion.slerp(_q2, k);
+  _q1.multiply(_q2).invert();                                                                // nghịch đảo hướng cẳng chân
+  _q3.setFromEuler(_eu.set((1 - w) * 0.5, side * 0.16 + yawP * 0.5, 0, 'YXZ'));
+  _q1.multiply(_q3); foot.quaternion.slerp(_q1, k);
+}
+function poseRig(d, p, base, t, grounded) {
+  const b = d.body, dt = FDT, bi = FBI;
+  const s = smoothPose(d, normPose(p, _pn), dt, t, p.snap);
+  // hướng người: quay mượt
+  if (d._yawS === undefined || t - (d._yawT || 0) > 0.3) d._yawS = d.yaw; else { let dy = d.yaw - d._yawS; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); d._yawS += dy * (1 - Math.exp(-9 * dt)); }
+  d._yawT = t;
+  // lớp groove theo nhịp (mỗi người lệch pha / biên độ một chút)
+  if (d.gA === undefined) { d.gA = 0.78 + ((d.zi * 0.61) % 1) * 0.5; d.gPh = ((d.zi * 0.37) % 1) * 0.1; d.gS = d.zi % 2 ? 1 : -1; }
+  const gph = bi.b + bi.p + d.gPh, pp = gph % 1;
+  const G = s.g * d.gA * (bi.fire ? 1.2 : 1), Gp = G * s.plant;
+  const down = 0.5 + 0.5 * Math.cos(pp * TAU), sway = Math.sin(gph * PI) * d.gS, tws = Math.sin(gph * PI + 0.75) * d.gS;
+  const twist = s.tw + 0.17 * Gp * tws, roll = s.hr + 0.1 * Gp * sway;
+  const px = s.dx * 1.4 + 0.052 * Gp * sway, pz = s.dz + 0.025 * Gp * Math.sin(gph * PI * 0.5 + d.zi);
+  // xoay người chậm theo câu nhạc + thỉnh thoảng xoay trọn một vòng cuối câu
+  let turn = 0.32 * Gp * Math.sin(gph * PI / 4 + d.zi * 1.7);
+  if (d.spinAt && t - d.spinAt < 0.85) { const k = (t - d.spinAt) / 0.85; turn += TAU * k * k * (3 - 2 * k) * d.gS; }
+  // bước tại chỗ: chân không trụ nhấc nhẹ giữa hai phách
+  const stp = 0.04 * Gp * Math.max(0, Math.sin(pp * TAU - 1.2));
+  const stL = sway > 0 ? stp : 0, stR = sway > 0 ? 0 : stp;
+  rig.root.position.copy(base);
+  rig.root.rotation.set(0, d._yawS + s.yaw + turn, 0);
+  rig.root.scale.setScalar(b.h * d.sc);
+  _qp.setFromEuler(_eu.set(s.rot, twist, roll, 'YXZ')); _qpi.copy(_qp).invert();
+  rig.hips.quaternion.copy(_qp);
+  // chân: FK theo điệu, rồi IK bám sàn
+  rig.hipL.rotation.set(s.lhx, 0, s.lhz); rig.knL.rotation.set(s.lkx, 0, 0); rig.ftL.rotation.set(-s.lhx - s.lkx, 0, 0);
+  rig.hipR.rotation.set(s.rhx, 0, s.rhz); rig.knR.rotation.set(s.rkx, 0, 0); rig.ftR.rotation.set(-s.rhx - s.rkx, 0, 0);
+  _pp.set(px, HIPY - s.crouch, pz);
+  if (s.plant > 0.01) {
+    fkAnkle(-1, s.lhx, s.lhz, s.lkx, _aL); fkAnkle(1, s.rhx, s.rhz, s.rkx, _aR);
+    const minY = Math.min(_aL.y, _aR.y), hL = _aL.y - minY, hR = _aR.y - minY;
+    _pp.y -= (Math.max(0, minY - 0.07) + 0.05 * Gp * down) * s.plant;
+    const wL = 1 - clamp((hL - 0.02) / 0.07, 0, 1), wR = 1 - clamp((hR - 0.02) / 0.07, 0, 1);
+    const cx = px - clamp(px, -0.075, 0.075), cz = pz - clamp(pz, -0.075, 0.075);
+    _v1.set(_aL.x, _aL.y - HIPY, _aL.z).applyQuaternion(_qp).add(_pp);
+    _tL.set(lerpN(_v1.x, _aL.x + cx + s.flx, wL), lerpN(_v1.y + s.fly, 0.07 + hL + s.fly + stL, wL), lerpN(_v1.z, _aL.z + cz + s.flz, wL));
+    _v1.set(_aR.x, _aR.y - HIPY, _aR.z).applyQuaternion(_qp).add(_pp);
+    _tR.set(lerpN(_v1.x, _aR.x + cx + s.frx, wR), lerpN(_v1.y + s.fry, 0.07 + hR + s.fry + stR, wR), lerpN(_v1.z, _aR.z + cz + s.frz, wR));
+    for (let it = 0; it < 2; it++) {   // hông hạ xuống nếu chân không với tới
+      let ex = 0;
+      _hj.set(-HX, RIGP.hipJ, 0).applyQuaternion(_qp).add(_pp); ex = Math.max(ex, (_hj.distanceTo(_tL) - REACH) * wL);
+      _hj.set(HX, RIGP.hipJ, 0).applyQuaternion(_qp).add(_pp); ex = Math.max(ex, (_hj.distanceTo(_tR) - REACH) * wR);
+      if (ex > 0) _pp.y -= ex * 1.15; else break;
+    }
+    solveLeg(-1, rig.hipL, rig.knL, rig.ftL, _tL, wL, s.plant, twist);
+    solveLeg(1, rig.hipR, rig.knR, rig.ftR, _tR, wR, s.plant, twist);
+  }
+  rig.hips.position.copy(_pp);
+  // thân trên: ngực xoay ngược hông, đầu gật trễ nhịp
+  const nod = s.nod + 0.1 * G * Math.cos((pp - 0.14) * TAU);
+  rig.spine.rotation.set((s.sitk > 0.5 ? -0.05 : 0.04) + s.spx, -twist * 0.45 + s.ctw * 0.4, -s.lean - roll * 0.9);
+  rig.chest.rotation.set(0, -twist * 0.62 + s.ctw * 0.6, -roll * 0.3);
+  rig.neck.rotation.set(nod * 0.4, s.hy * 0.4, -s.head * 0.4 + roll * 0.15);
+  rig.head.rotation.set(0.05 + nod * 0.6, s.head * 0.3 + s.hy * 0.6 - turn * 0.45 * (Math.abs(turn) < 1 ? 1 : 0) + 0.25 * G * Math.sin(gph * PI / 8 + d.zi), -s.head * 0.5 + roll * 0.12);   // đầu ngoái theo hướng máy quay khi xoay người, nhìn quanh
+  rig.shL.position.set(-b.sw, -0.03 + s.sl + 0.02 * G * Math.max(0, sway), 0); rig.shR.position.set(b.sw, -0.03 + s.sr + 0.02 * G * Math.max(0, -sway), 0);
+  // thở + đung đưa rất nhẹ để tay không bao giờ đứng im tuyệt đối (mỗi người một pha)
+  const br = Math.sin(t * 1.7 + d.zi * 2.1), dr = Math.sin(t * 0.83 + d.zi * 1.3), dr2 = Math.sin(t * 1.21 + d.zi * 0.7);
+  rig.shL.rotation.set(s.lsx + 0.03 * dr, 0, s.lu - 0.022 * br + 0.02 * dr2); rig.elL.rotation.set(s.lex - 0.07 * G * down - 0.03 * dr2, 0, s.lf);
+  rig.shR.rotation.set(s.rsx - 0.03 * dr2, 0, s.ru + 0.022 * br + 0.02 * dr); rig.elR.rotation.set(s.rex - 0.07 * G * down - 0.03 * dr, 0, s.rf);
+  // cổ tay vung trễ theo cẳng tay (bàn tay bị “kéo theo” rồi mới bật lại), ngón tay xoè ra khi vung nhanh
+  const pv = d._pv, wf = 0.22 * G * Math.sin((pp - 0.25) * TAU);
+  const wa = 1 - Math.exp(-16 * dt), W0 = d._wr || (d._wr = [0, 0, 0, 0, 0.55, 0.55]);
+  const vLx = (pv.lex || 0) + 0.6 * (pv.lsx || 0), vLz = (pv.lf || 0) + 0.6 * (pv.lu || 0), vRx = (pv.rex || 0) + 0.6 * (pv.rsx || 0), vRz = (pv.rf || 0) + 0.6 * (pv.ru || 0);
+  W0[0] += (clamp(-0.05 * vLx, -0.6, 0.6) - W0[0]) * wa; W0[1] += (clamp(-0.05 * vLz, -0.6, 0.6) - W0[1]) * wa;
+  W0[2] += (clamp(-0.05 * vRx, -0.6, 0.6) - W0[2]) * wa; W0[3] += (clamp(-0.05 * vRz, -0.6, 0.6) - W0[3]) * wa;
+  const fa = 1 - Math.exp(-7 * dt), relax = 0.58 + 0.07 * dr;
+  W0[4] += (clamp(relax - 0.07 * Math.hypot(vLx, vLz), 0.12, 1) - W0[4]) * fa; W0[5] += (clamp(relax - 0.07 * Math.hypot(vRx, vRz), 0.12, 1) - W0[5]) * fa;
+  rig.haL.rotation.set(s.wl + wf + W0[0], 0, W0[1]); rig.haR.rotation.set(s.wr + wf + W0[2], 0, W0[3]);
   rig.root.updateMatrixWorld(true);
-  if (p.sit) {
-    // ngồi trên ngai: đặt hông ở độ cao ghế
+  if (s.sitk > 0.5) {
+    // ngồi: đặt hông ở độ cao ghế (ngai cao 0.62 m, sofa 0.5 m, ghế quầy bar 0.78 m)
     rig.hips.getWorldPosition(_v1);
-    rig.root.position.y += (d.mode === 'vip' ? 0.5 : 0.62) - (_v1.y - base.y);   // ngai cao 0.62 m, sofa 0.5 m
+    rig.root.position.y += (d.seatH || (d.mode === 'vip' ? 0.5 : 0.62)) - (_v1.y - base.y);
   } else if (grounded) {
     // chạm đất: điểm thấp nhất (chân / đầu / tay) nằm trên mặt sàn
     let minY = Infinity;
@@ -1114,13 +1374,14 @@ function poseRig(d, p, base, t, grounded) {
     rig.head.getWorldPosition(_v1); _v2.set(0, HEAD_Y + HEAD_R, 0).applyMatrix4(rig.head.matrixWorld); minY = Math.min(minY, _v2.y, _v1.y);
     rig.root.position.y += base.y - minY;
   }
-  rig.root.position.y += (p.lift || 0) * 1.7 * b.h * d.sc;
+  rig.root.position.y += s.lift * 1.7 * b.h * d.sc;
   rig.root.updateMatrixWorld(true);
   // điểm gắn tên + chân
   d._head.set(0, HEAD_Y + HEAD_R + 0.06, 0).applyMatrix4(rig.head.matrixWorld);
   d._head.y = Math.max(d._head.y, rig.root.position.y + 0.4);
   d._feet.set(rig.root.position.x, base.y, rig.root.position.z);
 }
+const lerpN = (a, b, k) => a + (b - a) * k;
 
 const _m = new THREE.Matrix4(), _m2 = new THREE.Matrix4(), _sv = new THREE.Vector3(), _q = new THREE.Quaternion(), _e = new THREE.Euler();
 const WHITE = new THREE.Color(1, 1, 1);
@@ -1195,6 +1456,46 @@ function propsFrame(list, kind, maker) {
 // ---------- camera ----------
 const camPos = CAM_POS.clone(), camLook = CAM_LOOK.clone();
 const _tp = new THREE.Vector3(), _tl = new THREE.Vector3();
+// chọn khung hình kế tiếp: bám một người, đám đông, toàn cảnh, hai bên, bục dancer, bàn VIP — ngẫu nhiên, không lặp vòng
+const shot = { until: 0, nextSide: 0, ph: 0, pos: CAM_POS.clone(), look: CAM_LOOK.clone(), follow: null, cut: false };
+function pickShot(t) {
+  let cx = 0, cz = 0, n = 0, L = 0, R = 0, lx = 0, lz = 0, rx = 0, rz = 0;
+  const on = [], vips = [];
+  for (const d of dancers.values()) {
+    const p = d._last; if (!p || d.leaving || d.travelling) continue;
+    if (p.x < -3.8) { L++; lx += p.x; lz += p.z; } else if (p.x > 3.8) { R++; rx += p.x; rz += p.z; }
+    if (d.mode === 'dance') { cx += p.x; cz += p.z; n++; on.push(d); }
+    if (d.mode === 'vip') vips.push(d);
+  }
+  shot.follow = null; shot.cut = Math.random() < 0.6; shot.ph = Math.random() * 6.28; shot.t0 = t;
+  const r = Math.random();
+  if (vips.length && r < 0.14) {                                   // bàn VIP
+    const d = pick(vips), v = vipSeat(d.vipSeat || 0);
+    shot.look.set(v.pos.x, 1.0, v.pos.z); shot.pos.set(v.pos.x + Math.sin(v.yaw) * 4.2, 1.9, v.pos.z + Math.cos(v.yaw) * 4.2); shot.until = t + rand(4, 6);
+  } else if (on.length && r < 0.5) {                               // bám sát một người: góc thấp, lượn vòng quanh
+    shot.follow = pick(on); shot.ang0 = rand(-0.9, 0.9); shot.spin = rand(0.1, 0.22) * (Math.random() < 0.5 ? -1 : 1); shot.dist = rand(3.0, 4.6); shot.h = rand(0.9, 1.9); shot.until = t + rand(4.5, 7.5);
+  } else if (r < 0.6) {                                            // dancer trên bục / DJ
+    const k = Math.floor(Math.random() * 3);
+    if (k < 2) { const c = PODIUMS[k]; shot.look.set(c[0], STAGE_Y + PODIUM_H + 0.95, c[1]); shot.pos.set(c[0] * 0.45 + rand(-0.8, 0.8), rand(2.0, 3.2), c[1] + rand(5.5, 7.5)); }
+    else { shot.look.set(0, STAGE_Y + 1.3, -7.2); shot.pos.set(rand(-2.5, 2.5), rand(2.4, 3.6), rand(-1.5, 1)); }
+    shot.until = t + rand(4, 6.5);
+  } else if (t > shot.nextSide && L + R > 0 && r < 0.72) {         // ngó sang bên đang đông (salon / bàn đứng / quầy bar)
+    const left = R === 0 ? true : L === 0 ? false : Math.random() * (L + R) < L, sg = left ? -1 : 1;
+    const ax = left ? lx / L : rx / R, az = left ? lz / L : rz / R;
+    shot.look.set(ax - sg * 0.5, 1.1, az); shot.pos.set(ax - sg * rand(4.5, 6.5), rand(2.4, 4.0), Math.min(18, az + rand(5.5, 8.5)));
+    shot.until = t + rand(4.5, 7); shot.nextSide = t + rand(14, 30);
+  } else {                                                         // sàn giữa: cụm đông nhất (gần) hoặc toàn cảnh (xa)
+    if (n) { cx /= n; cz /= n; }
+    let best = null, bn = -1;
+    for (let k = 0; k < Math.min(8, on.length); k++) { const p = pick(on)._last; let c = 0; for (const q of on) { const dx = q._last.x - p.x, dz = q._last.z - p.z; if (dx * dx + dz * dz < 4.84) c++; } if (c > bn) { bn = c; best = p; } }
+    const wide = Math.random() < 0.4, k = wide ? 0.25 : 0.65;
+    const fx0 = best ? cx + (best.x - cx) * k : cx, fz0 = best ? cz + (best.z - cz) * k : cz;
+    const dist = wide ? rand(15, 18.5) : rand(8.5, 12.5), h = wide ? rand(6.5, 8.6) : rand(3.0, 5.4), ang = rand(-0.6, 0.6);
+    shot.look.set(clamp(fx0, -3.2, 3.2), wide ? 1.6 : 1.25, clamp(fz0, -3, 3.5) - (wide ? 1.5 : 0));
+    shot.pos.set(shot.look.x + Math.sin(ang) * dist * 0.6, h, Math.min(19, shot.look.z + Math.cos(ang) * dist));
+    shot.until = t + rand(6, 11);
+  }
+}
 function updateCam(dt, t) {
   if ((solo.on || inResult(solo)) && solo.a && solo.b) {
     _tl.set(0, STAGE_Y + 1.0, -5.95);
@@ -1210,12 +1511,19 @@ function updateCam(dt, t) {
     _tp.copy(_tl).add(_v2.set(0, elev, 1).normalize().multiplyScalar(dist));
     _tp.x += Math.sin(t * 0.4) * 0.6;
   } else if (S.autoCam) {
-    const k = t * 0.08;
-    _tl.copy(CAM_LOOK); _tl.x += Math.sin(k * 0.7) * 0.6;
-    _tp.copy(CAM_POS); _tp.x += Math.sin(k) * 1.6; _tp.y += Math.sin(k * 1.3) * 0.5; _tp.z += Math.cos(k * 0.9) * 0.8;
+    if (t > shot.until || (shot.follow && (shot.follow.leaving || shot.follow.travelling || !shot.follow._head))) pickShot(t);
+    if (shot.follow) {   // lượn quanh người đang bám
+      const d = shot.follow, a = shot.ang0 + (t - shot.t0) * shot.spin, sc = d.body.h * d.sc;
+      shot.look.copy(d._head); shot.look.y -= 0.62 * sc;
+      shot.pos.set(d._head.x + Math.sin(a) * shot.dist, d._feet.y + shot.h, d._head.z + Math.cos(a) * shot.dist);
+    }
+    _tl.copy(shot.look); _tp.copy(shot.pos);
+    if (shot.cut) { camPos.copy(_tp); camLook.copy(_tl); shot.cut = false; }   // cắt cảnh thẳng, không lướt
+    _tp.x += Math.sin(t * 0.17 + shot.ph) * 0.9; _tp.y += Math.sin(t * 0.23 + shot.ph) * 0.25; _tp.z += Math.cos(t * 0.13 + shot.ph) * 0.6;   // trôi nhẹ trong lúc giữ khung
   } else { _tp.copy(CAM_POS); _tl.copy(CAM_LOOK); }
-  const a = 1 - Math.pow(0.03, dt);
+  const a = 1 - Math.pow(zoom || solo.on || inResult(solo) || !S.autoCam || shot.follow ? 0.03 : 0.45, dt);   // tự động: lướt chậm giữa các khung hình
   camPos.lerp(_tp, a); camLook.lerp(_tl, a);
+  if (window._dbg && window._dbg.camFix) { const c = window._dbg.camFix; camPos.set(c[0], c[1], c[2]); camLook.set(c[3], c[4], c[5]); }   // máy quay cố định khi gỡ lỗi
   camera.position.copy(camPos);
   if (t < fireUntil && fireLevel >= 3) { const k = 0.012 * fireLevel * (1 - Music.phase); camera.position.x += (Math.random() - 0.5) * k; camera.position.y += (Math.random() - 0.5) * k; }
   camera.lookAt(camLook);
@@ -1253,19 +1561,27 @@ function update(t, dt) {
   const crowd = all.length;
   for (const d of all) {
     if (d.dropH > 0) { d.vy += 22 * dt; d.dropH -= d.vy * dt; if (d.dropH <= 0) { d.dropH = 0; d.land = t; d.vy = 0; } }
+    // rời sàn: đi bộ ra cửa rồi mới biến mất
+    if (d.leaving && !d.exiting && !d.clone && d.mode !== 'rocket' && d.mode !== 'cloud') { d.exiting = true; d.leaving = t + 5; d.mode = 'exit'; d.modeUntil = t + 99; d.pairWith = null; d.exitX = clamp((d._last ? d._last.x : 0) * 0.6 + rand(-0.5, 0.5), -2, 2); startTravel(d, t); }
+    // thỉnh thoảng ra quầy bar gọi đồ uống rồi quay lại sàn
+    if (d.mode === 'dance' && !d.clone && !d.leaving && !d.pairWith && !d.travelling && S.barEnabled !== false && isCast() && !(zoom && zoom.d === d)) {
+      // khoảng 40% khách ngồi salon / đứng bàn / quầy bar cho quán xôm tụ; người mới vào có thể ra bàn trước rồi mới xuống sàn
+      if (!d.barAt) d.barAt = t + (Math.random() < 0.45 ? rand(0.5, 3) : rand(30, 130));
+      else if (t > d.barAt) { d.barAt = t + rand(60, 180); if (hangCount() < Math.min(HANG.length, 3 + 0.42 * dancers.size) && !battle.on && t > flashmob.until) toHang(d, t); }
+    }
     if (!d.clone && !d.leaving && t - d.lastActive > Number(S.idleSeconds || 420) && d.mode === 'dance' && !(zoom && zoom.d === d)) d.leaving = t;
     if (d.clone && t > d.cloneUntil && !d.leaving) d.leaving = t;
-    if (d.mode !== 'dance' && t > d.modeUntil) { if (d.mode === 'solo') { d.dropH = 3; d.vy = 0; } if (d.mode === 'stage' || d.mode === 'vip') startTravel(d, t); d.mode = 'dance'; if (d.tz > 0.85) d.tz = rand(0.2, 0.8); }
+    if (d.mode !== 'dance' && t > d.modeUntil) { if (d.mode === 'solo' || d.mode === 'stage' || d.mode === 'vip' || d.mode === 'bar') startTravel(d, t); d.mode = 'dance'; if (d.tz > 0.85) d.tz = rand(0.2, 0.8); }
     if (d.pairWith && t > d.pairUntil) d.pairWith = null;
-    if (d.mode === 'dance' && t > d.wanderAt && !d.pairWith) { d.tx = clamp(d.x + rand(-0.3, 0.3), -0.9, 0.9); d.tz = clamp(d.z + rand(-0.2, 0.2), 0, 1); d.wanderAt = t + rand(6, 16); }
+    if (d.mode === 'dance' && t > d.wanderAt && !d.pairWith) { d.tx = clamp(d.x + rand(-0.3, 0.3), -0.9, 0.9); d.tz = clamp(d.z + rand(-0.2, 0.2), 0, 1); d.wanderAt = t + rand(6, 16); d.faceYaw = rand(-0.45, 0.45); }
     if (d.mode === 'circle') { d.circleA += dt * 1.0; d.tx = clamp(Math.cos(d.circleA) * 0.6, -0.9, 0.9); d.tz = 0.5 + Math.sin(d.circleA) * 0.35; }
     const dx = d.tx - d.x, dz = d.tz - d.z, dist = Math.hypot(dx, dz);
     const speed = d.mode === 'catwalk' ? 0.13 : (d.mode === 'solo' || d.mode === 'spot') ? 0.7 : d.mode === 'flash' ? 0.9 : 0.16;
-    d.moving = dist > 0.015 && d.dropH <= 0 && d.mode !== 'throne' && d.mode !== 'cloud' && d.mode !== 'rocket' && d.mode !== 'solo' && d.mode !== 'stage' && d.mode !== 'vip';
-    let targetYaw = 0;
+    d.moving = dist > 0.015 && d.dropH <= 0 && d.mode !== 'throne' && d.mode !== 'cloud' && d.mode !== 'rocket' && d.mode !== 'solo' && d.mode !== 'stage' && d.mode !== 'vip' && d.mode !== 'bar' && d.mode !== 'exit';
+    let targetYaw = d.faceYaw === undefined ? (d.faceYaw = rand(-0.4, 0.4)) : d.faceYaw;   // mỗi người quay mặt lệch một chút, không đứng thẳng hàng
     if (d.moving) {
       const st = Math.min(dist, speed * dt); d.x += dx / dist * st; d.z += dz / dist * st;
-      targetYaw = Math.atan2(dx * halfW(d.z), dz * 9);
+      targetYaw = Math.atan2(dx * halfW(d.z), dz * FZ);
     } else if (d.mode === 'solo') {
       targetYaw = -d.soloSide * 0.6;
     } else if (d.pairWith) {
@@ -1274,16 +1590,26 @@ function update(t, dt) {
     let dy = targetYaw - d.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
     d.yaw += dy * Math.min(1, dt * 8);
     if (crowd < 260 && d.mode === 'dance') {
-      for (const o of all) {
-        if (o === d || o.pairWith === d) continue;
-        const ex = d.x - o.x, ez = (d.z - o.z) * 1.4, dd = ex * ex + ez * ez;
-        if (dd < 0.005 && dd > 0) { const f = (0.005 - dd) * 30 * dt; d.x += ex * f * 8; d.z += ez * f * 5; }
+      // giữ khoảng cách cá nhân ~0.6 m (tính theo mét thật), đẩy nhẹ cả điểm đang đứng lẫn điểm định tới
+      const hw = Math.max(0.6, halfW(d.z));
+      if (d._last) for (const o of all) {
+        if (o === d || o.pairWith === d || !o._last || o.mode !== 'dance') continue;
+        const ex = d._last.x - o._last.x, ez = d._last.z - o._last.z, dd = ex * ex + ez * ez;
+        if (dd < 0.8 && dd > 1e-6) { const r = Math.sqrt(dd), f = (0.9 - r) / 0.9 * dt * 0.9, mx = ex / r * f / hw, mz = ez / r * f / FZ; d.x += mx; d.z += mz; d.tx = clamp(d.tx + mx, -0.95, 0.95); d.tz = clamp(d.tz + mz, 0, 1); }
       }
       d.x = clamp(d.x, -0.95, 0.95); d.z = clamp(d.z, 0, 1);
     }
     if (d.mode === 'rocket' && d._sp && Math.random() < 0.8) particles.push({ x: d._sp.x + rand(-10, 10), y: d._sp.y + 20, vx: rand(-40, 40), vy: rand(150, 300), g: 0, life: 0.5, max: 0.5, color: pick(['#ffd84d', '#ff8a3d', '#ff3d3d', '#fff']), size: rand(6, 14), type: 'spark' });
     if (d.pairWith && d._sp && Math.random() < dt * 2.5) hearts(d._sp.hx, d._sp.hy - 30, 1);
-    if (d.hyper && d.mode === 'dance' && Math.random() < dt * 0.08) d.jumpStart = t;
+    if (d.mode === 'dance' && !d.clone) {   // mỗi câu nhạc (8 phách, người điềm đạm 16 phách) đổi sang điệu khác trong "tủ" của mình
+      const ph = Math.floor((Music.beat + d.zi * 3) / (d.tempo === 0.5 ? 16 : 8));
+      if (d._ph === undefined) d._ph = ph;
+      else if (ph !== d._ph) {
+        d._ph = ph;
+        if (!(d.forceUntil > t) && !(d.danceLock > t) && !d.pairWith && Math.random() < 0.75) { const pool = d.pool && d.pool.length > 2 ? d.pool : ALL_STAND; let n = pick(pool), g = 0; while (n === d.dance && g++ < 4) n = pick(pool); d.dance = n; }
+        if (Math.random() < 0.18) d.spinAt = t;   // cuối câu: thỉnh thoảng xoay một vòng (không còn bật nhảy cao)
+      }
+    }
     // mô hình riêng của vai tải xong → thay vào
     if (d.char && !d.avT && t > (d._charPoll || 0)) {
       d._charPoll = t + 0.5;
@@ -1339,9 +1665,13 @@ function updateStage(t, bi) {
   for (let ix = 0; ix < TX; ix++) for (let iz = 0; iz < TZ; iz++) {
     const c = ix - TX / 2, r = iz;
     const k = pat === 0 ? ((ix + iz + bi.b) % 4 + 4) % 4 : pat === 1 ? (Math.abs(Math.round(c)) + bi.b) % 4 : pat === 2 ? (TZ - r + bi.b) % 4 : ((r * 3 + ix * 7) + bi.b) % 4;
-    const hue = ((themes.hue(k, ix, iz, t, bi.fire) % 1) + 1) % 1;
-    const l = k === 0 ? 0.22 + 0.3 * kick : 0.05 + 0.05 * bass + (bi.fire ? 0.06 : 0.015);
-    tileColor.setHSL(hue, themes.sat(k), l);
+    let hue = ((themes.hue(k, ix, iz, t, bi.fire) % 1) + 1) % 1, l = k === 0 ? 0.22 + 0.3 * kick : 0.05 + 0.05 * bass + (bi.fire ? 0.06 : 0.015), sat = themes.sat(k);
+    if (themes.current === 'club') {   // kiểu sàn trong clip: mảng màu lớn, đậm
+      const blk = ((ix >> 1) * 3 + (iz >> 1) * 5 + Math.floor(bi.b / 16)) % 5;
+      hue = [0.645, 0.995, 0.74, 0.645, 0.9][blk] + (bi.fire ? 0.04 * Math.sin(t * 3 + ix) : 0); sat = 0.95;
+      l = [0.2, 0.24, 0.14, 0.03, 0.18][blk] * (0.8 + 0.5 * kick) + (k === 0 ? 0.06 * kick : 0);
+    }
+    tileColor.setHSL(((hue % 1) + 1) % 1, sat, l);
     tileMesh.setColorAt(i++, tileColor);
   }
   tileMesh.instanceColor.needsUpdate = true;
@@ -1631,17 +1961,19 @@ function frame() {
   const t = now(); const dt = Math.min(0.1, t - lastT); lastT = t;
   update(t, dt);
   const bi = beatInfo(t);
+  FDT = Math.max(0.001, dt); FBI = bi;
   updateStage(t, bi);
 
   // nhân vật
   for (const p of PARTS) p.mesh.count = 0;
   wingMesh.count = 0; shadowMesh.count = 0; teamRing.count = 0;
   // DJ: dùng mô hình riêng public/models/dj.glb nếu có (tải khi cần)
-  if (mc && !mc.avT && t > (mc._charPoll || 0)) { mc._charPoll = t + 0.5; const tp = templateForChar(MC_CHAR); if (tp) { mc.avT = tp; if (mc.av) { disposeAvatar(mc.av); mc.av = null; } } }
+  if (mc && !mc.avT && t > (mc._charPoll || 0)) { mc._charPoll = t + 0.5; const tp = isCast() ? npcVrm(mc) || castTemplate(rosterChar(MC_CHAR) || { id: 'mc', name: 'MC', female: false, age: 34, outfit: 'Suit xanh navy, cà vạt, giày tây', personality: 'Lôi cuốn' }) : templateForChar(MC_CHAR); if (tp) { mc.avT = tp; if (mc.av) { disposeAvatar(mc.av); mc.av = null; } } }
   if (resident) resident.name = S.djName || 'DJ Tiến Khoa';
+  updateDjCrew(t);
   if (resident && !resident.avT && t > (resident._charPoll || 0)) {
     resident._charPoll = t + 0.5;
-    const tp = hasCharModel('dj') ? templateForChar('dj') : null;
+    const tp = isCast() ? npcVrm(resident) || castTemplate({ id: 'dj' }) : hasCharModel('dj') ? templateForChar('dj') : null;
     if (tp) { resident.avT = tp; if (resident.av) { disposeAvatar(resident.av); resident.av = null; } }
   }
   const dj = currentDJ();
@@ -1652,12 +1984,16 @@ function frame() {
   if (staffOn) { updateStaff(t, dt); for (const w of staff) visible.push(w); }
   for (const w of staff) w.tray.visible = staffOn && S.quality !== 'low';
   mic.visible = !!(mc && S.mcEnabled !== false && S.quality !== 'low');
+  shaker.visible = false; handGlass.count = 0;
+  if (isCast()) { for (const w of podium) visible.push(w); if (S.barEnabled !== false) for (const w of bartenders) visible.push(w); }
+  for (const w of [...podium, ...bartenders]) if (!w.avT && isCast()) w.avT = npcVrm(w) || castTemplate(w.cast[0], w.cast[1]);
   for (const d of dancers.values()) if (d !== dj) visible.push(d);
   for (const d of clones) visible.push(d);
   const clouds = [], thrones = [], rocketsP = [];
   for (const d of visible) {
     if (PARTS[0].mesh.count >= CAP - 1) break;
     const base = basePos(d, t, dj);
+    if (d._wp) { const mv = Math.hypot(base.x - d._wp.x, base.z - d._wp.z); if (mv < 1) d.wph = ((d.wph || 0) + mv / (1.36 * d.body.h * d.sc)) % 1; d._wp.copy(base); } else d._wp = base.clone();
     let pose = poseFor(d, bi, t, dj);
     if (d.avT && d.avT.fused) {   // tay dính liền thân trên lưới: giơ tay vừa phải để không lộ chỗ cắt / căng lưới
       const k = Number(S.fusedArm ?? 80) / 100; pose = Object.assign({}, pose);
@@ -1669,19 +2005,22 @@ function frame() {
     poseRig(d, pose, b, t, !airborne || d.mode === 'cloud');
     if (d.mode === 'rocket' || (d.dropH > 0)) { rig.root.position.y = b.y; rig.root.updateMatrixWorld(true); d._head.set(0, HEAD_Y + HEAD_R + 0.06, 0).applyMatrix4(rig.head.matrixWorld); }
     const alpha = d.leaving ? clamp(1 - (t - d.leaving) / 1.2, 0.001, 1) : 1;
-    const real = avatarTemplates.length > 0 && S.charStyle !== 'toon' && S.quality !== 'low';
-    if (real && !d.av) d.av = createAvatar(scene, d.body.female, d.avT, d.avCostume !== undefined && d.avCostume !== null ? d.avCostume : d.char || (d.avT && d.avT.charId) ? null : (Math.random() * 100 < (Number(S.costumeRate) || 0) ? randomAllowedCostume(d) : null), { outfit: d.avOutfit, shape: d.avShape });
+    if (isCast() && !d.avT) d.avT = pickVrm(d) || castTemplate(d.char || (d._rnd || (d._rnd = randomCastChar(++rndCast, d.body.female))));
+    const real = isCast() ? !!d.avT : avatarTemplates.length > 0 && S.charStyle !== 'toon' && S.quality !== 'low';
+    if (real && !d.av) d.av = createAvatar(scene, d.body.female, d.avT, d.avCostume !== undefined && d.avCostume !== null ? d.avCostume : d.char || (d.avT && d.avT.charId) ? null : (Math.random() * 100 < (Number(S.costumeRate) || 0) ? randomAllowedCostume(d) : null), { outfit: d.avOutfit, shape: d.avShape, tint: d.vrmTint, forceCostume: !!d.vrmCostume });
     else if (!real && d.av) { disposeAvatar(d.av); d.av = null; }
     // phong cách (kính, mũ, dây chuyền vàng…) — không áp cho DJ, MC, nhân viên, người đang hoá trang
-    if (d.av && d !== resident && d !== mc && !d.isStaff) {
-      if (d.style === undefined) d.style = Math.random() * 100 < Number(S.styleRate ?? 85) ? randomStyleId(d.body.female) : null;
+    if (d.av && d !== resident && d !== mc && !d.isStaff && !d.av.t.vrm) {
+      if (d.style === undefined) d.style = !d.av.t.cast && Math.random() * 100 < Number(S.styleRate ?? 85) ? randomStyleId(d.body.female) : null;   // nhân vật mới đã có sẵn phụ kiện theo thiết kế
       const want = d.av.costume || S.stylesEnabled === false ? null : d.style;
       if (d.av._style !== want) { applyStyle(d.av, want); d.av._style = want; }
     }
+    // người đứng trên sân khấu hứng đèn rọi mạnh: nhân vật VRoid (da, áo sáng) bị cháy trắng → hạ độ sáng chất liệu
+    if (d.av && d.av.t.vrm && !d.av.mats._stage && (d === resident || d === mc || d.isPodium)) { d.av.mats._stage = true; for (const m of d.av.mats) { m.color.multiplyScalar(0.5); m.emissiveIntensity = 0.3; } }
     if (d.av) {
       _hp.set(0, HEAD_Y, 0).applyMatrix4(rig.head.matrixWorld);
       _ht.set(0, HEAD_Y + 0.3, 0).applyMatrix4(rig.head.matrixWorld);
-      driveAvatar(d.av, rig, { yaw: rig.root.rotation.y, scale: d.body.h * d.sc, hipH0: 0.88, flat: !pose.rot && !pose.sit, alpha, floorY: b.y, headPt: _hp, headTop: _ht, beat: 1 - bi.p, sing: d === mc ? (t < mcTalkUntil ? Math.abs(Math.sin(t * 13)) * 0.6 : 0) : (d.zi % 3 === 0) ? Math.max(0, Math.sin(t * 9 + d.zi)) * 0.35 : 0 });
+      driveAvatar(d.av, rig, { yaw: rig.root.rotation.y, scale: d.body.h * d.sc, hipH0: RIGP.hipY, flat: !pose.rot && !pose.sit, alpha, floorY: b.y, headPt: _hp, headTop: _ht, beat: 1 - bi.p, curlL: d._wr ? d._wr[4] : 0.55, curlR: d.isStaff ? 0.1 : d === mc || (d.mode === 'bar' && !d.travelling) ? 1 : d._wr ? d._wr[5] : 0.55, sing: d === mc ? (t < mcTalkUntil ? Math.abs(Math.sin(t * 13)) * 0.6 : 0) : (d.zi % 3 === 0) ? Math.max(0, Math.sin(t * 9 + d.zi)) * 0.35 : 0 });
     }
     if (d === mc) {
       // micro nằm trong bàn tay phải của MÔ HÌNH (khung xương điều khiển dài tay hơn người thật)
@@ -1704,6 +2043,12 @@ function frame() {
       d.tray.position.set(_v2.x + Math.sin(d.yaw) * 0.06 * sc, _v2.y + 0.035 * sc, _v2.z + Math.cos(d.yaw) * 0.06 * sc);
       d.tray.rotation.set(0, d.yaw, 0); d.tray.scale.setScalar(sc);
     }
+    if (d.mode === 'bar' && !d.travelling && handGlass.count < 64) { rig.haR.getWorldPosition(_v2); _m.makeTranslation(_v2.x, _v2.y - 0.02, _v2.z + 0.0); handGlass.setMatrixAt(handGlass.count, _m); handGlass.setColorAt(handGlass.count, DRINK_COL[d.zi % 5]); handGlass.count++; }
+    if (d.isPodium && d.av) {   // đồ kim sa nháy theo nhịp trống + tia lấp lánh
+      const gl = (d.av.t.vrm ? 0.26 : 0.16) + (d.av.t.vrm ? 0.16 : 0.26) * stageMood.kick + 0.06 * Math.sin(t * 9 + d.pod * 2); for (const m of d.av.mats) m.emissiveIntensity = gl;
+      if (d._sp && Math.random() < dt * 5) particles.push({ x: d._sp.hx + rand(-70, 70) * d._sp.s, y: d._sp.hy + rand(20, 330) * d._sp.s, vx: 0, vy: rand(-15, 15), g: 0, life: 0.5, max: 0.5, color: pick(['#ffffff', '#ffe9a8', '#7cf7ff', '#ff9de2']), size: rand(5, 11), type: 'spark' });
+    }
+    if (d.isBartender && Math.floor(t / 6 + d.bt * 1.7) % 4 === 0) { rig.haL.getWorldPosition(_v1); rig.haR.getWorldPosition(_v2); shaker.position.copy(_v1).lerp(_v2, 0.5); shaker.rotation.set(0.5, 0, 0.9); shaker.visible = true; }
     writeInstances(d, t, alpha);
     writeTeamRing(d);
     d._sp = screenOf(d);
@@ -1712,24 +2057,29 @@ function frame() {
     if (d.mode === 'throne') thrones.push(g => { g.position.copy(THRONE_POS); g.position.z -= 0.15; g.scale.setScalar(d.sc); });
     if (d.mode === 'rocket') rocketsP.push(g => { g.position.set(rx, ry, rz); g.userData.flame.scale.y = 0.7 + Math.random() * 0.6; });
   }
+  handGlass.instanceMatrix.needsUpdate = true; if (handGlass.instanceColor) handGlass.instanceColor.needsUpdate = true;
   for (const p of PARTS) { p.mesh.instanceMatrix.needsUpdate = true; if (p.mesh.instanceColor) p.mesh.instanceColor.needsUpdate = true; }
   wingMesh.instanceMatrix.needsUpdate = true; shadowMesh.instanceMatrix.needsUpdate = true;
   teamRing.instanceMatrix.needsUpdate = true; if (teamRing.instanceColor) teamRing.instanceColor.needsUpdate = true;
   propsFrame(clouds, 'cloud', makeCloud);
   propsFrame(thrones, 'throne', makeThrone);
   propsFrame(rocketsP, 'rocket', makeRocket);
-  updateBooth(dj && dj !== resident ? '👑 ' + dj.name : '🎧 ' + (S.djName || 'DJ Tiến Khoa'), S.showTop && TOP.length > 1 ? TOP.slice(1, 3).map(u => u.name).join(' · ') : '');
+  const djLook = dj === resident ? currentDjLook() : null;
+  updateBooth(dj && dj !== resident ? '👑 ' + dj.name : '🎧 ' + (S.djName || 'DJ Tiến Khoa'), S.showTop && TOP.length > 1 ? TOP.slice(1, 3).map(u => u.name).join(' · ') : djLook ? '✦ ' + djLook.name + ' ✦' : '');
 
   costumeTime.value = t; outfitTime.value = t;
   fx.enabled.smoke = S.smokeEnabled !== false && S.quality !== 'low'; fx.enabled.spark = S.sparkEnabled !== false;
   fx.density = Math.max(0, Math.min(1, Number(S.smokeDensity ?? 55) / 100 + (goldenOn() ? 0.25 : 0)));
   fx.update(t, dt, { hue: stageMood.hue, kick: stageMood.kick, level: stageMood.bass });
   bar.visible = S.barEnabled !== false; bar.update(t, stageMood);
+  updateVipSigns(t);
+  club.barVisible = S.barEnabled !== false; if (fps > 40) mirrorAuto = true; else if (fps < 24) mirrorAuto = false;   // máy đuối thì tự tắt sàn phản chiếu
+  club.update(t, stageMood, S.quality === 'high' && S.mirrorFloor !== false && mirrorAuto);
   updateLedShow(t, dt);
   if (lcd) lcd.update(t, !!ledShow, !!zoom && !lcd.textActive);   // lời nhắn đợi máy quay zoom xong rồi mới hiện
   updateCam(dt, t);
   if (window._camLock) window._camLock(camera);   // chỉ dùng khi thử nghiệm
-  if (bloom) bloom.strength = bi.fire ? 0.6 + fireLevel * 0.04 : 0.55;
+  if (bloom) bloom.strength = bi.fire ? 0.38 + fireLevel * 0.03 : 0.3;
   renderLed();
   if (S.quality === 'high' && composer) composer.render(); else { renderer.render(scene, camera); if (lcd) lcd.afterRender(renderer); }
   if (lcd) lcd.renderCSS();
@@ -1739,7 +2089,7 @@ function frame() {
   ctx.clearRect(0, 0, hud.width, hud.height);
   ctx.setTransform(pxScale, 0, 0, pxScale, 0, 0);
   // nhãn: xa trước, gần sau
-  const tags = visible.filter(d => d !== resident && d !== mc && !d.isStaff && d._sp).sort((a, b) => a._sp.y - b._sp.y);
+  const tags = visible.filter(d => d !== resident && d !== mc && !d.isStaff && !d.isPodium && !d.isBartender && d._sp).sort((a, b) => a._sp.y - b._sp.y);
   for (const d of tags) drawTag(d, t);
   drawMcCaption(t);
   drawParticles();
@@ -1747,7 +2097,7 @@ function frame() {
   if (bi.fire) { ctx.fillStyle = `rgba(255,60,180,${0.06 * (1 - bi.p)})`; ctx.fillRect(0, 0, W, H); }
   drawHUD(t, bi);
   recordFrame();
-  requestAnimationFrame(frame);
+  nextFrame(frame);
 }
 
 // ======================================================================
@@ -1769,10 +2119,28 @@ function say(text, key, gap = 0, prio = false, hyped = false) {
   // màn game không có giọng tiếng Việt (thường gặp trong OBS / LIVE Studio) → nhờ trang điều khiển đọc, không đọc tiếng Việt bằng giọng tây
   if (window.MC) MC.setPref(S.ttsVoice);
   // …hoặc chủ phòng đã chọn một giọng mà trình duyệt chạy màn game không có (vd NamMinh chỉ có trong Edge)
-  if (S.ttsWhere === 'admin' || !window.MC || !MC.available() || !MC.hasVietnamese() || (S.ttsVoice && !MC.list().includes(S.ttsVoice))) socket.emit('say', { text, prio, hype: hyped, auto: S.ttsWhere !== 'admin' });
+  if (S.ttsWhere === 'admin' || !window.MC || !MC.available() || !MC.hasVietnamese() || (!MC.neuralReady() && S.ttsVoice && !MC.list().includes(S.ttsVoice))) socket.emit('say', { text, prio, hype: hyped, auto: S.ttsWhere !== 'admin' });
   else if (window.MC) { MC.setPref(S.ttsVoice); MC.enabled = true; MC.volume = Number(S.ttsVolume) || 1; MC.rate = Number(S.ttsRate) || 1.05; MC.say(text, prio, hyped); }
 }
 const nm = n => (window.MC ? MC.clean(n) : String(n || ''));
+// chào người mới vào phòng: gom những người vào gần nhau thành một câu (không bỏ sót ai), có chữ trên màn hình
+const joinBuf = []; let joinTimer = 0, joinLast = -1e9;
+function greetJoin(u) {
+  const name = nm(u && u.name); if (!name || joinBuf.includes(name)) return;
+  joinBuf.push(name); if (joinBuf.length > 12) joinBuf.shift();
+  if (joinTimer) return;
+  const wait = Math.max(2.5, 6 - (now() - joinLast));          // chờ gom thêm vài người, cách câu trước ≥ 6 giây
+  joinTimer = setTimeout(() => {
+    joinTimer = 0; joinLast = now();
+    const ns = joinBuf.splice(0), more = ns.length - 3;
+    if (!ns.length) return;
+    const list = ns.length === 1 ? ns[0] : more > 0 ? ns.slice(0, 3).join(', ') + ` và ${more} bạn nữa` : ns.slice(0, -1).join(', ') + ' và ' + ns[ns.length - 1];
+    const text = `Chào mừng ${list} đã vào phòng! Bình luận để lên sàn quẩy cùng mọi người nhé!`;
+    say(text);
+    if (S.mcCaption !== false && !(mcCaption && now() < mcCaption.until))   // không đè chữ hô hào / cảm ơn quà đang hiện
+      mcCaption = { text: `👋 Chào mừng ${list}!`, hype: false, start: now(), until: now() + 4 };
+  }, wait * 1000);
+}
 
 // ---------- MC hô hào sự kiện lớn ----------
 let mcCaption = null, mcHypeUntil = 0;
@@ -1794,6 +2162,7 @@ const HYPE = {
   champagne: ['{x} khui sâm panh! Cạn ly nào cả nhà!', 'Bốp! Sâm panh đã mở! Cảm ơn {x}! Một hai ba, dô!'],
   vip: ['Mời {x} vào bàn VIP! Trái cây, sâm panh đã sẵn sàng!', 'Bàn VIP xin chào {x}! Phục vụ đâu, mang rượu ra nào!'],
   stage: ['Mời {x} lên sân khấu! Cháy hết mình đi nào!', '{x} lên sân khấu rồi! Cả phòng cổ vũ nào!'],
+  djSwap: ['Đổi ca DJ! Xin mời DJ {x} lên bàn!', 'DJ {x} đã vào ca! Cả sàn quẩy lên nào!', 'Tiếp theo trên bàn DJ là {x}! Lên nhạc!'],
   dj: ['{x} lên bàn DJ! Lên nhạc đi nào!', 'DJ mới của chúng ta là {x}! Drop the beat!'],
   theme: ['Cả phòng đã mở khoá sân khấu {x}! Đẹp quá cả nhà ơi!', 'Sân khấu mới, {x}! Cảm ơn cả phòng!'],
   soon5: ['Còn năm phút nữa tới {x}! Ở lại với mình nhé cả nhà!', 'Năm phút nữa thôi là {x}! Đừng đi đâu nha!'],
@@ -1894,7 +2263,7 @@ function startSolo(a) {
   const b = pick(pool.slice(0, 8));
   const secs = Number(S.soloSeconds) || 20;
   Object.assign(solo, { on: true, a, b, votes: { 1: 0, 2: 0 }, voters: new Set(), start: now(), until: now() + secs, result: null });
-  for (const [d, side] of [[a, -1], [b, 1]]) { d.mode = 'solo'; d.soloSide = side; d.modeStart = now(); d.modeUntil = solo.until + 6; d.pairWith = null; d.dropH = 4; d.vy = 0; }
+  for (const [d, side] of [[a, -1], [b, 1]]) { d.mode = 'solo'; d.soloSide = side; d.modeStart = now(); d.modeUntil = solo.until + 6; d.pairWith = null; startTravel(d, now()); d.vy = 0; }
   a.dance = 5; b.dance = 4;
   pushTicker(`⚔️ ${a.name} THÁCH ĐẤU ${b.name}! Gõ 1 hoặc 2 để bình chọn`, '#ff7ad9', { big: true });
   hype('solo', { a: nm(a.name), b: nm(b.name) });
@@ -2328,7 +2697,7 @@ function featureEvent(ev) {
       }
       break;
     }
-    case 'member': if (S.ttsJoin) say(`Chào mừng ${nm(ev.user.name)}`, 'join', 8); break;
+    case 'member': if (S.ttsJoin) greetJoin(ev.user); break;
     case 'follow': if (S.ttsFollow !== false) say(`Cảm ơn ${nm(ev.user.name)} đã theo dõi kênh!`, 'follow', 3); break;
     case 'share': say(`Cảm ơn ${nm(ev.user.name)} đã chia sẻ!`, 'share', 6); break;
     case 'welcomeback':
@@ -2350,6 +2719,7 @@ function featureCmd(c) {
   if (c.type === 'couple') startCouple();
   if (c.type === 'likeparty') { party.likes = party.target; }
   if (c.type === 'likes1000') party.likes += 1000;
+  if (c.type === 'djNext' && vrmOn()) { const n = DJ_CREW.length; djManual = { i: (Math.max(0, djI) + 1) % n, slot: Math.floor(Date.now() / (Math.max(0.5, Number(S.djSwapMin ?? 3)) * 60000)) }; }
   if (c.type === 'smoke') fx.smokeBurst(1);
   if (c.type === 'sparkle') fx.sparkle(Math.min(60, Number(c.sec) || 5));
   if (c.type === 'battleStart') startBattle();
@@ -2380,9 +2750,12 @@ socket.on('goalState', gs => { if (!gs || goals.loaded) return; goals.loaded = t
 // sàn “tự động”: qua ngày mới (hoặc tới ngày lễ) thì đổi sàn, trừ khi phòng vừa mở khoá sàn bằng mục tiêu
 let lastThemeSetting = null;
 setInterval(() => { if ((S.theme || '') === 'auto' && !goals.idx) { const n = themeForDate(); if (n !== themes.current) themes.apply('auto'); } }, 60000);
+socket.on('ttsStatus', st => { if (window.MC) MC.setStatus(st); });
 socket.on('settings', s => {
-  const oldQ = S.quality;
+  const oldQ = S.quality, oldC = S.charStyle;
   const first = !S._got; S = Object.assign(S, s); S._got = true;
+  if (window.MC) MC.setNeural(S.ttsEngine === 'vieneu', S.ttsNeuralVoice);
+  if (oldC !== S.charStyle) for (const d of [...dancers.values(), ...clones, resident, mc, ...staff]) if (d) { if (d.av) { disposeAvatar(d.av); d.av = null; } d.avT = d.char && !isCast() ? templateForChar(d.char.id) : null; d.style = undefined; }
   setOutfitMix(S.partyMix ?? 25);
   Music.setSettings(S);
   if (first && !goals.loaded) themes.apply(S.theme || 'club');
@@ -2417,7 +2790,7 @@ socket.on('cmd', c => {
   featureCmd(c);
 });
 fetch('/api/info').then(r => r.json()).then(i => { ACTIONS = i.actions; }).catch(() => {});
-let fps = 60, lastF = now();
+let fps = 60, lastF = now(), mirrorAuto = true;
 (function fpsLoop() { const t = now(); fps = fps * 0.95 + (1 / Math.max(0.001, t - lastF)) * 0.05; lastF = t; requestAnimationFrame(fpsLoop); })();
 setInterval(() => socket.emit('status', { onFloor: onFloorCount(), zooming: zoom ? zoom.d.name : '—', queue: zoomQueue.length, fps: Math.round(fps) }), 2000);
 
@@ -2426,18 +2799,79 @@ resident = new Dancer({ id: '__dj', name: 'DJ Tiến Khoa', avatar: '' }, { noDr
 resident.body = randomBody(false);
 resident.look = randomLook(false); resident.look.top = 'bomber'; resident.look.hat = 'capBack'; resident.look.neck = 'headphones'; resident.look.hs = 0; resident.look.glasses = true;
 resident.look.c.jacket = resident.look.c.uarm = resident.look.c.farm = col('#1b1b1f'); resident.look.c.shirt = resident.look.c.torso = col('#ff3d8b');
-initStaff();
+initStaff(); initClubNPC();
 mc = new Dancer({ id: '__mc', name: 'MC', avatar: '' }, { noDrop: true });
 mc.body = randomBody(false); mc.look = randomLook(false);
 window.addEventListener('resize', resize);
 resize();
 async function applyModels(list) {
   await loadAvatars((list || []).filter(m => m.enabled).map(m => ({ url: m.url, female: m.female })));
-  for (const d of [...dancers.values(), ...clones, resident, mc, ...staff]) { if (d && d.av) { disposeAvatar(d.av); d.av = null; d.avT = null; } }
+  for (const d of [...dancers.values(), ...clones, resident, mc, ...staff, ...podium, ...bartenders]) { if (d) { if (d.av) disposeAvatar(d.av); d.av = null; d.avT = null; } }
   console.log('Đã nạp', avatarTemplates.length, 'mô hình người');
 }
-fetch('/api/models').then(r => r.json()).then(applyModels).catch(e => console.warn(e));
-socket.on('models', list => applyModels(list));
+// nhân vật VRoid (.vrm) trong public/models hoặc data/models: có thì khách dùng, không có thì dùng dàn dựng bằng code
+const vrmOnly = list => (list || []).filter(m => /\.vrm$/i.test(m.file || m.url));
+fetch('/api/models').then(r => r.json()).then(l => applyModels(vrmOnly(l))).catch(e => console.warn(e));
+socket.on('models', list => applyModels(vrmOnly(list)));
+let vrmSeq = 0;
+function pickVrm(d) {
+  if (S.vrmEnabled === false || S.quality === 'low' || !avatarTemplates.length || /[?&]novrm=1/.test(location.search)) return null;
+  if (d === resident || d === mc || d.isStaff || d.cast) return null;
+  let pool = avatarTemplates.filter(t => t.vrm && t.female === !!d.body.female);
+  if (!pool.length) return null;
+  if (d._vrmI === undefined) d._vrmI = vrmSeq++;
+  return pool[d._vrmI % pool.length];
+}
+// ---------- DJ, MC, dancer trên bục dùng chung dàn nhân vật VRoid với khách (đồng bộ tạo hình) ----------
+// DJ có 4 tạo hình thay ca theo bốn thầy trò Tây Du Ký; mỗi người một mô hình nam + đạo cụ + màu riêng
+const DJ_CREW = [
+  { key: 'tang', name: 'Đường Tăng', model: 0, costume: 'dj_tang', tint: ['#ffffff', '#ffe2a0'] },
+  { key: 'wukong', name: 'Tôn Ngộ Không', model: 1, costume: 'dj_wukong', tint: ['#e9a45c', '#ffb09a'] },
+  { key: 'batgioi', name: 'Trư Bát Giới', model: 2, costume: 'dj_batgioi', tint: ['#8a8a94', '#9aa6c8'] },
+  { key: 'satang', name: 'Sa Tăng', model: 3, costume: 'dj_satang', tint: ['#7a5a48', '#b9c8e8'] },
+];
+const NPC_LOOK = { mc: { model: 4, tint: ['#ffffff', '#ffffff'] }, gogo0: { model: 1, tint: ['#bfe0ff', '#c9b6ff'] }, gogo1: { model: 0, tint: ['#ffc2dc', '#ffe08a'] },
+  bt0: { model: 2, tint: ['#ffffff', '#d4d4dc'] }, bt1: { model: 2, tint: ['#ffffff', '#e8dcff'] },
+  staff0: { model: 3, tint: ['#ffffff', '#e0e0e6'] }, staff1: { model: 0, tint: ['#e8c9a0', '#d3e6ff'] } };
+let djI = -1;
+const vrmOn = () => !(S.vrmEnabled === false || S.quality === 'low' || !avatarTemplates.length || /[?&]novrm=1/.test(location.search));
+function npcVrm(d) {
+  if (!vrmOn()) return null;
+  const isDj = d === resident;
+  const role = isDj ? 'dj' : d === mc ? 'mc' : d.isPodium ? 'gogo' + d.pod : d.isBartender ? 'bt' + d.bt : d.isStaff ? 'staff' + staff.indexOf(d) : null;
+  if (!role || (!isDj && !NPC_LOOK[role])) return null;
+  const female = d.cast ? !!d.cast[0].female : false;
+  const pool = avatarTemplates.filter(t => t.vrm && t.female === female).sort((a, b) => a.name.localeCompare(b.name));
+  if (!pool.length) return null;
+  const look = isDj ? DJ_CREW[Math.max(0, djI) % DJ_CREW.length] : NPC_LOOK[role];
+  d.vrmTint = look.tint; d.vrmCostume = isDj ? look.costume : null; d.avCostume = isDj ? look.costume : null;
+  return pool[look.model % pool.length];
+}
+const currentDjLook = () => (resident && resident.avT && resident.avT.vrm ? DJ_CREW[Math.max(0, djI) % DJ_CREW.length] : null);
+// đổi ca DJ: khói + pháo sáng che lúc đổi người, MC giới thiệu, tên mới hiện trên bàn DJ
+let djManual = null;   // bấm đổi tay ở trang điều khiển: giữ tới hết ca hiện tại
+function swapDj(i, quiet) {
+  djI = (i % DJ_CREW.length + DJ_CREW.length) % DJ_CREW.length;
+  if (!resident) return;
+  if (resident.av) { disposeAvatar(resident.av); resident.av = null; }
+  resident.avT = null; resident._charPoll = 0; resident._ps = null;
+  if (quiet || !vrmOn()) return;
+  const look = DJ_CREW[djI];
+  if (currentDJ() === resident) {
+    if (S.fxOnFire !== false) { fx.smokeBurst(0.7); fx.sparkle(3, 'center'); }
+    flash = Math.max(flash, 0.25);
+    hype('djSwap', { x: look.name }, { key: 'djSwap', gap: 20, quiet: true });
+  }
+}
+// ca DJ tính theo đồng hồ máy nên mọi màn hình (OBS, điện thoại) đổi cùng lúc, cùng một người
+function updateDjCrew() {
+  if (!resident || !vrmOn()) return;
+  const slot = Math.floor(Date.now() / (Math.max(0.5, Number(S.djSwapMin ?? 3)) * 60000));
+  if (djManual && djManual.slot !== slot) djManual = null;
+  const fixed = DJ_CREW.findIndex(c => c.key === S.djLook);
+  const want = djManual ? djManual.i : fixed >= 0 ? fixed : slot % DJ_CREW.length;
+  if (want !== djI) swapDj(want, djI < 0);
+}
 Music.init();
 const tap = document.getElementById('tap');
 function checkAudio() { tap.style.display = Music.suspended() && !OBS && (Music.settings.musicEnabled || Music.settings.synthMusic) ? 'flex' : 'none'; }
@@ -2446,5 +2880,7 @@ window.addEventListener('pointerdown', unlock);
 window.addEventListener('keydown', unlock);
 setInterval(checkAudio, 1500);
 Music.resume();
-window._dbg = { setChar: (d, id) => assignChar(d, ROSTER.find(c => c.id === id)), setOutfitT: (d, o) => { if (d.av) { setCostume(d.av, null); window._applyOutfit(d.av, o); window._restyle(d.av); } }, get flashInfo() { return [...dancers.values()].slice(0, 8).map(d => [d.mode, d.x.toFixed(2), d.z.toFixed(2), d.tx.toFixed(2), d.tz.toFixed(2)].join(' ')); }, ledCam, ledRT, renderer, get ledShow() { return ledShow; }, get ledQueue() { return ledQueue; }, get lcd() { return lcd; }, get resident() { return resident; }, get mc() { return mc; }, get cap() { return [mcCaption && mcCaption.text, now() < mcHypeUntil]; }, staff, schedInfo, party, couple, goldenOn, mic, mcArm(ru, rf, sx, ex) { MC_RU = ru; MC_RF = rf; MC_RSX = sx; MC_REX = ex; }, dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
-requestAnimationFrame(frame);
+window._dbg = { camFix: null, podium, bartenders, cmd: handleCommand, dancers,swapDj: i => { djManual = { i, slot: Math.floor(Date.now() / (Math.max(0.5, Number(S.djSwapMin ?? 3)) * 60000)) }; }, get djI() { return djI; }, setChar: (d, id) => assignChar(d, ROSTER.find(c => c.id === id)), setOutfitT: (d, o) => { if (d.av) { setCostume(d.av, null); window._applyOutfit(d.av, o); window._restyle(d.av); } }, get flashInfo() { return [...dancers.values()].slice(0, 8).map(d => [d.mode, d.x.toFixed(2), d.z.toFixed(2), d.tx.toFixed(2), d.tz.toFixed(2)].join(' ')); }, ledCam, ledRT, renderer, get ledShow() { return ledShow; }, get ledQueue() { return ledQueue; }, get lcd() { return lcd; }, get resident() { return resident; }, get mc() { return mc; }, get cap() { return [mcCaption && mcCaption.text, now() < mcHypeUntil]; }, staff, schedInfo, party, couple, goldenOn, mic, mcArm(ru, rf, sx, ex) { MC_RU = ru; MC_RF = rf; MC_RSX = sx; MC_REX = ex; }, dancers, rig, avatarTemplates, restyle, applyShape, setCostume, get zoom() { return zoom; }, setZoom(d) { zoom = { d, id: "camera", label: "Camera", icon: "🎥", start: now(), until: now() + 60, dur: 60 }; } };
+nextFrame(frame);
+// ?timer=1: chay vong lap bang dong ho thay vi requestAnimationFrame (dung khi cua so bi an / kiem thu)
+function nextFrame(cb) { if (/[?&]timer=1/.test(location.search)) setTimeout(() => cb(performance.now()), 33); else requestAnimationFrame(cb); }

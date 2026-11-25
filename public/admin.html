@@ -61,7 +61,7 @@
           </ul></li>
         <li><b>Bắt đầu LIVE</b> trên TikTok.</li>
         <li>Nhập <b>tên kênh</b> ở mục 1 → bấm <b>Kết nối</b>. Thấy “✓ Đang nhận @kênh” là xong.</li>
-        <li>Thử: bình luận bất kỳ → nhân vật mang ảnh đại diện rơi xuống sàn. Gõ <code>disco</code> hoặc số <code>1–14</code> để đổi điệu.</li>
+        <li>Thử: bình luận bất kỳ → nhân vật mang tên người xem đi bộ vào sàn. Gõ <code>disco</code>, <code>vinahouse</code>… hoặc số <code>1–59</code> để đổi điệu.</li>
         <li><b>Live bằng điện thoại:</b> điện thoại cùng Wi-Fi mở đường dẫn LAN ở mục 1.</li>
         <li>Không nghe tiếng trong OBS: chuột phải nguồn → <b>Refresh</b>.</li>
       </ol>
@@ -146,6 +146,14 @@ document.getElementById('openGame').onclick = async () => {
       <button id="evSpot">🔦 Đèn chiếu ngay</button>
       <button id="evClip">🎬 Quay clip ngay</button>
       <button id="evSay">🎙 Thử giọng MC</button>
+      <button id="evJoin">👋 Thử chào người vào</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <span>🤖 Bộ đọc</span>
+      <select id="ttsEngine"><option value="vieneu">VieNeu-TTS — giọng AI tự nhiên (offline)</option><option value="browser">Giọng Windows / trình duyệt</option></select>
+      <select id="ttsNeuralVoice" style="min-width:240px"></select>
+      <button id="ttsRestart" title="Tắt rồi bật lại VieNeu-TTS">↻ Khởi động lại</button>
+      <span id="ttsNeuralInfo" class="muted"></span>
     </div>
     <div class="row" style="margin-top:8px">
       <span>🎙 Giọng MC</span>
@@ -182,39 +190,6 @@ document.getElementById('openGame').onclick = async () => {
   </div>
 
   <div class="card">
-    <h2>🎭 Danh sách nhân vật của bạn</h2>
-    <div class="muted">Mỗi người xem lên sàn sẽ nhập vai một nhân vật trong danh sách: trang phục dựng theo mô tả, điệu nhảy theo thể loại, dáng người theo tuổi, nhịp nhảy theo tính cách (điềm tĩnh → nhảy chậm, năng động → hay bật nhảy). Gõ <code>đổi vai</code> để đổi sang nhân vật khác.<br>
-    File CSV cột: <code>ID, Name, Gender, Age, Outfit, Dance Style, Personality</code>. Có mô hình 3D riêng cho nhân vật nào thì đặt tên file trùng ID (vd <code>char01.glb</code>) rồi tải lên mục 🧍 Nhân vật — game tự dùng đúng mô hình đó.</div>
-    <div class="row"><input type="file" id="rosterFile" accept=".csv,text/csv"><button id="rosterReset">Về danh sách gốc</button><span id="rosterMsg" class="muted"></span></div>
-    <div style="max-height:320px;overflow:auto"><table><thead><tr><th>ID</th><th>Tên</th><th>Giới</th><th>Tuổi</th><th>Trang phục</th><th>Điệu</th><th>Tính cách</th></tr></thead><tbody id="rosterBody"></tbody></table></div>
-  </div>
-
-  <div class="card">
-    <h2>🧍 Nhân vật (trang phục)</h2>
-    <div class="muted">Mỗi file là một nhân vật với bộ đồ riêng. Người xem lên sàn được chọn ngẫu nhiên trong các nhân vật đang bật (theo nam / nữ). Càng nhiều file → sàn càng đa dạng trang phục. Mọi nhân vật đều tự nhảy đủ 14 điệu.</div>
-    <details style="margin:10px 0">
-      <summary>Cách làm nhân vật riêng (3 cách, không cần biết dựng 3D)</summary>
-      <p><b>Cách 1 — VRoid Studio (miễn phí, nhân vật kiểu anime):</b></p>
-      <ol>
-        <li>Tải <b>VRoid Studio</b> (vroid.com) cho Windows / Mac.</li>
-        <li>Tạo nhân vật mới: chỉnh khuôn mặt, tóc, cơ thể, quần áo bằng thanh trượt và cọ vẽ.</li>
-        <li>Bấm <b>Export → Export as VRM</b> (VRM 0.0 hoặc 1.0 đều được) → tải file <b>.vrm</b> lên đây.</li>
-      </ol>
-      <p><b>Cách 2 — AI tạo mô hình 3D (Meshy, Tripo, Hyper3D…):</b></p>
-      <ol>
-        <li>Gõ mô tả nhân vật hoặc đưa ảnh nhân vật đứng thẳng, dang tay chữ T (vẽ tay hoặc tạo bằng ChatGPT).</li>
-        <li>Sau khi AI dựng xong, dùng chức năng <b>Rig / Auto-rig</b> chọn khung <b>người (humanoid)</b>.</li>
-        <li>Xuất <b>.glb</b> hoặc <b>.fbx</b> → tải lên đây.</li>
-      </ol>
-      <p><b>Cách 3 — Có sẵn mô hình người chưa có xương (tự làm / thuê làm):</b> tải lên <b>mixamo.com</b> → Upload Character → đặt các điểm cằm, cổ tay, khuỷu, gối, háng → Mixamo tự gắn xương → Download <b>FBX Binary, T-pose</b> → tải lên đây.</p>
-      <p><b>Nhân vật Mixamo có sẵn:</b> mixamo.com → Characters → chọn → Download FBX Binary, T-pose.</p>
-      <div class="muted">Game tự nhận khung xương của Mixamo, VRoid/VRM, Ready Player Me, Unreal, Blender (Rigify), Character Creator / AccuRig và các công cụ AI phổ biến. Nhân vật thêm vào tự nhảy đủ 14 điệu, có thể hoá trang và được biến đổi dáng người / khuôn mặt. Nên giữ mỗi file dưới 20 MB để máy chạy mượt.</div>
-    </details>
-    <div class="row"><input type="file" id="modelFile" multiple accept=".fbx,.glb,.vrm"><span id="modelMsg" class="muted"></span></div>
-    <table><thead><tr><th>Nhân vật</th><th>Giới tính</th><th>Dùng</th><th></th></tr></thead><tbody id="modelsBody"></tbody></table>
-  </div>
-
-  <div class="card">
     <h2>🎵 Nhạc nền của bạn</h2>
     <div class="muted">Tải lên MP3 / M4A / OGG / WAV (tối đa 40 MB mỗi bài). Có bài thì game phát lần lượt (xáo trộn) và nhân vật nhảy theo nhịp tự dò của từng bài; chưa có bài thì máy tự đánh nhạc.<br>
       Nên dùng nhạc miễn phí bản quyền: NCS, StreamBeats, Pixabay Music. Nhạc có bản quyền có thể bị TikTok tắt tiếng.</div>
@@ -234,6 +209,7 @@ document.getElementById('openGame').onclick = async () => {
       <button id="tCouple">💞 Cặp đôi ngay</button>
       <button id="tLikes">❤️ +1000 tim</button>
       <button id="tSmoke">🌫️ Phun khói</button>
+      <button id="tDjNext">🐵 Đổi ca DJ ngay</button>
       <button id="tSpark">✨ Pháo sáng</button>
       <button id="tTeam">⚔️ 20 khách gõ 1/2</button>
       <button id="tVote">🗳 20 phiếu solo</button>
@@ -253,10 +229,9 @@ socket.on('connect', () => socket.emit('hello', 'admin'));
 
 const FIELDS = [
   ['djName', '🎧 Tên DJ trên bàn DJ', 'text'],
+  ['djLook', '🐵 Tạo hình DJ (Tây Du Ký)', 'select', [['auto', '🔁 Tự thay ca cả 4 thầy trò'], ['tang', 'Đường Tăng'], ['wukong', 'Tôn Ngộ Không'], ['batgioi', 'Trư Bát Giới'], ['satang', 'Sa Tăng']]],
+  ['djSwapMin', '⏱ Số phút mỗi ca DJ', 'num', 0.5],
   ['theme', '🎪 Sàn mặc định (📅 tự động = đổi theo mùa / ngày lễ)', 'select', () => THEMES],
-  ['fusedArm', '🙌 Biên độ giơ tay nhân vật của bạn (%, 50–100)', 'num', 5],
-  ['stylesEnabled', '😎 Phong cách phụ kiện (kính, mũ, dây chuyền vàng…)', 'check'],
-  ['styleRate', '😎 % người lên sàn có phong cách', 'num', 5],
   ['barEnabled', '🛋️ Bàn ghế quán bar (salon + bàn tròn đứng)', 'check'],
   ['mcEnabled', '🎤 MC cầm micro cạnh DJ', 'check'],
   ['mcHype', '📣 MC hô hào sự kiện lớn', 'check'],
@@ -273,10 +248,7 @@ const FIELDS = [
   ['lcdEvents', '📺 Sự kiện LIVE hiện trên màn LCD', 'check'],
   ['lcdJoin', '📺 Cả người vào xem cũng lên màn LCD', 'check'],
   ['quality', '✨ Mức hiệu ứng', 'select', [['high', 'Mạnh (máy mạnh)'], ['medium', 'Vừa'], ['low', 'Nhẹ (máy yếu)']]],
-  ['charStyle', '🧍 Kiểu nhân vật', 'select', [['real', 'Người thật 3D'], ['toon', 'Hoạt hình (nhẹ máy)']]],
   ['costumeRate', '🦸 % người hoá trang sẵn (0–100)', 'num', 5],
-  ['rosterEnabled', '🎭 Nhập vai nhân vật trong danh sách', 'check'],
-  ['partyMix', '👗 % mặc đồ dạ hội (còn lại đồ đi bar)', 'num', 5],
   ['ledShow', '📺 Người tặng quà lớn lên màn LED', 'check'],
   ['ledCoins', '📺 Lên màn LED từ (xu)', 'num', 1],
   ['ledSeconds', '📺 Thời gian trên màn LED (giây)', 'num', 1],
@@ -384,7 +356,7 @@ socket.on('connState', c => { const el = $('connStatus'); el.textContent = c.tex
 // ---------- sự kiện LIVE ----------
 const EV_FIELDS = [
   ['ttsEnabled', '🎙 Bật MC giọng nói', 'check'],
-  ['ttsWhere', '🎙 MC đọc ở', 'select', [['game', 'Màn hình game (OBS)'], ['admin', 'Trang điều khiển này']]],
+  ['ttsWhere', '🎙 MC đọc ở', 'select', [['game', 'Màn hình game (OBS) — người xem nghe được'], ['admin', 'Trang điều khiển này — chỉ mình bạn nghe']]],
   ['ttsVolume', '🎙 Âm lượng MC (0–1)', 'num', 0.1],
   ['ttsRate', '🎙 Tốc độ đọc (0.6–1.6)', 'num', 0.05],
   ['ttsMinCoins', '🎙 Đọc cảm ơn quà từ (xu)', 'num', 1],
@@ -437,6 +409,29 @@ function fillVoices() {
   sel.value = cur;
   if (!list.length) sel.innerHTML = '<option value="">Trình duyệt này chưa có giọng tiếng Việt</option>';
 }
+// ---------- giọng AI VieNeu-TTS ----------
+let TTS_ST = { status: 'off', voices: [] };
+const TTS_LABEL = { off: '⏸ Đang tắt', starting: '⏳ Đang bật (lần đầu tải model, chờ chút)…', ready: '✅ Sẵn sàng', error: '⚠️ Lỗi', missing: '⚠️ Chưa cài' };
+function fillNeural() {
+  const sel = $('ttsNeuralVoice'), cur = (S && S.ttsNeuralVoice) || '';
+  const vs = TTS_ST.voices || [];
+  if (document.activeElement !== sel) {
+    sel.innerHTML = '<option value="">Mặc định (Hải Đăng · nam)</option>' + vs.slice().sort((a, b) => (a.featured || 99) - (b.featured || 99))
+      .map(v => `<option value="${esc(v.id)}">${v.featured ? '⭐ ' : ''}${esc(v.id)} — ${esc(v.desc || v.gender)}</option>`).join('');
+    sel.value = vs.some(v => v.id === cur) ? cur : '';
+  }
+  const on = S && S.ttsEngine === 'vieneu';
+  $('ttsEngine').value = (S && S.ttsEngine) || 'vieneu';
+  sel.style.display = $('ttsRestart').style.display = on ? '' : 'none';
+  $('ttsNeuralInfo').textContent = on ? (TTS_LABEL[TTS_ST.status] || TTS_ST.status) + (TTS_ST.error ? ' — ' + TTS_ST.error : '') + (TTS_ST.status !== 'ready' ? ' · tạm dùng giọng trình duyệt' : '') : '';
+  if (window.MC) MC.setNeural(on, S && S.ttsNeuralVoice);
+}
+socket.on('ttsStatus', st => { TTS_ST = st || TTS_ST; if (window.MC) MC.setStatus(TTS_ST); fillNeural(); ttsInfo(); });
+socket.on('settings', () => fillNeural());
+$('ttsEngine').onchange = () => { S.ttsEngine = $('ttsEngine').value; socket.emit('saveSettings', { ttsEngine: S.ttsEngine }); fillNeural(); };
+$('ttsNeuralVoice').onchange = () => { S.ttsNeuralVoice = $('ttsNeuralVoice').value; socket.emit('saveSettings', { ttsNeuralVoice: S.ttsNeuralVoice }); fillNeural();
+  MC.enabled = true; MC.volume = Number(S.ttsVolume) || 1; MC.rate = Number(S.ttsRate) || 1; MC.say('Xin chào cả nhà, mình là MC của Vũ Trường Neon!', true, true); };
+$('ttsRestart').onclick = () => fetch('/api/tts/restart', { method: 'POST' });
 if (window.MC) MC.onVoices = () => { fillVoices(); ttsInfo(); };
 setTimeout(fillVoices, 800); setTimeout(fillVoices, 2500);
 $('ttsVoice').onchange = () => { const v = $('ttsVoice').value; S.ttsVoice = v; MC.setPref(v); socket.emit('saveSettings', { ttsVoice: v }); ttsInfo(); };
@@ -458,6 +453,7 @@ $('evFlash').onclick = () => cmd('flashmob');
 $('evSpot').onclick = () => cmd('spotlight');
 $('evClip').onclick = () => cmd('clipNow');
 $('evSay').onclick = () => { cmd('sayTest'); };
+$('evJoin').onclick = () => socket.emit('test', { kind: 'member', n: 3 });
 $('themeApply').onclick = () => cmd('theme', { theme: $('themeSel').value });
 $('goalsReset').onclick = () => { if (confirm('Làm lại mục tiêu phòng từ đầu (về sân khấu mặc định)?')) cmd('goalsReset'); };
 $('btnSave3').onclick = () => { socket.emit('saveSettings', Object.assign(collect(), collectEvents())); $('saved3').textContent = '✓ Đã lưu'; setTimeout(() => $('saved3').textContent = '', 2000); };
@@ -492,36 +488,6 @@ socket.on('music', list => {
   for (const b of $('tracks').querySelectorAll('[data-del]')) b.onclick = () => fetch('/api/music/' + encodeURIComponent(b.dataset.del), { method: 'DELETE' });
 });
 
-function renderModels(list) {
-  $('modelsBody').innerHTML = list.map(m => `<tr data-key="${esc(m.key)}"><td>${m.builtin ? '⭐ ' : ''}${esc(m.file)} <span class="muted">${(m.size / 1048576).toFixed(1)} MB</span></td>
-    <td><select data-f="female"><option value="0" ${m.female ? '' : 'selected'}>Nam</option><option value="1" ${m.female ? 'selected' : ''}>Nữ</option></select></td>
-    <td><input type="checkbox" data-f="enabled" ${m.enabled ? 'checked' : ''}></td>
-    <td>${m.builtin ? '<span class="muted">có sẵn</span>' : `<button data-del="${esc(m.file)}">Xoá</button>`}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">Chưa có nhân vật.</td></tr>';
-  for (const tr of $('modelsBody').querySelectorAll('tr[data-key]')) {
-    const key = tr.dataset.key;
-    tr.querySelector('[data-f=female]').onchange = e => patchModel({ key, female: e.target.value === '1' });
-    tr.querySelector('[data-f=enabled]').onchange = e => patchModel({ key, enabled: e.target.checked });
-    const del = tr.querySelector('[data-del]'); if (del) del.onclick = () => { if (confirm('Xoá nhân vật này?')) fetch('/api/models/' + encodeURIComponent(del.dataset.del), { method: 'DELETE' }); };
-  }
-}
-function renderRoster(list) {
-  $('rosterBody').innerHTML = list.map(c => `<tr><td>${esc(c.id)}</td><td>${esc(c.name)}</td><td>${c.female ? 'Nữ' : 'Nam'}</td><td>${c.age}</td><td>${esc(c.outfit)}</td><td>${esc(c.style)}</td><td>${esc(c.personality)}</td></tr>`).join('') || '<tr><td colspan="7" class="muted">Chưa có danh sách.</td></tr>';
-  $('rosterMsg').textContent = list.length ? `${list.length} nhân vật` : '';
-}
-socket.on('roster', renderRoster);
-$('rosterFile').onchange = async e => { const f = e.target.files[0]; if (!f) return; const text = await f.text(); const r = await fetch('/api/roster', { method: 'POST', headers: { 'Content-Type': 'text/csv' }, body: text }); $('rosterMsg').textContent = r.ok ? '✓ Đã nạp' : 'Lỗi'; e.target.value = ''; };
-$('rosterReset').onclick = () => fetch('/api/roster', { method: 'DELETE' });
-const patchModel = body => fetch('/api/models', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-socket.on('models', renderModels);
-fetch('/api/models').then(r => r.json()).then(renderModels);
-$('modelFile').onchange = async e => {
-  const files = [...e.target.files]; if (!files.length) return;
-  const fd = new FormData(); files.forEach(f => fd.append('files', f));
-  $('modelMsg').textContent = 'Đang tải lên…';
-  try { const r = await fetch('/api/models', { method: 'POST', body: fd }); $('modelMsg').textContent = r.ok ? '✓ Đã thêm — màn hình game tự nạp' : 'Lỗi tải lên'; }
-  catch { $('modelMsg').textContent = 'Lỗi tải lên'; }
-  e.target.value = '';
-};
 fetch('/api/info').then(r => r.json()).then(i => { INFO = i; ACTIONS = i.actions; $('ver').textContent = i.version; renderUrls(); if (S.actions) renderActions(); });
 
 var keyDirty = false;
@@ -539,6 +505,7 @@ $('btnDisconnect').onclick = () => socket.emit('disconnect-tiktok');
 $('btnSave').onclick = () => save('saved');
 $('btnSave2').onclick = () => save('saved2');
 $('btnEndZoom').onclick = () => socket.emit('cmd', { type: 'endZoom' });
+$('tDjNext').onclick = () => socket.emit('cmd', { type: 'djNext' });
 $('btnFire').onclick = () => socket.emit('cmd', { type: 'fire' });
 $('btnClear').onclick = () => { if (confirm('Dọn hết nhân vật trên sàn?')) socket.emit('cmd', { type: 'clear' }); };
 $('btnResetTop').onclick = () => { if (confirm('Xoá bảng top tặng quà?')) socket.emit('resetTop'); };

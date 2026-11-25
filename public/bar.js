@@ -3,16 +3,16 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
-export const SALONS = [   // [x, z, hướng (rad, 0 = quay về phía máy quay), màu nhung]
-  [-3.95, -4.55, 0.32, 0x6e0f2e],
-  [3.95, -4.55, -0.32, 0x34186b],
+export const SALONS = [   // [x, z, hướng (rad, 0 = quay về phía máy quay), màu nhung] — lùi sát tường, nhường chỗ cho sàn nhảy
+  [6.2, -1.6, -1.1, 0x6e0f2e],
+  [6.3, -4.4, -0.5, 0x34186b],
+  [-6.2, -0.4, 1.1, 0x0f3a5e],
+  [5.2, 2.3, -1.2, 0x5a1a6b],
+  [-5.2, 2.8, 1.2, 0x6e0f2e],
 ];
 export const TABLES = [   // bàn tròn đứng [x, z]
-  [-3.25, -2.3], [3.25, -2.3],
-  [-2.8, 0.1], [2.8, 0.1],
-  [-2.38, 2.35], [2.38, 2.35],
+  [-4.2, 5.2], [4.2, 5.0], [-3.6, 7.1], [3.6, 6.9], [-5.6, 1.2], [5.7, 0.4], [4.7, -5.0], [-7.2, -2.3],
 ];
-
 export function createBar(scene) {
   const root = new THREE.Group(); root.name = 'bar'; scene.add(root);
   const parts = new Map();   // vật liệu -> [geometry đã đặt vị trí]
