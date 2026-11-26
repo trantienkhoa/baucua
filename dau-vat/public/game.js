@@ -15,6 +15,7 @@ import { createHud, HW, HH } from './hud.js';
 import { createLed } from './led.js';
 import { loadClip, clipFrame } from './clips.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 
 const params = new URLSearchParams(location.search);
 const OBS = params.has('obs');
@@ -169,21 +170,46 @@ if (await exists('/models/custom/chair.glb')) try {
 } catch (e) { console.warn('Lỗi ghế', e); }
 const beltMesh = makeBelt(); beltMesh.visible = false; scene.add(beltMesh);
 let chairOwner = null, beltOwner = null, followTarget = null;
+// micro trên tay người giới thiệu (models/custom/mic/mic.fbx); không dùng ảnh vân gốc (có logo) mà tô màu riêng
+let micMesh = null;
+if (await exists('/models/custom/mic/mic.fbx')) try {
+  const o = await new FBXLoader().loadAsync('/models/custom/mic/mic.fbx');
+  const box = new THREE.Box3().setFromObject(o), sz = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const inner = new THREE.Group(); inner.add(o); o.position.sub(c);
+  // trục dài nhất của micro → +Z
+  if (sz.x >= sz.y && sz.x >= sz.z) inner.rotation.y = -PI / 2; else if (sz.y >= sz.x && sz.y >= sz.z) inner.rotation.x = PI / 2;
+  const k = 0.26 / Math.max(sz.x, sz.y, sz.z); inner.scale.setScalar(k);
+  let i = 0; o.traverse(m => { if (m.isMesh) { m.material = new THREE.MeshStandardMaterial({ color: i++ === 0 ? 0x1a1a1e : 0xc8102e, roughness: 0.35, metalness: 0.7 }); m.castShadow = true; } });
+  micMesh = new THREE.Group(); micMesh.add(inner); scene.add(micMesh);
+} catch (e) { console.warn('Lỗi micro', e); }
 // ---------- khán giả người thật ở các hàng đầu: vỗ tay, giơ nắm đấm, khiêu khích theo không khí trận đấu ----------
 const fans = [];
+// nạp nhân vật Vũ Trường Neon (giữ nguyên màu/áo quần gốc) làm khán giả
+const crowdKeys = [];
+try {
+  const list = await (await fetch('/api/crowd-models')).json();
+  const want = Math.min(list.length, settings.quality === 'low' ? 12 : (settings.crowdModels || 30));
+  const chosen = list.sort(() => Math.random() - 0.5).slice(0, want);
+  let k = 0;
+  const worker = async () => { while (chosen.length) { const u = chosen.shift(); const key = 'crowd' + (k++); try { await loadFighter(u, key, { keep: true }); crowdKeys.push(key); } catch (e) { console.warn('Không nạp được khán giả', u, e.message); } } };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+} catch (e) { console.warn('Danh sách khán giả lỗi', e); }
 const FAN_CLOTH = ['#2a2f3c', '#7a1f2b', '#1f4f8a', '#3b5a2a', '#5a3d1e', '#444', '#8a6a1f', '#2f6f6f', '#6b2f6b'];
 const FAN_SKIN = ['#e3b08a', '#c8946c', '#a8714e', '#7a4e33', '#f0c8a8'];
-if (fighterReady('fan') || fighterReady('girl')) {
+const fanKeys = crowdKeys.concat(fighterReady('fan') ? ['fan'] : []).concat(fighterReady('girl') ? ['girl'] : []);
+if (fanKeys.length) {
+  // chia đều các nhân vật cho hàng ghế, xáo trộn để người giống nhau không đứng cạnh nhau
+  const deck = []; while (deck.length < arena.fanSpots.length) deck.push(...fanKeys.slice().sort(() => Math.random() - 0.5));
   arena.fanSpots.forEach((p, i) => {
-    const useGirl = fighterReady('girl') && (i % 4 === 3 || !fighterReady('fan'));
-    const body = createFighter({ name: 'fan', height: useGirl ? rand(1.6, 1.72) : rand(1.68, 1.85) }, useGirl ? 'girl' : 'fan');
+    const key = deck[i], useGirl = key === 'girl';
+    const body = createFighter({ name: 'fan', height: key.startsWith('crowd') ? rand(1.6, 1.82) : useGirl ? rand(1.6, 1.72) : rand(1.68, 1.85) }, key);
     for (const m of [].concat(body.mesh.material)) {
       const nm = (m.name || '').toLowerCase();
-      if (!useGirl && /cloth/.test(nm)) m.color.set(pick(FAN_CLOTH));
-      if (!useGirl && /skin/.test(nm)) m.color.set(pick(FAN_SKIN));
+      if (key === 'fan' && /cloth/.test(nm)) m.color.set(pick(FAN_CLOTH));
+      if (key === 'fan' && /skin/.test(nm)) m.color.set(pick(FAN_SKIN));
     }
     body.mesh.castShadow = false;
-    for (const m of [].concat(body.mesh.material)) if (m.emissive) { m.emissive.copy(m.color).multiplyScalar(0.12); }
+    if (key === 'fan') for (const m of [].concat(body.mesh.material)) if (m.emissive) { m.emissive.copy(m.color).multiplyScalar(0.12); }
     body.root.position.copy(p); body.root.rotation.y = p.yaw; scene.add(body.root);
     fans.push({ body, t: rand(0, 5), clip: pick(['clap', 'fistpump', 'clap', 'taunt']), speed: rand(0.85, 1.15), burst: 0 });
   });
@@ -729,7 +755,7 @@ function staffPose(s) {
     if (s.moving) return s.act === 'goCount' ? runPose(s.ph || 0) : walkPose(s.ph || 0, 0.9);
     return Object.assign({}, P.stand, { spine: [10, 0, 0], lArm: [-20, 0, 15], rArm: [-20, 0, -15], lFore: [-60, 0, 0], rFore: [-60, 0, 0], head: [-6, 0, 0] });
   }
-  if (s === staff.announcer) return s.talking ? Object.assign({}, P.stand, { rArm: [-60, 0, -10], rFore: [-110, 0, 0], lArm: [-30 - 40 * Math.max(0, Math.sin(t * 3)), 0, 30], head: [-8, 0, 0] }) : Object.assign({}, P.stand, { rArm: [-20, 0, -10], rFore: [-90, 0, 0] });
+  if (s === staff.announcer) return (s.talking || s.talkT > 0) ? Object.assign({}, P.stand, { rArm: [-60, 0, -10], rFore: [-110, 0, 0], lArm: [-30 - 40 * Math.max(0, Math.sin(t * 3)), 0, 30], head: [-8, 0, 0] }) : Object.assign({}, P.stand, { rArm: [-20, 0, -10], rFore: [-90, 0, 0] });
   if (s === staff.timekeeper) return Object.assign({}, P.sit, { hips: { p: [0, 0.52, 0], r: [0, 0, 0] }, lThigh: [-88, 0, 6], rThigh: [-88, 0, -6], lShin: [88, 0, 0], rShin: [88, 0, 0], spine: [10, 0, 0], rArm: s.ring > 0 ? [-80, 0, -10] : [-40, 0, -10], rFore: s.ring > 0 ? [-60 - 40 * Math.sin(t * 30), 0, 0] : [-70, 0, 0], lArm: [-40, 0, 10], lFore: [-70, 0, 0] });
   // bình luận viên ngồi (đứng bật dậy cổ vũ khi có đòn lớn)
   const talk = s.talkT > 0;
@@ -875,6 +901,7 @@ function updateCamera(dt) {
     case 'pin': { const e = cam.target || ac; tp.set(e.x + 2.6, RING.y + 1.6, e.z + 4.4); tl.set(e.x, RING.y + 0.4, e.z); tf = 44; break; }
     case 'champ': { const e = cam.target; const ang = Math.sin(t * 0.22) * 0.9; if (e) { tp.set(e.px + Math.sin(ang) * 6.4, e.py + 2.8, e.pz + Math.cos(ang) * 6.4); tl.set(e.px, e.py + 1.9, e.pz); } tf = 46; break; }
     case 'crowd': { const f = fans[cam.fanIdx || 0]; if (f) { const p = f.body.root.position, yw = f.body.root.rotation.y; tp.set(p.x + Math.sin(yw) * 4.2, p.y + 1.9, p.z + Math.cos(yw) * 4.2); tl.set(p.x, p.y + 1.3, p.z); } tf = 50; break; }
+    case 'ann': { const a = staff.announcer; tp.set(a.x - 1.6, 2.0, a.z + 1.2); tl.set(a.x, 1.5, a.z); tf = 40; break; }
     case 'tron': tp.set(0, 8.3, 3.4); tl.set(0, STAGE.y + 8.1, STAGE.back); tf = 57; break;
     case 'girl': { const e = cam.target; if (e) { const r = Math.hypot(e.px, e.pz) || 1; const fx = Math.sin(e.pyaw), fz = Math.cos(e.pyaw); tp.set(e.px + fx * 4.2 + e.px / r * 2.4, e.py + 1.7, e.pz + fz * 4.2 + e.pz / r * 2.4); tl.set(e.px + fx * 0.4, e.py + 1.2, e.pz + fz * 0.4); } tf = 46; break; }
     case 'aerial': { const e = cam.target || ac; tp.set(e.x * 0.5 + 3.5, RING.y + 3.2, e.z + 7); tl.set(e.x * 0.7, RING.y + 1.4, e.z * 0.7); tf = 50; break; }
@@ -1189,24 +1216,59 @@ function userInfo(w) { return w.user ? { id: w.user.id, name: w.user.name, avata
 // ---------- cô gái cầm biển đi quanh võ đài ----------
 const GIRL_DEF = { name: 'Ring girl', girl: true, female: true, proc: true, height: 1.7, bulk: 0.84, skin: '#f2d0b8', hair: 'long', hairColor: '#2a1a12', outfit: 'trunks', top: 'tank', attire: '#111111', attire2: '#e8202a', boots: '#f4f4f4', bootH: 'low', kneepads: false, skirt: true, wrist: '#f2d0b8', stats: { hp: 1, pow: 1, spd: 1, agi: 1 } };
 let girl = null, sign = null;
-function signTexture(text) {
-  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 320; const g = cv.getContext('2d');
-  g.fillStyle = '#fafafa'; g.fillRect(0, 0, 512, 320); g.strokeStyle = '#e8202a'; g.lineWidth = 18; g.strokeRect(9, 9, 494, 302);
-  g.fillStyle = '#111'; g.font = '900 44px Impact, "Arial Black", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('MEGA SLAM', 256, 64);
-  g.fillStyle = '#e8202a'; let size = 120; g.font = `900 ${size}px Impact, "Arial Black", sans-serif`; while (g.measureText(text).width > 470) { size -= 6; g.font = `900 ${size}px Impact, "Arial Black", sans-serif`; } g.fillText(text, 256, 190);
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+// biển LED cô gái cầm: chữ chấm LED đổi màu + viền đèn chạy
+const LED = { cv: null, g: null, tex: null, text: '', t: 0, acc: 0, grid: null };
+function ledSetText(text) {
+  LED.text = text;
+  // dựng lưới chấm từ chữ (vẽ nhỏ rồi đọc điểm ảnh)
+  const gw = 72, gh = 30, c = document.createElement('canvas'); c.width = gw; c.height = gh; const g = c.getContext('2d');
+  g.fillStyle = '#000'; g.fillRect(0, 0, gw, gh); g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  let sz = 22; g.font = `900 ${sz}px Arial, sans-serif`; while (g.measureText(text).width > gw - 4 && sz > 9) { sz--; g.font = `900 ${sz}px Arial, sans-serif`; }
+  g.fillText(text, gw / 2, gh / 2 + 1);
+  const d = g.getImageData(0, 0, gw, gh).data; LED.grid = { gw, gh, on: new Uint8Array(gw * gh) };
+  for (let i = 0; i < gw * gh; i++) LED.grid.on[i] = d[i * 4] > 110 ? 1 : 0;
+  ledDraw(0);
+}
+function ledDraw(t) {
+  const g = LED.g, W = 512, H = 320;
+  g.fillStyle = '#050608'; g.fillRect(0, 0, W, H);
+  // viền đèn chạy
+  const n = 44;
+  for (let i = 0; i < n; i++) {
+    const f = i / n, per = 2 * (W + H), d = f * per;
+    let x, y; if (d < W) { x = d; y = 8; } else if (d < W + H) { x = W - 8; y = d - W; } else if (d < 2 * W + H) { x = W - (d - W - H); y = H - 8; } else { x = 8; y = H - (d - 2 * W - H); }
+    const on = (i + Math.floor(t * 12)) % 4 === 0;
+    g.fillStyle = on ? '#ffe14d' : '#3a2c08'; g.beginPath(); g.arc(x, y, 5, 0, Math.PI * 2); g.fill();
+  }
+  // dòng chữ nhỏ chạy
+  g.font = '900 30px Arial, sans-serif'; g.fillStyle = '#ff3b4f'; g.textBaseline = 'middle';
+  const msg = 'MEGA SLAM ★ ĐẠI CHIẾN ĐÔ VẬT ★ ', mw = g.measureText(msg).width, off = (t * 90) % mw;
+  g.save(); g.beginPath(); g.rect(24, 22, W - 48, 44); g.clip(); for (let x = 24 - off; x < W; x += mw) g.fillText(msg, x, 45); g.restore();
+  // chữ chính bằng chấm LED
+  const G2 = LED.grid; if (!G2) return;
+  const cell = Math.min((W - 40) / G2.gw, (H - 100) / G2.gh), ox = (W - cell * G2.gw) / 2, oy = 78 + (H - 96 - cell * G2.gh) / 2;
+  const hue = (t * 60) % 360;
+  for (let y = 0; y < G2.gh; y++) for (let x = 0; x < G2.gw; x++) {
+    const on = G2.on[y * G2.gw + x];
+    g.fillStyle = on ? `hsl(${(hue + x * 3) % 360},100%,${Math.sin(t * 6) > -0.85 ? 62 : 40}%)` : '#16100c';
+    g.beginPath(); g.arc(ox + x * cell + cell / 2, oy + y * cell + cell / 2, cell * (on ? 0.46 : 0.3), 0, Math.PI * 2); g.fill();
+  }
+  LED.tex.needsUpdate = true;
 }
 function ensureGirl() {
   if (girl) return;
   girl = new Wr(GIRL_DEF, -1); girl.armsUp = true;
+  LED.cv = document.createElement('canvas'); LED.cv.width = 512; LED.cv.height = 320; LED.g = LED.cv.getContext('2d');
+  LED.tex = new THREE.CanvasTexture(LED.cv); LED.tex.colorSpace = THREE.SRGBColorSpace;
   sign = new THREE.Group();
-  for (const ry of [0, PI]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.6), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, emissive: 0xffffff, emissiveIntensity: 0.25 })); m.rotation.y = ry; m.position.z = ry ? -0.01 : 0.01; sign.add(m); }
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.66, 0.04), new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.4, metalness: 0.6 })); sign.add(frame);
+  for (const ry of [0, PI]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.6), new THREE.MeshBasicMaterial({ map: LED.tex, toneMapped: false })); m.rotation.y = ry; m.position.z = ry ? -0.022 : 0.022; sign.add(m); }
   sign.visible = false; scene.add(sign);
 }
 function* ringGirl(text) {
   if (settings.ringGirl === false) return;
   ensureGirl();
-  const tex = signTexture(text); for (const m of sign.children) { if (m.material.map) m.material.map.dispose(); m.material.map = tex; m.material.emissiveMap = tex; m.material.needsUpdate = true; }
+  ledSetText(text);
   const A = RING.rope + 0.36;
   girl.root.visible = true; girl.place(3.08, -5.7, 0); girl.inRing = false;
   girl.act = { k: 'path', t: 0, speed: 2.1, i: 0, pts: [[3.08, -5.7, 0], [3.08, -4.3, 0.55, { speed: 1.4 }], [3.08, -3.75, RING.y, { speed: 1.4 }], [A, -A, RING.y], [A, A, RING.y], [-A, A, RING.y], [-3.08, 3.9, RING.y], [-3.08, 4.6, 0.6, { speed: 1.4 }], [-3.08, 5.6, 0, { speed: 1.4 }], [-6.0, 6.0, 0]] };
@@ -1539,6 +1601,12 @@ function step(dt, real, draw = true) {
   for (const w of G.active) if (w.visible) syncBody(w, dt);
   updateStaff(dt);
   updateFans(dt);
+  if (micMesh) {
+    const an = staff.announcer.body; handWorld(an, false, micMesh.position);
+    const head = headWorld(an, new THREE.Vector3()); head.y -= 0.28;
+    if (staff.announcer.talking || staff.announcer.talkT > 0) micMesh.lookAt(head);
+    else micMesh.lookAt(micMesh.position.x + Math.sin(staff.announcer.yaw) * 0.3, micMesh.position.y - 0.25, micMesh.position.z + Math.cos(staff.announcer.yaw) * 0.3);
+  }
   if (cam.shot === 'crowd' && crowdUntil && G.time > crowdUntil) { crowdUntil = 0; setShot(G.mode === 'royal' ? 'royal' : 'ring', null, true); }
   // ghế + đai
   if (chairOwner && chairOwner.chair && chairOwner.visible) {
@@ -1553,6 +1621,7 @@ function step(dt, real, draw = true) {
   }
   if (followTarget) { arena.follow.position.set(followTarget.px * 0.5, followTarget.py + 11, followTarget.pz + 7); arena.follow.target.position.set(followTarget.px, followTarget.py + 1, followTarget.pz); arena.follow.target.updateMatrixWorld(); }
   led.update(real, w => w.hp / w.maxHp);
+  if (sign && sign.visible) { LED.acc += real; LED.t += real; if (LED.acc > 0.07) { LED.acc = 0; ledDraw(LED.t); } }
   if (sign && sign.visible && girl) { handWorld(girl.body, true, _v); const r2 = handWorld(girl.body, false, new THREE.Vector3()); sign.position.copy(_v).add(r2).multiplyScalar(0.5); sign.position.y += 0.32; sign.rotation.set(0, girl.pyaw + PI / 2, 0); }
   hype = Math.max(0.25, hype - dt * 0.05);
   SFX.crowd(hype);
@@ -1577,6 +1646,7 @@ setTimeout(() => { if (!SFX.started() && !OBS) tap.style.display = 'flex'; }, 80
 if (TEST) {
   window.__G = G; window.__W = W; window.__step = (n, dt = 1 / 30) => { for (let i = 0; i < n; i++) step(dt * (settings.speed || 1), dt, i === n - 1); return G.phase + ' | ' + G.phaseLabel + ' | ' + G.roundLabel + ' | alive ' + G.active.filter(w => !w.out).length; };
   window.__dbg = () => JSON.stringify(W.slice(0, 5).map(w => [w.def.name, w.root.visible, w.act.k, +w.px.toFixed(2), +w.py.toFixed(2), +w.pz.toFixed(2), +w.root.scale.x.toFixed(2), w.inRing, w.out, G.headScreen(w)])) + ' cam ' + camera.position.toArray().map(v => v.toFixed(1)) + ' shot ' + cam.shot + ' active ' + G.active.length;
+  window.__ann = () => { staff.announcer.talking = true; setShot('ann', null, true); return !!micMesh; };
   window.__crowd = (i = 0) => { cam.fanIdx = i; setShot('crowd', null, true); return fans.length; };
   window.__nan = () => JSON.stringify(W.filter(w => !isFinite(w.px) || !isFinite(w.x) || !isFinite(w.py) || !isFinite(w.root.scale.x) || !isFinite(w.pyaw) || !isFinite(w.lift)).map(w => [w.def.name, w.act.k, w.x, w.z, w.px, w.py, w.pyaw, w.root.scale.x, w.act.i, w.lift, w.pathY]).slice(0, 4));
   window.__fake = (k, n = 1) => { for (let i = 0; i < n; i++) socket.emit('test', { kind: k, n: 1 }); };

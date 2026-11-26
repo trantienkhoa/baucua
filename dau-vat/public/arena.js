@@ -326,17 +326,29 @@ function buildCrowd(scene, spots) {
 }
 function buildSigns(scene, spots) {
   const texts = ['MEGA SLAM!', 'ĐẠI CHIẾN!', '1 – 2 – 3!', 'VÔ ĐỊCH!', 'HẠ GỤC NÓ!', 'TIKTOK LIVE', 'YES! YES!', 'SỨC MẠNH!'];
-  const cols = ['#e8202a', '#1d4fd8', '#111', '#ffd23f', '#2fbf5a', '#ff4fa8', '#7d3cc8', '#ff7a1a'];
-  const tex = canvasTex(1024, 512, (g, w, h) => {
+  const ink = ['#d11a2a', '#1d4fd8', '#111', '#0a7a3a', '#c2185b', '#6a1b9a', '#e65100', '#111'];
+  const paper = ['#fdfcf7', '#fff7c2', '#fdfcf7', '#e8f4ff', '#fdfcf7', '#ffe6ef', '#fdfcf7', '#eaffe6'];
+  // bảng cổ vũ viết tay bằng bút lông trên bìa giấy
+  const draw = (g, w, h) => {
+    g.clearRect(0, 0, w, h);
     for (let i = 0; i < 8; i++) {
       const x = (i % 4) * 256, y = Math.floor(i / 4) * 256;
-      g.fillStyle = '#fafafa'; g.fillRect(x + 6, y + 40, 244, 176);
-      g.strokeStyle = cols[i]; g.lineWidth = 10; g.strokeRect(x + 12, y + 46, 232, 164);
-      g.fillStyle = cols[i]; g.font = '900 40px Impact, "Arial Black", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.save(); g.translate(x + 128, y + 128); g.rotate((Math.random() - 0.5) * 0.06);
+      g.fillStyle = paper[i]; g.fillRect(-122, -88, 244, 176);
+      g.strokeStyle = 'rgba(0,0,0,0.15)'; g.lineWidth = 2; g.strokeRect(-122, -88, 244, 176);
+      g.fillStyle = ink[i]; g.textAlign = 'center'; g.textBaseline = 'middle';
       const parts = texts[i].split(' '); const mid = Math.ceil(parts.length / 2);
-      g.fillText(parts.slice(0, mid).join(' '), x + 128, y + 105); g.fillText(parts.slice(mid).join(' '), x + 128, y + 155);
+      const l1 = parts.slice(0, mid).join(' '), l2 = parts.slice(mid).join(' ');
+      for (const [t, yy, rot] of [[l1, l2 ? -30 : 0, -0.05], [l2, 34, 0.04]]) {
+        if (!t) continue; let sz = 64; g.font = `${sz}px "Patrick Hand", "Comic Sans MS", cursive`;
+        while (g.measureText(t).width > 220 && sz > 30) { sz -= 4; g.font = `${sz}px "Patrick Hand", "Comic Sans MS", cursive`; }
+        g.save(); g.translate(0, yy); g.rotate(rot); g.fillText(t, 0, 0); g.fillText(t, 1.2, 0.8); g.restore();
+      }
+      g.restore();
     }
-  });
+  };
+  const tex = canvasTex(1024, 512, draw);
+  if (document.fonts && document.fonts.load) document.fonts.load('64px "Patrick Hand"', 'ĐẠI CHIẾN').then(() => { draw(tex.userData.g, 1024, 512); tex.needsUpdate = true; }).catch(() => {});
   const geo = new THREE.PlaneGeometry(0.75, 0.55); geo.translate(0, 2.05, 0.05);
   const n = spots.length, off = new Float32Array(n * 2), seed = new Float32Array(n);
   for (let i = 0; i < n; i++) { const k = (Math.random() * 8) | 0; off[i * 2] = (k % 4) * 0.25; off[i * 2 + 1] = 0.5 - Math.floor(k / 4) * 0.5; seed[i] = Math.random(); }

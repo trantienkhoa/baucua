@@ -22,7 +22,7 @@ const TPLS = {};
 export function fighterReady(key = 'male') { return !!TPLS[key]; }
 export function fighterInfo(key = 'male') { return TPLS[key] && TPLS[key].info; }
 
-export async function loadFighter(url, key = 'male') {
+export async function loadFighter(url, key = 'male', opts = {}) {
   let obj, anims = [];
   if (/\.glb$|\.gltf$/i.test(url)) { const g = await new GLTFLoader().loadAsync(url); obj = g.scene; anims = g.animations || []; }
   else { obj = await new FBXLoader().loadAsync(url); anims = obj.animations || []; }
@@ -55,6 +55,7 @@ export async function loadFighter(url, key = 'male') {
     const d = W[CHILD[n]].clone().sub(W[n]).normalize();
     Q0[n] = new THREE.Quaternion().setFromUnitVectors(d, CANON_DIR[n]).multiply(rest[n].g);
   }
+  for (const n of Object.keys(CANON_DIR)) if (!Q0[n] && rest[n]) Q0[n] = rest[n].g.clone();   // thiếu xương con (vd. không có HeadTop_End)
   const armParent = byName.Hips.parent;
   const armInv = new THREE.Matrix4().copy(armParent.matrixWorld).invert();
   const armQ = armParent.getWorldQuaternion(new THREE.Quaternion());
@@ -69,7 +70,7 @@ export async function loadFighter(url, key = 'male') {
   const M = mesh.matrixWorld, NM = new THREE.Matrix3().getNormalMatrix(M);
   const nv = new THREE.Vector3();
   for (let i = 0; i < N; i++) {
-    v.fromBufferAttribute(pos, i); mesh.applyBoneTransform(i, v); v.applyMatrix4(M);   // vị trí đã skin ở tư thế hiện tại
+    v.fromBufferAttribute(pos, i); skinPos(mesh, i, v); v.applyMatrix4(M);   // vị trí đã skin ở tư thế hiện tại
     cpos[i * 3] = v.x; cpos[i * 3 + 1] = v.y; cpos[i * 3 + 2] = v.z;
     nv.fromBufferAttribute(nrm, i).applyMatrix3(NM).normalize();
     cnrm[i * 3] = nv.x; cnrm[i * 3 + 1] = nv.y; cnrm[i * 3 + 2] = nv.z;
@@ -94,7 +95,7 @@ export async function loadFighter(url, key = 'male') {
   const meshInv3 = new THREE.Matrix3().setFromMatrix4(meshInv);
   // mô hình có sẵn ảnh vân (đã mặc đồ) thì giữ nguyên vật liệu gốc, không tô lại
   const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-  const textured = mats.some(m => m && m.map) || !!merged;
+  const textured = mats.some(m => m && m.map) || !!merged || !!opts.keep;
   const T = { key, anims, group, obj, mesh, byName, W, rest, Q0, armInv, armQ, cpos, cnrm, dom, head, meshInv3, unit, textured,
     hipsY: W.Hips.y, info: { verts: N, tris: N / 3, bones: Object.keys(byName).length, hipsY: +W.Hips.y.toFixed(3), head, textured } };
   TPLS[key] = T;
@@ -105,6 +106,8 @@ export async function loadFighter(url, key = 'male') {
 function mergeSkinned(obj) {
   const meshes = []; obj.traverse(o => { if (o.isSkinnedMesh) meshes.push(o); });
   if (meshes.length < 2) return;
+  // các lưới đã dùng chung một bộ xương (vd. Ready Player Me) thì để nguyên
+  if (new Set(meshes.map(m => m.skeleton.bones[0] && m.skeleton.bones[0].uuid)).size < 2) return;
   obj.updateMatrixWorld(true);
   // bộ xương chính: cây xương gần gốc nhất
   let root = null; obj.traverse(o => { if (!root && o.isBone && !(o.parent && o.parent.isBone)) root = o; });
@@ -121,7 +124,7 @@ function mergeSkinned(obj) {
     const M = new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld), NM = new THREE.Matrix3().getNormalMatrix(M);
     const si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
     for (let i = 0; i < N; i++) {
-      v.fromBufferAttribute(g.attributes.position, i); m.applyBoneTransform(i, v); v.applyMatrix4(inv); P.set([v.x, v.y, v.z], i * 3);
+      v.fromBufferAttribute(g.attributes.position, i); skinPos(m, i, v); v.applyMatrix4(inv); P.set([v.x, v.y, v.z], i * 3);
       n.fromBufferAttribute(g.attributes.normal, i).applyMatrix3(NM).normalize(); Nn.set([n.x, n.y, n.z], i * 3);
       for (let k = 0; k < 4; k++) { const b = m.skeleton.bones[si.getComponent(i, k)]; SI[i * 4 + k] = b ? (idx.get(strip(b.name)) ?? 0) : 0; SW[i * 4 + k] = sw.getComponent(i, k); }
     }
@@ -154,6 +157,22 @@ function mergeSkinned(obj) {
   obj.add(sm); obj.updateMatrixWorld(true);
   sm.bind(new THREE.Skeleton(main), sm.matrixWorld.clone());
   return true;
+}
+
+// vị trí đỉnh đã skin (an toàn khi chỉ số xương trỏ ra ngoài)
+const _sv = new THREE.Vector3(), _sacc = new THREE.Vector3(), _sm = new THREE.Matrix4();
+function skinPos(mesh, i, v) {
+  const sk = mesh.skeleton, si = mesh.geometry.attributes.skinIndex, sw = mesh.geometry.attributes.skinWeight;
+  if (!sk || !si) return v;
+  _sv.copy(v).applyMatrix4(mesh.bindMatrix); _sacc.set(0, 0, 0); let tw = 0;
+  for (let k = 0; k < 4; k++) {
+    const w = sw.getComponent(i, k); if (!w) continue;
+    const b = sk.bones[si.getComponent(i, k)]; if (!b) continue;
+    _sm.multiplyMatrices(b.matrixWorld, sk.boneInverses[si.getComponent(i, k)]);
+    _sacc.addScaledVector(_sv.clone().applyMatrix4(_sm), w); tw += w;
+  }
+  if (tw > 0) v.copy(_sacc.multiplyScalar(1 / tw)).applyMatrix4(mesh.bindMatrixInverse);
+  return v;
 }
 
 // ---------- màu từng vùng ----------
@@ -314,6 +333,7 @@ export function createFighter(d, key) {
   if (T.textured) {
     // giữ vật liệu gốc (bản sao), chỉ dùng hình riêng cho độ vạm vỡ
     const src = T.mesh.geometry;
+    if (src.attributes.color) geo.setAttribute('color', src.attributes.color);
     for (const k of Object.keys(src.attributes)) if (!geo.attributes[k]) geo.setAttribute(k, src.attributes[k]);
     for (const g of src.groups) geo.addGroup(g.start, g.count, g.materialIndex);
     mesh.geometry = geo;
@@ -341,6 +361,7 @@ export function createFighter(d, key) {
     headBone.add(hair);
   }
 
+  clone.traverse(o => { if (o.isSkinnedMesh) { o.frustumCulled = false; o.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 1, 0), 4); o.boundingBox = new THREE.Box3(new THREE.Vector3(-2, -1, -2), new THREE.Vector3(2, 3, 2)); } });
   const root = new THREE.Group();
   root.add(clone);
   const scale = (d.height || 1.9) / 1.95;
@@ -372,7 +393,7 @@ function retarget(w) {
   G.hips.copy(cur.hipsQ);
   for (const n of BONE_NAMES) { if (n === 'hips') continue; G[n].copy(G[CANON_PARENT[n]]).multiply(cur[n]); }
   const setBone = (mx, target, parentG) => {
-    const b = B[mx]; if (!b) return;
+    const b = B[mx]; if (!b || !parentG) return;
     // local = inv(parentG) * target
     b.quaternion.copy(parentG).invert().multiply(target);
     (GM[mx] || (GM[mx] = new THREE.Quaternion())).copy(target);

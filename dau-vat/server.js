@@ -47,6 +47,7 @@ const DEFAULT_SETTINGS = {
   royalSeconds: 150,         // thời lượng tối đa battle royal
   breakSeconds: 25,          // nghỉ giữa hai giải
   speed: 1,                  // tốc độ game (0.5 – 2)
+  crowdModels: 30,           // số nhân vật khác nhau dùng làm khán giả (nạp từ 98 nhân vật Vũ Trường Neon)
   quality: 'high',           // high | medium | low
   crowdSize: 100,            // % khán giả
   volume: 0.5,
@@ -123,6 +124,17 @@ function lanIPs() {
   return out;
 }
 app.get('/api/info', (req, res) => res.json({ port: PORT, ips: lanIPs(), powers: POWERS, version: require('./package.json').version }));
+// khán giả: 98 nhân vật của Vũ Trường Neon (thư mục public/models của game sàn nhảy, nằm cạnh thư mục dau-vat)
+// hoặc tự chép vào dau-vat/public/models/crowd/
+const NEON_MODELS = path.join(__dirname, '..', 'public', 'models');
+const CROWD_DIR = path.join(__dirname, 'public', 'models', 'crowd');
+app.use('/neon-models', express.static(NEON_MODELS));
+app.get('/api/crowd-models', (req, res) => {
+  const out = [];
+  const scan = (dir, prefix) => { try { for (const f of fs.readdirSync(dir)) if (/\.(glb|gltf)$/i.test(f) && !/^_/.test(f) && f !== 'dj.glb' && f !== 'nam-avatar.glb') out.push(prefix + encodeURIComponent(f)); } catch {} };
+  scan(CROWD_DIR, '/models/crowd/'); scan(NEON_MODELS, '/neon-models/');
+  res.json([...new Set(out)]);
+});
 app.get('/api/champions', (req, res) => res.json(champions.slice(0, 50)));
 
 // ---------- TikTok ----------
